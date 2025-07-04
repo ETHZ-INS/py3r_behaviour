@@ -152,6 +152,12 @@ class Tracking:
 
     # ----------- Instance methods -----------
 
+    def __getitem__(self, key: str) -> pd.Series:
+        '''
+        returns a single column of the tracking data
+        '''
+        return self.data[key]
+
     def add_usermeta(self, usermeta: dict, overwrite: bool = False) -> None:
         '''
         adds or updates user-defined metadata
