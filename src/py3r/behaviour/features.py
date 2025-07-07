@@ -31,6 +31,7 @@ class FeaturesResult(pd.Series):
         self._features_obj = features_obj
         self._column_name = column_name
         self._params = params
+        self.name = column_name  # Set the Series name for plotting/legend
 
     def store(self, name=None, meta=None, overwrite=False):
         if name is None:
