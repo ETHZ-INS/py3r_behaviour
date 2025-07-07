@@ -25,6 +25,26 @@ logging.basicConfig(stream=sys.stdout, format=logformat)
 logger.setLevel(logging.INFO)
 
 
+class FeaturesResult(pd.Series):
+    def __init__(self, series, features_obj, column_name, params):
+        super().__init__(series)
+        self._features_obj = features_obj
+        self._column_name = column_name
+        self._params = params
+
+    def store(self, name=None, meta=None, overwrite=False):
+        if name is None:
+            name = self._column_name
+        if meta is None:
+            meta = self._params
+        self._features_obj.store(self, name, overwrite=overwrite, meta=meta)
+        return name
+
+    @property
+    def _constructor(self):
+        # Ensures pandas operations return pd.Series, not FeaturesResult
+        return pd.Series
+
 class Features():
     '''
     generates features from a pre-processed Tracking object
@@ -41,7 +61,7 @@ class Features():
         if 'rescale_distance_method' not in self.tracking.meta.keys():
             warnings.warn('distance has not been calibrated on these tracking data. some methods will be unavailable')
     
-    def distance_from(self, point1:str, point2:str, dims=('x','y')) -> pd.Series:
+    def distance_from(self, point1:str, point2:str, dims=('x','y')) -> FeaturesResult:
         '''
         returns distance from point1 to point2
         '''
@@ -51,14 +71,19 @@ class Features():
             warnings.warn('tracking data have not been smoothed')
         
         obs_distance = self.tracking.find_2point_distance(point1, point2, dims=dims)
-        return(obs_distance)
+        name = f"distance_from_{point1}_to_{point2}_in_{''.join(dims)}"
+        meta = {'function': 'distance_from', 'point1': point1, 'point2': point2, 'dims': dims}
+        return FeaturesResult(obs_distance, self, name, meta)
     
-    def within_distance(self, point1:str, point2:str, distance:float, dims=('x','y')) -> pd.Series:
+    def within_distance(self, point1:str, point2:str, distance:float, dims=('x','y')) -> FeaturesResult:
         '''
         returns True for frames where point1 is within specified distance of point2
         '''
-        obs_distance = self.distance_from(point1, point2)
-        return(obs_distance <= distance)
+        obs_distance = self.distance_from(point1, point2, dims=dims)
+        result = obs_distance <= distance
+        name = f"within_distance_{point1}_to_{point2}_leq_{distance}_in_{''.join(dims)}"
+        meta = {'function': 'within_distance', 'point1': point1, 'point2': point2, 'distance': distance, 'dims': dims}
+        return FeaturesResult(result, self, name, meta)
     
     def get_point_median(self, point:str, dims=('x','y')) -> tuple:
         return tuple(self.tracking.data[point+'.'+dim].median() for dim in dims)
@@ -88,54 +113,74 @@ class Features():
 
         return(rescaledpoints)
     
-    def within_boundary(self, point:str, boundary:list, median:bool=True) -> pd.Series:
+    @staticmethod
+    def _short_boundary_id(boundary):
+            b = [str(x) for x in boundary]
+            if len(b) <= 4:
+                return '_'.join(b)
+            return '_'.join(b[:2] + ['...'] + b[-2:])
+    
+    def within_boundary(self, point:str, boundary:list, median:bool=True, boundary_name:str=None) -> FeaturesResult:
         '''
         checks whether point is inside polygon defined by ordered list of boundary points
-        boundary points my either be specified as a a list of numerical tuples, 
-        e.g. boundary = [(0.1,0.8), (0.2, 1.5), (0.9,0.7), (0.1,0.8)]
-        or as a list of names of tracked points,
-        e.g. boundary = ['tl','tr','br','bl']
+        boundary points may either be specified as a list of numerical tuples, 
+        or as a list of names of tracked points.
+        Optionally, pass boundary_name for a custom short name in the feature name/meta.
         '''
         if len(boundary) < 3:
             raise Exception('boundary encloses no area')
         if 'smoothing' not in self.tracking.meta.keys():
             warnings.warn('tracking data have not been smoothed')
-        
+        if boundary_name is not None:
+            boundary_id = boundary_name
+        else:
+            boundary_id = self._short_boundary_id(boundary)
+        name = f"within_boundary_{point}_in_{boundary_id}_{'median' if median else 'dynamic'}"
+        meta = {'function': 'within_boundary', 'point': point, 'boundary': boundary, 'median': median}
+        if boundary_name is not None:
+            meta['boundary_name'] = boundary_name
         if isinstance(boundary[0], str):
             if not median:
                 logger.info('using fully dynamic boundary')
-                def local_contains_dynamic(x):
+                def _local_contains_dynamic(x):
                     local_point = Point(x[point+'.x'],x[point+'.y'])
                     local_poly = Polygon([(x[i+'.x'],x[i+'.y']) for i in boundary])
                     return(local_poly.contains(local_point))
-                return(self.tracking.data.apply(local_contains_dynamic, axis=1))
-            
+                result = self.tracking.data.apply(_local_contains_dynamic, axis=1)
+                return FeaturesResult(result, self, name, meta)
             if median:
                 logger.info('using median (static) boundary')
-                boundary = [self.get_point_median(i) for i in boundary]
-                # check for missing points (e.g. occlusions)
-                #for b in boundary:
-
-                def local_contains_static(x):
+                boundary_pts = [self.get_point_median(i) for i in boundary]
+                def _local_contains_static(x):
                     local_point = Point(x[point+'.x'],x[point+'.y'])
-                    local_poly = Polygon(boundary)
+                    local_poly = Polygon(boundary_pts)
                     return(sp.contains(local_poly,local_point))
-                return(self.tracking.data.apply(local_contains_static, axis=1))
+                result = self.tracking.data.apply(_local_contains_static, axis=1)
+                return FeaturesResult(result, self, name, meta)
         else:
             logger.info('using static boundary')
-
             def local_contains_static(x):
                 local_point = Point(x[point+'.x'],x[point+'.y'])
                 local_poly = Polygon(boundary)
                 return(local_poly.contains(local_point)) 
-            return(self.tracking.data.apply(local_contains_static, axis=1))
+            result = self.tracking.data.apply(local_contains_static, axis=1)
+            return FeaturesResult(result, self, name, meta)
         
-    def distance_to_boundary(self, point: str, boundary: list[str], median: bool = True) -> pd.Series:
+    def distance_to_boundary(self, point: str, boundary: list[str], median: bool = True, boundary_name:str=None) -> FeaturesResult:
         '''
         returns distance from point to boundary
+        Optionally, pass boundary_name for a custom short name in the feature name/meta.
         '''
         if 'smoothing' not in self.tracking.meta.keys():
             warnings.warn('tracking data have not been smoothed')
+        if boundary_name is not None:
+            boundary_id = boundary_name
+        else:
+            boundary_id = self._short_boundary_id(boundary)
+        name = f"distance_to_boundary_{point}_in_{boundary_id}_{'median' if median else 'dynamic'}"
+        meta = {'function': 'distance_to_boundary', 'point': point, 'boundary': boundary, 'median': median}
+        if boundary_name is not None:
+            meta['boundary_name'] = boundary_name
         if median:
             warnings.warn('using median (static) boundary')
             static_boundary = [self.get_point_median(i) for i in boundary]
@@ -149,7 +194,8 @@ class Features():
                 local_point = Point(x[point+'.x'], x[point+'.y'])
                 local_poly = Polygon([(x[i+'.x'], x[i+'.y']) for i in boundary])
                 return local_poly.distance(local_point)
-        return self.tracking.data.apply(row_distance, axis=1)
+        result = self.tracking.data.apply(row_distance, axis=1)
+        return FeaturesResult(result, self, name, meta)
     
     def area_of_boundary(self, boundary: list[str], median: bool = True) -> float | pd.Series:
         '''
@@ -170,7 +216,7 @@ class Features():
                     return np.nan
             return self.tracking.data.apply(row_area, axis=1)
     
-    def acceleration(self, point:str, dims=('x','y')) -> pd.Series:
+    def acceleration(self, point:str, dims=('x','y')) -> FeaturesResult:
         '''
         returns acceleration of point from previous frame to current frame, for each frame
         '''
@@ -178,12 +224,14 @@ class Features():
             warnings.warn('tracking data have not been smoothed')
         _speed = self.find_speed(point, dims=dims)
         _acceleration = _speed.diff() * self.tracking.meta['fps']
-        return(_acceleration)
+        name = f"acceleration_of_{point}_in_{''.join(dims)}"
+        meta = {'function': 'acceleration', 'point': point, 'dims': dims}
+        return FeaturesResult(_acceleration, self, name, meta)
     
-    def find_angle(self, point1:str, point2:str) -> pd.Series:
+    def azimuth(self, point1:str, point2:str) -> FeaturesResult:
         '''
-        returns angle in radians from tracked point1 to tracked point2
-        for each frame in the data
+        returns azimuth in radians from tracked point1 to tracked point2
+        for each frame in the data, relative to the direction of the x-axis
         '''
         if 'smoothing' not in self.tracking.meta.keys():
             warnings.warn('tracking data have not been smoothed')
@@ -193,51 +241,79 @@ class Features():
         _2x = self.tracking.data[point2+'.x']
         _2y = self.tracking.data[point2+'.y']
 
-        return(np.arctan2((_2y - _1y), (_2x - _1x)))
+        result = np.arctan2((_2y - _1y), (_2x - _1x))
+        name = f"azimuth_from_{point1}_to_{point2}"
+        meta = {'function': 'azimuth', 'point1': point1, 'point2': point2}
+        return FeaturesResult(result, self, name, meta)
     
-    def find_angle_deviation(self, basepoint: str, pointdirection1: str, pointdirection2: str) -> pd.Series:
-        a1 = self.find_angle(basepoint, pointdirection1)
-        a2 = self.find_angle(basepoint, pointdirection2)
+    def azimuth_deviation(self, basepoint: str, pointdirection1: str, pointdirection2: str) -> FeaturesResult:
+        a1 = self.azimuth(basepoint, pointdirection1)
+        a2 = self.azimuth(basepoint, pointdirection2)
         deviation = (a1 - a2 + np.pi) % (2 * np.pi) - np.pi
-        return deviation
+        name = f"azimuth_deviation_{basepoint}_to_{pointdirection1}_and_{pointdirection2}"
+        meta = {'function': 'azimuth_deviation', 'basepoint': basepoint, 'pointdirection1': pointdirection1, 'pointdirection2': pointdirection2}
+        return FeaturesResult(deviation, self, name, meta)
     
-    def within_angle_deviation(self, basepoint:str, pointdirection1:str, pointdirection2:str, deviation:float) -> pd.Series:
-        obs_deviation = self.find_angle_deviation(basepoint, pointdirection1, pointdirection2)
-        return (obs_deviation <= deviation)
+    def within_azimuth_deviation(self, basepoint:str, pointdirection1:str, pointdirection2:str, deviation:float) -> FeaturesResult:
+        obs_deviation = self.azimuth_deviation(basepoint, pointdirection1, pointdirection2)
+        result = (obs_deviation <= deviation)
+        name = f"within_azimuth_deviation_{basepoint}_to_{pointdirection1}_and_{pointdirection2}_leq_{deviation}"
+        meta = {'function': 'within_angle_deviation', 'basepoint': basepoint, 'pointdirection1': pointdirection1, 'pointdirection2': pointdirection2, 'deviation': deviation}
+        return FeaturesResult(result, self, name, meta)
 
-    def find_speed(self, point:str, dims=('x','y')) -> pd.Series:
+    def speed(self, point:str, dims=('x','y')) -> FeaturesResult:
         '''returns average speed of point from previous frame to current frame, for each frame'''
         if 'rescale_distance_method' not in self.tracking.meta.keys():
             warnings.warn('distance has not been calibrated')
         if 'smoothing' not in self.tracking.meta.keys():
             warnings.warn('tracking data have not been smoothed')
         
-        return(self.distance_change(point, dims=dims)*self.tracking.meta['fps'])
+        result = self.distance_change(point, dims=dims)*self.tracking.meta['fps']
+        name = f"speed_of_{point}_in_{''.join(dims)}"
+        meta = {'function': 'speed', 'point': point, 'dims': dims}
+        return FeaturesResult(result, self, name, meta)
     
-    def above_speed(self, point:str, speed:float, dims=('x','y')) -> pd.Series:
-        obs_speed = self.find_speed(point, dims=dims)
-        return(obs_speed >= speed)
+    def above_speed(self, point:str, speed:float, dims=('x','y')) -> FeaturesResult:
+        obs_speed = self.speed(point, dims=dims)
+        result = (obs_speed >= speed)
+        name = f"above_speed_{point}_geq_{speed}_in_{''.join(dims)}"
+        meta = {'function': 'above_speed', 'point': point, 'speed': speed, 'dims': dims}
+        return FeaturesResult(result, self, name, meta)
     
-    def all_above_speed(self, points:list, speed:float, dims=('x','y')) -> pd.Series:
+    def all_above_speed(self, points:list, speed:float, dims=('x','y')) -> FeaturesResult:
         df = pd.DataFrame([self.above_speed(point, speed, dims=dims) for point in points])
-        return(df.all(axis=0))
+        result = df.all(axis=0)
+        points_str = '_'.join(str(p) for p in points)
+        name = f"all_above_speed_{points_str}_geq_{speed}_in_{''.join(dims)}"
+        meta = {'function': 'all_above_speed', 'points': points, 'speed': speed, 'dims': dims}
+        return FeaturesResult(result, self, name, meta)
 
-    def below_speed(self, point:str, speed:float, dims=('x','y')) -> pd.Series:
-        obs_speed = self.find_speed(point, dims=dims)
-        return(obs_speed < speed)
+    def below_speed(self, point:str, speed:float, dims=('x','y')) -> FeaturesResult:
+        obs_speed = self.speed(point, dims=dims)
+        result = (obs_speed < speed)
+        name = f"below_speed_{point}_lt_{speed}_in_{''.join(dims)}"
+        meta = {'function': 'below_speed', 'point': point, 'speed': speed, 'dims': dims}
+        return FeaturesResult(result, self, name, meta)
 
-    def all_below_speed(self, points:list, speed:float, dims=('x','y')) -> pd.Series:
+    def all_below_speed(self, points:list, speed:float, dims=('x','y')) -> FeaturesResult:
         df = pd.DataFrame([self.below_speed(point, speed, dims=dims) for point in points])
-        return(df.all(axis=0))
+        result = df.all(axis=0)
+        points_str = '_'.join(str(p) for p in points)
+        name = f"all_below_speed_{points_str}_lt_{speed}_in_{''.join(dims)}"
+        meta = {'function': 'all_below_speed', 'points': points, 'speed': speed, 'dims': dims}
+        return FeaturesResult(result, self, name, meta)
 
-    def distance_change(self, point:str, dims=('x','y')) -> pd.Series:
+    def distance_change(self, point:str, dims=('x','y')) -> FeaturesResult:
         '''returns unsigned distance moved by point from previous frame to current frame, for each frame'''
         if 'rescale_distance_method' not in self.tracking.meta.keys():
             warnings.warn('distance has not been calibrated')
         if 'smoothing' not in self.tracking.meta.keys():
             warnings.warn('tracking data have not been smoothed')
 
-        return(np.sqrt(sum([(self.tracking.data[point+'.'+dim].diff())**2 for dim in dims])))
+        result = np.sqrt(sum([(self.tracking.data[point+'.'+dim].diff())**2 for dim in dims]))
+        name = f"distance_change_{point}_in_{''.join(dims)}"
+        meta = {'function': 'distance_change', 'point': point, 'dims': dims}
+        return FeaturesResult(result, self, name, meta)
     
     def store(self, feature:pd.Series, name:str, overwrite:bool=False, meta:dict=dict()) -> None:
         '''stores calculated feature with name and associated freeform metadata object'''
@@ -252,7 +328,7 @@ class Features():
 
         self.meta[name] = meta
 
-    def smooth_feature(self, name:str, method:str, window:int, center:bool=True, inplace:bool=False) -> pd.Series:
+    def smooth(self, name:str, method:str, window:int, center:bool=True, inplace:bool=False) -> pd.Series:
         '''
         smooths specified feature with specified method over rolling window. if inplace=True then feature 
         will be directly edited and metadata updated
@@ -299,7 +375,7 @@ class Features():
 
         return(smoothed)
 
-    def get_time_series_embedding(self, embedding:dict[str, list[int]]):
+    def embedding_df(self, embedding:dict[str, list[int]]):
         '''
         generate a time series embedding dataframe with specified time shifts for each column, 
         where embedding is a dict mapping column names to lists of shifts
@@ -319,13 +395,13 @@ class Features():
                 
         return embed_df
 
-    def cluster_embedding(self, embedding:dict[str, list[int]], n_clusters:int) -> pd.Series:
+    def cluster_embedding(self, embedding:dict[str, list[int]], n_clusters:int) -> tuple[pd.Series, pd.DataFrame]:
         '''
         cluster the embedding using k-means, 
         ensuring that the cluster label is nan where a row in the embedding has nan values
         returns the labels and the centroids
         '''
-        embed_df = self.get_time_series_embedding(embedding)
+        embed_df = self.embedding_df(embedding)
         kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(embed_df)
         centroids = pd.DataFrame(kmeans.cluster_centers_, columns=embed_df.columns)
         labels = pd.Series(kmeans.labels_, index=self.data.index)
@@ -339,7 +415,7 @@ class Features():
         centroids_df: (n_clusters, n_features) DataFrame of cluster centers
         Returns a Series of cluster IDs (0..n_clusters-1) indexed like new_embed_df.
         '''
-        embed_df = self.get_time_series_embedding(embedding)
+        embed_df = self.embedding_df(embedding)
         #check that columns are the same
         if not embed_df.columns.equals(centroids_df.columns):
             raise ValueError("Columns in embedding and centroids do not match")
@@ -369,8 +445,8 @@ class Features():
         If normalize_source is True, normalize the source embedding before training and return the rescale factors.
         Returns the trained model, input columns, target columns, and (optionally) the rescale factors.
         """
-        train_embed = self.get_time_series_embedding(source_embedding)
-        target_embed = self.get_time_series_embedding(target_embedding)
+        train_embed = self.embedding_df(source_embedding)
+        target_embed = self.embedding_df(target_embedding)
         rescale_factors = None
         if normalize_source:
             train_embed, rescale_factors = Features.normalize_embedding_df(train_embed)
@@ -390,12 +466,12 @@ class Features():
         """
         Predict using a trained KNN regressor on this Features object.
         If rescale_factors is provided, normalize the source embedding before prediction.
-        The prediction will match the shape and columns of self.get_time_series_embedding(target_embedding).
+        The prediction will match the shape and columns of self.embedding_df(target_embedding).
         """
-        test_embed = self.get_time_series_embedding(source_embedding)
+        test_embed = self.embedding_df(source_embedding)
         if rescale_factors is not None:
             test_embed = Features.apply_normalization_to_embedding_df(test_embed, rescale_factors)
-        target_embed = self.get_time_series_embedding(target_embedding)
+        target_embed = self.embedding_df(target_embedding)
         preds = predict_knn_on_embedding(model, test_embed, target_embed.columns)
         # Ensure the output DataFrame has the same index and columns as target_embed
         preds = preds.reindex(index=target_embed.index, columns=target_embed.columns)
@@ -518,7 +594,7 @@ class FeaturesCollection:
         '''
 
         # Build embeddings and keep names in sync
-        embedding_dfs = {name: f.get_time_series_embedding(embedding_dict) for name, f in self.features_dict.items()}
+        embedding_dfs = {name: f.embedding_df(embedding_dict) for name, f in self.features_dict.items()}
         # Check all embeddings have the same columns
         columns = next(iter(embedding_dfs.values())).columns
         if not all(df.columns.equals(columns) for df in embedding_dfs.values()):
@@ -551,8 +627,8 @@ class FeaturesCollection:
         Both embedding and target_embedding are dicts mapping column names to time shifts.
         Returns the trained model, the indices used for training, and the feature/target DataFrames.
         '''
-        train_embeds = self.get_time_series_embedding(embedding)
-        target_embeds = self.get_time_series_embedding(target_embedding)
+        train_embeds = self.embedding_df(embedding)
+        target_embeds = self.embedding_df(target_embedding)
 
         # do leave one out training
         for i in range(len(train_embeds)):
@@ -564,9 +640,18 @@ class FeaturesCollection:
         model, train_columns, target_columns = train_knn_from_embeddings(train_embeds_i, target_embeds_i, n_neighbors, **kwargs)
         return model, train_columns, target_columns
     
-    def store(self, results: dict[str, pd.Series], name: str, overwrite: bool = False, meta: dict = None):
-        for key, series in results.items():
-            self.features_dict[key].store(series, name, overwrite=overwrite, meta=meta or {})
+    def store(self, results_dict:dict[str, FeaturesResult], name:str=None, meta:dict=None, overwrite:bool=False):
+        """
+        Store all FeaturesResult objects in a one-layer dict (as returned by batch methods).
+        Example:
+            results = features_collection.speed('nose')
+            features_collection.store(results)
+        """
+        for v in results_dict.values():
+            if hasattr(v, 'store'):
+                v.store(name=name, meta=meta, overwrite=overwrite)
+            else:
+                raise ValueError(f'{v} is not a FeaturesResult object')
 
 class MultipleFeaturesCollection:
     '''
@@ -601,16 +686,26 @@ class MultipleFeaturesCollection:
             return results
         return batch_method
     
-    def store(self, results: dict[str, dict[str, pd.Series]], name: str, overwrite: bool = False, meta: dict = None):
-        for key, results_dict in results.items():
-            self.features_collections[key].store(results_dict, name,overwrite=overwrite, meta=meta or {})
+    def store(self, results_dict:dict[str, dict[str, FeaturesResult]], name:str=None, meta:dict=None, overwrite:bool=False):
+        """
+        Store all FeaturesResult objects in a two-layer dict (as returned by batch methods).
+        Example:
+            results = multiple_features_collection.speed('nose')
+            multiple_features_collection.store(results)
+        """
+        for group_dict in results_dict.values():
+            for v in group_dict.values():
+                if hasattr(v, 'store'):
+                    v.store(name=name, meta=meta, overwrite=overwrite)
+                else:
+                    raise ValueError(f'{v} is not a FeaturesResult object')
 
     def cluster_embedding(self, embedding_dict: dict[str, list[int]], n_clusters: int, random_state: int = 0):
         # Step 1: Build all embeddings
         all_embeddings = {}
         for coll_name, collection in self.features_collections.items():
             for feat_name, features in collection.features_dict.items():
-                embed_df = features.get_time_series_embedding(embedding_dict)
+                embed_df = features.embedding_df(embedding_dict)
                 all_embeddings[(coll_name, feat_name)] = embed_df
 
         # Step 2: Concatenate
@@ -699,7 +794,7 @@ class MultipleFeaturesCollection:
                             target_embedding=target_embedding,
                             rescale_factors=rescale_factors
                         )
-                        ground_truth = target_feat.get_time_series_embedding(target_embedding)
+                        ground_truth = target_feat.embedding_df(target_embedding)
                         rms = Features.rms_error_between_embeddings(
                             ground_truth, preds, rescale=normalize_pred
                         )
@@ -753,8 +848,8 @@ class MultipleFeaturesCollection:
             for left_out_name, left_out_feat in coll.features_dict.items():
                 # Train on all others
                 train_feats = [f for n, f in coll.features_dict.items() if n != left_out_name]
-                train_embeds = [f.get_time_series_embedding(source_embedding) for f in train_feats]
-                target_embeds = [f.get_time_series_embedding(target_embedding) for f in train_feats]
+                train_embeds = [f.embedding_df(source_embedding) for f in train_feats]
+                target_embeds = [f.embedding_df(target_embedding) for f in train_feats]
                 if normalize_source:
                     # Use normalization from the training set
                     train_embeds_norm, rescale_factors = Features.normalize_embedding_df(pd.concat(train_embeds))
@@ -767,11 +862,11 @@ class MultipleFeaturesCollection:
                     rescale_factors = None
                 # Predict on left-out
                 if normalize_source and rescale_factors is not None:
-                    test_embed = left_out_feat.get_time_series_embedding(source_embedding)
+                    test_embed = left_out_feat.embedding_df(source_embedding)
                     test_embed = Features.apply_normalization_to_embedding_df(test_embed, rescale_factors)
                 else:
-                    test_embed = left_out_feat.get_time_series_embedding(source_embedding)
-                target_embed = left_out_feat.get_time_series_embedding(target_embedding)
+                    test_embed = left_out_feat.embedding_df(source_embedding)
+                target_embed = left_out_feat.embedding_df(target_embedding)
                 preds = predict_knn_on_embedding(model, test_embed, target_embed.columns)
                 preds = preds.reindex(index=target_embed.index, columns=target_embed.columns)
                 rms = Features.rms_error_between_embeddings(target_embed, preds, rescale=normalize_pred)
@@ -786,8 +881,8 @@ class MultipleFeaturesCollection:
                 source_coll = self.features_collections[coll1]
                 target_coll = self.features_collections[coll2]
                 # Train on all in coll1
-                train_embeds = [f.get_time_series_embedding(source_embedding) for f in source_coll.features_dict.values()]
-                target_embeds = [f.get_time_series_embedding(target_embedding) for f in source_coll.features_dict.values()]
+                train_embeds = [f.embedding_df(source_embedding) for f in source_coll.features_dict.values()]
+                target_embeds = [f.embedding_df(target_embedding) for f in source_coll.features_dict.values()]
                 if normalize_source:
                     train_embeds_norm, rescale_factors = Features.normalize_embedding_df(pd.concat(train_embeds))
                     lengths = [len(e) for e in train_embeds]
@@ -801,11 +896,11 @@ class MultipleFeaturesCollection:
                 rms_dict = {}
                 for target_feat_name, target_feat in target_coll.features_dict.items():
                     if normalize_source and rescale_factors is not None:
-                        test_embed = target_feat.get_time_series_embedding(source_embedding)
+                        test_embed = target_feat.embedding_df(source_embedding)
                         test_embed = Features.apply_normalization_to_embedding_df(test_embed, rescale_factors)
                     else:
-                        test_embed = target_feat.get_time_series_embedding(source_embedding)
-                    target_embed = target_feat.get_time_series_embedding(target_embedding)
+                        test_embed = target_feat.embedding_df(source_embedding)
+                    target_embed = target_feat.embedding_df(target_embedding)
                     preds = predict_knn_on_embedding(model, test_embed, target_embed.columns)
                     preds = preds.reindex(index=target_embed.index, columns=target_embed.columns)
                     rms = Features.rms_error_between_embeddings(target_embed, preds, rescale=normalize_pred)
@@ -820,8 +915,8 @@ class MultipleFeaturesCollection:
                 source_coll = self.features_collections[coll1]
                 target_coll = self.features_collections[coll2]
                 # Train on all in coll1
-                train_embeds = [f.get_time_series_embedding(source_embedding) for f in source_coll.features_dict.values()]
-                target_embeds = [f.get_time_series_embedding(target_embedding) for f in source_coll.features_dict.values()]
+                train_embeds = [f.embedding_df(source_embedding) for f in source_coll.features_dict.values()]
+                target_embeds = [f.embedding_df(target_embedding) for f in source_coll.features_dict.values()]
                 if normalize_source:
                     train_embeds_norm, rescale_factors = Features.normalize_embedding_df(pd.concat(train_embeds))
                     lengths = [len(e) for e in train_embeds]
@@ -835,11 +930,11 @@ class MultipleFeaturesCollection:
                 rms_dict = {}
                 for target_feat_name, target_feat in target_coll.features_dict.items():
                     if normalize_source and rescale_factors is not None:
-                        test_embed = target_feat.get_time_series_embedding(source_embedding)
+                        test_embed = target_feat.embedding_df(source_embedding)
                         test_embed = Features.apply_normalization_to_embedding_df(test_embed, rescale_factors)
                     else:
-                        test_embed = target_feat.get_time_series_embedding(source_embedding)
-                    target_embed = target_feat.get_time_series_embedding(target_embedding)
+                        test_embed = target_feat.embedding_df(source_embedding)
+                    target_embed = target_feat.embedding_df(target_embedding)
                     preds = predict_knn_on_embedding(model, test_embed, target_embed.columns)
                     preds = preds.reindex(index=target_embed.index, columns=target_embed.columns)
                     rms = Features.rms_error_between_embeddings(target_embed, preds, rescale=normalize_pred)

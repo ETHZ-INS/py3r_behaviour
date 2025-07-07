@@ -15,6 +15,30 @@ logformat = '%(funcName)s(): %(message)s'
 logging.basicConfig(stream=sys.stdout, format=logformat)
 logger.setLevel(logging.INFO)
 
+class SummaryResult:
+    def __init__(self, value, summary_obj, func_name, params):
+        self.value = value
+        self._summary_obj = summary_obj
+        self._func_name = func_name
+        self._params = params
+
+    def store(self, name=None, meta=None, overwrite=False):
+        if name is None:
+            name = self._func_name
+        if meta is None:
+            meta = self._params
+        self._summary_obj.store(self.value, name, overwrite=overwrite, meta=meta)
+        return name
+
+    def __repr__(self):
+        return repr(self.value)
+
+    def __getattr__(self, attr):
+        return getattr(self.value, attr)
+
+    def __getitem__(self, key):
+        return self.value[key]
+
 class Summary():
     '''
     stores and computes summary statistics from features objects
@@ -27,37 +51,42 @@ class Summary():
         if 'usermeta' in trackingfeatures.meta:
             self.meta['usermeta'] = trackingfeatures.meta['usermeta']
 
-    @staticmethod
-    def count_onset(series:pd.Series) -> int:
+    def count_onset(self, column:str) -> SummaryResult:
         '''
-        counts number of times boolean series changes from False to True, ignoring nan values
+        counts number of times boolean series in the given column changes from False to True, ignoring nan values
         if first non nan value in series is true, this counts as an onset
         '''
+        if column not in self.features.data.columns:
+            raise ValueError(f"Column '{column}' not found in features.data")
+        series = self.features.data[column]
         nonan = pd.Series(list(series.dropna()))
-
         if nonan.dtype != 'bool':
             raise Exception('count_onset requires boolean series as input')
-        
         count = (nonan & (nonan != nonan.shift(-1))).sum()
-        return count
+        meta = {'function': 'count_onset', 'column': column}
+        return SummaryResult(count, self, f'count_onset_{column}', meta)
         
-    def time_true(self, series:pd.Series) -> float:
-        '''returns time in seconds that condition is true'''
-
+    def time_true(self, column:str) -> SummaryResult:
+        '''returns time in seconds that condition in the given column is true'''
+        if column not in self.features.data.columns:
+            raise ValueError(f"Column '{column}' not found in features.data")
+        series = self.features.data[column]
         nonan = pd.Series(list(series.dropna()))
-
         if nonan.dtype != 'bool':
             raise Exception('time_true requires boolean series as input')
-        
         time = nonan.sum() / self.features.tracking.meta['fps']
-        return time
+        meta = {'function': 'time_true', 'column': column}
+        return SummaryResult(time, self, f'time_true_{column}', meta)
     
-    def total_distance(self, point:str, startframe: int|None = None, endframe: int|None = None) -> float:
+    def total_distance(self, point:str, startframe: int|None = None, endframe: int|None = None) -> SummaryResult:
         '''
         returns total distance traveled by a tracked point between optional start and end frames
         '''
         distance_change = self.features.distance_change(point).loc[startframe:endframe]
-        return distance_change.sum()
+        value = distance_change.sum()
+        name = f"total_distance_{point}_{startframe}_to_{endframe}"
+        meta = {'function': 'total_distance', 'point': point, 'startframe': startframe, 'endframe': endframe}
+        return SummaryResult(value, self, name, meta)
     
     def store(self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None) -> None:
         '''
@@ -66,12 +95,11 @@ class Summary():
         if name in self.data:
             if overwrite:
                 self.data[name] = summarystat
-                warnings.warn('summarystat \''+name+'\' overwritten')
+                warnings.warn(f'summarystat {name} overwritten')
             else:
-                raise Exception('summarystat with name \''+name+'\' already stored. set overwrite=True to overwrite')
+                raise Exception(f'summarystat with name {name} already stored. set overwrite=True to overwrite')
         else:
             self.data[name] = summarystat
-
         self.meta[name] = meta
 
     def make_bin(self, startframe:int, endframe:int) -> 'Summary':
@@ -110,58 +138,51 @@ class Summary():
         
         return(out)
 
-    def transition_matrix(self, column: str, all_states=None) -> pd.DataFrame:
+    def transition_matrix(self, column: str, all_states=None) -> SummaryResult:
         '''
         Returns a transition matrix for a given column in self.features.data,
         with rows and columns as the unique values of the column or as specified by all_states.
         '''
         if column not in self.features.data.columns:
             raise ValueError(f"Column '{column}' not found in features.data")
-        
         states = self.features.data[column]
         transitions = states != states.shift()
         prev_states = states.shift()[transitions]
         curr_states = states[transitions]
         trans_df = pd.DataFrame({'previous': prev_states, 'current': curr_states}).dropna()
-
-        # Use provided all_states or infer from data
         if all_states is None:
             all_states = pd.unique(states.dropna())
-
-        # Build the transition matrix with all possible clusters as rows/columns, fill missing with 0
         transition_matrix = pd.crosstab(
             trans_df['previous'],
             trans_df['current'],
             dropna=False
         ).reindex(index=all_states, columns=all_states, fill_value=0)
-
-        return transition_matrix
+        meta = {'function': 'transition_matrix', 'column': column, 'all_states': all_states}
+        return SummaryResult(transition_matrix, self, f"transition_matrix_{column}", meta)
     
-    def count_state_onsets(self, column: str) -> pd.Series:
+    def count_state_onsets(self, column: str) -> SummaryResult:
         '''
         counts the number of times a state is entered in a given column
         '''
-        #check if column is in features.data
         if column not in self.features.data.columns:
             raise ValueError(f"Column '{column}' not found in features.data")
-        
         states = self.features.data[column]
         transitions = states != states.shift()
         transition_states = states[transitions]
-        # count occurrences of each state in transition_states
         state_counts = transition_states.value_counts()
-        return state_counts
+        meta = {'function': 'count_state_onsets', 'column': column}
+        return SummaryResult(state_counts, self, f"count_state_onsets_{column}", meta)
     
-    def time_in_state(self, column: str) -> pd.Series:
+    def time_in_state(self, column: str) -> SummaryResult:
         '''
         returns the time spent in each state in a given column
         '''
-        #check if column is in features.data
         if column not in self.features.data.columns:
             raise ValueError(f"Column '{column}' not found in features.data")
-        
         states = self.features.data[column]
-        return states.value_counts() / self.features.tracking.meta['fps']
+        time_in_state = states.value_counts() / self.features.tracking.meta['fps']
+        meta = {'function': 'time_in_state', 'column': column}
+        return SummaryResult(time_in_state, self, f"time_in_state_{column}", meta)
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.data)} summary statistics>"
@@ -221,6 +242,19 @@ class SummaryCollection:
         summary_dict = {obj.handle: obj for obj in summary_list}
         return cls(summary_dict)
 
+    def store(self, results_dict:dict[str, SummaryResult], name:str=None, meta:dict=None, overwrite:bool=False):
+        """
+        Store all SummaryResult objects in a one-layer dict (as returned by batch methods).
+        Example:
+            results = summary_collection.time_true('is_running')
+            summary_collection.store(results)
+        """
+        for v in results_dict.values():
+            if hasattr(v, 'store'):
+                v.store(name=name, meta=meta, overwrite=overwrite)
+            else:
+                raise ValueError(f'{v} is not a SummaryResult object')
+
 class MultipleSummaryCollection:
     '''
     collection of SummaryCollection objects
@@ -261,9 +295,14 @@ class MultipleSummaryCollection:
 
     def bfa(self, column: str, all_states=None, numshuffles: int = 1000):
         from itertools import combinations
-        #batch calculate transition matrix for each summary object
-        transition_matrices = self.transition_matrix(column, all_states)
-        #calculate manhattan distance for each group pair
+        # batch calculate transition matrix for each summary object
+        transition_matrices_result = self.transition_matrix(column, all_states)
+        # Extract the .value from each SummaryResult in the nested dict
+        transition_matrices = {
+            group: {k: v.value for k, v in d.items()}
+            for group, d in transition_matrices_result.items()
+        }
+        # calculate manhattan distance for each group pair
         distances = {}
         for group1, group2 in combinations(self.dict_of_summary_collections.keys(), 2):
             _ = {}
@@ -336,6 +375,20 @@ class MultipleSummaryCollection:
     
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.summary_collection_list)} summary collections>"
+
+    def store(self, results_dict:dict[str, dict[str, SummaryResult]], name:str=None, meta:dict=None, overwrite:bool=False):
+        """
+        Store all SummaryResult objects in a two-layer dict (as returned by batch methods).
+        Example:
+            results = multiple_summary_collection.time_true('is_running')
+            multiple_summary_collection.store(results)
+        """
+        for group_dict in results_dict.values():
+            for v in group_dict.values():
+                if hasattr(v, 'store'):
+                    v.store(name=name, meta=meta, overwrite=overwrite)
+                else:
+                    raise ValueError(f'{v} is not a SummaryResult object')
 
     
     

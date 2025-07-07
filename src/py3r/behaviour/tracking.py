@@ -226,7 +226,7 @@ class Tracking:
 
         self.meta['filter_likelihood_threshold'] = threshold
 
-    def distance_between_points(self, point1:str, point2:str, dims=('x','y')) -> pd.Series:
+    def distance_between(self, point1:str, point2:str, dims=('x','y')) -> pd.Series:
         '''framewise distance between two points'''
         distance = np.sqrt(sum([(self.data[point1+'.'+dim] - self.data[point2+'.'+dim])**2 for dim in dims]))
         return(distance)
@@ -245,7 +245,7 @@ class Tracking:
             else:
                 raise Exception('distance already rescaled. re-load the raw data to change scaling')
 
-        tracking_distance = self.distance_between_points(point1, point2, dims=dims).median()
+        tracking_distance = self.distance_between(point1, point2, dims=dims).median()
         rescale_factor = distance_in_metres/tracking_distance
 
         tracked_points = self.get_point_names()
@@ -278,7 +278,7 @@ class Tracking:
             smoothdict = {**smoothdict, **partial}
         return(smoothdict)
 
-    def smooth_tracking(self, smoothing_params:dict) -> None:
+    def smooth(self, smoothing_params:dict) -> None:
         '''
         runs rolling mean or median filter of specified window length over specified
         points. All points within the tracking data must be specified, even if the rolling

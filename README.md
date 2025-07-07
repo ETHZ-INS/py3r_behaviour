@@ -21,7 +21,7 @@ This will install the package in editable mode, making it available as `py3r.beh
 
 ## Packaging
 
-This project uses a single `pyproject.toml` file (located in `src/`) for modern Python packaging with [setuptools](https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html). No `setup.py` is required.
+This project uses a single `pyproject.toml` file for modern Python packaging with [setuptools](https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html). No `setup.py` is required.
 
 ## Usage
 
