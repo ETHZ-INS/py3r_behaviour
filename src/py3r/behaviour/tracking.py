@@ -9,6 +9,7 @@ import json
 import numpy as np
 from py3r.behaviour.exceptions import BatchProcessError
 from collections import defaultdict
+import copy
 
 Self = TypeVar('Self', bound='Tracking')
 
@@ -33,6 +34,13 @@ class LoadOptions:
         if self.usermeta is not None:
             if not isinstance(self.usermeta, dict):
                 raise TypeError(f"usermeta must be a dictionary, got {type(self.usermeta).__name__}")
+
+class _Indexer:
+    def __init__(self, parent, slicer):
+        self.parent = parent
+        self.slicer = slicer
+    def __getitem__(self, idx):
+        return self.slicer(idx)
 
 class Tracking:
     data: pd.DataFrame
@@ -310,6 +318,23 @@ class Tracking:
 
         self.meta['smoothing'] = smoothing_params
 
+    @property
+    def loc(self):
+        return _Indexer(self, self._loc)
+    @property
+    def iloc(self):
+        return _Indexer(self, self._iloc)
+    def _loc(self, idx):
+        new_data = self.data.loc[idx].copy()
+        new_meta = copy.deepcopy(self.meta)
+        return self.__class__(new_data, new_meta, self.handle)
+    def _iloc(self, idx):
+        new_data = self.data.iloc[idx].copy()
+        new_meta = copy.deepcopy(self.meta)
+        return self.__class__(new_data, new_meta, self.handle)
+    def __getitem__(self, idx):
+        return self.loc[idx]
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.data)} rows, fps={self.meta.get('fps', 'unknown')}>"
 
@@ -494,6 +519,19 @@ class TrackingCollection:
                     fpath = os.path.join(folder_path, fname)
                     result[handle] = (fpath, handle, options)
         return result
+    
+    @property
+    def loc(self):
+        return _Indexer(self, self._loc)
+    @property
+    def iloc(self):
+        return _Indexer(self, self._iloc)
+    def _loc(self, idx):
+        return self.__class__({k: v.loc[idx] for k, v in self.tracking_dict.items()})
+    def _iloc(self, idx):
+        return self.__class__({k: v.iloc[idx] for k, v in self.tracking_dict.items()})
+    def __getitem__(self, idx):
+        return self.loc[idx]
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_dict)} Tracking objects>"
@@ -607,6 +645,19 @@ class MultipleTrackingCollection:
             tc = TrackingCollection.from_dlcma_folder(subfolder_path, options=options, tracking_cls=tracking_cls)
             tracking_collections[subfolder] = tc
         return cls(tracking_collections)
+    
+    @property
+    def loc(self):
+        return _Indexer(self, self._loc)
+    @property
+    def iloc(self):
+        return _Indexer(self, self._iloc)
+    def _loc(self, idx):
+        return self.__class__({k: v.loc[idx] for k, v in self.tracking_collections.items()})
+    def _iloc(self, idx):
+        return self.__class__({k: v.iloc[idx] for k, v in self.tracking_collections.items()})
+    def __getitem__(self, idx):
+        return self.loc[idx]
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_collections)} TrackingCollection objects>"

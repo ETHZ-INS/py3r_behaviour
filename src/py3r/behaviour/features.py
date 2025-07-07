@@ -13,6 +13,7 @@ from shapely.errors import GEOSException
 import warnings
 import logging
 import sys
+import copy
 
 from py3r.behaviour.tracking import Tracking, TrackingCollection, MultipleTrackingCollection
 from py3r.behaviour.exceptions import BatchProcessError
@@ -24,6 +25,12 @@ logformat = '%(funcName)s(): %(message)s'
 logging.basicConfig(stream=sys.stdout, format=logformat)
 logger.setLevel(logging.INFO)
 
+class _Indexer:
+    def __init__(self, parent, slicer):
+        self.parent = parent
+        self.slicer = slicer
+    def __getitem__(self, idx):
+        return self.slicer(idx)
 
 class FeaturesResult(pd.Series):
     def __init__(self, series, features_obj, column_name, params):
@@ -534,6 +541,29 @@ class Features():
         for col in df.columns:
             normalized[col] = df[col] / rescale_factors[col]
         return normalized
+    
+    @property
+    def loc(self):
+        return _Indexer(self, self._loc)
+    @property
+    def iloc(self):
+        return _Indexer(self, self._iloc)
+    def _loc(self, idx):
+        new_tracking = self.tracking.loc[idx]
+        new = self.__class__(new_tracking)
+        new.data = self.data.loc[idx].copy()
+        new.meta = copy.deepcopy(self.meta)
+        new.handle = self.handle
+        return new
+    def _iloc(self, idx):
+        new_tracking = self.tracking.iloc[idx]
+        new = self.__class__(new_tracking)
+        new.data = self.data.iloc[idx].copy()
+        new.meta = copy.deepcopy(self.meta)
+        new.handle = self.handle
+        return new
+    def __getitem__(self, idx):
+        return self.loc[idx]
 
 class FeaturesCollection:
     '''
@@ -652,6 +682,22 @@ class FeaturesCollection:
                 v.store(name=name, meta=meta, overwrite=overwrite)
             else:
                 raise ValueError(f'{v} is not a FeaturesResult object')
+            
+    @property
+    def loc(self):
+        return _Indexer(self, self._loc)
+    @property
+    def iloc(self):
+        return _Indexer(self, self._iloc)
+    def _loc(self, idx):
+        return self.__class__({k: v.loc[idx] for k, v in self.features_dict.items()})
+    def _iloc(self, idx):
+        return self.__class__({k: v.iloc[idx] for k, v in self.features_dict.items()})
+    def __getitem__(self, idx):
+        return self.loc[idx]
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} with {len(self.features_dict)} Features objects>"
 
 class MultipleFeaturesCollection:
     '''
@@ -699,6 +745,33 @@ class MultipleFeaturesCollection:
                     v.store(name=name, meta=meta, overwrite=overwrite)
                 else:
                     raise ValueError(f'{v} is not a FeaturesResult object')
+                
+    def plot(self, results_dict: dict[str, dict[str, FeaturesResult]], figsize=(8, 2), show=True):
+        """
+        Plot all FeaturesResult objects in a two-layer dict (as returned by batch methods).
+        Each collection gets its own figure, with subplots for each handle.
+        """
+        import matplotlib.pyplot as plt
+
+        figs_axes = {}
+        for coll_name, group_dict in results_dict.items():
+            n = len(group_dict)
+            if n == 0:
+                continue
+            fig, axes = plt.subplots(n, 1, figsize=(figsize[0], figsize[1]*n), sharex=True)
+            if n == 1:
+                axes = [axes]
+            for ax, (handle, result) in zip(axes, group_dict.items()):
+                ax.plot(result.index, result.values)
+                ax.set_title(str(handle))
+                ax.set_ylabel(result.name)
+                ax.set_xlabel("frame")
+            fig.suptitle(str(coll_name), fontsize=14)
+            plt.tight_layout()
+            if show:
+                plt.show()
+            figs_axes[coll_name] = (fig, axes)
+        return figs_axes
 
     def cluster_embedding(self, embedding_dict: dict[str, list[int]], n_clusters: int, random_state: int = 0):
         # Step 1: Build all embeddings
@@ -1045,3 +1118,19 @@ class MultipleFeaturesCollection:
         if show:
             plt.show()
         return df  # Return the DataFrame for further inspection if needed
+    
+    @property
+    def loc(self):
+        return _Indexer(self, self._loc)
+    @property
+    def iloc(self):
+        return _Indexer(self, self._iloc)
+    def _loc(self, idx):
+        return self.__class__({k: v.loc[idx] for k, v in self.features_collections.items()})
+    def _iloc(self, idx):
+        return self.__class__({k: v.iloc[idx] for k, v in self.features_collections.items()})
+    def __getitem__(self, idx):
+        return self.loc[idx]
+    
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} with {len(self.features_collections)} FeaturesCollection objects>"
