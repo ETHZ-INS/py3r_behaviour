@@ -547,7 +547,6 @@ class FeaturesCollection:
         self.features_dict = features_dict
 
     def __getattr__(self, name):
-        # Only called if the attribute is not found on the collection itself
         def batch_method(*args, **kwargs):
             results = {}
             for key, obj in self.features_dict.items():
@@ -557,9 +556,9 @@ class FeaturesCollection:
                 except Exception as e:
                     raise BatchProcessError(
                         collection_name=None,
-                        object_name=key,
-                        method=e.method,
-                        original_exception=e.original_exception
+                        object_name=getattr(e, 'object_name', key),
+                        method=getattr(e, 'method', name),
+                        original_exception=getattr(e, 'original_exception', e)
                     ) from e
             return results
         return batch_method
@@ -677,12 +676,12 @@ class MultipleFeaturesCollection:
             for coll_name, collection in self.features_collections.items():
                 try:
                     results[coll_name] = getattr(collection, name)(*args, **kwargs)
-                except BatchProcessError as e:
+                except Exception as e:
                     raise BatchProcessError(
                         collection_name=coll_name,
-                        object_name=e.object_name,
-                        method=e.method,
-                        original_exception=e.original_exception
+                        object_name=getattr(e, 'object_name', None),
+                        method=getattr(e, 'method', None),
+                        original_exception=getattr(e, 'original_exception', e)
                     ) from e
             return results
         return batch_method

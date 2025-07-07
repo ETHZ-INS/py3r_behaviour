@@ -201,7 +201,6 @@ class SummaryCollection:
         self.summary_dict = summary_dict
 
     def __getattr__(self, name):
-        # Only called if the attribute is not found on the collection itself
         def batch_method(*args, **kwargs):
             results = {}
             for key, obj in self.summary_dict.items():
@@ -211,9 +210,9 @@ class SummaryCollection:
                 except Exception as e:
                     raise BatchProcessError(
                         collection_name=None,
-                        object_name=key,
-                        method=e.method,
-                        original_exception=e.original_exception
+                        object_name=getattr(e, 'object_name', key),
+                        method=getattr(e, 'method', name),
+                        original_exception=getattr(e, 'original_exception', e)
                     ) from e
             return results
         return batch_method
@@ -266,7 +265,6 @@ class MultipleSummaryCollection:
         self.dict_of_summary_collections = dict_of_summary_collections
 
     def __getattr__(self, name):
-        # Only called if the attribute is not found on the collection itself
         def batch_method(*args, **kwargs):
             results = {}
             for key, obj in self.dict_of_summary_collections.items():
@@ -276,9 +274,9 @@ class MultipleSummaryCollection:
                 except Exception as e:
                     raise BatchProcessError(
                         collection_name=key,
-                        object_name=e.object_name,
-                        method=e.method,
-                        original_exception=e.original_exception
+                        object_name=getattr(e, 'object_name', None),
+                        method=getattr(e, 'method', None),
+                        original_exception=getattr(e, 'original_exception', e)
                     ) from e
             return results
         return batch_method

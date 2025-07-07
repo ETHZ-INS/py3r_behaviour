@@ -339,9 +339,9 @@ class TrackingCollection:
                 except Exception as e:
                     raise BatchProcessError(
                         collection_name=None,
-                        object_name=key,
-                        method=e.method,
-                        original_exception=e.original_exception
+                        object_name=getattr(e, 'object_name', key),
+                        method=getattr(e, 'method', name),
+                        original_exception=getattr(e, 'original_exception', e)
                     ) from e
             return results
         return batch_method
@@ -419,7 +419,8 @@ class TrackingCollection:
         tracking_dict = {}
         bookkeeping = cls._collect_tracking_files(folder_path, tracking_cls, options=options)
         for handle, args in bookkeeping.items():
-            tracking_obj = tracking_cls.from_dlc(*args)
+            filepath, handle_arg, options_arg = args
+            tracking_obj = tracking_cls.from_dlc(filepath, handle=handle_arg, options=options_arg)
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
@@ -433,7 +434,8 @@ class TrackingCollection:
         tracking_dict = {}
         bookkeeping = cls._collect_tracking_files(folder_path, tracking_cls, options=options)
         for handle, args in bookkeeping.items():
-            tracking_obj = tracking_cls.from_yolo3r(*args)
+            filepath, handle_arg, options_arg = args
+            tracking_obj = tracking_cls.from_yolo3r(filepath, handle=handle_arg, options=options_arg)
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
@@ -447,7 +449,8 @@ class TrackingCollection:
         tracking_dict = {}
         bookkeeping = cls._collect_tracking_files(folder_path, tracking_cls, options=options)
         for handle, args in bookkeeping.items():
-            tracking_obj = tracking_cls.from_dlcma(*args)
+            filepath, handle_arg, options_arg = args
+            tracking_obj = tracking_cls.from_dlcma(filepath, handle=handle_arg, options=options_arg)
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
@@ -512,9 +515,9 @@ class MultipleTrackingCollection:
                 except Exception as e:
                     raise BatchProcessError(
                         collection_name=key,
-                        object_name=e.object_name,
-                        method=e.method,
-                        original_exception=e.original_exception
+                        object_name=getattr(e, 'object_name', None),
+                        method=getattr(e, 'method', None),
+                        original_exception=getattr(e, 'original_exception', e)
                     ) from e
             return results
         return batch_method
