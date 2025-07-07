@@ -319,7 +319,7 @@ a collection of SummaryCollection objects, keyed by group/condition
 MultipleSummaryCollection(dict_of_summary_collections: dict[str, SummaryCollection])
 ```
 
-**factory method**
+**factory methods**
 - `from_multiple_features_collection(multiple_features_collection)` — create from MultipleFeaturesCollection (class method)
 
 **main methods:**
