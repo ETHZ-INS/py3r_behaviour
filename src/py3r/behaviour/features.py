@@ -549,14 +549,22 @@ class Features():
     def iloc(self):
         return _Indexer(self, self._iloc)
     def _loc(self, idx):
-        new_tracking = self.tracking.loc[idx]
+        if isinstance(idx, tuple):
+            row_idx, col_idx = idx
+            new_tracking = self.tracking.loc[row_idx]
+        else:
+            new_tracking = self.tracking.loc[idx]
         new = self.__class__(new_tracking)
         new.data = self.data.loc[idx].copy()
         new.meta = copy.deepcopy(self.meta)
         new.handle = self.handle
         return new
     def _iloc(self, idx):
-        new_tracking = self.tracking.iloc[idx]
+        if isinstance(idx, tuple):
+            row_idx, col_idx = idx
+            new_tracking = self.tracking.loc[row_idx]
+        else:
+            new_tracking = self.tracking.loc[idx]
         new = self.__class__(new_tracking)
         new.data = self.data.iloc[idx].copy()
         new.meta = copy.deepcopy(self.meta)
