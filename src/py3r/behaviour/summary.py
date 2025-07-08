@@ -257,6 +257,30 @@ class SummaryCollection:
             else:
                 raise ValueError(f'{v} is not a SummaryResult object')
 
+    def keys(self):
+        """Return the keys of the summary_dict."""
+        return self.summary_dict.keys()
+    def values(self):
+        """Return the values of the summary_dict."""
+        return self.summary_dict.values()
+    def items(self):
+        """Return the items of the summary_dict."""
+        return self.summary_dict.items()
+    def __getitem__(self, key):
+        """
+        Get Summary by handle (str), by integer index, or by slice.
+        """
+        if isinstance(key, int):
+            handle = list(self.summary_dict)[key]
+            return self.summary_dict[handle]
+        elif isinstance(key, slice):
+            handles = list(self.summary_dict)[key]
+            return self.__class__({h: self.summary_dict[h] for h in handles})
+        else:
+            return self.summary_dict[key]
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} with {len(self.summary_dict)} Summary objects>"
+
 class MultipleSummaryCollection:
     '''
     collection of SummaryCollection objects
@@ -391,5 +415,28 @@ class MultipleSummaryCollection:
                 else:
                     raise ValueError(f'{v} is not a SummaryResult object')
 
+    def keys(self):
+        """Return the keys of the dict_of_summary_collections."""
+        return self.dict_of_summary_collections.keys()
+    def values(self):
+        """Return the values of the dict_of_summary_collections."""
+        return self.dict_of_summary_collections.values()
+    def items(self):
+        """Return the items of the dict_of_summary_collections."""
+        return self.dict_of_summary_collections.items()
+    def __getitem__(self, key):
+        """
+        Get SummaryCollection by handle (str), by integer index, or by slice.
+        """
+        if isinstance(key, int):
+            handle = list(self.dict_of_summary_collections)[key]
+            return self.dict_of_summary_collections[handle]
+        elif isinstance(key, slice):
+            handles = list(self.dict_of_summary_collections)[key]
+            return self.__class__({h: self.dict_of_summary_collections[h] for h in handles})
+        else:
+            return self.dict_of_summary_collections[key] 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} with {len(self.dict_of_summary_collections)} SummaryCollection objects>"
     
     

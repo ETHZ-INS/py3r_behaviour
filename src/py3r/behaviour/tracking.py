@@ -523,12 +523,30 @@ class TrackingCollection:
         return self.__class__({k: v.loc[idx] for k, v in self.tracking_dict.items()})
     def _iloc(self, idx):
         return self.__class__({k: v.iloc[idx] for k, v in self.tracking_dict.items()})
-    def __getitem__(self, idx):
-        return self.loc[idx]
-
+    def __getitem__(self, key):
+        """
+        Get Tracking by handle (str), by integer index, or by slice.
+        """
+        if isinstance(key, int):
+            handle = list(self.tracking_dict)[key]
+            return self.tracking_dict[handle]
+        elif isinstance(key, slice):
+            handles = list(self.tracking_dict)[key]
+            return self.__class__({h: self.tracking_dict[h] for h in handles})
+        else:
+            return self.tracking_dict[key]
+    def keys(self):
+        """Return the keys of the tracking_dict."""
+        return self.tracking_dict.keys()
+    def values(self):
+        """Return the values of the tracking_dict."""
+        return self.tracking_dict.values()
+    def items(self):
+        """Return the items of the tracking_dict."""
+        return self.tracking_dict.items()
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_dict)} Tracking objects>"
-    
+
 class MultipleTrackingCollection:
     '''
     Collection of TrackingCollection objects, keyed by name (e.g. for comparison between groups)
@@ -649,9 +667,27 @@ class MultipleTrackingCollection:
         return self.__class__({k: v.loc[idx] for k, v in self.tracking_collections.items()})
     def _iloc(self, idx):
         return self.__class__({k: v.iloc[idx] for k, v in self.tracking_collections.items()})
-    def __getitem__(self, idx):
-        return self.loc[idx]
-
+    def __getitem__(self, key):
+        """
+        Get TrackingCollection by handle (str), by integer index, or by slice.
+        """
+        if isinstance(key, int):
+            handle = list(self.tracking_collections)[key]
+            return self.tracking_collections[handle]
+        elif isinstance(key, slice):
+            handles = list(self.tracking_collections)[key]
+            return self.__class__({h: self.tracking_collections[h] for h in handles})
+        else:
+            return self.tracking_collections[key]
+    def keys(self):
+        """Return the keys of the tracking_collections."""
+        return self.tracking_collections.keys()
+    def values(self):
+        """Return the values of the tracking_collections."""
+        return self.tracking_collections.values()
+    def items(self):
+        """Return the items of the tracking_collections."""
+        return self.tracking_collections.items()
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_collections)} TrackingCollection objects>"
 

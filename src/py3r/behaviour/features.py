@@ -672,20 +672,66 @@ class FeaturesCollection:
         model, train_columns, target_columns = train_knn_from_embeddings(train_embeds_i, target_embeds_i, n_neighbors, **kwargs)
         return model, train_columns, target_columns
     
-    def plot(self, arg=None, figsize=(8, 2), show=True):
+    def plot(self, arg=None, figsize=(8, 2), show:bool=True, title:str=None):
         """
-        Plot features for all collections in the FeaturesCollection.
-        Delegates to Features.plot for each collection.
+        Plot features for all collections in the MultipleFeaturesCollection.
+        - If arg is a BatchResult or dict: treat as batch result and plot for each collection.
+        - Otherwise: treat as column name(s) or None and plot for each collection.
+        - If title is provided, it will be used as the overall title for the figure.
         """
-        figs_axes = {}
-        if isinstance(arg, dict):
-            for coll_name, group_dict in arg.items():
-                if coll_name in self.features_collections:
-                    figs_axes[coll_name] = self.features_collections[coll_name].plot(group_dict, figsize=figsize, show=show)
+        import matplotlib.pyplot as plt
+
+        if arg is None:
+            # Plot all columns for each Features object
+            features_dict = {handle: obj.data for handle, obj in self.features_dict.items()}
+            plot_type = 'all'
+        elif isinstance(arg, (str, list)):
+            # Plot specified column(s) for each Features object
+            if isinstance(arg, str):
+                columns = [arg]
+            else:
+                columns = arg
+            features_dict = {}
+            for handle, obj in self.features_dict.items():
+                # Only include columns that exist in this Features object
+                cols = [col for col in columns if col in obj.data]
+                if cols:
+                    features_dict[handle] = obj.data[cols]
+            plot_type = 'columns'
+        elif isinstance(arg, dict):
+            # Batch result: plot each FeaturesResult
+            features_dict = arg
+            plot_type = 'batch'
         else:
-            for coll_name, collection in self.features_dict.items():
-                figs_axes[coll_name] = collection.plot(arg, figsize=figsize, show=show)         
-        return figs_axes
+            raise TypeError("Argument must be None, a string, a list of strings, or a batch result dict.")
+
+        n = len(features_dict)
+        if n == 0:
+            raise ValueError("No features to plot.")
+        fig, axes = plt.subplots(n, 1, figsize=(figsize[0], figsize[1]*n), sharex=True)
+        if n == 1:
+            axes = [axes]
+        for ax, (handle, data) in zip(axes, features_dict.items()):
+            if plot_type == 'batch':
+                # FeaturesResult: plot as a single series
+                ax.plot(data.index, data.values, label=getattr(data, 'name', 'value'))
+            else:
+                # DataFrame: plot all columns or selected columns
+                if isinstance(data, pd.Series):
+                    ax.plot(data.index, data.values, label=data.name)
+                else:
+                    data.plot(ax=ax)
+            ax.set_title(str(handle))
+            ax.set_xlabel("frame")
+            ax.legend()
+        if title is not None:
+            fig.suptitle(title, fontsize=14)
+            plt.tight_layout(rect=[0, 0, 1, 0.95])  # leave space for suptitle
+        else:
+            plt.tight_layout()
+        if show:
+            plt.show()
+        return fig, axes
     
     def store(self, results_dict:dict[str, FeaturesResult], name:str=None, meta:dict=None, overwrite:bool=False):
         """
@@ -710,8 +756,28 @@ class FeaturesCollection:
         return self.__class__({k: v.loc[idx] for k, v in self.features_dict.items()})
     def _iloc(self, idx):
         return self.__class__({k: v.iloc[idx] for k, v in self.features_dict.items()})
-    def __getitem__(self, idx):
-        return self.loc[idx]
+    def __getitem__(self, key):
+        """
+        Get Features by handle (str), by integer index, or by slice.
+        """
+        if isinstance(key, int):
+            handle = list(self.features_dict)[key]
+            return self.features_dict[handle]
+        elif isinstance(key, slice):
+            handles = list(self.features_dict)[key]
+            return self.__class__({h: self.features_dict[h] for h in handles})
+        else:
+            return self.features_dict[key]
+
+    def keys(self):
+        """Return the keys of the features_dict."""
+        return self.features_dict.keys()
+    def values(self):
+        """Return the values of the features_dict."""
+        return self.features_dict.values()
+    def items(self):
+        """Return the items of the features_dict."""
+        return self.features_dict.items()
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.features_dict)} Features objects>"
@@ -766,11 +832,18 @@ class MultipleFeaturesCollection:
     def plot(self, arg=None, figsize=(8, 2), show=True):
         """
         Plot features for all collections in the MultipleFeaturesCollection.
-        Delegates to FeaturesCollection.plot for each collection.
+        - If arg is a BatchResult or dict: treat as batch result and plot for each collection.
+        - Otherwise: treat as column name(s) or None and plot for each collection.
         """
         figs_axes = {}
-        for coll_name, collection in self.features_collections.items():
-            figs_axes[coll_name] = collection.plot(arg, figsize=figsize, show=show)
+        # If arg is a BatchResult or dict, treat as batch result
+        if isinstance(arg, dict):
+            for coll_name, group_dict in arg.items():
+                if coll_name in self.features_collections:
+                    figs_axes[coll_name] = self.features_collections[coll_name].plot(group_dict, figsize=figsize, show=show, title=coll_name)
+        else:
+            for coll_name, collection in self.features_collections.items():
+                figs_axes[coll_name] = collection.plot(arg, figsize=figsize, show=show, title=coll_name)
         return figs_axes
 
     def cluster_embedding(self, embedding_dict: dict[str, list[int]], n_clusters: int, random_state: int = 0):
@@ -1129,8 +1202,28 @@ class MultipleFeaturesCollection:
         return self.__class__({k: v.loc[idx] for k, v in self.features_collections.items()})
     def _iloc(self, idx):
         return self.__class__({k: v.iloc[idx] for k, v in self.features_collections.items()})
-    def __getitem__(self, idx):
-        return self.loc[idx]
+    def __getitem__(self, key):
+        """
+        Get FeaturesCollection by handle (str), by integer index, or by slice.
+        """
+        if isinstance(key, int):
+            handle = list(self.features_collections)[key]
+            return self.features_collections[handle]
+        elif isinstance(key, slice):
+            handles = list(self.features_collections)[key]
+            return self.__class__({h: self.features_collections[h] for h in handles})
+        else:
+            return self.features_collections[key]
     
+    def keys(self):
+        """Return the keys of the features_collections."""
+        return self.features_collections.keys()
+    def values(self):
+        """Return the values of the features_collections."""
+        return self.features_collections.values()
+    def items(self):
+        """Return the items of the features_collections."""
+        return self.features_collections.items()
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.features_collections)} FeaturesCollection objects>"
