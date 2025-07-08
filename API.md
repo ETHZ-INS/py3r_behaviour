@@ -337,4 +337,43 @@ msc.store(times)  # stores all results in all underlying Summary objects
 
 ---
 
+## Collections and Batch Methods
+
+Batch methods on collections return a BatchResult, which supports `.plot()` and `.store()`:
+
+```python
+results = features_collection.speed('nose')
+results.plot()
+results.store()
+```
+
+## Slicing and Indexing
+
+All X, XCollection, and MultipleXCollection classes support pandas-like slicing and flexible indexing:
+
+```python
+subset = features_collection.loc[100:200]
+subset = multiple_features_collection.iloc[0:10]
+obj = features_collection['video1']
+obj = features_collection[0]
+subset = features_collection[1:3]
+```
+
+For multiple collections:
+
+```python
+group = multiple_features_collection['group1']
+group = multiple_features_collection[0]
+subset = multiple_features_collection[0:2]
+```
+
+## Iteration and Inspection
+
+All collections support `.keys()`, `.values()`, and `.items()`:
+
+```python
+for handle, obj in features_collection.items():
+    print(handle, obj)
+```
+
 for more details, see the code and docstrings in each module. 
