@@ -17,20 +17,14 @@ import copy
 
 from py3r.behaviour.tracking import Tracking, TrackingCollection, MultipleTrackingCollection
 from py3r.behaviour.exceptions import BatchProcessError
-from py3r.behaviour.util import misc
-from py3r.behaviour.util.bmicro import train_knn_from_embeddings, predict_knn_on_embedding
+from py3r.behaviour.util import series_utils
+from py3r.behaviour.util.bmicro_utils import train_knn_from_embeddings, predict_knn_on_embedding
+from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 
 logger = logging.getLogger(__name__)
 logformat = '%(funcName)s(): %(message)s'
 logging.basicConfig(stream=sys.stdout, format=logformat)
 logger.setLevel(logging.INFO)
-
-class _Indexer:
-    def __init__(self, parent, slicer):
-        self.parent = parent
-        self.slicer = slicer
-    def __getitem__(self, idx):
-        return self.slicer(idx)
 
 class FeaturesResult(pd.Series):
     def __init__(self, series, features_obj, column_name, params):
@@ -361,11 +355,11 @@ class Features():
             if inplace:
                 self.data[name] = smoothed.copy()
         elif method == 'mode':
-            smoothed = misc.rolling_apply(self.data[name], window, misc.mode, center=center)
+            smoothed = series_utils.rolling_apply(self.data[name], window, series_utils.mode, center=center)
             if inplace:
                 self.data[name] = smoothed.copy()
         elif method == 'block':
-            smoothed = misc.smooth_block(self.data[name],window)
+            smoothed = series_utils.smooth_block(self.data[name],window)
             if inplace:
                 self.data[name] = smoothed.copy()
         else:
@@ -598,7 +592,7 @@ class FeaturesCollection:
                         method=getattr(e, 'method', name),
                         original_exception=getattr(e, 'original_exception', e)
                     ) from e
-            return results
+            return BatchResult(results, self)
         return batch_method
 
     @classmethod
@@ -678,6 +672,21 @@ class FeaturesCollection:
         model, train_columns, target_columns = train_knn_from_embeddings(train_embeds_i, target_embeds_i, n_neighbors, **kwargs)
         return model, train_columns, target_columns
     
+    def plot(self, arg=None, figsize=(8, 2), show=True):
+        """
+        Plot features for all collections in the FeaturesCollection.
+        Delegates to Features.plot for each collection.
+        """
+        figs_axes = {}
+        if isinstance(arg, dict):
+            for coll_name, group_dict in arg.items():
+                if coll_name in self.features_collections:
+                    figs_axes[coll_name] = self.features_collections[coll_name].plot(group_dict, figsize=figsize, show=show)
+        else:
+            for coll_name, collection in self.features_dict.items():
+                figs_axes[coll_name] = collection.plot(arg, figsize=figsize, show=show)         
+        return figs_axes
+    
     def store(self, results_dict:dict[str, FeaturesResult], name:str=None, meta:dict=None, overwrite:bool=False):
         """
         Store all FeaturesResult objects in a one-layer dict (as returned by batch methods).
@@ -737,7 +746,7 @@ class MultipleFeaturesCollection:
                         method=getattr(e, 'method', None),
                         original_exception=getattr(e, 'original_exception', e)
                     ) from e
-            return results
+            return BatchResult(results, self)
         return batch_method
     
     def store(self, results_dict:dict[str, dict[str, FeaturesResult]], name:str=None, meta:dict=None, overwrite:bool=False):
@@ -754,31 +763,14 @@ class MultipleFeaturesCollection:
                 else:
                     raise ValueError(f'{v} is not a FeaturesResult object')
                 
-    def plot(self, results_dict: dict[str, dict[str, FeaturesResult]], figsize=(8, 2), show=True):
+    def plot(self, arg=None, figsize=(8, 2), show=True):
         """
-        Plot all FeaturesResult objects in a two-layer dict (as returned by batch methods).
-        Each collection gets its own figure, with subplots for each handle.
+        Plot features for all collections in the MultipleFeaturesCollection.
+        Delegates to FeaturesCollection.plot for each collection.
         """
-        import matplotlib.pyplot as plt
-
         figs_axes = {}
-        for coll_name, group_dict in results_dict.items():
-            n = len(group_dict)
-            if n == 0:
-                continue
-            fig, axes = plt.subplots(n, 1, figsize=(figsize[0], figsize[1]*n), sharex=True)
-            if n == 1:
-                axes = [axes]
-            for ax, (handle, result) in zip(axes, group_dict.items()):
-                ax.plot(result.index, result.values)
-                ax.set_title(str(handle))
-                ax.set_ylabel(result.name)
-                ax.set_xlabel("frame")
-            fig.suptitle(str(coll_name), fontsize=14)
-            plt.tight_layout()
-            if show:
-                plt.show()
-            figs_axes[coll_name] = (fig, axes)
+        for coll_name, collection in self.features_collections.items():
+            figs_axes[coll_name] = collection.plot(arg, figsize=figsize, show=show)
         return figs_axes
 
     def cluster_embedding(self, embedding_dict: dict[str, list[int]], n_clusters: int, random_state: int = 0):

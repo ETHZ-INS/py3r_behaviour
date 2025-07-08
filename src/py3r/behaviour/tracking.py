@@ -10,6 +10,7 @@ import numpy as np
 from py3r.behaviour.exceptions import BatchProcessError
 from collections import defaultdict
 import copy
+from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 
 Self = TypeVar('Self', bound='Tracking')
 
@@ -34,13 +35,6 @@ class LoadOptions:
         if self.usermeta is not None:
             if not isinstance(self.usermeta, dict):
                 raise TypeError(f"usermeta must be a dictionary, got {type(self.usermeta).__name__}")
-
-class _Indexer:
-    def __init__(self, parent, slicer):
-        self.parent = parent
-        self.slicer = slicer
-    def __getitem__(self, idx):
-        return self.slicer(idx)
 
 class Tracking:
     data: pd.DataFrame
@@ -354,7 +348,6 @@ class TrackingCollection:
         self.tracking_dict = tracking_dict
 
     def __getattr__(self, name):
-        # Only called if the attribute is not found on the collection itself
         def batch_method(*args, **kwargs):
             results = {}
             for key, obj in self.tracking_dict.items():
@@ -368,7 +361,7 @@ class TrackingCollection:
                         method=getattr(e, 'method', name),
                         original_exception=getattr(e, 'original_exception', e)
                     ) from e
-            return results
+            return BatchResult(results, self)
         return batch_method
 
     @classmethod
@@ -557,7 +550,7 @@ class MultipleTrackingCollection:
                         method=getattr(e, 'method', None),
                         original_exception=getattr(e, 'original_exception', e)
                     ) from e
-            return results
+            return BatchResult(results, self)
         return batch_method
     
     @classmethod

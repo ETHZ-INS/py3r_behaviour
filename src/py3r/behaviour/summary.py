@@ -8,6 +8,9 @@ import sys
 from typing import Any, List
 from py3r.behaviour.features import Features, FeaturesCollection, MultipleFeaturesCollection
 from py3r.behaviour.exceptions import BatchProcessError
+from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+from py3r.behaviour.util import series_utils
+from py3r.behaviour.util.bmicro_utils import train_knn_from_embeddings, predict_knn_on_embedding
 
 
 logger = logging.getLogger(__name__)
@@ -214,7 +217,7 @@ class SummaryCollection:
                         method=getattr(e, 'method', name),
                         original_exception=getattr(e, 'original_exception', e)
                     ) from e
-            return results
+            return BatchResult(results, self)
         return batch_method
 
     @classmethod
@@ -278,7 +281,7 @@ class MultipleSummaryCollection:
                         method=getattr(e, 'method', None),
                         original_exception=getattr(e, 'original_exception', e)
                     ) from e
-            return results
+            return BatchResult(results, self)
         return batch_method
     
     @classmethod
