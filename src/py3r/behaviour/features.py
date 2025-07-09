@@ -224,7 +224,7 @@ class Features():
         '''
         if 'smoothing' not in self.tracking.meta.keys():
             warnings.warn('tracking data have not been smoothed')
-        _speed = self.find_speed(point, dims=dims)
+        _speed = self.speed(point, dims=dims)
         _acceleration = _speed.diff() * self.tracking.meta['fps']
         name = f"acceleration_of_{point}_in_{''.join(dims)}"
         meta = {'function': 'acceleration', 'point': point, 'dims': dims}
