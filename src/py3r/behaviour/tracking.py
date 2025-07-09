@@ -394,9 +394,9 @@ class Tracking:
                     raise ValueError(f"Column {c} not in data for point {point}")
             med = [np.nanmedian(self.data[f"{point}.{d}"]) for d in dims]
             if is3d:
-                ax.scatter(*med, marker="o", s=60, label=f"{point} (static)")
+                ax.scatter(*med, marker="o", s=60)
             else:
-                ax.scatter(*med, marker="o", s=60, label=f"{point} (static)")
+                ax.scatter(*med, marker="o", s=60)
         # Plot lines between static points
         for p1, p2 in lines:
             cols1 = [f"{p1}.{d}" for d in dims]
@@ -407,9 +407,9 @@ class Tracking:
             med1 = [np.nanmedian(self.data[f"{p1}.{d}"]) for d in dims]
             med2 = [np.nanmedian(self.data[f"{p2}.{d}"]) for d in dims]
             if is3d:
-                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], [med1[2], med2[2]], 'k--', lw=1)
+                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], [med1[2], med2[2]], 'k', lw=1)
             else:
-                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], 'k--', lw=1)
+                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], 'k', lw=1)
         if title is None:
             title = self.handle
         ax.set_title(title)
@@ -640,35 +640,10 @@ class TrackingCollection:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_dict)} Tracking objects>"
 
-    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), suptitle=None, figsize=(5, 5), show=True):
-        """
-        Plot all Tracking objects as subplots.
-        Args:
-            trajectories, static, lines, dims: passed to each Tracking.plot
-            suptitle: overall figure title
-            figsize: tuple (w, h) per subplot
-            show: whether to call plt.show()
-        Returns: fig, axes
-        """
-        n = len(self.tracking_dict)
-        is3d = len(dims) == 3
-        ncols = min(3, n)
-        nrows = (n + ncols - 1) // ncols
-        fig = plt.figure(figsize=(figsize[0]*ncols, figsize[1]*nrows))
-        axes = []
-        for i, (handle, tracking) in enumerate(self.tracking_dict.items()):
-            if is3d:
-                ax = fig.add_subplot(nrows, ncols, i+1, projection="3d")
-            else:
-                ax = fig.add_subplot(nrows, ncols, i+1)
-            tracking.plot(trajectories=trajectories, static=static, lines=lines, dims=dims, ax=ax, title=handle, show=False)
-            axes.append(ax)
-        if suptitle:
-            fig.suptitle(suptitle)
-        fig.tight_layout()
-        if show:
-            plt.show()
-        return fig, axes
+    def plot(self, *args, **kwargs):
+        print(f"\nCollection: {getattr(self, 'handle', 'unnamed')}")
+        for handle, tracking in self.tracking_dict.items():
+            tracking.plot(*args, title=handle, **kwargs)
 
 class MultipleTrackingCollection:
     '''
@@ -814,31 +789,10 @@ class MultipleTrackingCollection:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_collections)} TrackingCollection objects>"
 
-    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), suptitle=None, figsize=(5, 5), show=True):
-        """
-        Plot all TrackingCollections as subplot grids.
-        Args:
-            trajectories, static, lines, dims: passed to each TrackingCollection.plot
-            suptitle: overall figure title
-            figsize: tuple (w, h) per subplot
-            show: whether to call plt.show()
-        Returns: fig, axes
-        """
-        n = len(self.tracking_collections)
-        ncols = min(3, n)
-        nrows = (n + ncols - 1) // ncols
-        fig = plt.figure(figsize=(figsize[0]*ncols, figsize[1]*nrows))
-        axes = []
-        for i, (handle, collection) in enumerate(self.tracking_collections.items()):
-            ax = fig.add_subplot(nrows, ncols, i+1)
-            collection.plot(trajectories=trajectories, static=static, lines=lines, dims=dims, suptitle=handle, figsize=figsize, show=False)
-            axes.append(ax)
-        if suptitle:
-            fig.suptitle(suptitle)
-        fig.tight_layout()
-        if show:
-            plt.show()
-        return fig, axes
+    def plot(self, *args, **kwargs):
+        for handle, collection in self.tracking_collections.items():
+            print(f"\n=== Group: {handle} ===")
+            collection.plot(*args, **kwargs)
 
 class TrackingMV:
     """
@@ -945,6 +899,29 @@ class TrackingMV:
         triangulated_meta['calibration'] = calib
         triangulated_meta['views'] = views
         return Tracking(triangulated_df, triangulated_meta, self.handle)
+    
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True):
+        n = len(self.views)
+        import matplotlib.pyplot as plt
+        fig, axes = plt.subplots(1, n, figsize=(5*n, 5), squeeze=False)
+        axes = axes[0]  # flatten to 1D
+        for i, (view, track) in enumerate(self.views.items()):
+            track.plot(
+                trajectories=trajectories,
+                static=static,
+                lines=lines,
+                dims=dims,
+                ax=axes[i],
+                title=view,
+                show=False
+            )
+        if title is None:
+            title = self.handle
+        fig.suptitle(title)
+        fig.tight_layout()
+        if show:
+            plt.show()
+        return fig, axes
 
     def __getattr__(self, name):
         """
