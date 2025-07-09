@@ -11,6 +11,8 @@ from py3r.behaviour.exceptions import BatchProcessError
 from collections import defaultdict
 import copy
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 
 Self = TypeVar('Self', bound='Tracking')
 
@@ -329,6 +331,93 @@ class Tracking:
     def __getitem__(self, idx):
         return self.loc[idx]
 
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True):
+        """
+        Plot trajectories and static points for this Tracking object.
+        Args:
+            trajectories: list of point names or dict {point: color_series}
+            static: list of point names to plot as static (median)
+            lines: list of (point1, point2) pairs to join with a line
+            dims: tuple of dimension names (default ('x','y'); use ('x','y','z') for 3D)
+            ax: matplotlib axis (optional)
+            title: plot title (default: self.handle)
+            show: whether to call plt.show()
+        Returns: fig, ax
+        """
+        import numpy as np
+        is3d = len(dims) == 3
+        if len(dims) > 3:
+            raise ValueError("dims must be a tuple of length 2 or 3")
+        if ax is None:
+            fig = plt.figure(figsize=(5, 5))
+            if is3d:
+                ax = fig.add_subplot(111, projection="3d")
+            else:
+                ax = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+        # Prepare trajectories
+        if trajectories is None:
+            trajectories = []
+        if static is None:
+            static = []
+        if lines is None:
+            lines = []
+        # If dict, allow color series for each trajectory
+        if isinstance(trajectories, dict):
+            traj_points = list(trajectories.keys())
+        else:
+            traj_points = list(trajectories)
+        # Plot trajectories
+        for point in traj_points:
+            cols = [f"{point}.{d}" for d in dims]
+            for c in cols:
+                if c not in self.data.columns:
+                    raise ValueError(f"Column {c} not in data for point {point}")
+            arrs = [self.data[f"{point}.{d}"].values for d in dims]
+            mask = np.all([np.isfinite(a) for a in arrs], axis=0)
+            arrs = [a[mask] for a in arrs]
+            if isinstance(trajectories, dict) and isinstance(trajectories[point], pd.Series):
+                cvals = trajectories[point].values[mask]
+                sc = ax.scatter(*arrs, c=cvals, cmap="viridis", label=point, s=8)
+                plt.colorbar(sc, ax=ax, label=f"{point} color")
+            else:
+                if is3d:
+                    ax.plot(*arrs, label=point)
+                else:
+                    ax.plot(*arrs, label=point)
+        # Plot static points (median)
+        for point in static:
+            cols = [f"{point}.{d}" for d in dims]
+            for c in cols:
+                if c not in self.data.columns:
+                    raise ValueError(f"Column {c} not in data for point {point}")
+            med = [np.nanmedian(self.data[f"{point}.{d}"]) for d in dims]
+            if is3d:
+                ax.scatter(*med, marker="o", s=60, label=f"{point} (static)")
+            else:
+                ax.scatter(*med, marker="o", s=60, label=f"{point} (static)")
+        # Plot lines between static points
+        for p1, p2 in lines:
+            cols1 = [f"{p1}.{d}" for d in dims]
+            cols2 = [f"{p2}.{d}" for d in dims]
+            for c in cols1 + cols2:
+                if c not in self.data.columns:
+                    raise ValueError(f"Column {c} not in data for line {p1}-{p2}")
+            med1 = [np.nanmedian(self.data[f"{p1}.{d}"]) for d in dims]
+            med2 = [np.nanmedian(self.data[f"{p2}.{d}"]) for d in dims]
+            if is3d:
+                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], [med1[2], med2[2]], 'k--', lw=1)
+            else:
+                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], 'k--', lw=1)
+        if title is None:
+            title = self.handle
+        ax.set_title(title)
+        ax.legend()
+        if show:
+            plt.show()
+        return fig, ax
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.data)} rows, fps={self.meta.get('fps', 'unknown')}>"
 
@@ -547,6 +636,36 @@ class TrackingCollection:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_dict)} Tracking objects>"
 
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), suptitle=None, figsize=(5, 5), show=True):
+        """
+        Plot all Tracking objects as subplots.
+        Args:
+            trajectories, static, lines, dims: passed to each Tracking.plot
+            suptitle: overall figure title
+            figsize: tuple (w, h) per subplot
+            show: whether to call plt.show()
+        Returns: fig, axes
+        """
+        n = len(self.tracking_dict)
+        is3d = len(dims) == 3
+        ncols = min(3, n)
+        nrows = (n + ncols - 1) // ncols
+        fig = plt.figure(figsize=(figsize[0]*ncols, figsize[1]*nrows))
+        axes = []
+        for i, (handle, tracking) in enumerate(self.tracking_dict.items()):
+            if is3d:
+                ax = fig.add_subplot(nrows, ncols, i+1, projection="3d")
+            else:
+                ax = fig.add_subplot(nrows, ncols, i+1)
+            tracking.plot(trajectories=trajectories, static=static, lines=lines, dims=dims, ax=ax, title=handle, show=False)
+            axes.append(ax)
+        if suptitle:
+            fig.suptitle(suptitle)
+        fig.tight_layout()
+        if show:
+            plt.show()
+        return fig, axes
+
 class MultipleTrackingCollection:
     '''
     Collection of TrackingCollection objects, keyed by name (e.g. for comparison between groups)
@@ -690,6 +809,32 @@ class MultipleTrackingCollection:
         return self.tracking_collections.items()
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_collections)} TrackingCollection objects>"
+
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), suptitle=None, figsize=(5, 5), show=True):
+        """
+        Plot all TrackingCollections as subplot grids.
+        Args:
+            trajectories, static, lines, dims: passed to each TrackingCollection.plot
+            suptitle: overall figure title
+            figsize: tuple (w, h) per subplot
+            show: whether to call plt.show()
+        Returns: fig, axes
+        """
+        n = len(self.tracking_collections)
+        ncols = min(3, n)
+        nrows = (n + ncols - 1) // ncols
+        fig = plt.figure(figsize=(figsize[0]*ncols, figsize[1]*nrows))
+        axes = []
+        for i, (handle, collection) in enumerate(self.tracking_collections.items()):
+            ax = fig.add_subplot(nrows, ncols, i+1)
+            collection.plot(trajectories=trajectories, static=static, lines=lines, dims=dims, suptitle=handle, figsize=figsize, show=False)
+            axes.append(ax)
+        if suptitle:
+            fig.suptitle(suptitle)
+        fig.tight_layout()
+        if show:
+            plt.show()
+        return fig, axes
 
 class TrackingMV:
     """
