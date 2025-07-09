@@ -331,7 +331,7 @@ class Tracking:
     def __getitem__(self, idx):
         return self.loc[idx]
 
-    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True):
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, elev=30, azim=45):
         """
         Plot trajectories and static points for this Tracking object.
         Args:
@@ -352,6 +352,7 @@ class Tracking:
             fig = plt.figure(figsize=(5, 5))
             if is3d:
                 ax = fig.add_subplot(111, projection="3d")
+                ax.view_init(elev=elev, azim=azim)
             else:
                 ax = fig.add_subplot(111)
         else:
@@ -412,6 +413,11 @@ class Tracking:
                 ax.plot([med1[0], med2[0]], [med1[1], med2[1]], 'k', lw=1)
         if title is None:
             title = self.handle
+        #label axes with dims
+        ax.set_xlabel(dims[0])
+        ax.set_ylabel(dims[1])
+        if is3d:
+            ax.set_zlabel(dims[2])
         ax.set_title(title)
         ax.legend()
         if show:
@@ -855,10 +861,11 @@ class TrackingMV:
                   for view, fp in filepaths.items()}
         return cls(tracks, calibration, handle)
     
-    def stereo_triangulate(self) -> 'Tracking':
+    def stereo_triangulate(self, invert_z: bool = True) -> 'Tracking':
         """
         Triangulate the two views to produce a 3D Tracking object.
         Returns a new Tracking object with .x, .y, .z columns.
+        invert_z is true by default to align with typical top-down behaviour tracking setups
         """
         import cv2
         import numpy as np
@@ -914,7 +921,10 @@ class TrackingMV:
             x3d, y3d, z3d, likelihood = triangulate_point(xs1, ys1, xs2, ys2, l1, l2)
             triangulated[point+'.x'] = x3d
             triangulated[point+'.y'] = y3d
-            triangulated[point+'.z'] = z3d
+            if invert_z:
+                triangulated[point+'.z'] = -z3d
+            else:
+                triangulated[point+'.z'] = z3d
             triangulated[point+'.likelihood'] = likelihood
 
         triangulated_df = pd.DataFrame(triangulated, index=frames)
