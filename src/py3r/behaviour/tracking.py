@@ -11,6 +11,8 @@ from py3r.behaviour.exceptions import BatchProcessError
 from collections import defaultdict
 import copy
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 
 Self = TypeVar('Self', bound='Tracking')
 
@@ -329,6 +331,99 @@ class Tracking:
     def __getitem__(self, idx):
         return self.loc[idx]
 
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, elev=30, azim=45):
+        """
+        Plot trajectories and static points for this Tracking object.
+        Args:
+            trajectories: list of point names or dict {point: color_series}
+            static: list of point names to plot as static (median)
+            lines: list of (point1, point2) pairs to join with a line
+            dims: tuple of dimension names (default ('x','y'); use ('x','y','z') for 3D)
+            ax: matplotlib axis (optional)
+            title: plot title (default: self.handle)
+            show: whether to call plt.show()
+        Returns: fig, ax
+        """
+        import numpy as np
+        is3d = len(dims) == 3
+        if len(dims) > 3:
+            raise ValueError("dims must be a tuple of length 2 or 3")
+        if ax is None:
+            fig = plt.figure(figsize=(5, 5))
+            if is3d:
+                ax = fig.add_subplot(111, projection="3d")
+                ax.view_init(elev=elev, azim=azim)
+            else:
+                ax = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+        # Prepare trajectories
+        if trajectories is None:
+            trajectories = []
+        if static is None:
+            static = []
+        if lines is None:
+            lines = []
+        # If dict, allow color series for each trajectory
+        if isinstance(trajectories, dict):
+            traj_points = list(trajectories.keys())
+        else:
+            traj_points = list(trajectories)
+        # Plot trajectories
+        for point in traj_points:
+            cols = [f"{point}.{d}" for d in dims]
+            for c in cols:
+                if c not in self.data.columns:
+                    raise ValueError(f"Column {c} not in data for point {point}")
+            arrs = [self.data[f"{point}.{d}"].values for d in dims]
+            mask = np.all([np.isfinite(a) for a in arrs], axis=0)
+            arrs = [a[mask] for a in arrs]
+            if isinstance(trajectories, dict) and isinstance(trajectories[point], pd.Series):
+                cvals = trajectories[point].values[mask]
+                sc = ax.scatter(*arrs, c=cvals, cmap="viridis", label=point, s=8)
+                plt.colorbar(sc, ax=ax, label=f"{point} color")
+            else:
+                if is3d:
+                    ax.plot(*arrs, label=point)
+                else:
+                    ax.plot(*arrs, label=point)
+        # Plot static points (median)
+        for point in static:
+            cols = [f"{point}.{d}" for d in dims]
+            for c in cols:
+                if c not in self.data.columns:
+                    raise ValueError(f"Column {c} not in data for point {point}")
+            med = [np.nanmedian(self.data[f"{point}.{d}"]) for d in dims]
+            if is3d:
+                ax.scatter(*med, marker="o", s=60)
+            else:
+                ax.scatter(*med, marker="o", s=60)
+        # Plot lines between static points
+        for p1, p2 in lines:
+            cols1 = [f"{p1}.{d}" for d in dims]
+            cols2 = [f"{p2}.{d}" for d in dims]
+            for c in cols1 + cols2:
+                if c not in self.data.columns:
+                    raise ValueError(f"Column {c} not in data for line {p1}-{p2}")
+            med1 = [np.nanmedian(self.data[f"{p1}.{d}"]) for d in dims]
+            med2 = [np.nanmedian(self.data[f"{p2}.{d}"]) for d in dims]
+            if is3d:
+                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], [med1[2], med2[2]], 'k', lw=1)
+            else:
+                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], 'k', lw=1)
+        if title is None:
+            title = self.handle
+        #label axes with dims
+        ax.set_xlabel(dims[0])
+        ax.set_ylabel(dims[1])
+        if is3d:
+            ax.set_zlabel(dims[2])
+        ax.set_title(title)
+        ax.legend()
+        if show:
+            plt.show()
+        return fig, ax
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.data)} rows, fps={self.meta.get('fps', 'unknown')}>"
 
@@ -564,6 +659,11 @@ class TrackingCollection:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_dict)} Tracking objects>"
 
+    def plot(self, *args, **kwargs):
+        print(f"\nCollection: {getattr(self, 'handle', 'unnamed')}")
+        for handle, tracking in self.tracking_dict.items():
+            tracking.plot(*args, title=handle, **kwargs)
+
 class MultipleTrackingCollection:
     '''
     Collection of TrackingCollection objects, keyed by name (e.g. for comparison between groups)
@@ -718,6 +818,11 @@ class MultipleTrackingCollection:
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_collections)} TrackingCollection objects>"
 
+    def plot(self, *args, **kwargs):
+        for handle, collection in self.tracking_collections.items():
+            print(f"\n=== Group: {handle} ===")
+            collection.plot(*args, **kwargs)
+
 class TrackingMV:
     """
     multi-view tracking object for stereo or multi-camera setups
@@ -756,10 +861,11 @@ class TrackingMV:
                   for view, fp in filepaths.items()}
         return cls(tracks, calibration, handle)
     
-    def stereo_triangulate(self) -> 'Tracking':
+    def stereo_triangulate(self, invert_z: bool = True) -> 'Tracking':
         """
         Triangulate the two views to produce a 3D Tracking object.
         Returns a new Tracking object with .x, .y, .z columns.
+        invert_z is true by default to align with typical top-down behaviour tracking setups
         """
         import cv2
         import numpy as np
@@ -815,7 +921,10 @@ class TrackingMV:
             x3d, y3d, z3d, likelihood = triangulate_point(xs1, ys1, xs2, ys2, l1, l2)
             triangulated[point+'.x'] = x3d
             triangulated[point+'.y'] = y3d
-            triangulated[point+'.z'] = z3d
+            if invert_z:
+                triangulated[point+'.z'] = -z3d
+            else:
+                triangulated[point+'.z'] = z3d
             triangulated[point+'.likelihood'] = likelihood
 
         triangulated_df = pd.DataFrame(triangulated, index=frames)
@@ -823,6 +932,29 @@ class TrackingMV:
         triangulated_meta['calibration'] = calib
         triangulated_meta['views'] = views
         return Tracking(triangulated_df, triangulated_meta, self.handle)
+    
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True):
+        n = len(self.views)
+        import matplotlib.pyplot as plt
+        fig, axes = plt.subplots(1, n, figsize=(5*n, 5), squeeze=False)
+        axes = axes[0]  # flatten to 1D
+        for i, (view, track) in enumerate(self.views.items()):
+            track.plot(
+                trajectories=trajectories,
+                static=static,
+                lines=lines,
+                dims=dims,
+                ax=axes[i],
+                title=view,
+                show=False
+            )
+        if title is None:
+            title = self.handle
+        fig.suptitle(title)
+        fig.tight_layout()
+        if show:
+            plt.show()
+        return fig, axes
 
     def __getattr__(self, name):
         """
