@@ -309,13 +309,13 @@ class MultipleSummaryCollection:
         return batch_method
     
     @classmethod
-    def from_multiple_features_collection(cls, multiple_features_collection: MultipleFeaturesCollection):
+    def from_multiple_features_collection(cls, multiple_features_collection: MultipleFeaturesCollection, summary_cls=Summary):
         '''
         creates a MultipleSummaryCollections from a MultipleFeaturesCollection
         '''
         multiple_summary_collection = {}
         for handle, features_collection in multiple_features_collection.features_collections.items():
-            multiple_summary_collection[handle] = SummaryCollection.from_features_collection(features_collection)
+            multiple_summary_collection[handle] = SummaryCollection.from_features_collection(features_collection, summary_cls=summary_cls)
         return cls(multiple_summary_collection)
 
     def bfa(self, column: str, all_states=None, numshuffles: int = 1000):
