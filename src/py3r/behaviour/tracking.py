@@ -557,6 +557,19 @@ class TrackingCollection:
             tracking_obj = tracking_cls.from_dlcma(**kwargs)
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
+    
+    def stereo_triangulate(self):
+        """
+        Triangulate all TrackingMV objects in the collection.
+        Returns a new TrackingCollection of triangulated Tracking objects.
+        """
+        triangulated = {}
+        for handle, obj in self.tracking_dict.items():
+            if hasattr(obj, "stereo_triangulate"):
+                triangulated[handle] = obj.stereo_triangulate()
+            else:
+                raise TypeError(f"Object {handle} does not support stereo_triangulate()")
+        return TrackingCollection(triangulated)
 
     @staticmethod
     def _collect_tracking_files(folder_path, tracking_cls, options):
@@ -754,6 +767,16 @@ class MultipleTrackingCollection:
             tc = TrackingCollection.from_dlcma_folder(subfolder_path, options=options, tracking_cls=tracking_cls)
             tracking_collections[subfolder] = tc
         return cls(tracking_collections)
+    
+    def stereo_triangulate(self):
+        """
+        Triangulate all TrackingMV objects in all collections.
+        Returns a new MultipleTrackingCollection of triangulated TrackingCollections.
+        """
+        triangulated = {}
+        for group, collection in self.tracking_collections.items():
+            triangulated[group] = collection.stereo_triangulate()
+        return MultipleTrackingCollection(triangulated)
     
     @property
     def loc(self):
