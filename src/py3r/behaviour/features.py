@@ -224,7 +224,7 @@ class Features():
         '''
         if 'smoothing' not in self.tracking.meta.keys():
             warnings.warn('tracking data have not been smoothed')
-        _speed = self.find_speed(point, dims=dims)
+        _speed = self.speed(point, dims=dims)
         _acceleration = _speed.diff() * self.tracking.meta['fps']
         name = f"acceleration_of_{point}_in_{''.join(dims)}"
         meta = {'function': 'acceleration', 'point': point, 'dims': dims}
@@ -790,13 +790,13 @@ class MultipleFeaturesCollection:
         self.features_collections = features_collections
 
     @classmethod
-    def from_multiple_tracking_collection(cls, multiple_tracking_collection: MultipleTrackingCollection):
+    def from_multiple_tracking_collection(cls, multiple_tracking_collection: MultipleTrackingCollection, feature_cls=Features):
         '''
         Factory method to create MultipleFeaturesCollection from a MultipleTrackingCollection object.
         '''
         collections = {}
         for coll_name, tracking_collection in multiple_tracking_collection.tracking_collections.items():
-            collections[coll_name] = FeaturesCollection.from_tracking_collection(tracking_collection)
+            collections[coll_name] = FeaturesCollection.from_tracking_collection(tracking_collection, feature_cls=feature_cls)
         return cls(collections)
 
     def __getattr__(self, name):

@@ -525,9 +525,8 @@ class TrackingCollection:
     ) -> 'TrackingCollection':
         tracking_dict = {}
         bookkeeping = cls._collect_tracking_files(folder_path, tracking_cls, options=options)
-        for handle, args in bookkeeping.items():
-            filepath, handle_arg, options_arg = args
-            tracking_obj = tracking_cls.from_dlc(filepath, handle=handle_arg, options=options_arg)
+        for handle, kwargs in bookkeeping.items():
+            tracking_obj = tracking_cls.from_dlc(**kwargs)
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
@@ -540,9 +539,8 @@ class TrackingCollection:
     ) -> 'TrackingCollection':
         tracking_dict = {}
         bookkeeping = cls._collect_tracking_files(folder_path, tracking_cls, options=options)
-        for handle, args in bookkeeping.items():
-            filepath, handle_arg, options_arg = args
-            tracking_obj = tracking_cls.from_yolo3r(filepath, handle=handle_arg, options=options_arg)
+        for handle, kwargs in bookkeeping.items():
+            tracking_obj = tracking_cls.from_yolo3r(**kwargs)
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
@@ -555,21 +553,18 @@ class TrackingCollection:
     ) -> 'TrackingCollection':
         tracking_dict = {}
         bookkeeping = cls._collect_tracking_files(folder_path, tracking_cls, options=options)
-        for handle, args in bookkeeping.items():
-            filepath, handle_arg, options_arg = args
-            tracking_obj = tracking_cls.from_dlcma(filepath, handle=handle_arg, options=options_arg)
+        for handle, kwargs in bookkeeping.items():
+            tracking_obj = tracking_cls.from_dlcma(**kwargs)
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
     @staticmethod
     def _collect_tracking_files(folder_path, tracking_cls, options):
         """
-        Returns a dict of handle -> (args for tracking_cls.from_X)
-        For TrackingMV: handle -> (filepaths_dict, handle, options, calibration)
-        For Tracking: handle -> (filepath, handle, options)
+        Returns a dict of handle -> kwargs dict for tracking_cls factory method.
+        For TrackingMV: handle -> {filepaths, handle, options, calibration}
+        For Tracking: handle -> {filepath, handle, options}
         """
-
-        
         result = {}
         if tracking_cls is TrackingMV:
             # Each subfolder is a recording
@@ -592,14 +587,23 @@ class TrackingCollection:
                     raise FileNotFoundError(f"Missing calibration.json in {recording_path}")
                 with open(calib_path, 'r') as f:
                     calibration = json.load(f)
-                result[recording] = (filepaths, recording, options, calibration)
+                result[recording] = {
+                    'filepaths': filepaths,
+                    'handle': recording,
+                    'options': options,
+                    'calibration': calibration,
+                }
         else:
             # Single-view: treat each csv as a single-view Tracking
             for fname in os.listdir(folder_path):
                 if fname.endswith('.csv') and not fname.startswith('.'):
                     handle = os.path.splitext(fname)[0]
                     fpath = os.path.join(folder_path, fname)
-                    result[handle] = (fpath, handle, options)
+                    result[handle] = {
+                        'filepath': fpath,
+                        'handle': handle,
+                        'options': options,
+                    }
         return result
     
     @property
