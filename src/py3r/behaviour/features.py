@@ -20,6 +20,7 @@ from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util import series_utils
 from py3r.behaviour.util.bmicro_utils import train_knn_from_embeddings, predict_knn_on_embedding
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+from py3r.behaviour.classifier import BaseClassifier
 
 logger = logging.getLogger(__name__)
 logformat = '%(funcName)s(): %(message)s'
@@ -329,6 +330,17 @@ class Features():
             self.data[name] = feature
 
         self.meta[name] = meta
+
+    def classify(self, classifier:BaseClassifier, **kwargs):
+        '''
+        classify behaviour using a classifier with inputs from this Features object
+        returns a FeaturesResult object with the classification result
+        this means that the output of the classifier should be a pd.Series with the same index as this Features object
+        '''
+        result = classifier.predict(self, **kwargs)
+        name = f"classified_{classifier.__class__.__name__}"
+        meta = {'function': 'classify', 'classifier': classifier.__class__.__name__}
+        return FeaturesResult(result, self, name, meta)
 
     def smooth(self, name:str, method:str, window:int, center:bool=True, inplace:bool=False) -> pd.Series:
         '''
