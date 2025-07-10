@@ -24,13 +24,29 @@ Tracking(data: pd.DataFrame, meta: dict, handle: str)
 - `time_as_expected(mintime, maxtime)` — check if total length is within expected time
 - `generate_smoothdict(pointslists, windows, smoothtypes)` — create smoothing parameter dict
 - `distance_between_points(point1, point2, dims=('x','y'))` — framewise distance between two points
+- `.plot(trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, elev=30, azim=45)` — plot trajectories and/or static points for this Tracking object
 
+**plot() method:**
+Plots the trajectory and/or static points for the tracking data. Supports 2D and 3D plots, custom axes, and coloring by series.
 
-**example:**
+**Arguments:**
+- `trajectories`: list of point names or dict {point: color_series} to plot as trajectories
+- `static`: list of point names to plot as static (median)
+- `lines`: list of (point1, point2) pairs to join with a line
+- `dims`: tuple of dimension names (default ("x","y"); use ("x","y","z") for 3D)
+- `ax`: matplotlib axis (optional)
+- `title`: plot title (default: self.handle)
+- `show`: whether to call plt.show()
+- `elev`, `azim`: elevation and azimuth for 3D plots
+
+**Returns:** `(fig, ax)`
+
+**Example:**
 ```python
 from rrr_behaviour.util.tracking import Tracking
 tracking = Tracking.from_dlc('file.csv', handle='animal1', options=opts)
 print(tracking.get_point_names())
+tracking.plot(trajectories=["nose", "tail"], static=["center"], lines=[("nose", "tail")], dims=("x", "y"))
 ```
 
 ---
@@ -52,12 +68,21 @@ TrackingMV(views: dict[str, Tracking], calibration: dict, handle: str)
 **main methods:**
 - `stereo_triangulate()` — triangulate two views to produce 3d tracking
 - batch access to all Tracking methods via `__getattr__`
+- `.plot(trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True)` — plot all views side by side for this multi-view tracking object
 
+**plot() method:**
+Plots all views in the multi-view tracking object side by side. Each subplot corresponds to a view.
 
-**example:**
+**Arguments:**
+- `trajectories`, `static`, `lines`, `dims`, `ax`, `title`, `show`: as in Tracking.plot
+
+**Returns:** `(fig, axes)`
+
+**Example:**
 ```python
 mv = TrackingMV.from_dlc({'left': 'left.csv', 'right': 'right.csv'}, handle='rec1', options=opts, calibration=calib)
 tri = mv.stereo_triangulate()
+mv.plot(trajectories=["nose"])
 ```
 
 ---
@@ -87,6 +112,15 @@ any method of Tracking can be called on the collection and will be applied to al
 collection = TrackingCollection({...})
 result = collection.get_point_names()  # dict: handle -> point names
 ```
+- `.plot(*args, **kwargs)` — plot all Tracking objects in the collection
+
+**plot() method:**
+Calls `.plot()` for each Tracking object in the collection, labeling each plot by handle. Accepts the same arguments as Tracking.plot and passes them to each object.
+
+**Example:**
+```python
+collection.plot(trajectories=["nose"])
+```
 
 ---
 
@@ -110,6 +144,15 @@ any method of TrackingCollection can be called on the multiple collection and wi
 ```python
 multi = MultipleTrackingCollection({...})
 result = multi.get_point_names()  # dict: group -> (dict: handle -> point names)
+```
+- `.plot(*args, **kwargs)` — plot all TrackingCollections in the multiple collection
+
+**plot() method:**
+Calls `.plot()` for each TrackingCollection in the multiple collection, labeling each group. Accepts the same arguments as TrackingCollection.plot.
+
+**Example:**
+```python
+multi.plot(trajectories=["nose"])
 ```
 
 ---
@@ -343,7 +386,7 @@ Batch methods on collections return a BatchResult, which supports `.plot()` and 
 
 ```python
 results = features_collection.speed('nose')
-results.plot()
+results.plot()  # plot all results in the batch
 results.store()
 ```
 
