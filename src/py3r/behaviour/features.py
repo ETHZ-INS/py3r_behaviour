@@ -106,8 +106,9 @@ class Features():
             if isinstance(centre, str):
                 boundarycentre = self.get_point_median(centre)
             elif isinstance(centre, list):
-                xcoords = np.array([point[0] for point in centre])
-                ycoords = np.array([point[1] for point in centre])
+                centrepointmedians = [self.get_point_median(point) for point in centre]
+                xcoords = np.array([point[0] for point in centrepointmedians])
+                ycoords = np.array([point[1] for point in centrepointmedians])
                 boundarycentre = (xcoords.mean(), ycoords.mean())
             else:
                 raise ValueError(f"centre must be a string or list of strings, not {type(centre)}")
