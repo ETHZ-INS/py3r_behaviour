@@ -199,15 +199,19 @@ class Features():
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
     
-    def area_of_boundary(self, boundary: list[str], median: bool = True) -> float | pd.Series:
+    def area_of_boundary(self, boundary: list[str], median: bool = True) -> FeaturesResult:
         '''
-        returns area of boundary
+        returns area of boundary as a FeaturesResult (constant for static, per-frame for dynamic)
         '''
+        name = f"area_of_boundary_{self._short_boundary_id(boundary)}_{'static' if median else 'dynamic'}"
+        meta = {'function': 'area_of_boundary', 'boundary': boundary, 'median': median}
         if median:
             warnings.warn('using median (static) boundary')
             static_boundary = [self.get_point_median(i) for i in boundary]
             local_poly = Polygon(static_boundary)
-            return local_poly.area
+            area = local_poly.area
+            # Create a constant Series with the same index as self.tracking.data
+            result = pd.Series(area, index=self.tracking.data.index)
         else:
             warnings.warn('using fully dynamic boundary')
             def row_area(x):
@@ -216,7 +220,8 @@ class Features():
                     return local_poly.area
                 except GEOSException:
                     return np.nan
-            return self.tracking.data.apply(row_area, axis=1)
+            result = self.tracking.data.apply(row_area, axis=1)
+        return FeaturesResult(result, self, name, meta)
     
     def acceleration(self, point:str, dims=('x','y')) -> FeaturesResult:
         '''
