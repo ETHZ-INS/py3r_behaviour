@@ -90,15 +90,28 @@ class Features():
     def get_point_median(self, point:str, dims=('x','y')) -> tuple:
         return tuple(self.tracking.data[point+'.'+dim].median() for dim in dims)
     
-    def define_boundary(self, points:list, scaling:float, scaling_y:float=None, centre=None) -> list:
-        '''takes a list of defined points, and creates a static rescaled list of point
-        coordinates based on median location of those points'''
+    def define_boundary(self, points:list[str], scaling:float, scaling_y:float=None, centre:str|list[str]=None) -> list[tuple[float,float]]:
+        '''
+        takes a list of defined points, and creates a static rescaled list of point coordinates based on median location of those points
+        'centre' (point about which to scale) can be a string or list of strings, in which case the median of the points will be used as the centre
+        if 'centre' is None, the median of all the boundary points will be used as the centre
+        'scaling' is the factor by which to scale the boundary points, and 'scaling_y' is the factor by which to scale the y-axis
+        if 'scaling_y' is not provided, 'scaling' will be applied to both axes
+        '''
 
         # get point medians
         pointmedians = [self.get_point_median(point) for point in points]
         #get centre
         if centre is not None:
-            boundarycentre = self.get_point_median(centre)
+            if isinstance(centre, str):
+                boundarycentre = self.get_point_median(centre)
+            elif isinstance(centre, list):
+                centrepointmedians = [self.get_point_median(point) for point in centre]
+                xcoords = np.array([point[0] for point in centrepointmedians])
+                ycoords = np.array([point[1] for point in centrepointmedians])
+                boundarycentre = (xcoords.mean(), ycoords.mean())
+            else:
+                raise ValueError(f"centre must be a string or list of strings, not {type(centre)}")
         else:
             xcoords = np.array([point[0] for point in pointmedians])
             ycoords = np.array([point[1] for point in pointmedians])
