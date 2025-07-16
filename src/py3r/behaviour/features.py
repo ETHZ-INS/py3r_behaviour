@@ -202,13 +202,13 @@ class Features():
             def row_distance(x):
                 local_point = Point(x[point+'.x'], x[point+'.y'])
                 local_poly = Polygon(static_boundary)
-                return local_poly.distance(local_point)
+                return local_poly.exterior.distance(local_point)
         else:
             warnings.warn('using fully dynamic boundary')
             def row_distance(x):
                 local_point = Point(x[point+'.x'], x[point+'.y'])
                 local_poly = Polygon([(x[i+'.x'], x[i+'.y']) for i in boundary])
-                return local_poly.distance(local_point)
+                return local_poly.exterior.distance(local_point)
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
     
@@ -1108,6 +1108,64 @@ class MultipleFeaturesCollection:
         return results
     
     @staticmethod
+    def plot_cross_predict_vs_within(results, from_collection, to_collection, show=True):
+        """
+        Plot mean RMS for between (fromX_to_Y), within (withinY), and their difference for each Features object in 'to_collection'.
+        """
+        # Keys
+        between_key = f'from{from_collection}_to_{to_collection}'
+        within_key = to_collection
+
+        # Get dicts of {handle: pd.Series}
+        between_dict = results['between'].get(between_key, {})
+        within_dict = results['within'].get(within_key, {})
+
+        # Handles present in both
+        handles = sorted(set(between_dict.keys()) & set(within_dict.keys()))
+        if not handles:
+            raise ValueError(f"No overlapping handles between {between_key} and {within_key}")
+
+        # Compute means
+        between_means = [between_dict[h].mean(skipna=True) for h in handles]
+        within_means = [within_dict[h].mean(skipna=True) for h in handles]
+        diff_means = [b - w for b, w in zip(between_means, within_means)]
+
+        x = np.arange(len(handles))
+        width = 0.3
+
+        fig, ax = plt.subplots(figsize=(max(8, len(handles)*0.7), 5))
+        #ax.bar(x - width, between_means, width, label=f'from{from_collection}_to_{to_collection}')
+        #ax.bar(x, within_means, width, label=f'within_{to_collection}')
+        ax.bar(x + width, diff_means, width, label='between - within')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(handles, rotation=90)
+        ax.set_ylabel('Mean RMS difference')
+        ax.set_title(f'Cross-predict vs Within: {from_collection} → {to_collection}')
+        #ax.legend()
+
+        from scipy.stats import ttest_rel
+
+        # Paired t-test
+        t_stat, p_value = ttest_rel(between_means, within_means, nan_policy='omit')
+
+        # Annotate on the plot
+        ax.text(0.99, 0.99, f"Paired t-test: p = {p_value:.3g}", 
+                ha='right', va='top', transform=ax.transAxes, fontsize=12, color='red')
+
+        plt.tight_layout()
+        if show:
+            plt.show()
+        return {
+            'handles': handles,
+            'between_means': between_means,
+            'within_means': within_means,
+            'diff_means': diff_means,
+            't_stat': t_stat,
+            'p_value': p_value
+        }
+    
+    @staticmethod
     def plot_cross_predict_results(
         results,
         within_keys=None,
@@ -1156,10 +1214,35 @@ class MultipleFeaturesCollection:
         elif plot_type == 'point':
             # Point plot: mean RMS per feature, grouped by category
             means = df.groupby(['Category', 'Feature']).RMS.mean().reset_index()
-            sns.pointplot(data=means, x='Feature', y='RMS', hue='Category', dodge=True)
-            plt.ylabel('mean RMS error')
-            plt.title(f'{within_keys[0]} vs {within_keys[1]}')
-            plt.xticks(rotation=90)
+            # Pivot to get within and between as columns
+            pivot = means.pivot(index='Feature', columns='Category', values='RMS')
+            # Try to infer the within and between column names
+            within_col = [c for c in pivot.columns if c.startswith('within_')]
+            between_col = [c for c in pivot.columns if not c.startswith('within_')]
+            if len(within_col) == 1 and len(between_col) == 1:
+                pivot['mean_diff'] = pivot[between_col[0]] - pivot[within_col[0]]
+            else:
+                pivot['mean_diff'] = np.nan  # fallback if ambiguous
+
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(figsize[0], figsize[1]*1.5), sharex=True, gridspec_kw={'height_ratios': [2, 1]})
+
+            # Point plot
+            sns.pointplot(data=means, x='Feature', y='RMS', hue='Category', dodge=True, ax=ax1)
+            ax1.set_ylabel('mean RMS error')
+            ax1.set_title(f'{within_keys[0]} vs {within_keys[1]}')
+            ax1.tick_params(axis='x', rotation=90)
+
+            # Bar plot of mean difference
+            ax2.bar(pivot.index, pivot['mean_diff'])
+            ax2.axhline(0, color='gray', linestyle='--')
+            ax2.set_ylabel('Mean (Between - Within)')
+            ax2.set_title('Mean RMS Difference per Video')
+            ax2.tick_params(axis='x', rotation=90)
+
+            plt.tight_layout()
+            if show:
+                plt.show()
+            return df  # Return the DataFrame for further inspection if needed
         elif plot_type == 'violin':
             # Violin plot: all raw RMS values
             sns.violinplot(data=df, x='Category', y='RMS', inner='point')
@@ -1245,3 +1328,43 @@ class MultipleFeaturesCollection:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.features_collections)} FeaturesCollection objects>"
+
+    @staticmethod
+    def plot_cross_predict_difference_histograms(results, from_collection, to_collection, show=True, bins=30):
+        """
+        For each handle in the intersection of between and within, plot a histogram of (between - within) RMS time series.
+        """
+        between_key = f'from{from_collection}_to_{to_collection}'
+        within_key = to_collection
+
+        between_dict = results['between'].get(between_key, {})
+        within_dict = results['within'].get(within_key, {})
+
+        handles = sorted(set(between_dict.keys()) & set(within_dict.keys()))
+        if not handles:
+            raise ValueError(f"No overlapping handles between {between_key} and {within_key}")
+
+        n = len(handles)
+        ncols = min(4, n)
+        nrows = int(np.ceil(n / ncols))
+
+        fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 3*nrows), squeeze=False)
+        axes = axes.flatten()
+
+        for i, h in enumerate(handles):
+            diff = between_dict[h] - within_dict[h]
+            diff = diff.dropna()
+            axes[i].hist(diff, bins=bins, color='C0', alpha=0.7)
+            mean_val = diff.mean()
+            axes[i].axvline(0, color='gray', linestyle='--')
+            axes[i].axvline(mean_val, color='red', linestyle='-', linewidth=2, label='mean')
+            axes[i].set_title(h)
+            axes[i].set_xlabel('Between - Within (RMS)')
+            axes[i].set_ylabel('Count')
+            axes[i].legend()
+
+        fig.suptitle(f'Histogram of (Between - Within) RMS Differences\n{from_collection} → {to_collection}', fontsize=14)
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+        if show:
+            plt.show()
+        return handles
