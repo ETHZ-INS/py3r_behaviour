@@ -314,6 +314,21 @@ class Tracking:
 
         self.meta['smoothing'] = smoothing_params
 
+    def interpolate(self, method: str = 'linear', limit: int = 1, **kwargs) -> None:
+        '''
+        interpolates missing data in the tracking data, and sets likelihood to np.nan
+        uses pandas.DataFrame.interpolate() with kwargs
+        '''
+        if 'interpolation' in self.meta.keys():
+            raise Exception('data already interpolated. re-load the raw data to interpolate again')
+        
+        # interpolate only the position columns, and set likelihood to np.nan
+        position_columns = self.data.columns[self.data.columns.str.endswith('.x') | self.data.columns.str.endswith('.y') | self.data.columns.str.endswith('.z')]
+        self.data.loc[:, position_columns] = self.data.loc[:, position_columns].interpolate(method=method, limit=limit, **kwargs)
+        self.data.loc[:, self.data.columns.str.endswith('.likelihood')] = np.nan
+        
+        self.meta['interpolation'] = {'method': method, 'limit': limit, 'kwargs': kwargs}
+
     @property
     def loc(self):
         return _Indexer(self, self._loc)
