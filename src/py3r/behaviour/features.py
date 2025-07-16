@@ -91,15 +91,28 @@ class Features():
     def get_point_median(self, point:str, dims=('x','y')) -> tuple:
         return tuple(self.tracking.data[point+'.'+dim].median() for dim in dims)
     
-    def define_boundary(self, points:list, scaling:float, scaling_y:float=None, centre=None) -> list:
-        '''takes a list of defined points, and creates a static rescaled list of point
-        coordinates based on median location of those points'''
+    def define_boundary(self, points:list[str], scaling:float, scaling_y:float=None, centre:str|list[str]=None) -> list[tuple[float,float]]:
+        '''
+        takes a list of defined points, and creates a static rescaled list of point coordinates based on median location of those points
+        'centre' (point about which to scale) can be a string or list of strings, in which case the median of the points will be used as the centre
+        if 'centre' is None, the median of all the boundary points will be used as the centre
+        'scaling' is the factor by which to scale the boundary points, and 'scaling_y' is the factor by which to scale the y-axis
+        if 'scaling_y' is not provided, 'scaling' will be applied to both axes
+        '''
 
         # get point medians
         pointmedians = [self.get_point_median(point) for point in points]
         #get centre
         if centre is not None:
-            boundarycentre = self.get_point_median(centre)
+            if isinstance(centre, str):
+                boundarycentre = self.get_point_median(centre)
+            elif isinstance(centre, list):
+                centrepointmedians = [self.get_point_median(point) for point in centre]
+                xcoords = np.array([point[0] for point in centrepointmedians])
+                ycoords = np.array([point[1] for point in centrepointmedians])
+                boundarycentre = (xcoords.mean(), ycoords.mean())
+            else:
+                raise ValueError(f"centre must be a string or list of strings, not {type(centre)}")
         else:
             xcoords = np.array([point[0] for point in pointmedians])
             ycoords = np.array([point[1] for point in pointmedians])
@@ -200,15 +213,19 @@ class Features():
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
     
-    def area_of_boundary(self, boundary: list[str], median: bool = True) -> float | pd.Series:
+    def area_of_boundary(self, boundary: list[str], median: bool = True) -> FeaturesResult:
         '''
-        returns area of boundary
+        returns area of boundary as a FeaturesResult (constant for static, per-frame for dynamic)
         '''
+        name = f"area_of_boundary_{self._short_boundary_id(boundary)}_{'static' if median else 'dynamic'}"
+        meta = {'function': 'area_of_boundary', 'boundary': boundary, 'median': median}
         if median:
             warnings.warn('using median (static) boundary')
             static_boundary = [self.get_point_median(i) for i in boundary]
             local_poly = Polygon(static_boundary)
-            return local_poly.area
+            area = local_poly.area
+            # Create a constant Series with the same index as self.tracking.data
+            result = pd.Series(area, index=self.tracking.data.index)
         else:
             warnings.warn('using fully dynamic boundary')
             def row_area(x):
@@ -217,7 +234,8 @@ class Features():
                     return local_poly.area
                 except GEOSException:
                     return np.nan
-            return self.tracking.data.apply(row_area, axis=1)
+            result = self.tracking.data.apply(row_area, axis=1)
+        return FeaturesResult(result, self, name, meta)
     
     def acceleration(self, point:str, dims=('x','y')) -> FeaturesResult:
         '''
@@ -389,7 +407,7 @@ class Features():
 
         return(smoothed)
 
-    def embedding_df(self, embedding:dict[str, list[int]]):
+    def embedding_df(self, embedding: dict[str, list[int]]):
         '''
         generate a time series embedding dataframe with specified time shifts for each column, 
         where embedding is a dict mapping column names to lists of shifts
@@ -399,14 +417,14 @@ class Features():
         missing = [col for col in embedding if col not in self.data.columns]
         if len(missing) > 0:
             raise ValueError(f"The following columns are not present in self.data: {missing}")
-        embed_df = pd.DataFrame(index=self.data.index)
+        data = {}
         for col, shifts in embedding.items():
             base_series = self.data[col]
             for shift in shifts:
                 shifted = base_series.shift(-shift)  # Reverse the sign: positive shift looks forward
                 suffix = f"t{shift:+d}" if shift != 0 else "t0"
-                embed_df[f"{col}_{suffix}"] = shifted
-                
+                data[f"{col}_{suffix}"] = shifted
+        embed_df = pd.DataFrame(data, index=self.data.index)
         return embed_df
 
     def cluster_embedding(self, embedding:dict[str, list[int]], n_clusters:int) -> tuple[pd.Series, pd.DataFrame]:
