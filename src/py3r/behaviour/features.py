@@ -395,7 +395,7 @@ class Features():
 
         return(smoothed)
 
-    def embedding_df(self, embedding:dict[str, list[int]]):
+    def embedding_df(self, embedding: dict[str, list[int]]):
         '''
         generate a time series embedding dataframe with specified time shifts for each column, 
         where embedding is a dict mapping column names to lists of shifts
@@ -405,14 +405,14 @@ class Features():
         missing = [col for col in embedding if col not in self.data.columns]
         if len(missing) > 0:
             raise ValueError(f"The following columns are not present in self.data: {missing}")
-        embed_df = pd.DataFrame(index=self.data.index)
+        data = {}
         for col, shifts in embedding.items():
             base_series = self.data[col]
             for shift in shifts:
                 shifted = base_series.shift(-shift)  # Reverse the sign: positive shift looks forward
                 suffix = f"t{shift:+d}" if shift != 0 else "t0"
-                embed_df[f"{col}_{suffix}"] = shifted
-                
+                data[f"{col}_{suffix}"] = shifted
+        embed_df = pd.DataFrame(data, index=self.data.index)
         return embed_df
 
     def cluster_embedding(self, embedding:dict[str, list[int]], n_clusters:int) -> tuple[pd.Series, pd.DataFrame]:
