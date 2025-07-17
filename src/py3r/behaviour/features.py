@@ -63,7 +63,7 @@ class Features():
         if 'rescale_distance_method' not in self.tracking.meta.keys():
             warnings.warn('distance has not been calibrated on these tracking data. some methods will be unavailable')
     
-    def distance_from(self, point1:str, point2:str, dims=('x','y')) -> FeaturesResult:
+    def distance_between(self, point1:str, point2:str, dims=('x','y')) -> FeaturesResult:
         '''
         returns distance from point1 to point2
         '''
@@ -72,16 +72,16 @@ class Features():
         if 'smoothing' not in self.tracking.meta.keys():
             warnings.warn('tracking data have not been smoothed')
         
-        obs_distance = self.tracking.find_2point_distance(point1, point2, dims=dims)
-        name = f"distance_from_{point1}_to_{point2}_in_{''.join(dims)}"
-        meta = {'function': 'distance_from', 'point1': point1, 'point2': point2, 'dims': dims}
+        obs_distance = self.tracking.distance_between(point1, point2, dims=dims)
+        name = f"distance_between_{point1}_and_{point2}_in_{''.join(dims)}"
+        meta = {'function': 'distance_between', 'point1': point1, 'point2': point2, 'dims': dims}
         return FeaturesResult(obs_distance, self, name, meta)
     
     def within_distance(self, point1:str, point2:str, distance:float, dims=('x','y')) -> FeaturesResult:
         '''
         returns True for frames where point1 is within specified distance of point2
         '''
-        obs_distance = self.distance_from(point1, point2, dims=dims)
+        obs_distance = self.distance_between(point1, point2, dims=dims)
         result = obs_distance <= distance
         name = f"within_distance_{point1}_to_{point2}_leq_{distance}_in_{''.join(dims)}"
         meta = {'function': 'within_distance', 'point1': point1, 'point2': point2, 'distance': distance, 'dims': dims}
