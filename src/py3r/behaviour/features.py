@@ -20,6 +20,8 @@ from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util import series_utils
 from py3r.behaviour.util.bmicro_utils import train_knn_from_embeddings, predict_knn_on_embedding
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+from py3r.behaviour.predictors import BasePredictor, KNNPredictor
+from py3r.behaviour.util.normalisation_utils import normalise_df, apply_normalisation_to_df
 
 logger = logging.getLogger(__name__)
 logformat = '%(funcName)s(): %(message)s'
@@ -457,21 +459,21 @@ class Features():
         source_embedding: dict[str, list[int]],
         target_embedding: dict[str, list[int]],
         n_neighbors: int = 5,
-        normalize_source: bool = False,
+        normalise_source: bool = False,
         **kwargs
     ):
         """
         Train a KNN regressor to predict a target embedding from a feature embedding on this Features object.
-        If normalize_source is True, normalize the source embedding before training and return the rescale factors.
+        If normalise_source is True, normalise the source embedding before training and return the rescale factors.
         Returns the trained model, input columns, target columns, and (optionally) the rescale factors.
         """
         train_embed = self.embedding_df(source_embedding)
         target_embed = self.embedding_df(target_embedding)
         rescale_factors = None
-        if normalize_source:
-            train_embed, rescale_factors = Features.normalize_embedding_df(train_embed)
+        if normalise_source:
+            train_embed, rescale_factors = normalise_df(train_embed)
         model, train_cols, target_cols = train_knn_from_embeddings([train_embed], [target_embed], n_neighbors, **kwargs)
-        if normalize_source:
+        if normalise_source:
             return model, train_cols, target_cols, rescale_factors
         else:
             return model, train_cols, target_cols
@@ -485,12 +487,12 @@ class Features():
     ) -> pd.DataFrame:
         """
         Predict using a trained KNN regressor on this Features object.
-        If rescale_factors is provided, normalize the source embedding before prediction.
+        If rescale_factors is provided, normalise the source embedding before prediction.
         The prediction will match the shape and columns of self.embedding_df(target_embedding).
         """
         test_embed = self.embedding_df(source_embedding)
         if rescale_factors is not None:
-            test_embed = Features.apply_normalization_to_embedding_df(test_embed, rescale_factors)
+            test_embed = apply_normalisation_to_df(test_embed, rescale_factors)
         target_embed = self.embedding_df(target_embedding)
         preds = predict_knn_on_embedding(model, test_embed, target_embed.columns)
         # Ensure the output DataFrame has the same index and columns as target_embed
@@ -513,11 +515,11 @@ class Features():
             raise ValueError("Input DataFrames must have the same columns and index")
         if rescale is not None:
             if rescale == 'auto':
-                ground_truth, rescale_factors = Features.normalize_embedding_df(ground_truth)
-                prediction = Features.apply_normalization_to_embedding_df(prediction, rescale_factors)
+                ground_truth, rescale_factors = normalise_df(ground_truth)
+                prediction = apply_normalisation_to_df(prediction, rescale_factors)
             elif isinstance(rescale, dict):
-                ground_truth = Features.apply_normalization_to_embedding_df(ground_truth, rescale)
-                prediction = Features.apply_normalization_to_embedding_df(prediction, rescale)
+                ground_truth = apply_normalisation_to_df(ground_truth, rescale)
+                prediction = apply_normalisation_to_df(prediction, rescale)
             else:
                 raise ValueError("rescale must be None, a dict, or 'auto'")
         diff = ground_truth - prediction
@@ -528,32 +530,6 @@ class Features():
         rms[~mask] = np.nan
         return rms
 
-    @staticmethod
-    def normalize_embedding_df(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-        """
-        Normalize the columns of an embedding DataFrame by dividing each column by its standard deviation.
-        Returns the normalized DataFrame and a dict of the rescaling factors (std for each column).
-        """
-        rescale_factors = df.std(axis=0, ddof=0).to_dict()
-        normalized = df.copy()
-        for col, factor in rescale_factors.items():
-            normalized[col] = df[col] / factor
-        return normalized, rescale_factors
-
-    @staticmethod
-    def apply_normalization_to_embedding_df(df: pd.DataFrame, rescale_factors: dict) -> pd.DataFrame:
-        """
-        Apply normalization to a DataFrame using the provided rescale factors (dict of column: factor).
-        Checks that the columns match exactly. Returns the normalized DataFrame.
-        Raises ValueError if columns do not match.
-        """
-        if set(df.columns) != set(rescale_factors.keys()):
-            raise ValueError("Columns of DataFrame and rescale_factors do not match.")
-        normalized = df.copy()
-        for col in df.columns:
-            normalized[col] = df[col] / rescale_factors[col]
-        return normalized
-    
     @property
     def loc(self):
         return _Indexer(self, self._loc)
@@ -1016,7 +992,7 @@ class MultipleFeaturesCollection:
                 target_embeds = [f.embedding_df(target_embedding) for f in train_feats]
                 if normalize_source:
                     # Use normalization from the training set
-                    train_embeds_norm, rescale_factors = Features.normalize_embedding_df(pd.concat(train_embeds))
+                    train_embeds_norm, rescale_factors = normalise_df(pd.concat(train_embeds))
                     lengths = [len(e) for e in train_embeds]
                     starts = np.cumsum([0] + lengths[:-1])
                     train_embeds_norm_list = [train_embeds_norm.iloc[start:start+length] for start, length in zip(starts, lengths)]
@@ -1027,7 +1003,7 @@ class MultipleFeaturesCollection:
                 # Predict on left-out
                 if normalize_source and rescale_factors is not None:
                     test_embed = left_out_feat.embedding_df(source_embedding)
-                    test_embed = Features.apply_normalization_to_embedding_df(test_embed, rescale_factors)
+                    test_embed = apply_normalisation_to_df(test_embed, rescale_factors)
                 else:
                     test_embed = left_out_feat.embedding_df(source_embedding)
                 target_embed = left_out_feat.embedding_df(target_embedding)
@@ -1048,7 +1024,7 @@ class MultipleFeaturesCollection:
                 train_embeds = [f.embedding_df(source_embedding) for f in source_coll.features_dict.values()]
                 target_embeds = [f.embedding_df(target_embedding) for f in source_coll.features_dict.values()]
                 if normalize_source:
-                    train_embeds_norm, rescale_factors = Features.normalize_embedding_df(pd.concat(train_embeds))
+                    train_embeds_norm, rescale_factors = normalise_df(pd.concat(train_embeds))
                     lengths = [len(e) for e in train_embeds]
                     starts = np.cumsum([0] + lengths[:-1])
                     train_embeds_norm_list = [train_embeds_norm.iloc[start:start+length] for start, length in zip(starts, lengths)]
@@ -1061,7 +1037,7 @@ class MultipleFeaturesCollection:
                 for target_feat_name, target_feat in target_coll.features_dict.items():
                     if normalize_source and rescale_factors is not None:
                         test_embed = target_feat.embedding_df(source_embedding)
-                        test_embed = Features.apply_normalization_to_embedding_df(test_embed, rescale_factors)
+                        test_embed = apply_normalisation_to_df(test_embed, rescale_factors)
                     else:
                         test_embed = target_feat.embedding_df(source_embedding)
                     target_embed = target_feat.embedding_df(target_embedding)
@@ -1082,7 +1058,7 @@ class MultipleFeaturesCollection:
                 train_embeds = [f.embedding_df(source_embedding) for f in source_coll.features_dict.values()]
                 target_embeds = [f.embedding_df(target_embedding) for f in source_coll.features_dict.values()]
                 if normalize_source:
-                    train_embeds_norm, rescale_factors = Features.normalize_embedding_df(pd.concat(train_embeds))
+                    train_embeds_norm, rescale_factors = normalise_df(pd.concat(train_embeds))
                     lengths = [len(e) for e in train_embeds]
                     starts = np.cumsum([0] + lengths[:-1])
                     train_embeds_norm_list = [train_embeds_norm.iloc[start:start+length] for start, length in zip(starts, lengths)]
@@ -1095,7 +1071,7 @@ class MultipleFeaturesCollection:
                 for target_feat_name, target_feat in target_coll.features_dict.items():
                     if normalize_source and rescale_factors is not None:
                         test_embed = target_feat.embedding_df(source_embedding)
-                        test_embed = Features.apply_normalization_to_embedding_df(test_embed, rescale_factors)
+                        test_embed = apply_normalisation_to_df(test_embed, rescale_factors)
                     else:
                         test_embed = target_feat.embedding_df(source_embedding)
                     target_embed = target_feat.embedding_df(target_embedding)
