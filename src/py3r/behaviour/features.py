@@ -617,7 +617,7 @@ class Features():
             ) -> list[tuple[float, float]]:
         '''
         Fit an ellipse to the median coordinates of the given tracked points (at least 4) 
-        and return a polygonal approximation.
+        and return a polygonal approximation. After fitting, the ellipse is scaled by `scaling`.
         '''
         from py3r.behaviour.util.ellipse_utils import ellipse_points, fit_ellipse_least_squares
         import numpy as np
@@ -625,7 +625,7 @@ class Features():
             raise ValueError("'points' must be a list of at least 4 tracked point names.")
         coords = np.array([self.get_point_median(p) for p in points])
         if len(points) == 4:
-            warnings.warn('fitting ellipse to only 4 points, this is not recommended')
+            warnings.warn('fitting ellipse to only 4 points, using size constraint to fit ellipse')
             cx, cy, a_len, b_len, theta = fit_ellipse_least_squares(coords)
         else:
             from skimage.measure import EllipseModel
