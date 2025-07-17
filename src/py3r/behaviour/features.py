@@ -609,7 +609,12 @@ class Features():
             cx, cy = (xcoords.mean(), ycoords.mean())
         return ellipse_points(cx, cy, major_axis_length/2, minor_axis_length/2, angle_in_radians, n_points)
 
-    def define_elliptical_boundary_from_points(self, points: list[str], n_points: int = 100) -> list[tuple[float, float]]:
+    def define_elliptical_boundary_from_points(
+            self, 
+            points: list[str], 
+            n_points: int = 100,
+            scaling: float = 1.0
+            ) -> list[tuple[float, float]]:
         '''
         Fit an ellipse to the median coordinates of the given tracked points (at least 4) 
         and return a polygonal approximation.
@@ -628,7 +633,7 @@ class Features():
             model.estimate(coords)
             cx, cy, a_len, b_len, theta = model.params
         
-        return ellipse_points(cx, cy, a_len, b_len, theta, n_points)
+        return ellipse_points(cx, cy, a_len*scaling, b_len*scaling, theta, n_points)
 
 class FeaturesCollection:
     '''
