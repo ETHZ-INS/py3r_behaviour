@@ -597,6 +597,57 @@ class Features():
     def __getitem__(self, idx):
         return self.loc[idx]
 
+    def define_elliptical_boundary_from_params(
+        self,
+        centre: str|list[str],
+        major_axis_length: float,
+        minor_axis_length: float,
+        angle_in_radians: float = 0.0,
+        n_points: int = 100
+    ) -> list[tuple[float, float]]:
+        '''
+        Generate a polygonal approximation of an ellipse as a list of (x, y) tuples,
+        around `centre` using explicit parameters.
+        `centre` can be a single point name or a list of point names.
+        if `centre` is a list, the boundary will be centred on the mean of the median coordinates of the points.
+        '''
+        from py3r.behaviour.util.ellipse_utils import ellipse_points
+        if isinstance(centre, str):
+            cx, cy = self.get_point_median(centre)
+        elif isinstance(centre, list):
+            centrepointmedians = [self.get_point_median(point) for point in centre]
+            xcoords = np.array([point[0] for point in centrepointmedians])
+            ycoords = np.array([point[1] for point in centrepointmedians])
+            cx, cy = (xcoords.mean(), ycoords.mean())
+        return ellipse_points(cx, cy, major_axis_length/2, minor_axis_length/2, angle_in_radians, n_points)
+
+    def define_elliptical_boundary_from_points(
+            self, 
+            points: list[str], 
+            n_points: int = 100,
+            scaling: float = 1.0,
+            smallness_weight: float = 0.1
+            ) -> list[tuple[float, float]]:
+        '''
+        Fit an ellipse to the median coordinates of the given tracked points (at least 4) 
+        and return a polygonal approximation. After fitting, the ellipse is scaled by `scaling`.
+        '''
+        from py3r.behaviour.util.ellipse_utils import ellipse_points, fit_ellipse_least_squares
+        import numpy as np
+        if not isinstance(points, list) or len(points) < 4:
+            raise ValueError("'points' must be a list of at least 4 tracked point names.")
+        coords = np.array([self.get_point_median(p) for p in points])
+        if len(points) == 4:
+            warnings.warn('fitting ellipse to only 4 points, using size constraint to fit ellipse')
+            cx, cy, a_len, b_len, theta = fit_ellipse_least_squares(coords, smallness_weight=smallness_weight)
+        else:
+            from skimage.measure import EllipseModel
+            model = EllipseModel()
+            model.estimate(coords)
+            cx, cy, a_len, b_len, theta = model.params
+        
+        return ellipse_points(cx, cy, a_len*scaling, b_len*scaling, theta, n_points)
+
 class FeaturesCollection:
     '''
     Collection of Features objects, keyed by name.
