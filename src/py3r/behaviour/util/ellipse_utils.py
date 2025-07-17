@@ -15,7 +15,7 @@ def ellipse_points(cx, cy, a, b, theta, n_points):
     rot = R @ pts
     return [(cx + rot[0, i], cy + rot[1, i]) for i in range(n_points)]
 
-def ellipse_residual(params, points, smallness_weight=0.01):
+def ellipse_residual(params, points, smallness_weight):
     xc, yc, a, b, theta = params
     # Penalize negative or too-small axes
     if a <= 0 or b <= 0:
@@ -31,13 +31,13 @@ def ellipse_residual(params, points, smallness_weight=0.01):
     size_penalty = smallness_weight * (a * b)
     return fit_error + size_penalty
 
-def fit_ellipse_least_squares(points):
+def fit_ellipse_least_squares(points, smallness_weight=0.1):
 
     # Initial guess (center, axes, rotation)
     init = [np.mean(points[:,0]), np.mean(points[:,1]), 2, 1, 0]
 
     # Minimize the residuals
-    result = minimize(ellipse_residual, init, args=(points,), method='Powell')
+    result = minimize(ellipse_residual, init, args=(points, smallness_weight), method='Powell')
 
     if result.success:
         return result.x

@@ -613,7 +613,8 @@ class Features():
             self, 
             points: list[str], 
             n_points: int = 100,
-            scaling: float = 1.0
+            scaling: float = 1.0,
+            smallness_weight: float = 0.1
             ) -> list[tuple[float, float]]:
         '''
         Fit an ellipse to the median coordinates of the given tracked points (at least 4) 
@@ -626,7 +627,7 @@ class Features():
         coords = np.array([self.get_point_median(p) for p in points])
         if len(points) == 4:
             warnings.warn('fitting ellipse to only 4 points, using size constraint to fit ellipse')
-            cx, cy, a_len, b_len, theta = fit_ellipse_least_squares(coords)
+            cx, cy, a_len, b_len, theta = fit_ellipse_least_squares(coords, smallness_weight=smallness_weight)
         else:
             from skimage.measure import EllipseModel
             model = EllipseModel()
