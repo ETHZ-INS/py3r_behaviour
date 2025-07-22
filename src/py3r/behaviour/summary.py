@@ -335,13 +335,9 @@ class SummaryCollection:
 
     def __setitem__(self, key, value):
         """
-        Set Summary by handle (str) or by integer index.
+        Set Summary by handle (str).
         """
-        if isinstance(key, int):
-            handle = list(self.summary_dict)[key]
-            self.summary_dict[handle] = value
-        else:
-            self.summary_dict[key] = value
+        self.summary_dict[key] = value
 
     def __repr__(self) -> str:
         return (
@@ -544,13 +540,9 @@ class MultipleSummaryCollection:
 
     def __setitem__(self, key, value):
         """
-        Set SummaryCollection by handle (str) or by integer index.
+        Set SummaryCollection by handle (str).
         """
-        if isinstance(key, int):
-            handle = list(self.dict_of_summary_collections)[key]
-            self.dict_of_summary_collections[handle] = value
-        else:
-            self.dict_of_summary_collections[key] = value
+        self.dict_of_summary_collections[key] = value
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.dict_of_summary_collections)} SummaryCollection objects>"

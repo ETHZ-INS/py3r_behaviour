@@ -1081,13 +1081,9 @@ class FeaturesCollection:
 
     def __setitem__(self, key, value):
         """
-        Set Features by handle (str) or by integer index.
+        Set Features by handle (str).
         """
-        if isinstance(key, int):
-            handle = list(self.features_dict)[key]
-            self.features_dict[handle] = value
-        else:
-            self.features_dict[key] = value
+        self.features_dict[key] = value
 
     def keys(self):
         """Return the keys of the features_dict."""
@@ -1115,13 +1111,9 @@ class MultipleFeaturesCollection:
 
     def __setitem__(self, key, value):
         """
-        Set FeaturesCollection by handle (str) or by integer index.
+        Set FeaturesCollection by handle (str).
         """
-        if isinstance(key, int):
-            handle = list(self.features_collections)[key]
-            self.features_collections[handle] = value
-        else:
-            self.features_collections[key] = value
+        self.features_collections[key] = value
 
     @classmethod
     def from_multiple_tracking_collection(

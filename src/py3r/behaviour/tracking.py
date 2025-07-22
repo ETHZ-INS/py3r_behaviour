@@ -851,13 +851,9 @@ class TrackingCollection:
 
     def __setitem__(self, key, value):
         """
-        Set Tracking by handle (str) or by integer index.
+        Set Tracking by handle (str).
         """
-        if isinstance(key, int):
-            handle = list(self.tracking_dict)[key]
-            self.tracking_dict[handle] = value
-        else:
-            self.tracking_dict[key] = value
+        self.tracking_dict[key] = value
 
 
 class MultipleTrackingCollection:
@@ -1035,13 +1031,9 @@ class MultipleTrackingCollection:
 
     def __setitem__(self, key, value):
         """
-        Set TrackingCollection by handle (str) or by integer index.
+        Set TrackingCollection by handle (str).
         """
-        if isinstance(key, int):
-            handle = list(self.tracking_collections)[key]
-            self.tracking_collections[handle] = value
-        else:
-            self.tracking_collections[key] = value
+        self.tracking_collections[key] = value
 
 
 class TrackingMV:
