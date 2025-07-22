@@ -334,9 +334,13 @@ class SummaryCollection:
             return self.summary_dict[key]
 
     def __setitem__(self, key, value):
-        """
-        Set Summary by handle (str).
-        """
+        if not isinstance(value, Summary):
+            raise TypeError(f"Value must be a Summary, got {type(value).__name__}")
+        warnings.warn(
+            "Direct assignment to SummaryCollection is deprecated and may be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.summary_dict[key] = value
 
     def __repr__(self) -> str:
@@ -539,9 +543,15 @@ class MultipleSummaryCollection:
             return self.dict_of_summary_collections[key]
 
     def __setitem__(self, key, value):
-        """
-        Set SummaryCollection by handle (str).
-        """
+        if not isinstance(value, SummaryCollection):
+            raise TypeError(
+                f"Value must be a SummaryCollection, got {type(value).__name__}"
+            )
+        warnings.warn(
+            "Direct assignment to MultipleSummaryCollection is deprecated and may be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.dict_of_summary_collections[key] = value
 
     def __repr__(self) -> str:

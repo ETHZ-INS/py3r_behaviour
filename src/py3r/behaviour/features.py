@@ -1083,6 +1083,13 @@ class FeaturesCollection:
         """
         Set Features by handle (str).
         """
+        if not isinstance(value, Features):
+            raise TypeError(f"Value must be a Features, got {type(value).__name__}")
+        warnings.warn(
+            "Direct assignment to FeaturesCollection is deprecated and may be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.features_dict[key] = value
 
     def keys(self):
@@ -1113,6 +1120,15 @@ class MultipleFeaturesCollection:
         """
         Set FeaturesCollection by handle (str).
         """
+        if not isinstance(value, FeaturesCollection):
+            raise TypeError(
+                f"Value must be a FeaturesCollection, got {type(value).__name__}"
+            )
+        warnings.warn(
+            "Direct assignment to MultipleFeaturesCollection is deprecated and may be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.features_collections[key] = value
 
     @classmethod

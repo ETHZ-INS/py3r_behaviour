@@ -853,6 +853,13 @@ class TrackingCollection:
         """
         Set Tracking by handle (str).
         """
+        if not isinstance(value, Tracking):
+            raise TypeError(f"Value must be a Tracking, got {type(value).__name__}")
+        warnings.warn(
+            "Direct assignment to TrackingCollection is deprecated and may be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.tracking_dict[key] = value
 
 
@@ -1033,6 +1040,15 @@ class MultipleTrackingCollection:
         """
         Set TrackingCollection by handle (str).
         """
+        if not isinstance(value, TrackingCollection):
+            raise TypeError(
+                f"Value must be a TrackingCollection, got {type(value).__name__}"
+            )
+        warnings.warn(
+            "Direct assignment to MultipleTrackingCollection is deprecated and may be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.tracking_collections[key] = value
 
 
