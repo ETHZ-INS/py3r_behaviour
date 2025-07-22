@@ -14,7 +14,8 @@ from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
 
-Self = TypeVar('Self', bound='Tracking')
+Self = TypeVar("Self", bound="Tracking")
+
 
 @dataclass(kw_only=True)
 class LoadOptions:
@@ -25,75 +26,95 @@ class LoadOptions:
     def __post_init__(self) -> None:
         # Validate fps
         if not isinstance(self.fps, (int, float)):
-            raise TypeError(f"fps must be a number (int or float), got {type(self.fps).__name__}")
+            raise TypeError(
+                f"fps must be a number (int or float), got {type(self.fps).__name__}"
+            )
         self.fps = float(self.fps)
 
         # Validate aspectratio_correction
         if not isinstance(self.aspectratio_correction, (int, float)):
-            raise TypeError(f"aspectratio_correction must be a number (int or float), got {type(self.aspectratio_correction).__name__}")
+            raise TypeError(
+                f"aspectratio_correction must be a number (int or float), got {type(self.aspectratio_correction).__name__}"
+            )
         self.aspectratio_correction = float(self.aspectratio_correction)
 
         # Validate usermeta
         if self.usermeta is not None:
             if not isinstance(self.usermeta, dict):
-                raise TypeError(f"usermeta must be a dictionary, got {type(self.usermeta).__name__}")
+                raise TypeError(
+                    f"usermeta must be a dictionary, got {type(self.usermeta).__name__}"
+                )
+
 
 class Tracking:
     data: pd.DataFrame
     meta: dict
     handle: str
-    
+
     @classmethod
-    def from_dlc(cls: Type[Self], filepath: str, *, handle: str, options: LoadOptions) -> Self:
-        '''
+    def from_dlc(
+        cls: Type[Self], filepath: str, *, handle: str, options: LoadOptions
+    ) -> Self:
+        """
         loads a Tracking object from a (single animal) deeplabcut tracking csv
-        '''
+        """
         # read header
-        header = pd.read_csv(filepath,header=None, nrows=3)
-        cols = ['.'.join(i) for i in zip(list(header.iloc[1,1:]),list(header.iloc[2,1:]))]
-        scorer = header.iloc[0,1]
+        header = pd.read_csv(filepath, header=None, nrows=3)
+        cols = [
+            ".".join(i) for i in zip(list(header.iloc[1, 1:]), list(header.iloc[2, 1:]))
+        ]
+        scorer = header.iloc[0, 1]
 
         # setup data
-        data = pd.read_csv(filepath,skiprows=3,header=None)
-        data.set_index(0,inplace=True)
-        data.index.rename('frame',inplace=True)
+        data = pd.read_csv(filepath, skiprows=3, header=None)
+        data.set_index(0, inplace=True)
+        data.index.rename("frame", inplace=True)
         data.columns = cols
 
         meta = {
-            'filepath': filepath,
-            'fps': options.fps,
-            'aspectratio_correction': options.aspectratio_correction,
-            'network': scorer,
-            'usermeta': options.usermeta,
+            "filepath": filepath,
+            "fps": options.fps,
+            "aspectratio_correction": options.aspectratio_correction,
+            "network": scorer,
+            "usermeta": options.usermeta,
         }
 
         data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
 
         return cls(data, meta, handle)
-        
+
     @classmethod
-    def from_dlcma(cls: Type[Self], filepath: str, *, handle: str, options: LoadOptions) -> Self:
-        '''
+    def from_dlcma(
+        cls: Type[Self], filepath: str, *, handle: str, options: LoadOptions
+    ) -> Self:
+        """
         loads a Tracking object from a multi-animal deeplabcut tracking csv
-        '''        
+        """
         # read header
-        header = pd.read_csv(filepath,header=None, nrows=4)
-        cols = ['.'.join(i) for i in zip(list(header.iloc[1,1:]),list(header.iloc[2,1:]),list(header.iloc[3,1:]))]
-        scorer = header.iloc[0,1]
+        header = pd.read_csv(filepath, header=None, nrows=4)
+        cols = [
+            ".".join(i)
+            for i in zip(
+                list(header.iloc[1, 1:]),
+                list(header.iloc[2, 1:]),
+                list(header.iloc[3, 1:]),
+            )
+        ]
+        scorer = header.iloc[0, 1]
 
         # setup data
-        data = pd.read_csv(filepath,skiprows=4,header=None)
-        data.set_index(0,inplace=True)
-        data.index.rename('frame',inplace=True)
+        data = pd.read_csv(filepath, skiprows=4, header=None)
+        data.set_index(0, inplace=True)
+        data.index.rename("frame", inplace=True)
         data.columns = cols
 
         # add meta specific to DLC
         meta = {
-            'filepath': filepath,
-            'fps': options.fps,
-            'aspectratio_correction': options.aspectratio_correction,
-            'network' : scorer,
-            'usermeta': options.usermeta,
+            "filepath": filepath,
+            "fps": options.fps,
+            "aspectratio_correction": options.aspectratio_correction,
+            "network": scorer,
+            "usermeta": options.usermeta,
         }
 
         data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
@@ -101,54 +122,58 @@ class Tracking:
         return cls(data, meta, handle)
 
     @classmethod
-    def from_yolo3r(cls: Type[Self], filepath: str, *, handle: str, options: LoadOptions) -> Self:
-        '''
+    def from_yolo3r(
+        cls: Type[Self], filepath: str, *, handle: str, options: LoadOptions
+    ) -> Self:
+        """
         loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format
-        '''
+        """
         # setup data
-        data = pd.read_csv(filepath, index_col='frame_index')
-        data.index.rename('frame',inplace=True)
-        newcols = [re.sub('.conf$','.likelihood', col) for col in data.columns]
+        data = pd.read_csv(filepath, index_col="frame_index")
+        data.index.rename("frame", inplace=True)
+        newcols = [re.sub(".conf$", ".likelihood", col) for col in data.columns]
         data.columns = newcols
 
         # drop bounding-box-related columns
         # assumes bbox column names have 3 dot delimited sections
         for col in data.columns:
-            if len(col.split('.')) == 3: 
+            if len(col.split(".")) == 3:
                 data.drop(columns=col, inplace=True)
-            if col.split('.')[-2] == 'max_dim':
+            if col.split(".")[-2] == "max_dim":
                 data.drop(columns=col, inplace=True)
 
         meta = {
-            'filepath': filepath,
-            'fps': options.fps,
-            'aspectratio_correction': options.aspectratio_correction,
-            'usermeta': options.usermeta,
+            "filepath": filepath,
+            "fps": options.fps,
+            "aspectratio_correction": options.aspectratio_correction,
+            "usermeta": options.usermeta,
         }
 
         data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
 
         return cls(data, meta, handle)
-    
+
     @staticmethod
-    def _apply_aspectratio_correction(df: pd.DataFrame, correction: float) -> pd.DataFrame:
-        '''
+    def _apply_aspectratio_correction(
+        df: pd.DataFrame, correction: float
+    ) -> pd.DataFrame:
+        """
         rescales all x values within tracking object by aspectratio correction factor
-        '''
+        """
         if correction == 1.0:
             return df
-        
+
         # adjust dataframe
-        tracked_points = list(set(['.'.join(i.split('.')[0:-1]) for i in df.columns]))
+        tracked_points = list(set([".".join(i.split(".")[0:-1]) for i in df.columns]))
         df_corrected = df.copy()
         for point in tracked_points:
-            df_corrected[point + '.x'] = df_corrected[point + '.x'] * correction
+            df_corrected[point + ".x"] = df_corrected[point + ".x"] * correction
         return df_corrected
 
     def __init__(self, data: pd.DataFrame, meta: Dict[str, Any], handle: str) -> None:
         if not isinstance(meta, dict):
             raise TypeError(f"meta must be a dictionary, got {type(meta).__name__}")
-        if 'fps' not in meta:
+        if "fps" not in meta:
             raise ValueError("meta dictionary must contain 'fps' key")
         self.data = data
         self.meta = meta
@@ -157,196 +182,286 @@ class Tracking:
     # ----------- Instance methods -----------
 
     def __getitem__(self, key: str) -> pd.Series:
-        '''
+        """
         returns a single column of the tracking data
-        '''
+        """
         return self.data[key]
 
     def add_usermeta(self, usermeta: dict, overwrite: bool = False) -> None:
-        '''
+        """
         adds or updates user-defined metadata
-        '''
+        """
         if not isinstance(usermeta, dict):
-            raise TypeError(f"usermeta must be a dictionary, got {type(usermeta).__name__}")
-            
-        if 'usermeta' in self.meta and not overwrite:
-            raise Exception('user defined metadata already stored, set overwrite=True to overwrite')
-        
-        self.meta['usermeta'] = usermeta
+            raise TypeError(
+                f"usermeta must be a dictionary, got {type(usermeta).__name__}"
+            )
+
+        if "usermeta" in self.meta and not overwrite:
+            raise Exception(
+                "user defined metadata already stored, set overwrite=True to overwrite"
+            )
+
+        self.meta["usermeta"] = usermeta
         if overwrite:
-            warnings.warn('usermeta may be overwritten')
+            warnings.warn("usermeta may be overwritten")
 
-    def save(self, filepath:str) -> None:
-        '''saves .csv file and _meta.json file to disk at location specified by filepath'''
-        basefilepath = filepath.split('.csv')[0]
-        self.data.to_csv(basefilepath+'.csv')
-        with open(os.path.expanduser(basefilepath+'_meta.json'),'w') as f:
+    def save(self, filepath: str) -> None:
+        """saves .csv file and _meta.json file to disk at location specified by filepath"""
+        basefilepath = filepath.split(".csv")[0]
+        self.data.to_csv(basefilepath + ".csv")
+        with open(os.path.expanduser(basefilepath + "_meta.json"), "w") as f:
             json.dump(self.meta, f)
-    
-    def strip_column_names(self) -> None:
-        '''strips out all column name string apart from last two sections delimited by dots'''
-        stripped_colnames = ['.'.join(col.split('.')[-2:]) for col in self.data.columns]
-        self.data.columns = stripped_colnames
-        
-    def time_as_expected(self, mintime:float, maxtime:float) -> bool:
-        '''
-        checks that the total length of the tracking data is between mintime seconds and maxtime seconds
-        '''
-        if 'trim' in self.meta.keys():
-            warnings.warn('tracking data have been trimmed')
-        totalframes = self.data.index[-1] - self.data.index[0]
-        totaltime = totalframes / self.meta['fps']
 
-        return(((mintime <= totaltime) & (maxtime >= totaltime)))
-    
-    def trim(self, startframe:int|None=None, endframe:int|None=None) -> None:
-        '''
+    def strip_column_names(self) -> None:
+        """strips out all column name string apart from last two sections delimited by dots"""
+        stripped_colnames = [".".join(col.split(".")[-2:]) for col in self.data.columns]
+        self.data.columns = stripped_colnames
+
+    def time_as_expected(self, mintime: float, maxtime: float) -> bool:
+        """
+        checks that the total length of the tracking data is between mintime seconds and maxtime seconds
+        """
+        if "trim" in self.meta.keys():
+            warnings.warn("tracking data have been trimmed")
+        totalframes = self.data.index[-1] - self.data.index[0]
+        totaltime = totalframes / self.meta["fps"]
+
+        return (mintime <= totaltime) & (maxtime >= totaltime)
+
+    def trim(self, startframe: int | None = None, endframe: int | None = None) -> None:
+        """
         trims the tracking data object between startframe and endframe
-        '''
+        """
         if startframe is not None:
             if (self.data.index[0] > startframe) or (self.data.index[-1] < startframe):
-                raise Exception('startframe not in data')
+                raise Exception("startframe not in data")
         if endframe is not None:
             if (self.data.index[0] > endframe) or (self.data.index[-1] < endframe):
-                raise Exception('endframe not in data')
-        
-        datatrim = self.data.loc[startframe:endframe,:].copy()
+                raise Exception("endframe not in data")
+
+        datatrim = self.data.loc[startframe:endframe, :].copy()
         self.data = datatrim
 
-        self.meta['trim'] = {'startframe': startframe, 'endframe': endframe}
+        self.meta["trim"] = {"startframe": startframe, "endframe": endframe}
 
-    def filter_likelihood(self, threshold:float) -> None:
-        '''sets all tracking position values with likelihood less than threshold to np.nan'''
-        if 'filter_likelihood_threshold' in self.meta.keys():
-            raise Exception('likelihood already filtered. re-load the raw data to change filter.')
-        if 'smoothing' in self.meta.keys():
-            warnings.warn('these data have been smoothed. you should filter likelihood before smoothing')
+    def filter_likelihood(self, threshold: float) -> None:
+        """sets all tracking position values with likelihood less than threshold to np.nan"""
+        if "filter_likelihood_threshold" in self.meta.keys():
+            raise Exception(
+                "likelihood already filtered. re-load the raw data to change filter."
+            )
+        if "smoothing" in self.meta.keys():
+            warnings.warn(
+                "these data have been smoothed. you should filter likelihood before smoothing"
+            )
 
         for point in self.get_point_names():
-            self.data.loc[(self.data[point+'.likelihood'] <= threshold), point+'.x']=np.nan
-            self.data.loc[(self.data[point+'.likelihood'] <= threshold), point+'.y']=np.nan
-            if point+'.z' in self.data.columns:
-                self.data.loc[(self.data[point+'.likelihood'] <= threshold), point+'.z']=np.nan
+            self.data.loc[
+                (self.data[point + ".likelihood"] <= threshold), point + ".x"
+            ] = np.nan
+            self.data.loc[
+                (self.data[point + ".likelihood"] <= threshold), point + ".y"
+            ] = np.nan
+            if point + ".z" in self.data.columns:
+                self.data.loc[
+                    (self.data[point + ".likelihood"] <= threshold), point + ".z"
+                ] = np.nan
 
-        self.meta['filter_likelihood_threshold'] = threshold
+        self.meta["filter_likelihood_threshold"] = threshold
 
-    def distance_between(self, point1:str, point2:str, dims=('x','y')) -> pd.Series:
-        '''framewise distance between two points'''
-        distance = np.sqrt(sum([(self.data[point1+'.'+dim] - self.data[point2+'.'+dim])**2 for dim in dims]))
-        return(distance)
-    
+    def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> pd.Series:
+        """framewise distance between two points"""
+        distance = np.sqrt(
+            sum(
+                [
+                    (self.data[point1 + "." + dim] - self.data[point2 + "." + dim]) ** 2
+                    for dim in dims
+                ]
+            )
+        )
+        return distance
+
     def get_point_names(self) -> list:
-        '''list of tracked point names'''
-        tracked_points = list(set(['.'.join(i.split('.')[:-1]) for i in self.data.columns]))
-        return(tracked_points)
+        """list of tracked point names"""
+        tracked_points = list(
+            set([".".join(i.split(".")[:-1]) for i in self.data.columns])
+        )
+        return tracked_points
 
-    def rescale_by_known_distance(self, point1:str, point2:str, distance_in_metres:float, dims=('x','y')) -> None:
-        '''rescale all dims by known distance between two points'''
-        if 'rescale_distance_method' in self.meta.keys():
-            if self.meta['rescale_distance_method'] == 'two_point_scalar_uniform':
-                if any(d in self.meta['rescale_factor'].keys() for d in dims):
-                    raise Exception('distance already rescaled in this dim. re-load the raw data to change scaling')
+    def rescale_by_known_distance(
+        self, point1: str, point2: str, distance_in_metres: float, dims=("x", "y")
+    ) -> None:
+        """rescale all dims by known distance between two points"""
+        if "rescale_distance_method" in self.meta.keys():
+            if self.meta["rescale_distance_method"] == "two_point_scalar_uniform":
+                if any(d in self.meta["rescale_factor"].keys() for d in dims):
+                    raise Exception(
+                        "distance already rescaled in this dim. re-load the raw data to change scaling"
+                    )
             else:
-                raise Exception('distance already rescaled. re-load the raw data to change scaling')
+                raise Exception(
+                    "distance already rescaled. re-load the raw data to change scaling"
+                )
 
         tracking_distance = self.distance_between(point1, point2, dims=dims).median()
-        rescale_factor = distance_in_metres/tracking_distance
+        rescale_factor = distance_in_metres / tracking_distance
 
         tracked_points = self.get_point_names()
 
         for point in tracked_points:
             for dim in dims:
-                self.data[point+'.'+dim] = self.data[point+'.'+dim] * rescale_factor
+                self.data[point + "." + dim] = (
+                    self.data[point + "." + dim] * rescale_factor
+                )
 
-        self.meta['rescale_distance_method'] = 'two_point_scalar_uniform'
-        self.meta['rescale_factor'] = {dim:rescale_factor for dim in dims}
-        self.meta['distance_units'] = 'm'
-    
-    def _generate_partial_smoothdict(self, points:list, window:int, smoothtype:str) -> dict:
-        '''make partial smoothdict for points'''
+        self.meta["rescale_distance_method"] = "two_point_scalar_uniform"
+        self.meta["rescale_factor"] = {dim: rescale_factor for dim in dims}
+        self.meta["distance_units"] = "m"
+
+    def _generate_partial_smoothdict(
+        self, points: list, window: int, smoothtype: str
+    ) -> dict:
+        """make partial smoothdict for points"""
         smoothdict = dict()
         for key in points:
-            smoothdict[key] = {'window':window, 'type':smoothtype}
-        return(smoothdict)
+            smoothdict[key] = {"window": window, "type": smoothtype}
+        return smoothdict
 
-    def generate_smoothdict(self, pointslists:list, windows:list, smoothtypes:list) -> dict:
-        '''make smoothdict for multiple point lists'''
+    def generate_smoothdict(
+        self, pointslists: list, windows: list, smoothtypes: list
+    ) -> dict:
+        """make smoothdict for multiple point lists"""
         assert len(pointslists) == len(windows)
         assert len(pointslists) == len(smoothtypes)
 
         smoothdict = dict()
         for i in range(len(pointslists)):
-            partial = self._generate_partial_smoothdict(pointslists[i],windows[i],smoothtypes[i])
+            partial = self._generate_partial_smoothdict(
+                pointslists[i], windows[i], smoothtypes[i]
+            )
             if len(set(smoothdict.keys()).intersection(set(partial.keys()))) > 0:
-                raise Exception('duplicate points detected')
+                raise Exception("duplicate points detected")
             smoothdict = {**smoothdict, **partial}
-        return(smoothdict)
+        return smoothdict
 
-    def smooth(self, smoothing_params:dict) -> None:
-        '''
+    def smooth(self, smoothing_params: dict) -> None:
+        """
         runs rolling mean or median filter of specified window length over specified
         points. All points within the tracking data must be specified, even if the rolling
         window has length 1
         smooth_dict has format
         {pointname:{window:windowlength,type:smoothtype}}
         where windowlength:int and smoothtype:str in {'mean','median'}
-        '''
+        """
 
-        if 'smoothing' in self.meta.keys():
-            raise Exception('data already smoothed. load again to use different smoothing')
+        if "smoothing" in self.meta.keys():
+            raise Exception(
+                "data already smoothed. load again to use different smoothing"
+            )
 
         all_points = self.get_point_names()
 
         if len(set(all_points).difference(smoothing_params.keys())) > 0:
-               raise Exception('all tracked points must be specified for smoothing')
-        
+            raise Exception("all tracked points must be specified for smoothing")
+
         for point in smoothing_params.keys():
-            if smoothing_params[point]['type'] == 'mean':
-                self.data[point+'.x'] = self.data[point+'.x'].rolling(window=smoothing_params[point]['window']).mean()
-                self.data[point+'.y'] = self.data[point+'.y'].rolling(window=smoothing_params[point]['window']).mean()
-                if point+'.z' in self.data.columns:
-                    self.data[point+'.z'] = self.data[point+'.z'].rolling(window=smoothing_params[point]['window']).mean()
-            if smoothing_params[point]['type'] == 'median':
-                self.data[point+'.x'] = self.data[point+'.x'].rolling(window=smoothing_params[point]['window']).median()
-                self.data[point+'.y'] = self.data[point+'.y'].rolling(window=smoothing_params[point]['window']).median()
-                if point+'.z' in self.data.columns:
-                    self.data[point+'.z'] = self.data[point+'.z'].rolling(window=smoothing_params[point]['window']).median()
+            if smoothing_params[point]["type"] == "mean":
+                self.data[point + ".x"] = (
+                    self.data[point + ".x"]
+                    .rolling(window=smoothing_params[point]["window"])
+                    .mean()
+                )
+                self.data[point + ".y"] = (
+                    self.data[point + ".y"]
+                    .rolling(window=smoothing_params[point]["window"])
+                    .mean()
+                )
+                if point + ".z" in self.data.columns:
+                    self.data[point + ".z"] = (
+                        self.data[point + ".z"]
+                        .rolling(window=smoothing_params[point]["window"])
+                        .mean()
+                    )
+            if smoothing_params[point]["type"] == "median":
+                self.data[point + ".x"] = (
+                    self.data[point + ".x"]
+                    .rolling(window=smoothing_params[point]["window"])
+                    .median()
+                )
+                self.data[point + ".y"] = (
+                    self.data[point + ".y"]
+                    .rolling(window=smoothing_params[point]["window"])
+                    .median()
+                )
+                if point + ".z" in self.data.columns:
+                    self.data[point + ".z"] = (
+                        self.data[point + ".z"]
+                        .rolling(window=smoothing_params[point]["window"])
+                        .median()
+                    )
 
-        self.meta['smoothing'] = smoothing_params
+        self.meta["smoothing"] = smoothing_params
 
-    def interpolate(self, method: str = 'linear', limit: int = 1, **kwargs) -> None:
-        '''
+    def interpolate(self, method: str = "linear", limit: int = 1, **kwargs) -> None:
+        """
         interpolates missing data in the tracking data, and sets likelihood to np.nan
         uses pandas.DataFrame.interpolate() with kwargs
-        '''
-        if 'interpolation' in self.meta.keys():
-            raise Exception('data already interpolated. re-load the raw data to interpolate again')
-        
+        """
+        if "interpolation" in self.meta.keys():
+            raise Exception(
+                "data already interpolated. re-load the raw data to interpolate again"
+            )
+
         # interpolate only the position columns, and set likelihood to np.nan
-        position_columns = self.data.columns[self.data.columns.str.endswith('.x') | self.data.columns.str.endswith('.y') | self.data.columns.str.endswith('.z')]
-        self.data.loc[:, position_columns] = self.data.loc[:, position_columns].interpolate(method=method, limit=limit, **kwargs)
-        self.data.loc[:, self.data.columns.str.endswith('.likelihood')] = np.nan
-        
-        self.meta['interpolation'] = {'method': method, 'limit': limit, 'kwargs': kwargs}
+        position_columns = self.data.columns[
+            self.data.columns.str.endswith(".x")
+            | self.data.columns.str.endswith(".y")
+            | self.data.columns.str.endswith(".z")
+        ]
+        self.data.loc[:, position_columns] = self.data.loc[
+            :, position_columns
+        ].interpolate(method=method, limit=limit, **kwargs)
+        self.data.loc[:, self.data.columns.str.endswith(".likelihood")] = np.nan
+
+        self.meta["interpolation"] = {
+            "method": method,
+            "limit": limit,
+            "kwargs": kwargs,
+        }
 
     @property
     def loc(self):
         return _Indexer(self, self._loc)
+
     @property
     def iloc(self):
         return _Indexer(self, self._iloc)
+
     def _loc(self, idx):
         new_data = self.data.loc[idx].copy()
         new_meta = copy.deepcopy(self.meta)
         return self.__class__(new_data, new_meta, self.handle)
+
     def _iloc(self, idx):
         new_data = self.data.iloc[idx].copy()
         new_meta = copy.deepcopy(self.meta)
         return self.__class__(new_data, new_meta, self.handle)
+
     def __getitem__(self, idx):
         return self.loc[idx]
 
-    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, elev=30, azim=45):
+    def plot(
+        self,
+        trajectories=None,
+        static=None,
+        lines=None,
+        dims=("x", "y"),
+        ax=None,
+        title=None,
+        show=True,
+        elev=30,
+        azim=45,
+    ):
         """
         Plot trajectories and static points for this Tracking object.
         Args:
@@ -360,6 +475,7 @@ class Tracking:
         Returns: fig, ax
         """
         import numpy as np
+
         is3d = len(dims) == 3
         if len(dims) > 3:
             raise ValueError("dims must be a tuple of length 2 or 3")
@@ -393,7 +509,9 @@ class Tracking:
             arrs = [self.data[f"{point}.{d}"].values for d in dims]
             mask = np.all([np.isfinite(a) for a in arrs], axis=0)
             arrs = [a[mask] for a in arrs]
-            if isinstance(trajectories, dict) and isinstance(trajectories[point], pd.Series):
+            if isinstance(trajectories, dict) and isinstance(
+                trajectories[point], pd.Series
+            ):
                 cvals = trajectories[point].values[mask]
                 sc = ax.scatter(*arrs, c=cvals, cmap="viridis", label=point, s=8)
                 plt.colorbar(sc, ax=ax, label=f"{point} color")
@@ -423,12 +541,18 @@ class Tracking:
             med1 = [np.nanmedian(self.data[f"{p1}.{d}"]) for d in dims]
             med2 = [np.nanmedian(self.data[f"{p2}.{d}"]) for d in dims]
             if is3d:
-                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], [med1[2], med2[2]], 'k', lw=1)
+                ax.plot(
+                    [med1[0], med2[0]],
+                    [med1[1], med2[1]],
+                    [med1[2], med2[2]],
+                    "k",
+                    lw=1,
+                )
             else:
-                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], 'k', lw=1)
+                ax.plot([med1[0], med2[0]], [med1[1], med2[1]], "k", lw=1)
         if title is None:
             title = self.handle
-        #label axes with dims
+        # label axes with dims
         ax.set_xlabel(dims[0])
         ax.set_ylabel(dims[1])
         if is3d:
@@ -444,17 +568,20 @@ class Tracking:
 
 
 class TrackingCollection:
-    '''
+    """
     Collection of Tracking objects, keyed by name (e.g. for grouping individuals)
     note: type-hints refer to Tracking, but factory methods allow for other classes
     these are intended ONLY for subclasses of Tracking, and this is enforced
-    '''
+    """
+
     tracking_dict: dict[str, Tracking]
-    
+
     def __init__(self, tracking_dict: dict[str, Tracking]):
         for key, obj in tracking_dict.items():
             if obj.handle != key:
-                raise ValueError(f"Key '{key}' does not match object's handle '{obj.handle}'")
+                raise ValueError(
+                    f"Key '{key}' does not match object's handle '{obj.handle}'"
+                )
         self.tracking_dict = tracking_dict
 
     def __getattr__(self, name):
@@ -467,85 +594,118 @@ class TrackingCollection:
                 except Exception as e:
                     raise BatchProcessError(
                         collection_name=None,
-                        object_name=getattr(e, 'object_name', key),
-                        method=getattr(e, 'method', name),
-                        original_exception=getattr(e, 'original_exception', e)
+                        object_name=getattr(e, "object_name", key),
+                        method=getattr(e, "method", name),
+                        original_exception=getattr(e, "original_exception", e),
                     ) from e
             return BatchResult(results, self)
+
         return batch_method
 
     @classmethod
-    def from_dlc(cls, handles_and_filepaths: dict[str, str], options: LoadOptions, tracking_cls = Tracking):
-        '''
+    def from_dlc(
+        cls,
+        handles_and_filepaths: dict[str, str],
+        options: LoadOptions,
+        tracking_cls=Tracking,
+    ):
+        """
         Loads a TrackingCollection from a dict of DLC tracking csvs.
         handles_and_filepaths: dict mapping handles to file paths.
-        '''
+        """
         if not issubclass(tracking_cls, Tracking):
-            raise TypeError(f"tracking_cls must be Tracking or a subclass, got {tracking_cls}")
+            raise TypeError(
+                f"tracking_cls must be Tracking or a subclass, got {tracking_cls}"
+            )
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_dlc(fp, handle=handle, options=options)
+            trackings[handle] = tracking_cls.from_dlc(
+                fp, handle=handle, options=options
+            )
         return cls(trackings)
 
     @classmethod
-    def from_yolo3r(cls, handles_and_filepaths: dict[str, str], options: LoadOptions, tracking_cls = Tracking):
-        '''
+    def from_yolo3r(
+        cls,
+        handles_and_filepaths: dict[str, str],
+        options: LoadOptions,
+        tracking_cls=Tracking,
+    ):
+        """
         Loads a TrackingCollection from a dict of yolo3r tracking csvs.
         handles_and_filepaths: dict mapping handles to file paths.
-        '''
+        """
         if not issubclass(tracking_cls, Tracking):
-            raise TypeError(f"tracking_cls must be Tracking or a subclass, got {tracking_cls}")
+            raise TypeError(
+                f"tracking_cls must be Tracking or a subclass, got {tracking_cls}"
+            )
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_yolo3r(fp, handle=handle, options=options)
+            trackings[handle] = tracking_cls.from_yolo3r(
+                fp, handle=handle, options=options
+            )
         return cls(trackings)
 
-
     @classmethod
-    def from_dlcma(cls, handles_and_filepaths: dict[str, str], options: LoadOptions, tracking_cls = Tracking):
-        '''
+    def from_dlcma(
+        cls,
+        handles_and_filepaths: dict[str, str],
+        options: LoadOptions,
+        tracking_cls=Tracking,
+    ):
+        """
         Loads a TrackingCollection from a dict of DLC multi-animal tracking csvs.
         handles_and_filepaths: dict mapping handles to file paths.
-        '''
+        """
         if not issubclass(tracking_cls, Tracking):
-            raise TypeError(f"tracking_cls must be Tracking or a subclass, got {tracking_cls}")
+            raise TypeError(
+                f"tracking_cls must be Tracking or a subclass, got {tracking_cls}"
+            )
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_dlcma(fp, handle=handle, options=options)
+            trackings[handle] = tracking_cls.from_dlcma(
+                fp, handle=handle, options=options
+            )
         return cls(trackings)
-    
+
     @classmethod
     def from_list(cls, tracking_list: list[Tracking]):
-        '''
+        """
         creates a TrackingCollection from a list of Tracking objects, keyed by handle
-        '''
+        """
         handles = [obj.handle for obj in tracking_list]
         if len(handles) != len(set(handles)):
-            raise Exception('handles must be unique')
+            raise Exception("handles must be unique")
         trackings = {obj.handle: obj for obj in tracking_list}
         return cls(trackings)
-    
+
     @classmethod
-    def from_dogfeather(cls, handles_and_filepaths: dict[str, str], options: LoadOptions, tracking_cls = Tracking):
-        '''
+    def from_dogfeather(
+        cls,
+        handles_and_filepaths: dict[str, str],
+        options: LoadOptions,
+        tracking_cls=Tracking,
+    ):
+        """
         Loads a TrackingCollection from a dict of dogfeather tracking csvs.
         handles_and_filepaths: dict mapping handles to file paths.
-        '''
-        
+        """
+
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_dogfeather(fp, handle=handle, options=options)
+            trackings[handle] = tracking_cls.from_dogfeather(
+                fp, handle=handle, options=options
+            )
         return cls(trackings)
 
     @classmethod
     def from_dlc_folder(
-        cls,
-        folder_path: str,
-        options: 'LoadOptions',
-        tracking_cls: type = Tracking
-    ) -> 'TrackingCollection':
+        cls, folder_path: str, options: "LoadOptions", tracking_cls: type = Tracking
+    ) -> "TrackingCollection":
         tracking_dict = {}
-        bookkeeping = cls._collect_tracking_files(folder_path, tracking_cls, options=options)
+        bookkeeping = cls._collect_tracking_files(
+            folder_path, tracking_cls, options=options
+        )
         for handle, kwargs in bookkeeping.items():
             tracking_obj = tracking_cls.from_dlc(**kwargs)
             tracking_dict[handle] = tracking_obj
@@ -553,13 +713,12 @@ class TrackingCollection:
 
     @classmethod
     def from_yolo3r_folder(
-        cls,
-        folder_path: str,
-        options: 'LoadOptions',
-        tracking_cls: type = Tracking
-    ) -> 'TrackingCollection':
+        cls, folder_path: str, options: "LoadOptions", tracking_cls: type = Tracking
+    ) -> "TrackingCollection":
         tracking_dict = {}
-        bookkeeping = cls._collect_tracking_files(folder_path, tracking_cls, options=options)
+        bookkeeping = cls._collect_tracking_files(
+            folder_path, tracking_cls, options=options
+        )
         for handle, kwargs in bookkeeping.items():
             tracking_obj = tracking_cls.from_yolo3r(**kwargs)
             tracking_dict[handle] = tracking_obj
@@ -567,18 +726,17 @@ class TrackingCollection:
 
     @classmethod
     def from_dlcma_folder(
-        cls,
-        folder_path: str,
-        options: 'LoadOptions',
-        tracking_cls: type = Tracking
-    ) -> 'TrackingCollection':
+        cls, folder_path: str, options: "LoadOptions", tracking_cls: type = Tracking
+    ) -> "TrackingCollection":
         tracking_dict = {}
-        bookkeeping = cls._collect_tracking_files(folder_path, tracking_cls, options=options)
+        bookkeeping = cls._collect_tracking_files(
+            folder_path, tracking_cls, options=options
+        )
         for handle, kwargs in bookkeeping.items():
             tracking_obj = tracking_cls.from_dlcma(**kwargs)
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
-    
+
     def stereo_triangulate(self):
         """
         Triangulate all TrackingMV objects in the collection.
@@ -589,7 +747,9 @@ class TrackingCollection:
             if hasattr(obj, "stereo_triangulate"):
                 triangulated[handle] = obj.stereo_triangulate()
             else:
-                raise TypeError(f"Object {handle} does not support stereo_triangulate()")
+                raise TypeError(
+                    f"Object {handle} does not support stereo_triangulate()"
+                )
         return TrackingCollection(triangulated)
 
     @staticmethod
@@ -612,44 +772,50 @@ class TrackingCollection:
                 # Find all view csvs
                 filepaths = {}
                 for fname in os.listdir(recording_path):
-                    if fname.endswith('.csv') and not fname.startswith('.'):
+                    if fname.endswith(".csv") and not fname.startswith("."):
                         view = os.path.splitext(fname)[0]
                         filepaths[view] = os.path.join(recording_path, fname)
                 # Load calibration
-                calib_path = os.path.join(recording_path, 'calibration.json')
+                calib_path = os.path.join(recording_path, "calibration.json")
                 if not os.path.exists(calib_path):
-                    raise FileNotFoundError(f"Missing calibration.json in {recording_path}")
-                with open(calib_path, 'r') as f:
+                    raise FileNotFoundError(
+                        f"Missing calibration.json in {recording_path}"
+                    )
+                with open(calib_path, "r") as f:
                     calibration = json.load(f)
                 result[recording] = {
-                    'filepaths': filepaths,
-                    'handle': recording,
-                    'options': options,
-                    'calibration': calibration,
+                    "filepaths": filepaths,
+                    "handle": recording,
+                    "options": options,
+                    "calibration": calibration,
                 }
         else:
             # Single-view: treat each csv as a single-view Tracking
             for fname in os.listdir(folder_path):
-                if fname.endswith('.csv') and not fname.startswith('.'):
+                if fname.endswith(".csv") and not fname.startswith("."):
                     handle = os.path.splitext(fname)[0]
                     fpath = os.path.join(folder_path, fname)
                     result[handle] = {
-                        'filepath': fpath,
-                        'handle': handle,
-                        'options': options,
+                        "filepath": fpath,
+                        "handle": handle,
+                        "options": options,
                     }
         return result
-    
+
     @property
     def loc(self):
         return _Indexer(self, self._loc)
+
     @property
     def iloc(self):
         return _Indexer(self, self._iloc)
+
     def _loc(self, idx):
         return self.__class__({k: v.loc[idx] for k, v in self.tracking_dict.items()})
+
     def _iloc(self, idx):
         return self.__class__({k: v.iloc[idx] for k, v in self.tracking_dict.items()})
+
     def __getitem__(self, key):
         """
         Get Tracking by handle (str), by integer index, or by slice.
@@ -662,15 +828,19 @@ class TrackingCollection:
             return self.__class__({h: self.tracking_dict[h] for h in handles})
         else:
             return self.tracking_dict[key]
+
     def keys(self):
         """Return the keys of the tracking_dict."""
         return self.tracking_dict.keys()
+
     def values(self):
         """Return the values of the tracking_dict."""
         return self.tracking_dict.values()
+
     def items(self):
         """Return the items of the tracking_dict."""
         return self.tracking_dict.items()
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_dict)} Tracking objects>"
 
@@ -679,10 +849,22 @@ class TrackingCollection:
         for handle, tracking in self.tracking_dict.items():
             tracking.plot(*args, title=handle, **kwargs)
 
+    def __setitem__(self, key, value):
+        """
+        Set Tracking by handle (str) or by integer index.
+        """
+        if isinstance(key, int):
+            handle = list(self.tracking_dict)[key]
+            self.tracking_dict[handle] = value
+        else:
+            self.tracking_dict[key] = value
+
+
 class MultipleTrackingCollection:
-    '''
+    """
     Collection of TrackingCollection objects, keyed by name (e.g. for comparison between groups)
-    '''
+    """
+
     def __init__(self, tracking_collections: dict[str, TrackingCollection]):
         self.tracking_collections = tracking_collections
 
@@ -696,28 +878,26 @@ class MultipleTrackingCollection:
                 except Exception as e:
                     raise BatchProcessError(
                         collection_name=key,
-                        object_name=getattr(e, 'object_name', None),
-                        method=getattr(e, 'method', None),
-                        original_exception=getattr(e, 'original_exception', e)
+                        object_name=getattr(e, "object_name", None),
+                        method=getattr(e, "method", None),
+                        original_exception=getattr(e, "original_exception", e),
                     ) from e
             return BatchResult(results, self)
+
         return batch_method
-    
+
     @classmethod
     def from_dict(cls, trackingcollections: dict[str, TrackingCollection]):
-        '''
+        """
         creates a MultipleTrackingCollection from a dict of TrackingCollection objects
-        '''
-        trackings = {key: obj for key,obj in trackingcollections.items()}
+        """
+        trackings = {key: obj for key, obj in trackingcollections.items()}
         return cls(trackings)
 
     @classmethod
     def from_dlc_folder(
-        cls,
-        parent_folder: str,
-        options: 'LoadOptions',
-        tracking_cls: type = Tracking
-    ) -> 'MultipleTrackingCollection':
+        cls, parent_folder: str, options: "LoadOptions", tracking_cls: type = Tracking
+    ) -> "MultipleTrackingCollection":
         """
         Create a MultipleTrackingCollection from a folder of subfolders, each containing DLC csv files.
         Args:
@@ -728,22 +908,22 @@ class MultipleTrackingCollection:
             MultipleTrackingCollection with keys as subfolder names, each value a TrackingCollection.
         """
         import os
+
         tracking_collections = {}
         for subfolder in sorted(os.listdir(parent_folder)):
             subfolder_path = os.path.join(parent_folder, subfolder)
             if not os.path.isdir(subfolder_path):
                 continue
-            tc = TrackingCollection.from_dlc_folder(subfolder_path, options=options, tracking_cls=tracking_cls)
+            tc = TrackingCollection.from_dlc_folder(
+                subfolder_path, options=options, tracking_cls=tracking_cls
+            )
             tracking_collections[subfolder] = tc
         return cls(tracking_collections)
 
     @classmethod
     def from_yolo3r_folder(
-        cls,
-        parent_folder: str,
-        options: 'LoadOptions',
-        tracking_cls: type = Tracking
-    ) -> 'MultipleTrackingCollection':
+        cls, parent_folder: str, options: "LoadOptions", tracking_cls: type = Tracking
+    ) -> "MultipleTrackingCollection":
         """
         Create a MultipleTrackingCollection from a folder of subfolders, each containing YOLO3R csv files.
         Args:
@@ -754,22 +934,22 @@ class MultipleTrackingCollection:
             MultipleTrackingCollection with keys as subfolder names, each value a TrackingCollection.
         """
         import os
+
         tracking_collections = {}
         for subfolder in sorted(os.listdir(parent_folder)):
             subfolder_path = os.path.join(parent_folder, subfolder)
             if not os.path.isdir(subfolder_path):
                 continue
-            tc = TrackingCollection.from_yolo3r_folder(subfolder_path, options=options, tracking_cls=tracking_cls)
+            tc = TrackingCollection.from_yolo3r_folder(
+                subfolder_path, options=options, tracking_cls=tracking_cls
+            )
             tracking_collections[subfolder] = tc
         return cls(tracking_collections)
 
     @classmethod
     def from_dlcma_folder(
-        cls,
-        parent_folder: str,
-        options: 'LoadOptions',
-        tracking_cls: type = Tracking
-    ) -> 'MultipleTrackingCollection':
+        cls, parent_folder: str, options: "LoadOptions", tracking_cls: type = Tracking
+    ) -> "MultipleTrackingCollection":
         """
         Create a MultipleTrackingCollection from a folder of subfolders, each containing DLCMA csv files.
         Args:
@@ -780,15 +960,18 @@ class MultipleTrackingCollection:
             MultipleTrackingCollection with keys as subfolder names, each value a TrackingCollection.
         """
         import os
+
         tracking_collections = {}
         for subfolder in sorted(os.listdir(parent_folder)):
             subfolder_path = os.path.join(parent_folder, subfolder)
             if not os.path.isdir(subfolder_path):
                 continue
-            tc = TrackingCollection.from_dlcma_folder(subfolder_path, options=options, tracking_cls=tracking_cls)
+            tc = TrackingCollection.from_dlcma_folder(
+                subfolder_path, options=options, tracking_cls=tracking_cls
+            )
             tracking_collections[subfolder] = tc
         return cls(tracking_collections)
-    
+
     def stereo_triangulate(self):
         """
         Triangulate all TrackingMV objects in all collections.
@@ -798,17 +981,25 @@ class MultipleTrackingCollection:
         for group, collection in self.tracking_collections.items():
             triangulated[group] = collection.stereo_triangulate()
         return MultipleTrackingCollection(triangulated)
-    
+
     @property
     def loc(self):
         return _Indexer(self, self._loc)
+
     @property
     def iloc(self):
         return _Indexer(self, self._iloc)
+
     def _loc(self, idx):
-        return self.__class__({k: v.loc[idx] for k, v in self.tracking_collections.items()})
+        return self.__class__(
+            {k: v.loc[idx] for k, v in self.tracking_collections.items()}
+        )
+
     def _iloc(self, idx):
-        return self.__class__({k: v.iloc[idx] for k, v in self.tracking_collections.items()})
+        return self.__class__(
+            {k: v.iloc[idx] for k, v in self.tracking_collections.items()}
+        )
+
     def __getitem__(self, key):
         """
         Get TrackingCollection by handle (str), by integer index, or by slice.
@@ -821,15 +1012,19 @@ class MultipleTrackingCollection:
             return self.__class__({h: self.tracking_collections[h] for h in handles})
         else:
             return self.tracking_collections[key]
+
     def keys(self):
         """Return the keys of the tracking_collections."""
         return self.tracking_collections.keys()
+
     def values(self):
         """Return the values of the tracking_collections."""
         return self.tracking_collections.values()
+
     def items(self):
         """Return the items of the tracking_collections."""
         return self.tracking_collections.items()
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.tracking_collections)} TrackingCollection objects>"
 
@@ -838,45 +1033,81 @@ class MultipleTrackingCollection:
             print(f"\n=== Group: {handle} ===")
             collection.plot(*args, **kwargs)
 
+    def __setitem__(self, key, value):
+        """
+        Set TrackingCollection by handle (str) or by integer index.
+        """
+        if isinstance(key, int):
+            handle = list(self.tracking_collections)[key]
+            self.tracking_collections[handle] = value
+        else:
+            self.tracking_collections[key] = value
+
+
 class TrackingMV:
     """
     multi-view tracking object for stereo or multi-camera setups
     can be used as a drop-in replacement for Tracking in TrackingCollection
     stores dict of view name -> Tracking, calibration, and handle
     """
+
     def __init__(self, views: dict[str, Tracking], calibration: dict, handle: str):
         self.views = views  # e.g., {'left': Tracking, 'right': Tracking}
         self.calibration = calibration
         self.handle = handle
 
     @classmethod
-    def from_dlc(cls, filepaths: dict[str, str], handle: str, options: LoadOptions, calibration: dict):
+    def from_dlc(
+        cls,
+        filepaths: dict[str, str],
+        handle: str,
+        options: LoadOptions,
+        calibration: dict,
+    ):
         """
         Load a TrackingMV from a dict of view name -> csv filepath.
         """
-        tracks = {view: Tracking.from_dlc(fp, handle=f"{handle}_{view}", options=options)
-                  for view, fp in filepaths.items()}
+        tracks = {
+            view: Tracking.from_dlc(fp, handle=f"{handle}_{view}", options=options)
+            for view, fp in filepaths.items()
+        }
         return cls(tracks, calibration, handle)
 
     @classmethod
-    def from_dlcma(cls, filepaths: dict[str, str], handle: str, options: LoadOptions, calibration: dict):
+    def from_dlcma(
+        cls,
+        filepaths: dict[str, str],
+        handle: str,
+        options: LoadOptions,
+        calibration: dict,
+    ):
         """
         Load a TrackingMV from a dict of view name -> csv filepath.
         """
-        tracks = {view: Tracking.from_dlcma(fp, handle=f"{handle}_{view}", options=options)
-                  for view, fp in filepaths.items()}
+        tracks = {
+            view: Tracking.from_dlcma(fp, handle=f"{handle}_{view}", options=options)
+            for view, fp in filepaths.items()
+        }
         return cls(tracks, calibration, handle)
 
     @classmethod
-    def from_yolo3r(cls, filepaths: dict[str, str], handle: str, options: LoadOptions, calibration: dict):
+    def from_yolo3r(
+        cls,
+        filepaths: dict[str, str],
+        handle: str,
+        options: LoadOptions,
+        calibration: dict,
+    ):
         """
         Load a TrackingMV from a dict of view name -> csv filepath.
         """
-        tracks = {view: Tracking.from_yolo3r(fp, handle=f"{handle}_{view}", options=options)
-                  for view, fp in filepaths.items()}
+        tracks = {
+            view: Tracking.from_yolo3r(fp, handle=f"{handle}_{view}", options=options)
+            for view, fp in filepaths.items()
+        }
         return cls(tracks, calibration, handle)
-    
-    def stereo_triangulate(self, invert_z: bool = True) -> 'Tracking':
+
+    def stereo_triangulate(self, invert_z: bool = True) -> "Tracking":
         """
         Triangulate the two views to produce a 3D Tracking object.
         Returns a new Tracking object with .x, .y, .z columns.
@@ -884,9 +1115,10 @@ class TrackingMV:
         """
         import cv2
         import numpy as np
+
         calib = self.calibration
 
-        #validation
+        # validation
         views = list(self.views.keys())
         if len(views) != 2 or len(views) != len(set(views)):
             raise ValueError("Exactly two unique views are required for triangulation")
@@ -894,64 +1126,102 @@ class TrackingMV:
             raise ValueError("Views must correspond to calibration")
 
         v1, v2 = calib["view_order"][:2]
-        K1, dist1 = np.array(calib["views"][v1]["K"]), np.array(calib["views"][v1]["dist"])
-        K2, dist2 = np.array(calib["views"][v2]["K"]), np.array(calib["views"][v2]["dist"])
-        R, T = np.array(calib["relative_pose"]["R"]), np.array(calib["relative_pose"]["T"]).reshape(3, 1)
+        K1, dist1 = (
+            np.array(calib["views"][v1]["K"]),
+            np.array(calib["views"][v1]["dist"]),
+        )
+        K2, dist2 = (
+            np.array(calib["views"][v2]["K"]),
+            np.array(calib["views"][v2]["dist"]),
+        )
+        R, T = (
+            np.array(calib["relative_pose"]["R"]),
+            np.array(calib["relative_pose"]["T"]).reshape(3, 1),
+        )
 
-        #data extraction
+        # data extraction
         df1, df2 = self.views[v1].data, self.views[v2].data
         if not df1.columns.equals(df2.columns):
             raise ValueError("Views have different columns")
         point_names = self.views[v1].get_point_names()
         frames = df1.index.intersection(df2.index)
 
-        #projection matrices
-        P1 = K1 @ np.hstack((np.eye(3), np.zeros((3,1))))
+        # projection matrices
+        P1 = K1 @ np.hstack((np.eye(3), np.zeros((3, 1))))
         P2 = K2 @ np.hstack((R, T))
 
-        #helper for triangulation
+        # helper for triangulation
         def triangulate_point(xs1, ys1, xs2, ys2, l1, l2):
-            valid = np.isfinite(xs1) & np.isfinite(ys1) & np.isfinite(xs2) & np.isfinite(ys2)
+            valid = (
+                np.isfinite(xs1)
+                & np.isfinite(ys1)
+                & np.isfinite(xs2)
+                & np.isfinite(ys2)
+            )
             n = len(xs1)
             x3d, y3d, z3d, likelihood = [np.full(n, np.nan) for _ in range(4)]
             if np.any(valid):
                 pts1 = np.stack([xs1[valid], ys1[valid]], axis=1).astype(np.float32)
                 pts2 = np.stack([xs2[valid], ys2[valid]], axis=1).astype(np.float32)
-                pts1_ud = cv2.undistortPoints(pts1.reshape(-1,1,2), K1, dist1, P=K1).reshape(-1,2)
-                pts2_ud = cv2.undistortPoints(pts2.reshape(-1,1,2), K2, dist2, P=K2).reshape(-1,2)
+                pts1_ud = cv2.undistortPoints(
+                    pts1.reshape(-1, 1, 2), K1, dist1, P=K1
+                ).reshape(-1, 2)
+                pts2_ud = cv2.undistortPoints(
+                    pts2.reshape(-1, 1, 2), K2, dist2, P=K2
+                ).reshape(-1, 2)
                 pts4d = cv2.triangulatePoints(P1, P2, pts1_ud.T, pts2_ud.T)
                 pts3d = (pts4d[:3] / pts4d[3]).T
-                x3d[valid], y3d[valid], z3d[valid] = pts3d[:,0], pts3d[:,1], pts3d[:,2]
+                x3d[valid], y3d[valid], z3d[valid] = (
+                    pts3d[:, 0],
+                    pts3d[:, 1],
+                    pts3d[:, 2],
+                )
                 likelihood[valid] = np.minimum(l1[valid], l2[valid])
             return x3d, y3d, z3d, likelihood
 
-        #triangulate all points
+        # triangulate all points
         triangulated = {}
-        l1_all = df1.loc[frames, [p+'.likelihood' for p in point_names]].values
-        l2_all = df2.loc[frames, [p+'.likelihood' for p in point_names]].values
+        l1_all = df1.loc[frames, [p + ".likelihood" for p in point_names]].values
+        l2_all = df2.loc[frames, [p + ".likelihood" for p in point_names]].values
         for i, point in enumerate(point_names):
-            xs1, ys1 = df1.loc[frames, point+'.x'].values, df1.loc[frames, point+'.y'].values
-            xs2, ys2 = df2.loc[frames, point+'.x'].values, df2.loc[frames, point+'.y'].values
-            l1, l2 = l1_all[:,i], l2_all[:,i]
+            xs1, ys1 = (
+                df1.loc[frames, point + ".x"].values,
+                df1.loc[frames, point + ".y"].values,
+            )
+            xs2, ys2 = (
+                df2.loc[frames, point + ".x"].values,
+                df2.loc[frames, point + ".y"].values,
+            )
+            l1, l2 = l1_all[:, i], l2_all[:, i]
             x3d, y3d, z3d, likelihood = triangulate_point(xs1, ys1, xs2, ys2, l1, l2)
-            triangulated[point+'.x'] = x3d
-            triangulated[point+'.y'] = y3d
+            triangulated[point + ".x"] = x3d
+            triangulated[point + ".y"] = y3d
             if invert_z:
-                triangulated[point+'.z'] = -z3d
+                triangulated[point + ".z"] = -z3d
             else:
-                triangulated[point+'.z'] = z3d
-            triangulated[point+'.likelihood'] = likelihood
+                triangulated[point + ".z"] = z3d
+            triangulated[point + ".likelihood"] = likelihood
 
         triangulated_df = pd.DataFrame(triangulated, index=frames)
         triangulated_meta = self.views[v1].meta.copy()
-        triangulated_meta['calibration'] = calib
-        triangulated_meta['views'] = views
+        triangulated_meta["calibration"] = calib
+        triangulated_meta["views"] = views
         return Tracking(triangulated_df, triangulated_meta, self.handle)
-    
-    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True):
+
+    def plot(
+        self,
+        trajectories=None,
+        static=None,
+        lines=None,
+        dims=("x", "y"),
+        ax=None,
+        title=None,
+        show=True,
+    ):
         n = len(self.views)
         import matplotlib.pyplot as plt
-        fig, axes = plt.subplots(1, n, figsize=(5*n, 5), squeeze=False)
+
+        fig, axes = plt.subplots(1, n, figsize=(5 * n, 5), squeeze=False)
         axes = axes[0]  # flatten to 1D
         for i, (view, track) in enumerate(self.views.items()):
             track.plot(
@@ -961,7 +1231,7 @@ class TrackingMV:
                 dims=dims,
                 ax=axes[i],
                 title=view,
-                show=False
+                show=False,
             )
         if title is None:
             title = self.handle
@@ -976,12 +1246,14 @@ class TrackingMV:
         batch method: call method on all underlying Tracking objects
         returns dict of view name -> result
         """
+
         def batch_method(*args, **kwargs):
             results = {}
             for view, track in self.views.items():
                 method = getattr(track, name)
                 results[view] = method(*args, **kwargs)
             return results
+
         return batch_method
 
     def __repr__(self) -> str:
