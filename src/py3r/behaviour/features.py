@@ -27,6 +27,8 @@ from py3r.behaviour.util.bmicro_utils import (
     predict_knn_on_embedding,
 )
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+from py3r.behaviour.predictors import KNNPredictor, KNNPredictorPCA
+from py3r.behaviour.util.normalisation_utils import normalise_df, apply_normalisation_to_df
 
 logger = logging.getLogger(__name__)
 logformat = "%(funcName)s(): %(message)s"
@@ -273,15 +275,14 @@ class Features:
             def row_distance(x):
                 local_point = Point(x[point + ".x"], x[point + ".y"])
                 local_poly = Polygon(static_boundary)
-                return local_poly.distance(local_point)
+                return local_poly.exterior.distance(local_point)
         else:
             warnings.warn("using fully dynamic boundary")
 
             def row_distance(x):
-                local_point = Point(x[point + ".x"], x[point + ".y"])
-                local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
-                return local_poly.distance(local_point)
-
+                local_point = Point(x[point+'.x'], x[point+'.y'])
+                local_poly = Polygon([(x[i+'.x'], x[i+'.y']) for i in boundary])
+                return local_poly.exterior.distance(local_point)
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
 
@@ -609,23 +610,21 @@ class Features:
         source_embedding: dict[str, list[int]],
         target_embedding: dict[str, list[int]],
         n_neighbors: int = 5,
-        normalize_source: bool = False,
-        **kwargs,
+        normalise_source: bool = False,
+        **kwargs
     ):
         """
         Train a KNN regressor to predict a target embedding from a feature embedding on this Features object.
-        If normalize_source is True, normalize the source embedding before training and return the rescale factors.
+        If normalise_source is True, normalise the source embedding before training and return the rescale factors.
         Returns the trained model, input columns, target columns, and (optionally) the rescale factors.
         """
         train_embed = self.embedding_df(source_embedding)
         target_embed = self.embedding_df(target_embedding)
         rescale_factors = None
-        if normalize_source:
-            train_embed, rescale_factors = Features.normalize_embedding_df(train_embed)
-        model, train_cols, target_cols = train_knn_from_embeddings(
-            [train_embed], [target_embed], n_neighbors, **kwargs
-        )
-        if normalize_source:
+        if normalise_source:
+            train_embed, rescale_factors = normalise_df(train_embed)
+        model, train_cols, target_cols = train_knn_from_embeddings([train_embed], [target_embed], n_neighbors, **kwargs)
+        if normalise_source:
             return model, train_cols, target_cols, rescale_factors
         else:
             return model, train_cols, target_cols
@@ -639,14 +638,12 @@ class Features:
     ) -> pd.DataFrame:
         """
         Predict using a trained KNN regressor on this Features object.
-        If rescale_factors is provided, normalize the source embedding before prediction.
+        If rescale_factors is provided, normalise the source embedding before prediction.
         The prediction will match the shape and columns of self.embedding_df(target_embedding).
         """
         test_embed = self.embedding_df(source_embedding)
         if rescale_factors is not None:
-            test_embed = Features.apply_normalization_to_embedding_df(
-                test_embed, rescale_factors
-            )
+            test_embed = apply_normalisation_to_df(test_embed, rescale_factors)
         target_embed = self.embedding_df(target_embedding)
         preds = predict_knn_on_embedding(model, test_embed, target_embed.columns)
         # Ensure the output DataFrame has the same index and columns as target_embed
@@ -691,34 +688,6 @@ class Features:
         mask = ground_truth.notna().all(axis=1) & prediction.notna().all(axis=1)
         rms[~mask] = np.nan
         return rms
-
-    @staticmethod
-    def normalize_embedding_df(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-        """
-        Normalize the columns of an embedding DataFrame by dividing each column by its standard deviation.
-        Returns the normalized DataFrame and a dict of the rescaling factors (std for each column).
-        """
-        rescale_factors = df.std(axis=0, ddof=0).to_dict()
-        normalized = df.copy()
-        for col, factor in rescale_factors.items():
-            normalized[col] = df[col] / factor
-        return normalized, rescale_factors
-
-    @staticmethod
-    def apply_normalization_to_embedding_df(
-        df: pd.DataFrame, rescale_factors: dict
-    ) -> pd.DataFrame:
-        """
-        Apply normalization to a DataFrame using the provided rescale factors (dict of column: factor).
-        Checks that the columns match exactly. Returns the normalized DataFrame.
-        Raises ValueError if columns do not match.
-        """
-        if set(df.columns) != set(rescale_factors.keys()):
-            raise ValueError("Columns of DataFrame and rescale_factors do not match.")
-        normalized = df.copy()
-        for col in df.columns:
-            normalized[col] = df[col] / rescale_factors[col]
-        return normalized
 
     @property
     def loc(self):
@@ -1325,6 +1294,53 @@ class MultipleFeaturesCollection:
                 key = f"from{source_coll_name}_to_{target_coll_name}"
                 results[key] = df
         return results
+    
+    @staticmethod
+    def _train_and_predict_rms(
+        predictor_cls,
+        train_feats,
+        test_feats,
+        source_embedding,
+        target_embedding,
+        n_neighbors,
+        normalize_source,
+        normalize_pred,
+    ):
+        """
+        Helper to train a predictor and compute RMS error for each test_feat.
+        Returns a list of RMS Series (one per test_feat, in order).
+        """
+        from py3r.behaviour.util.normalisation_utils import normalise_df, apply_normalisation_to_df
+        from py3r.behaviour.util.bmicro_utils import train_knn_from_embeddings, predict_knn_on_embedding
+        import numpy as np
+        # 1. Prepare embeddings
+        train_X = [f.embedding_df(source_embedding) for f in train_feats]
+        train_y = [f.embedding_df(target_embedding) for f in train_feats]
+        test_X = [f.embedding_df(source_embedding) for f in test_feats]
+        test_y = [f.embedding_df(target_embedding) for f in test_feats]
+
+        # 2. Normalize if needed
+        if normalize_source:
+            train_X_concat, rescale_factors = normalise_df(pd.concat(train_X))
+            lengths = [len(e) for e in train_X]
+            starts = np.cumsum([0] + lengths[:-1])
+            train_X = [train_X_concat.iloc[start:start+length] for start, length in zip(starts, lengths)]
+            test_X = [apply_normalisation_to_df(x, rescale_factors) for x in test_X]
+        else:
+            rescale_factors = None
+
+        # 3. Train predictor
+        predictor = predictor_cls(n_neighbors=n_neighbors)
+        predictor.fit(pd.concat(train_X), pd.concat(train_y))
+
+        # 4. Predict and compute RMS for each test_feat
+        rms_list = []
+        for x, y in zip(test_X, test_y):
+            preds = predictor.predict(x)
+            preds = pd.DataFrame(preds, index=y.index, columns=y.columns)
+            rms = Features.rms_error_between_embeddings(y, preds, rescale=normalize_pred)
+            rms_list.append(rms)
+        return rms_list
 
     def cross_predict_rms(
         self,
@@ -1335,11 +1351,12 @@ class MultipleFeaturesCollection:
         normalize_pred: dict | str = None,
         set1: list[str] = None,
         set2: list[str] = None,
+        predictor_cls=None
     ):
         """
         Performs two types of cross-prediction:
-        1. Within-collection leave-one-out: For each Features object in each collection in set1 or set2 (union), trains a kNN regressor on all other Features objects in the same collection, predicts on the left-out object, and stores the RMS error Series.
-        2. Between-collection: For each ordered pair of collections (A, B) with A in set1, B in set2, and A != B, trains a kNN regressor on all Features objects in A, predicts on all Features objects in B, and stores the RMS error Series for each Features object in B.
+        1. Within-collection leave-one-out: For each Features object in each collection in set1 or set2 (union), trains a predictor on all other Features objects in the same collection, predicts on the left-out object, and stores the RMS error Series.
+        2. Between-collection: For each ordered pair of collections (A, B) with A in set1, B in set2, and A != B, trains a predictor on all Features objects in A, predicts on all Features objects in B, and stores the RMS error Series for each Features object in B.
 
         Args:
             source_embedding: dict mapping feature names to time shifts for input embedding.
@@ -1349,13 +1366,17 @@ class MultipleFeaturesCollection:
             normalize_pred: Normalization for RMS calculation ('auto', dict, or None).
             set1: List of collection keys for the first set (default: all).
             set2: List of collection keys for the second set (default: all).
+            predictor_cls: Predictor class to use (default: KNNPredictor).
 
         Returns:
             dict with keys:
                 'within': {collection: {feature_name: rms_series}}
                 'between': {fromA_to_B: {target_feature_name: rms_series}}
         """
-        results = {"within": {}, "between": {}}
+        if predictor_cls is None:
+            from py3r.behaviour.predictors import KNNPredictor
+            predictor_cls = KNNPredictor
+        results = {'within': {}, 'between': {}}
         all_keys = list(self.features_collections.keys())
         if set1 is None:
             set1 = all_keys
@@ -1369,51 +1390,20 @@ class MultipleFeaturesCollection:
             coll = self.features_collections[coll_name]
             rms_dict = {}
             for left_out_name, left_out_feat in coll.features_dict.items():
-                # Train on all others
-                train_feats = [
-                    f for n, f in coll.features_dict.items() if n != left_out_name
-                ]
-                train_embeds = [f.embedding_df(source_embedding) for f in train_feats]
-                target_embeds = [f.embedding_df(target_embedding) for f in train_feats]
-                if normalize_source:
-                    # Use normalization from the training set
-                    train_embeds_norm, rescale_factors = (
-                        Features.normalize_embedding_df(pd.concat(train_embeds))
-                    )
-                    lengths = [len(e) for e in train_embeds]
-                    starts = np.cumsum([0] + lengths[:-1])
-                    train_embeds_norm_list = [
-                        train_embeds_norm.iloc[start : start + length]
-                        for start, length in zip(starts, lengths)
-                    ]
-                    model, in_cols, out_cols = train_knn_from_embeddings(
-                        train_embeds_norm_list, target_embeds, n_neighbors
-                    )
-                else:
-                    model, in_cols, out_cols = train_knn_from_embeddings(
-                        train_embeds, target_embeds, n_neighbors
-                    )
-                    rescale_factors = None
-                # Predict on left-out
-                if normalize_source and rescale_factors is not None:
-                    test_embed = left_out_feat.embedding_df(source_embedding)
-                    test_embed = Features.apply_normalization_to_embedding_df(
-                        test_embed, rescale_factors
-                    )
-                else:
-                    test_embed = left_out_feat.embedding_df(source_embedding)
-                target_embed = left_out_feat.embedding_df(target_embedding)
-                preds = predict_knn_on_embedding(
-                    model, test_embed, target_embed.columns
+                train_feats = [f for n, f in coll.features_dict.items() if n != left_out_name]
+                test_feats = [left_out_feat]
+                rms_list = self._train_and_predict_rms(
+                    predictor_cls,
+                    train_feats,
+                    test_feats,
+                    source_embedding,
+                    target_embedding,
+                    n_neighbors,
+                    normalize_source,
+                    normalize_pred,
                 )
-                preds = preds.reindex(
-                    index=target_embed.index, columns=target_embed.columns
-                )
-                rms = Features.rms_error_between_embeddings(
-                    target_embed, preds, rescale=normalize_pred
-                )
-                rms_dict[left_out_name] = rms
-            results["within"][coll_name] = rms_dict
+                rms_dict[left_out_name] = rms_list[0]
+            results['within'][coll_name] = rms_dict
 
         # Between-collection: all ordered pairs (A, B) with A in set1, B in set2, and A != B
         for coll1 in set1:
@@ -1422,54 +1412,19 @@ class MultipleFeaturesCollection:
                     continue
                 source_coll = self.features_collections[coll1]
                 target_coll = self.features_collections[coll2]
-                # Train on all in coll1
-                train_embeds = [
-                    f.embedding_df(source_embedding)
-                    for f in source_coll.features_dict.values()
-                ]
-                target_embeds = [
-                    f.embedding_df(target_embedding)
-                    for f in source_coll.features_dict.values()
-                ]
-                if normalize_source:
-                    train_embeds_norm, rescale_factors = (
-                        Features.normalize_embedding_df(pd.concat(train_embeds))
-                    )
-                    lengths = [len(e) for e in train_embeds]
-                    starts = np.cumsum([0] + lengths[:-1])
-                    train_embeds_norm_list = [
-                        train_embeds_norm.iloc[start : start + length]
-                        for start, length in zip(starts, lengths)
-                    ]
-                    model, in_cols, out_cols = train_knn_from_embeddings(
-                        train_embeds_norm_list, target_embeds, n_neighbors
-                    )
-                else:
-                    model, in_cols, out_cols = train_knn_from_embeddings(
-                        train_embeds, target_embeds, n_neighbors
-                    )
-                    rescale_factors = None
-                # Predict on all in coll2
-                rms_dict = {}
-                for target_feat_name, target_feat in target_coll.features_dict.items():
-                    if normalize_source and rescale_factors is not None:
-                        test_embed = target_feat.embedding_df(source_embedding)
-                        test_embed = Features.apply_normalization_to_embedding_df(
-                            test_embed, rescale_factors
-                        )
-                    else:
-                        test_embed = target_feat.embedding_df(source_embedding)
-                    target_embed = target_feat.embedding_df(target_embedding)
-                    preds = predict_knn_on_embedding(
-                        model, test_embed, target_embed.columns
-                    )
-                    preds = preds.reindex(
-                        index=target_embed.index, columns=target_embed.columns
-                    )
-                    rms = Features.rms_error_between_embeddings(
-                        target_embed, preds, rescale=normalize_pred
-                    )
-                    rms_dict[target_feat_name] = rms
+                train_feats = list(source_coll.features_dict.values())
+                test_feats = list(target_coll.features_dict.values())
+                rms_list = self._train_and_predict_rms(
+                    predictor_cls,
+                    train_feats,
+                    test_feats,
+                    source_embedding,
+                    target_embedding,
+                    n_neighbors,
+                    normalize_source,
+                    normalize_pred,
+                )
+                rms_dict = {name: rms for name, rms in zip(target_coll.features_dict.keys(), rms_list)}
                 key = f"from{coll1}_to_{coll2}"
                 results["between"][key] = rms_dict
         # Also do all ordered pairs (A, B) with A in set2, B in set1, and A != B
@@ -1479,58 +1434,81 @@ class MultipleFeaturesCollection:
                     continue
                 source_coll = self.features_collections[coll1]
                 target_coll = self.features_collections[coll2]
-                # Train on all in coll1
-                train_embeds = [
-                    f.embedding_df(source_embedding)
-                    for f in source_coll.features_dict.values()
-                ]
-                target_embeds = [
-                    f.embedding_df(target_embedding)
-                    for f in source_coll.features_dict.values()
-                ]
-                if normalize_source:
-                    train_embeds_norm, rescale_factors = (
-                        Features.normalize_embedding_df(pd.concat(train_embeds))
-                    )
-                    lengths = [len(e) for e in train_embeds]
-                    starts = np.cumsum([0] + lengths[:-1])
-                    train_embeds_norm_list = [
-                        train_embeds_norm.iloc[start : start + length]
-                        for start, length in zip(starts, lengths)
-                    ]
-                    model, in_cols, out_cols = train_knn_from_embeddings(
-                        train_embeds_norm_list, target_embeds, n_neighbors
-                    )
-                else:
-                    model, in_cols, out_cols = train_knn_from_embeddings(
-                        train_embeds, target_embeds, n_neighbors
-                    )
-                    rescale_factors = None
-                # Predict on all in coll2
-                rms_dict = {}
-                for target_feat_name, target_feat in target_coll.features_dict.items():
-                    if normalize_source and rescale_factors is not None:
-                        test_embed = target_feat.embedding_df(source_embedding)
-                        test_embed = Features.apply_normalization_to_embedding_df(
-                            test_embed, rescale_factors
-                        )
-                    else:
-                        test_embed = target_feat.embedding_df(source_embedding)
-                    target_embed = target_feat.embedding_df(target_embedding)
-                    preds = predict_knn_on_embedding(
-                        model, test_embed, target_embed.columns
-                    )
-                    preds = preds.reindex(
-                        index=target_embed.index, columns=target_embed.columns
-                    )
-                    rms = Features.rms_error_between_embeddings(
-                        target_embed, preds, rescale=normalize_pred
-                    )
-                    rms_dict[target_feat_name] = rms
+                train_feats = list(source_coll.features_dict.values())
+                test_feats = list(target_coll.features_dict.values())
+                rms_list = self._train_and_predict_rms(
+                    predictor_cls,
+                    train_feats,
+                    test_feats,
+                    source_embedding,
+                    target_embedding,
+                    n_neighbors,
+                    normalize_source,
+                    normalize_pred,
+                )
+                rms_dict = {name: rms for name, rms in zip(target_coll.features_dict.keys(), rms_list)}
                 key = f"from{coll1}_to_{coll2}"
                 results["between"][key] = rms_dict
         return results
 
+    @staticmethod
+    def plot_cross_predict_vs_within(results, from_collection, to_collection, show=True):
+        """
+        Plot mean RMS for between (fromX_to_Y), within (withinY), and their difference for each Features object in 'to_collection'.
+        """
+        # Keys
+        between_key = f'from{from_collection}_to_{to_collection}'
+        within_key = to_collection
+
+        # Get dicts of {handle: pd.Series}
+        between_dict = results['between'].get(between_key, {})
+        within_dict = results['within'].get(within_key, {})
+
+        # Handles present in both
+        handles = sorted(set(between_dict.keys()) & set(within_dict.keys()))
+        if not handles:
+            raise ValueError(f"No overlapping handles between {between_key} and {within_key}")
+
+        # Compute means
+        between_means = [between_dict[h].mean(skipna=True) for h in handles]
+        within_means = [within_dict[h].mean(skipna=True) for h in handles]
+        diff_means = [b - w for b, w in zip(between_means, within_means)]
+
+        x = np.arange(len(handles))
+        width = 0.3
+
+        fig, ax = plt.subplots(figsize=(max(8, len(handles)*0.7), 5))
+        #ax.bar(x - width, between_means, width, label=f'from{from_collection}_to_{to_collection}')
+        #ax.bar(x, within_means, width, label=f'within_{to_collection}')
+        ax.bar(x + width, diff_means, width, label='between - within')
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(handles, rotation=90)
+        ax.set_ylabel('Mean RMS difference')
+        ax.set_title(f'Cross-predict vs Within: {from_collection} → {to_collection}')
+        #ax.legend()
+
+        from scipy.stats import ttest_rel
+
+        # Paired t-test
+        t_stat, p_value = ttest_rel(between_means, within_means, nan_policy='omit')
+
+        # Annotate on the plot
+        ax.text(0.99, 0.99, f"Paired t-test: p = {p_value:.3g}", 
+                ha='right', va='top', transform=ax.transAxes, fontsize=12, color='red')
+
+        plt.tight_layout()
+        if show:
+            plt.show()
+        return {
+            'handles': handles,
+            'between_means': between_means,
+            'within_means': within_means,
+            'diff_means': diff_means,
+            't_stat': t_stat,
+            'p_value': p_value
+        }
+    
     @staticmethod
     def plot_cross_predict_results(
         results,
@@ -1581,12 +1559,37 @@ class MultipleFeaturesCollection:
             plt.title("RMS prediction error by category")
         elif plot_type == "point":
             # Point plot: mean RMS per feature, grouped by category
-            means = df.groupby(["Category", "Feature"]).RMS.mean().reset_index()
-            sns.pointplot(data=means, x="Feature", y="RMS", hue="Category", dodge=True)
-            plt.ylabel("mean RMS error")
-            plt.title(f"{within_keys[0]} vs {within_keys[1]}")
-            plt.xticks(rotation=90)
-        elif plot_type == "violin":
+            means = df.groupby(['Category', 'Feature']).RMS.mean().reset_index()
+            # Pivot to get within and between as columns
+            pivot = means.pivot(index='Feature', columns='Category', values='RMS')
+            # Try to infer the within and between column names
+            within_col = [c for c in pivot.columns if c.startswith('within_')]
+            between_col = [c for c in pivot.columns if not c.startswith('within_')]
+            if len(within_col) == 1 and len(between_col) == 1:
+                pivot['mean_diff'] = pivot[between_col[0]] - pivot[within_col[0]]
+            else:
+                pivot['mean_diff'] = np.nan  # fallback if ambiguous
+
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(figsize[0], figsize[1]*1.5), sharex=True, gridspec_kw={'height_ratios': [2, 1]})
+
+            # Point plot
+            sns.pointplot(data=means, x='Feature', y='RMS', hue='Category', dodge=True, ax=ax1)
+            ax1.set_ylabel('mean RMS error')
+            ax1.set_title(f'{within_keys[0]} vs {within_keys[1]}')
+            ax1.tick_params(axis='x', rotation=90)
+
+            # Bar plot of mean difference
+            ax2.bar(pivot.index, pivot['mean_diff'])
+            ax2.axhline(0, color='gray', linestyle='--')
+            ax2.set_ylabel('Mean (Between - Within)')
+            ax2.set_title('Mean RMS Difference per Video')
+            ax2.tick_params(axis='x', rotation=90)
+
+            plt.tight_layout()
+            if show:
+                plt.show()
+            return df  # Return the DataFrame for further inspection if needed
+        elif plot_type == 'violin':
             # Violin plot: all raw RMS values
             sns.violinplot(data=df, x="Category", y="RMS", inner="point")
             plt.ylabel("RMS")
@@ -1701,3 +1704,43 @@ class MultipleFeaturesCollection:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.features_collections)} FeaturesCollection objects>"
+
+    @staticmethod
+    def plot_cross_predict_difference_histograms(results, from_collection, to_collection, show=True, bins=30):
+        """
+        For each handle in the intersection of between and within, plot a histogram of (between - within) RMS time series.
+        """
+        between_key = f'from{from_collection}_to_{to_collection}'
+        within_key = to_collection
+
+        between_dict = results['between'].get(between_key, {})
+        within_dict = results['within'].get(within_key, {})
+
+        handles = sorted(set(between_dict.keys()) & set(within_dict.keys()))
+        if not handles:
+            raise ValueError(f"No overlapping handles between {between_key} and {within_key}")
+
+        n = len(handles)
+        ncols = min(4, n)
+        nrows = int(np.ceil(n / ncols))
+
+        fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 3*nrows), squeeze=False)
+        axes = axes.flatten()
+
+        for i, h in enumerate(handles):
+            diff = between_dict[h] - within_dict[h]
+            diff = diff.dropna()
+            axes[i].hist(diff, bins=bins, color='C0', alpha=0.7)
+            mean_val = diff.mean()
+            axes[i].axvline(0, color='gray', linestyle='--')
+            axes[i].axvline(mean_val, color='red', linestyle='-', linewidth=2, label='mean')
+            axes[i].set_title(h)
+            axes[i].set_xlabel('Between - Within (RMS)')
+            axes[i].set_ylabel('Count')
+            axes[i].legend()
+
+        fig.suptitle(f'Histogram of (Between - Within) RMS Differences\n{from_collection} → {to_collection}', fontsize=14)
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+        if show:
+            plt.show()
+        return handles
