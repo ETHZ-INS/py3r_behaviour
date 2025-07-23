@@ -289,6 +289,22 @@ class SummaryCollection:
         summary_dict = {obj.handle: obj for obj in summary_list}
         return cls(summary_dict)
 
+    def make_bin(self, startframe, endframe):
+        # returns a new SummaryCollection with binned summaries
+        binned = {
+            k: v.make_bin(startframe, endframe) for k, v in self.summary_dict.items()
+        }
+        return SummaryCollection(binned)
+
+    def make_bins(self, numbins):
+        # returns a list of SummaryCollection, one per bin
+        bins = {
+            k: v.make_bins(numbins) for k, v in self.summary_dict.items()
+        }  # {k: [Summary, ...]}
+        # Transpose: for each bin index, collect {k: Summary}
+        nbins = len(next(iter(bins.values())))
+        return [SummaryCollection({k: bins[k][i] for k in bins}) for i in range(nbins)]
+
     def store(
         self,
         results_dict: dict[str, SummaryResult],
@@ -398,6 +414,25 @@ class MultipleSummaryCollection:
                 )
             )
         return cls(multiple_summary_collection)
+
+    def make_bin(self, startframe, endframe):
+        """returns a new MultipleSummaryCollection with binned summaries"""
+        binned = {
+            k: v.make_bin(startframe, endframe)
+            for k, v in self.dict_of_summary_collections.items()
+        }
+        return MultipleSummaryCollection(binned)
+
+    def make_bins(self, numbins):
+        """returns a list of MultipleSummaryCollection, one per bin"""
+        bins = {
+            k: v.make_bins(numbins) for k, v in self.dict_of_summary_collections.items()
+        }  # {group: [SummaryCollection, ...]}
+        nbins = len(next(iter(bins.values())))
+        return [
+            MultipleSummaryCollection({k: bins[k][i] for k in bins})
+            for i in range(nbins)
+        ]
 
     def bfa(self, column: str, all_states=None, numshuffles: int = 1000):
         from itertools import combinations
