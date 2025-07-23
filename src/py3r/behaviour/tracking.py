@@ -1216,6 +1216,161 @@ class TrackingMV:
         triangulated_meta["views"] = views
         return Tracking(triangulated_df, triangulated_meta, self.handle)
 
+    @staticmethod
+    def _get_animals_and_bodyparts(df):
+        animals = set()
+        bodyparts = set()
+        for col in df.columns:
+            parts = col.split(".")
+            if len(parts) >= 2:
+                animals.add(parts[0])
+                bodyparts.add(parts[1])
+        return sorted(animals), sorted(bodyparts)
+
+    @staticmethod
+    def _extract_coords(df, animals, keypoints, frames):
+        import numpy as np
+
+        coords = np.full(
+            (len(frames), len(animals), len(keypoints), 2), np.nan, dtype=np.float32
+        )
+        for ai, animal in enumerate(animals):
+            for ki, kp in enumerate(keypoints):
+                xcol = f"{animal}.{kp}.x"
+                ycol = f"{animal}.{kp}.y"
+                if xcol in df.columns and ycol in df.columns:
+                    coords[:, ai, ki, 0] = df.loc[frames, xcol].values
+                    coords[:, ai, ki, 1] = df.loc[frames, ycol].values
+        return coords
+
+    @staticmethod
+    def _compute_cost_matrices(coords1, coords2):
+        import numpy as np
+
+        # coords1, coords2: (n_frames, n_animals, n_keypoints, 2)
+        coords1_exp = coords1[
+            :, :, None, :, :
+        ]  # (n_frames, n_animals, 1, n_keypoints, 2)
+        coords2_exp = coords2[
+            :, None, :, :, :
+        ]  # (n_frames, 1, n_animals, n_keypoints, 2)
+        diffs = (
+            coords1_exp - coords2_exp
+        )  # (n_frames, n_animals, n_animals, n_keypoints, 2)
+        sqdist = np.sum(
+            diffs**2, axis=-1
+        )  # (n_frames, n_animals, n_animals, n_keypoints)
+        dists = np.sqrt(sqdist)  # (n_frames, n_animals, n_animals, n_keypoints)
+        mask1 = np.isfinite(coords1).all(axis=-1)  # (n_frames, n_animals, n_keypoints)
+        mask2 = np.isfinite(coords2).all(axis=-1)  # (n_frames, n_animals, n_keypoints)
+        mask1_exp = mask1[:, :, None, :]  # (n_frames, n_animals, 1, n_keypoints)
+        mask2_exp = mask2[:, None, :, :]  # (n_frames, 1, n_animals, n_keypoints)
+        valid_mask = (
+            mask1_exp & mask2_exp
+        )  # (n_frames, n_animals, n_animals, n_keypoints)
+        dists_masked = np.where(valid_mask, dists, 0.0)
+        n_valid = np.sum(valid_mask, axis=-1)  # (n_frames, n_animals, n_animals)
+        sum_dists = np.sum(dists_masked, axis=-1)  # (n_frames, n_animals, n_animals)
+        large_cost = 1e6
+        cost_matrices = np.where(
+            n_valid > 0, sum_dists, large_cost
+        )  # (n_frames, n_animals, n_animals)
+        return cost_matrices
+
+    @staticmethod
+    def _reorder_view2_data(
+        df2, animals1, animals2, keypoints, aligned_indices, frames
+    ):
+        import numpy as np
+        import pandas as pd
+
+        n_frames = len(frames)
+        new_data_dict = {}
+        for ai, animal1 in enumerate(animals1):
+            for ki, kp in enumerate(keypoints):
+                for coord in ["x", "y", "likelihood"]:
+                    colname = f"{animal1}.{kp}.{coord}"
+                    new_data_dict[colname] = np.full(n_frames, np.nan, dtype=np.float32)
+        for fi, frame in enumerate(frames):
+            for ai, animal1 in enumerate(animals1):
+                aj = aligned_indices[fi, ai]
+                for ki, kp in enumerate(keypoints):
+                    for coord in ["x", "y", "likelihood"]:
+                        src_col = f"{animals2[aj]}.{kp}.{coord}"
+                        dst_col = f"{animal1}.{kp}.{coord}"
+                        if src_col in df2.columns:
+                            new_data_dict[dst_col][fi] = df2.loc[frame, src_col]
+        new_df2 = pd.DataFrame(new_data_dict, index=frames)
+        extra_cols = [c for c in df2.columns if not any(bp in c for bp in keypoints)]
+        if extra_cols:
+            new_df2 = pd.concat([new_df2, df2.loc[frames, extra_cols]], axis=1)
+        new_df2 = new_df2[
+            [c for c in df2.columns if c in new_df2.columns]
+            + [c for c in new_df2.columns if c not in df2.columns]
+        ]
+        return new_df2
+
+    def align_ids_by_keypoints(
+        self,
+        keypoints: list[str],
+        views: list[str] | None = None,
+    ) -> "TrackingMV":
+        """
+        Align animal IDs between two specified views by minimizing the sum of distances between specified keypoints.
+        Returns a new TrackingMV with aligned IDs in the second view.
+        Args:
+            keypoints: list of bodypart names (e.g., ["nose", "tailbase"])
+            views: list or tuple of two view names to align (default: first two views in self.views)
+        """
+        import numpy as np
+        from scipy.optimize import linear_sum_assignment
+
+        all_views = list(self.views.keys())
+        if views is not None:
+            if len(views) != 2:
+                raise ValueError(
+                    "views argument must be a list or tuple of two view names."
+                )
+            v1, v2 = views
+            if v1 not in self.views or v2 not in self.views:
+                raise ValueError(
+                    f"Specified views {views} not found in TrackingMV object."
+                )
+        else:
+            if len(all_views) < 2:
+                raise ValueError("TrackingMV must have at least two views to align.")
+            v1, v2 = all_views[:2]
+
+        df1, df2 = self.views[v1].data, self.views[v2].data
+        animals1, _ = self._get_animals_and_bodyparts(df1)
+        animals2, _ = self._get_animals_and_bodyparts(df2)
+        if len(animals1) != len(animals2):
+            raise ValueError("Number of animals differs between views.")
+        n_animals = len(animals1)
+        frames = df1.index.intersection(df2.index)
+        n_frames = len(frames)
+
+        coords1 = self._extract_coords(df1, animals1, keypoints, frames)
+        coords2 = self._extract_coords(df2, animals2, keypoints, frames)
+        cost_matrices = self._compute_cost_matrices(coords1, coords2)
+
+        aligned_indices = np.zeros((n_frames, n_animals), dtype=int)
+        for fi in range(n_frames):
+            row_ind, col_ind = linear_sum_assignment(cost_matrices[fi])
+            aligned_indices[fi] = col_ind
+
+        new_df2 = self._reorder_view2_data(
+            df2, animals1, animals2, keypoints, aligned_indices, frames
+        )
+        new_views = self.views.copy()
+        new_views[v1] = Tracking(
+            df1.loc[frames], self.views[v1].meta.copy(), self.views[v1].handle
+        )
+        new_views[v2] = Tracking(
+            new_df2, self.views[v2].meta.copy(), self.views[v2].handle
+        )
+        return TrackingMV(new_views, self.calibration, self.handle)
+
     def plot(
         self,
         trajectories=None,
