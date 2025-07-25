@@ -248,42 +248,22 @@ class Features:
         boundary_name: str = None,
     ) -> FeaturesResult:
         """
+        Deprecated: use distance_to_boundary_static or distance_to_boundary_dynamic instead
         returns distance from point to boundary
         Optionally, pass boundary_name for a custom short name in the feature name/meta.
         """
-        if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
-        if boundary_name is not None:
-            boundary_id = boundary_name
-        else:
-            boundary_id = self._short_boundary_id(boundary)
-        name = f"distance_to_boundary_{point}_in_{boundary_id}_{'median' if median else 'dynamic'}"
-        meta = {
-            "function": "distance_to_boundary",
-            "point": point,
-            "boundary": boundary,
-            "median": median,
-        }
-        if boundary_name is not None:
-            meta["boundary_name"] = boundary_name
+        warnings.warn(
+            "distance_to_boundary is deprecated, use distance_to_boundary_static or distance_to_boundary_dynamic",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if median:
-            warnings.warn("using median (static) boundary")
-            static_boundary = [self.get_point_median(i) for i in boundary]
-
-            def row_distance(x):
-                local_point = Point(x[point + ".x"], x[point + ".y"])
-                local_poly = Polygon(static_boundary)
-                return local_poly.distance(local_point)
+            static_boundary = self.define_boundary(boundary, 1.0)
+            return self.distance_to_boundary_static(
+                point, static_boundary, boundary_name
+            )
         else:
-            warnings.warn("using fully dynamic boundary")
-
-            def row_distance(x):
-                local_point = Point(x[point + ".x"], x[point + ".y"])
-                local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
-                return local_poly.exterior.distance(local_point)
-
-        result = self.tracking.data.apply(row_distance, axis=1)
-        return FeaturesResult(result, self, name, meta)
+            return self.distance_to_boundary_dynamic(point, boundary, boundary_name)
 
     def distance_to_boundary_static(
         self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
@@ -312,6 +292,38 @@ class Features:
                 return np.nan
             local_point = Point(px, py)
             local_poly = Polygon(boundary)
+            return local_poly.exterior.distance(local_point)
+
+        result = self.tracking.data.apply(row_distance, axis=1)
+        return FeaturesResult(result, self, name, meta)
+
+    def distance_to_boundary_dynamic(
+        self, point: str, boundary: list[str], boundary_name: str | None = None
+    ) -> FeaturesResult:
+        """
+        Returns distance from point to a dynamic boundary defined by a list of point names.
+        If boundary_name is provided, it overrides the automatic id.
+        NaN is returned if the point or any boundary vertex is NaN.
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"distance_to_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
+        meta = {
+            "function": "distance_to_boundary_dynamic",
+            "point": point,
+            "boundary": boundary,
+        }
+        if boundary_name is not None:
+            meta["boundary_name"] = boundary_name
+
+        def row_distance(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
             return local_poly.exterior.distance(local_point)
 
         result = self.tracking.data.apply(row_distance, axis=1)
