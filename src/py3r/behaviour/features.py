@@ -280,7 +280,7 @@ class Features:
             def row_distance(x):
                 local_point = Point(x[point + ".x"], x[point + ".y"])
                 local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
-                return local_poly.distance(local_point)
+                return local_poly.exterior.distance(local_point)
 
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
@@ -312,7 +312,7 @@ class Features:
                 return np.nan
             local_point = Point(px, py)
             local_poly = Polygon(boundary)
-            return local_poly.distance(local_point)
+            return local_poly.exterior.distance(local_point)
 
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
