@@ -181,64 +181,93 @@ class Features:
             return "_".join(b)
         return "_".join(b[:2] + ["..."] + b[-2:])
 
+    def within_boundary_static(
+        self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
+    ) -> FeaturesResult:
+        """
+        checks whether point is inside polygon defined by ordered list of boundary points
+        boundary points must be specified as a list of numerical tuples
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"within_boundary_static_{point}_in_{boundary_name or boundary_id}"
+        meta = {
+            "function": "within_boundary_static",
+            "point": point,
+            "boundary": boundary,
+        }
+        if boundary_name is not None:
+            meta["boundary_name"] = boundary_name
+
+        def local_contains_static(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon(boundary)
+            return local_poly.contains(local_point)
+
+        result = self.tracking.data.apply(local_contains_static, axis=1)
+        return FeaturesResult(result, self, name, meta)
+
+    def within_boundary_dynamic(
+        self, point: str, boundary: list[str], boundary_name: str = None
+    ) -> FeaturesResult:
+        """
+        checks whether point is inside polygon defined by ordered list of boundary points
+        boundary points must be specified as a list of names of tracked points
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"within_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
+        meta = {
+            "function": "within_boundary_dynamic",
+            "point": point,
+            "boundary": boundary,
+        }
+        if boundary_name is not None:
+            meta["boundary_name"] = boundary_name
+
+        def local_contains_dynamic(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
+            return local_poly.contains(local_point)
+
+        result = self.tracking.data.apply(local_contains_dynamic, axis=1)
+        return FeaturesResult(result, self, name, meta)
+
     def within_boundary(
         self, point: str, boundary: list, median: bool = True, boundary_name: str = None
     ) -> FeaturesResult:
         """
+        deprecated: use within_boundary_static or within_boundary_dynamic instead
         checks whether point is inside polygon defined by ordered list of boundary points
         boundary points may either be specified as a list of numerical tuples,
         or as a list of names of tracked points.
         Optionally, pass boundary_name for a custom short name in the feature name/meta.
         """
-        if len(boundary) < 3:
-            raise Exception("boundary encloses no area")
-        if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
-        if boundary_name is not None:
-            boundary_id = boundary_name
-        else:
-            boundary_id = self._short_boundary_id(boundary)
-        name = f"within_boundary_{point}_in_{boundary_id}_{'median' if median else 'dynamic'}"
-        meta = {
-            "function": "within_boundary",
-            "point": point,
-            "boundary": boundary,
-            "median": median,
-        }
-        if boundary_name is not None:
-            meta["boundary_name"] = boundary_name
+        warnings.warn(
+            "within_boundary is deprecated, use within_boundary_static or within_boundary_dynamic",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if isinstance(boundary[0], str):
             if not median:
-                logger.info("using fully dynamic boundary")
-
-                def _local_contains_dynamic(x):
-                    local_point = Point(x[point + ".x"], x[point + ".y"])
-                    local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
-                    return local_poly.contains(local_point)
-
-                result = self.tracking.data.apply(_local_contains_dynamic, axis=1)
-                return FeaturesResult(result, self, name, meta)
+                return self.within_boundary_dynamic(point, boundary, boundary_name)
             if median:
-                logger.info("using median (static) boundary")
-                boundary_pts = [self.get_point_median(i) for i in boundary]
-
-                def _local_contains_static(x):
-                    local_point = Point(x[point + ".x"], x[point + ".y"])
-                    local_poly = Polygon(boundary_pts)
-                    return sp.contains(local_poly, local_point)
-
-                result = self.tracking.data.apply(_local_contains_static, axis=1)
-                return FeaturesResult(result, self, name, meta)
+                static_boundary = self.define_boundary(boundary, 1.0)
+                return self.within_boundary_static(
+                    point, static_boundary, boundary_name
+                )
         else:
-            logger.info("using static boundary")
-
-            def local_contains_static(x):
-                local_point = Point(x[point + ".x"], x[point + ".y"])
-                local_poly = Polygon(boundary)
-                return local_poly.contains(local_point)
-
-            result = self.tracking.data.apply(local_contains_static, axis=1)
-            return FeaturesResult(result, self, name, meta)
+            return self.within_boundary_static(point, boundary, boundary_name)
 
     def distance_to_boundary(
         self,
@@ -248,39 +277,83 @@ class Features:
         boundary_name: str = None,
     ) -> FeaturesResult:
         """
+        Deprecated: use distance_to_boundary_static or distance_to_boundary_dynamic instead
         returns distance from point to boundary
         Optionally, pass boundary_name for a custom short name in the feature name/meta.
         """
-        if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
-        if boundary_name is not None:
-            boundary_id = boundary_name
+        warnings.warn(
+            "distance_to_boundary is deprecated, use distance_to_boundary_static or distance_to_boundary_dynamic",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if median:
+            static_boundary = self.define_boundary(boundary, 1.0)
+            return self.distance_to_boundary_static(
+                point, static_boundary, boundary_name
+            )
         else:
-            boundary_id = self._short_boundary_id(boundary)
-        name = f"distance_to_boundary_{point}_in_{boundary_id}_{'median' if median else 'dynamic'}"
+            return self.distance_to_boundary_dynamic(point, boundary, boundary_name)
+
+    def distance_to_boundary_static(
+        self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
+    ) -> FeaturesResult:
+        """
+        Returns distance from point to a static boundary defined by a list of (x, y) tuples.
+        If boundary_name is provided, it overrides the automatic id.
+        NaN is returned if the point or any boundary vertex is NaN.
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"distance_to_boundary_static_{point}_in_{boundary_name or boundary_id}"
         meta = {
-            "function": "distance_to_boundary",
+            "function": "distance_to_boundary_static",
             "point": point,
             "boundary": boundary,
-            "median": median,
         }
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
-        if median:
-            warnings.warn("using median (static) boundary")
-            static_boundary = [self.get_point_median(i) for i in boundary]
 
-            def row_distance(x):
-                local_point = Point(x[point + ".x"], x[point + ".y"])
-                local_poly = Polygon(static_boundary)
-                return local_poly.distance(local_point)
-        else:
-            warnings.warn("using fully dynamic boundary")
+        def row_distance(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon(boundary)
+            return local_poly.exterior.distance(local_point)
 
-            def row_distance(x):
-                local_point = Point(x[point + ".x"], x[point + ".y"])
-                local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
-                return local_poly.distance(local_point)
+        result = self.tracking.data.apply(row_distance, axis=1)
+        return FeaturesResult(result, self, name, meta)
+
+    def distance_to_boundary_dynamic(
+        self, point: str, boundary: list[str], boundary_name: str | None = None
+    ) -> FeaturesResult:
+        """
+        Returns distance from point to a dynamic boundary defined by a list of point names.
+        If boundary_name is provided, it overrides the automatic id.
+        NaN is returned if the point or any boundary vertex is NaN.
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"distance_to_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
+        meta = {
+            "function": "distance_to_boundary_dynamic",
+            "point": point,
+            "boundary": boundary,
+        }
+        if boundary_name is not None:
+            meta["boundary_name"] = boundary_name
+
+        def row_distance(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
+            return local_poly.exterior.distance(local_point)
 
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
