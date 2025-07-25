@@ -280,7 +280,39 @@ class Features:
             def row_distance(x):
                 local_point = Point(x[point + ".x"], x[point + ".y"])
                 local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
-                return local_poly.distance(local_point)
+                return local_poly.exterior.distance(local_point)
+
+        result = self.tracking.data.apply(row_distance, axis=1)
+        return FeaturesResult(result, self, name, meta)
+
+    def distance_to_boundary_static(
+        self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
+    ) -> FeaturesResult:
+        """
+        Returns distance from point to a static boundary defined by a list of (x, y) tuples.
+        If boundary_name is provided, it overrides the automatic id.
+        NaN is returned if the point or any boundary vertex is NaN.
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"distance_to_boundary_static_{point}_in_{boundary_name or boundary_id}"
+        meta = {
+            "function": "distance_to_boundary_static",
+            "point": point,
+            "boundary": boundary,
+        }
+        if boundary_name is not None:
+            meta["boundary_name"] = boundary_name
+
+        def row_distance(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon(boundary)
+            return local_poly.exterior.distance(local_point)
 
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
