@@ -221,7 +221,7 @@ class Features:
         """
         if len(boundary) < 3:
             raise Exception("boundary encloses no area")
-        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+
         boundary_id = self._short_boundary_id(boundary)
         name = f"within_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
         meta = {
@@ -234,7 +234,15 @@ class Features:
 
         def local_contains_dynamic(x):
             px, py = x[point + ".x"], x[point + ".y"]
-            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+
+            def boundary_has_nan(x) -> bool:
+                boundary_points_are_nan = []
+                for bdry_point in boundary:
+                    bx, by = x[bdry_point + ".x"], x[bdry_point + ".y"]
+                    boundary_points_are_nan.append(pd.isna(bx) | pd.isna(by))
+                return any(boundary_points_are_nan)
+
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan(x):
                 return np.nan
             local_point = Point(px, py)
             local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
