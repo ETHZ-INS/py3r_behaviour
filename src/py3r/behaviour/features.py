@@ -221,7 +221,7 @@ class Features:
         """
         if len(boundary) < 3:
             raise Exception("boundary encloses no area")
-        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+
         boundary_id = self._short_boundary_id(boundary)
         name = f"within_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
         meta = {
@@ -234,10 +234,12 @@ class Features:
 
         def local_contains_dynamic(x):
             px, py = x[point + ".x"], x[point + ".y"]
+            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
+            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
             if pd.isna(px) or pd.isna(py) or boundary_has_nan:
                 return np.nan
             local_point = Point(px, py)
-            local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
+            local_poly = Polygon(bdry_pts)
             return local_poly.contains(local_point)
 
         result = self.tracking.data.apply(local_contains_dynamic, axis=1)
@@ -336,7 +338,6 @@ class Features:
         """
         if len(boundary) < 3:
             raise Exception("boundary encloses no area")
-        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
         boundary_id = self._short_boundary_id(boundary)
         name = f"distance_to_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
         meta = {
@@ -349,10 +350,12 @@ class Features:
 
         def row_distance(x):
             px, py = x[point + ".x"], x[point + ".y"]
+            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
+            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
             if pd.isna(px) or pd.isna(py) or boundary_has_nan:
                 return np.nan
             local_point = Point(px, py)
-            local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
+            local_poly = Polygon(bdry_pts)
             return local_poly.exterior.distance(local_point)
 
         result = self.tracking.data.apply(row_distance, axis=1)
