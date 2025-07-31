@@ -27,6 +27,7 @@ from py3r.behaviour.util.bmicro_utils import (
     predict_knn_on_embedding,
 )
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
 
 logger = logging.getLogger(__name__)
 logformat = "%(funcName)s(): %(message)s"
@@ -221,7 +222,7 @@ class Features:
         """
         if len(boundary) < 3:
             raise Exception("boundary encloses no area")
-        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+
         boundary_id = self._short_boundary_id(boundary)
         name = f"within_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
         meta = {
@@ -234,10 +235,12 @@ class Features:
 
         def local_contains_dynamic(x):
             px, py = x[point + ".x"], x[point + ".y"]
+            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
+            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
             if pd.isna(px) or pd.isna(py) or boundary_has_nan:
                 return np.nan
             local_point = Point(px, py)
-            local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
+            local_poly = Polygon(bdry_pts)
             return local_poly.contains(local_point)
 
         result = self.tracking.data.apply(local_contains_dynamic, axis=1)
@@ -336,7 +339,6 @@ class Features:
         """
         if len(boundary) < 3:
             raise Exception("boundary encloses no area")
-        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
         boundary_id = self._short_boundary_id(boundary)
         name = f"distance_to_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
         meta = {
@@ -349,10 +351,12 @@ class Features:
 
         def row_distance(x):
             px, py = x[point + ".x"], x[point + ".y"]
+            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
+            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
             if pd.isna(px) or pd.isna(py) or boundary_has_nan:
                 return np.nan
             local_point = Point(px, py)
-            local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
+            local_poly = Polygon(bdry_pts)
             return local_poly.exterior.distance(local_point)
 
         result = self.tracking.data.apply(row_distance, axis=1)
@@ -694,7 +698,7 @@ class Features:
         target_embed = self.embedding_df(target_embedding)
         rescale_factors = None
         if normalize_source:
-            train_embed, rescale_factors = Features.normalize_embedding_df(train_embed)
+            train_embed, rescale_factors = normalize_df(train_embed)
         model, train_cols, target_cols = train_knn_from_embeddings(
             [train_embed], [target_embed], n_neighbors, **kwargs
         )
@@ -717,9 +721,7 @@ class Features:
         """
         test_embed = self.embedding_df(source_embedding)
         if rescale_factors is not None:
-            test_embed = Features.apply_normalization_to_embedding_df(
-                test_embed, rescale_factors
-            )
+            test_embed = apply_normalization_to_df(test_embed, rescale_factors)
         target_embed = self.embedding_df(target_embedding)
         preds = predict_knn_on_embedding(model, test_embed, target_embed.columns)
         # Ensure the output DataFrame has the same index and columns as target_embed
@@ -742,19 +744,11 @@ class Features:
             raise ValueError("Input DataFrames must have the same columns and index")
         if rescale is not None:
             if rescale == "auto":
-                ground_truth, rescale_factors = Features.normalize_embedding_df(
-                    ground_truth
-                )
-                prediction = Features.apply_normalization_to_embedding_df(
-                    prediction, rescale_factors
-                )
+                ground_truth, rescale_factors = normalize_df(ground_truth)
+                prediction = apply_normalization_to_df(prediction, rescale_factors)
             elif isinstance(rescale, dict):
-                ground_truth = Features.apply_normalization_to_embedding_df(
-                    ground_truth, rescale
-                )
-                prediction = Features.apply_normalization_to_embedding_df(
-                    prediction, rescale
-                )
+                ground_truth = apply_normalization_to_df(ground_truth, rescale)
+                prediction = apply_normalization_to_df(prediction, rescale)
             else:
                 raise ValueError("rescale must be None, a dict, or 'auto'")
         diff = ground_truth - prediction
@@ -764,34 +758,6 @@ class Features:
         mask = ground_truth.notna().all(axis=1) & prediction.notna().all(axis=1)
         rms[~mask] = np.nan
         return rms
-
-    @staticmethod
-    def normalize_embedding_df(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
-        """
-        Normalize the columns of an embedding DataFrame by dividing each column by its standard deviation.
-        Returns the normalized DataFrame and a dict of the rescaling factors (std for each column).
-        """
-        rescale_factors = df.std(axis=0, ddof=0).to_dict()
-        normalized = df.copy()
-        for col, factor in rescale_factors.items():
-            normalized[col] = df[col] / factor
-        return normalized, rescale_factors
-
-    @staticmethod
-    def apply_normalization_to_embedding_df(
-        df: pd.DataFrame, rescale_factors: dict
-    ) -> pd.DataFrame:
-        """
-        Apply normalization to a DataFrame using the provided rescale factors (dict of column: factor).
-        Checks that the columns match exactly. Returns the normalized DataFrame.
-        Raises ValueError if columns do not match.
-        """
-        if set(df.columns) != set(rescale_factors.keys()):
-            raise ValueError("Columns of DataFrame and rescale_factors do not match.")
-        normalized = df.copy()
-        for col in df.columns:
-            normalized[col] = df[col] / rescale_factors[col]
-        return normalized
 
     @property
     def loc(self):
@@ -1450,8 +1416,8 @@ class MultipleFeaturesCollection:
                 target_embeds = [f.embedding_df(target_embedding) for f in train_feats]
                 if normalize_source:
                     # Use normalization from the training set
-                    train_embeds_norm, rescale_factors = (
-                        Features.normalize_embedding_df(pd.concat(train_embeds))
+                    train_embeds_norm, rescale_factors = normalize_df(
+                        pd.concat(train_embeds)
                     )
                     lengths = [len(e) for e in train_embeds]
                     starts = np.cumsum([0] + lengths[:-1])
@@ -1470,9 +1436,7 @@ class MultipleFeaturesCollection:
                 # Predict on left-out
                 if normalize_source and rescale_factors is not None:
                     test_embed = left_out_feat.embedding_df(source_embedding)
-                    test_embed = Features.apply_normalization_to_embedding_df(
-                        test_embed, rescale_factors
-                    )
+                    test_embed = apply_normalization_to_df(test_embed, rescale_factors)
                 else:
                     test_embed = left_out_feat.embedding_df(source_embedding)
                 target_embed = left_out_feat.embedding_df(target_embedding)
@@ -1505,8 +1469,8 @@ class MultipleFeaturesCollection:
                     for f in source_coll.features_dict.values()
                 ]
                 if normalize_source:
-                    train_embeds_norm, rescale_factors = (
-                        Features.normalize_embedding_df(pd.concat(train_embeds))
+                    train_embeds_norm, rescale_factors = normalize_df(
+                        pd.concat(train_embeds)
                     )
                     lengths = [len(e) for e in train_embeds]
                     starts = np.cumsum([0] + lengths[:-1])
@@ -1527,7 +1491,7 @@ class MultipleFeaturesCollection:
                 for target_feat_name, target_feat in target_coll.features_dict.items():
                     if normalize_source and rescale_factors is not None:
                         test_embed = target_feat.embedding_df(source_embedding)
-                        test_embed = Features.apply_normalization_to_embedding_df(
+                        test_embed = apply_normalization_to_df(
                             test_embed, rescale_factors
                         )
                     else:
@@ -1562,8 +1526,8 @@ class MultipleFeaturesCollection:
                     for f in source_coll.features_dict.values()
                 ]
                 if normalize_source:
-                    train_embeds_norm, rescale_factors = (
-                        Features.normalize_embedding_df(pd.concat(train_embeds))
+                    train_embeds_norm, rescale_factors = normalize_df(
+                        pd.concat(train_embeds)
                     )
                     lengths = [len(e) for e in train_embeds]
                     starts = np.cumsum([0] + lengths[:-1])
@@ -1584,7 +1548,7 @@ class MultipleFeaturesCollection:
                 for target_feat_name, target_feat in target_coll.features_dict.items():
                     if normalize_source and rescale_factors is not None:
                         test_embed = target_feat.embedding_df(source_embedding)
-                        test_embed = Features.apply_normalization_to_embedding_df(
+                        test_embed = apply_normalization_to_df(
                             test_embed, rescale_factors
                         )
                     else:
