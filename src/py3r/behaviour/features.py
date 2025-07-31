@@ -28,7 +28,7 @@ from py3r.behaviour.util.bmicro_utils import (
 )
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 from py3r.behaviour.predictors import KNNPredictor, KNNPredictorPCA
-from py3r.behaviour.util.normalisation_utils import normalise_df, apply_normalisation_to_df
+from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
 
 logger = logging.getLogger(__name__)
 logformat = "%(funcName)s(): %(message)s"
@@ -183,64 +183,95 @@ class Features:
             return "_".join(b)
         return "_".join(b[:2] + ["..."] + b[-2:])
 
+    def within_boundary_static(
+        self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
+    ) -> FeaturesResult:
+        """
+        checks whether point is inside polygon defined by ordered list of boundary points
+        boundary points must be specified as a list of numerical tuples
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"within_boundary_static_{point}_in_{boundary_name or boundary_id}"
+        meta = {
+            "function": "within_boundary_static",
+            "point": point,
+            "boundary": boundary,
+        }
+        if boundary_name is not None:
+            meta["boundary_name"] = boundary_name
+
+        def local_contains_static(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon(boundary)
+            return local_poly.contains(local_point)
+
+        result = self.tracking.data.apply(local_contains_static, axis=1)
+        return FeaturesResult(result, self, name, meta)
+
+    def within_boundary_dynamic(
+        self, point: str, boundary: list[str], boundary_name: str = None
+    ) -> FeaturesResult:
+        """
+        checks whether point is inside polygon defined by ordered list of boundary points
+        boundary points must be specified as a list of names of tracked points
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"within_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
+        meta = {
+            "function": "within_boundary_dynamic",
+            "point": point,
+            "boundary": boundary,
+        }
+        if boundary_name is not None:
+            meta["boundary_name"] = boundary_name
+
+        def local_contains_dynamic(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
+            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon(bdry_pts)
+            return local_poly.contains(local_point)
+
+        result = self.tracking.data.apply(local_contains_dynamic, axis=1)
+        return FeaturesResult(result, self, name, meta)
+
     def within_boundary(
         self, point: str, boundary: list, median: bool = True, boundary_name: str = None
     ) -> FeaturesResult:
         """
+        deprecated: use within_boundary_static or within_boundary_dynamic instead
         checks whether point is inside polygon defined by ordered list of boundary points
         boundary points may either be specified as a list of numerical tuples,
         or as a list of names of tracked points.
         Optionally, pass boundary_name for a custom short name in the feature name/meta.
         """
-        if len(boundary) < 3:
-            raise Exception("boundary encloses no area")
-        if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
-        if boundary_name is not None:
-            boundary_id = boundary_name
-        else:
-            boundary_id = self._short_boundary_id(boundary)
-        name = f"within_boundary_{point}_in_{boundary_id}_{'median' if median else 'dynamic'}"
-        meta = {
-            "function": "within_boundary",
-            "point": point,
-            "boundary": boundary,
-            "median": median,
-        }
-        if boundary_name is not None:
-            meta["boundary_name"] = boundary_name
+        warnings.warn(
+            "within_boundary is deprecated, use within_boundary_static or within_boundary_dynamic",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if isinstance(boundary[0], str):
             if not median:
-                logger.info("using fully dynamic boundary")
-
-                def _local_contains_dynamic(x):
-                    local_point = Point(x[point + ".x"], x[point + ".y"])
-                    local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
-                    return local_poly.contains(local_point)
-
-                result = self.tracking.data.apply(_local_contains_dynamic, axis=1)
-                return FeaturesResult(result, self, name, meta)
+                return self.within_boundary_dynamic(point, boundary, boundary_name)
             if median:
-                logger.info("using median (static) boundary")
-                boundary_pts = [self.get_point_median(i) for i in boundary]
-
-                def _local_contains_static(x):
-                    local_point = Point(x[point + ".x"], x[point + ".y"])
-                    local_poly = Polygon(boundary_pts)
-                    return sp.contains(local_poly, local_point)
-
-                result = self.tracking.data.apply(_local_contains_static, axis=1)
-                return FeaturesResult(result, self, name, meta)
+                static_boundary = self.define_boundary(boundary, 1.0)
+                return self.within_boundary_static(
+                    point, static_boundary, boundary_name
+                )
         else:
-            logger.info("using static boundary")
-
-            def local_contains_static(x):
-                local_point = Point(x[point + ".x"], x[point + ".y"])
-                local_poly = Polygon(boundary)
-                return local_poly.contains(local_point)
-
-            result = self.tracking.data.apply(local_contains_static, axis=1)
-            return FeaturesResult(result, self, name, meta)
+            return self.within_boundary_static(point, boundary, boundary_name)
 
     def distance_to_boundary(
         self,
@@ -250,39 +281,85 @@ class Features:
         boundary_name: str = None,
     ) -> FeaturesResult:
         """
+        Deprecated: use distance_to_boundary_static or distance_to_boundary_dynamic instead
         returns distance from point to boundary
         Optionally, pass boundary_name for a custom short name in the feature name/meta.
         """
-        if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
-        if boundary_name is not None:
-            boundary_id = boundary_name
+        warnings.warn(
+            "distance_to_boundary is deprecated, use distance_to_boundary_static or distance_to_boundary_dynamic",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if median:
+            static_boundary = self.define_boundary(boundary, 1.0)
+            return self.distance_to_boundary_static(
+                point, static_boundary, boundary_name
+            )
         else:
-            boundary_id = self._short_boundary_id(boundary)
-        name = f"distance_to_boundary_{point}_in_{boundary_id}_{'median' if median else 'dynamic'}"
+            return self.distance_to_boundary_dynamic(point, boundary, boundary_name)
+
+    def distance_to_boundary_static(
+        self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
+    ) -> FeaturesResult:
+        """
+        Returns distance from point to a static boundary defined by a list of (x, y) tuples.
+        If boundary_name is provided, it overrides the automatic id.
+        NaN is returned if the point or any boundary vertex is NaN.
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+        boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary)
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"distance_to_boundary_static_{point}_in_{boundary_name or boundary_id}"
         meta = {
-            "function": "distance_to_boundary",
+            "function": "distance_to_boundary_static",
             "point": point,
             "boundary": boundary,
-            "median": median,
         }
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
-        if median:
-            warnings.warn("using median (static) boundary")
-            static_boundary = [self.get_point_median(i) for i in boundary]
 
-            def row_distance(x):
-                local_point = Point(x[point + ".x"], x[point + ".y"])
-                local_poly = Polygon(static_boundary)
-                return local_poly.exterior.distance(local_point)
-        else:
-            warnings.warn("using fully dynamic boundary")
+        def row_distance(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon(boundary)
+            return local_poly.exterior.distance(local_point)
 
-            def row_distance(x):
-                local_point = Point(x[point+'.x'], x[point+'.y'])
-                local_poly = Polygon([(x[i+'.x'], x[i+'.y']) for i in boundary])
-                return local_poly.exterior.distance(local_point)
+        result = self.tracking.data.apply(row_distance, axis=1)
+        return FeaturesResult(result, self, name, meta)
+
+    def distance_to_boundary_dynamic(
+        self, point: str, boundary: list[str], boundary_name: str | None = None
+    ) -> FeaturesResult:
+        """
+        Returns distance from point to a dynamic boundary defined by a list of point names.
+        If boundary_name is provided, it overrides the automatic id.
+        NaN is returned if the point or any boundary vertex is NaN.
+        """
+        if len(boundary) < 3:
+            raise Exception("boundary encloses no area")
+        boundary_id = self._short_boundary_id(boundary)
+        name = f"distance_to_boundary_dynamic_{point}_in_{boundary_name or boundary_id}"
+        meta = {
+            "function": "distance_to_boundary_dynamic",
+            "point": point,
+            "boundary": boundary,
+        }
+        if boundary_name is not None:
+            meta["boundary_name"] = boundary_name
+
+        def row_distance(x):
+            px, py = x[point + ".x"], x[point + ".y"]
+            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
+            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
+            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
+                return np.nan
+            local_point = Point(px, py)
+            local_poly = Polygon(bdry_pts)
+            return local_poly.exterior.distance(local_point)
+
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
 
@@ -621,10 +698,13 @@ class Features:
         train_embed = self.embedding_df(source_embedding)
         target_embed = self.embedding_df(target_embedding)
         rescale_factors = None
-        if normalise_source:
-            train_embed, rescale_factors = normalise_df(train_embed)
-        model, train_cols, target_cols = train_knn_from_embeddings([train_embed], [target_embed], n_neighbors, **kwargs)
-        if normalise_source:
+
+        if normalize_source:
+            train_embed, rescale_factors = normalize_df(train_embed)
+        model, train_cols, target_cols = train_knn_from_embeddings(
+            [train_embed], [target_embed], n_neighbors, **kwargs
+        )
+        if normalize_source:
             return model, train_cols, target_cols, rescale_factors
         else:
             return model, train_cols, target_cols
@@ -643,7 +723,8 @@ class Features:
         """
         test_embed = self.embedding_df(source_embedding)
         if rescale_factors is not None:
-            test_embed = apply_normalisation_to_df(test_embed, rescale_factors)
+            test_embed = apply_normalization_to_df(test_embed, rescale_factors)
+
         target_embed = self.embedding_df(target_embedding)
         preds = predict_knn_on_embedding(model, test_embed, target_embed.columns)
         # Ensure the output DataFrame has the same index and columns as target_embed
@@ -666,19 +747,11 @@ class Features:
             raise ValueError("Input DataFrames must have the same columns and index")
         if rescale is not None:
             if rescale == "auto":
-                ground_truth, rescale_factors = Features.normalize_embedding_df(
-                    ground_truth
-                )
-                prediction = Features.apply_normalization_to_embedding_df(
-                    prediction, rescale_factors
-                )
+                ground_truth, rescale_factors = normalize_df(ground_truth)
+                prediction = apply_normalization_to_df(prediction, rescale_factors)
             elif isinstance(rescale, dict):
-                ground_truth = Features.apply_normalization_to_embedding_df(
-                    ground_truth, rescale
-                )
-                prediction = Features.apply_normalization_to_embedding_df(
-                    prediction, rescale
-                )
+                ground_truth = apply_normalization_to_df(ground_truth, rescale)
+                prediction = apply_normalization_to_df(prediction, rescale)
             else:
                 raise ValueError("rescale must be None, a dict, or 'auto'")
         diff = ground_truth - prediction
@@ -1412,19 +1485,54 @@ class MultipleFeaturesCollection:
                     continue
                 source_coll = self.features_collections[coll1]
                 target_coll = self.features_collections[coll2]
-                train_feats = list(source_coll.features_dict.values())
-                test_feats = list(target_coll.features_dict.values())
-                rms_list = self._train_and_predict_rms(
-                    predictor_cls,
-                    train_feats,
-                    test_feats,
-                    source_embedding,
-                    target_embedding,
-                    n_neighbors,
-                    normalize_source,
-                    normalize_pred,
-                )
-                rms_dict = {name: rms for name, rms in zip(target_coll.features_dict.keys(), rms_list)}
+                # Train on all in coll1
+                train_embeds = [
+                    f.embedding_df(source_embedding)
+                    for f in source_coll.features_dict.values()
+                ]
+                target_embeds = [
+                    f.embedding_df(target_embedding)
+                    for f in source_coll.features_dict.values()
+                ]
+                if normalize_source:
+                    train_embeds_norm, rescale_factors = normalize_df(
+                        pd.concat(train_embeds)
+                    )
+                    lengths = [len(e) for e in train_embeds]
+                    starts = np.cumsum([0] + lengths[:-1])
+                    train_embeds_norm_list = [
+                        train_embeds_norm.iloc[start : start + length]
+                        for start, length in zip(starts, lengths)
+                    ]
+                    model, in_cols, out_cols = train_knn_from_embeddings(
+                        train_embeds_norm_list, target_embeds, n_neighbors
+                    )
+                else:
+                    model, in_cols, out_cols = train_knn_from_embeddings(
+                        train_embeds, target_embeds, n_neighbors
+                    )
+                    rescale_factors = None
+                # Predict on all in coll2
+                rms_dict = {}
+                for target_feat_name, target_feat in target_coll.features_dict.items():
+                    if normalize_source and rescale_factors is not None:
+                        test_embed = target_feat.embedding_df(source_embedding)
+                        test_embed = apply_normalization_to_df(
+                            test_embed, rescale_factors
+                        )
+                    else:
+                        test_embed = target_feat.embedding_df(source_embedding)
+                    target_embed = target_feat.embedding_df(target_embedding)
+                    preds = predict_knn_on_embedding(
+                        model, test_embed, target_embed.columns
+                    )
+                    preds = preds.reindex(
+                        index=target_embed.index, columns=target_embed.columns
+                    )
+                    rms = Features.rms_error_between_embeddings(
+                        target_embed, preds, rescale=normalize_pred
+                    )
+                    rms_dict[target_feat_name] = rms
                 key = f"from{coll1}_to_{coll2}"
                 results["between"][key] = rms_dict
         # Also do all ordered pairs (A, B) with A in set2, B in set1, and A != B
