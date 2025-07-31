@@ -563,6 +563,183 @@ class Tracking:
             plt.show()
         return fig, ax
 
+    def save_3d_tracking_video_multi_view(
+        self,
+        out_path: str,
+        lines: list[tuple[str, str]] = None,
+        point_size=40,
+        line_width=2,
+        point_color="b",
+        line_color="k",
+        dpi=150,
+        writer="pillow",
+        startframe=None,
+        endframe=None,
+        xlim=None,
+        ylim=None,
+        zlim=None,
+        robust_percentile=1,
+    ):
+        """
+        Save a 3D animation of tracked points to a video file, with 4 subplots per frame:
+        - azim=0, elev=0, ortho
+        - azim=90, elev=0, ortho
+        - azim=0, elev=90, ortho
+        - azim=45, elev=30, persp
+        Optionally, set axis limits manually or use robust percentiles to ignore outliers.
+        Enforces equal aspect ratio for all axes.
+        """
+        import numpy as np
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        from matplotlib import animation
+        import matplotlib.pyplot as plt
+
+        def get_robust_limits(data, lower=1, upper=99):
+            return float(np.percentile(data, lower)), float(np.percentile(data, upper))
+
+        def set_axes_equal(ax, xlim, ylim, zlim):
+            xmid = np.mean(xlim)
+            ymid = np.mean(ylim)
+            zmid = np.mean(zlim)
+            max_range = max(xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]) / 2
+            ax.set_xlim(xmid - max_range, xmid + max_range)
+            ax.set_ylim(ymid - max_range, ymid + max_range)
+            ax.set_zlim(zmid - max_range, zmid + max_range)
+
+        if lines is None:
+            lines = []
+        frames = self.data.index
+        fps = self.meta["fps"]
+        # Determine frame range
+        if startframe is not None:
+            if startframe in frames:
+                start_idx = np.where(frames == startframe)[0][0]
+            else:
+                start_idx = int(startframe)
+        else:
+            start_idx = 0
+        if endframe is not None:
+            if endframe in frames:
+                end_idx = np.where(frames == endframe)[0][0] + 1
+            else:
+                end_idx = int(endframe) + 1
+        else:
+            end_idx = len(frames)
+        frame_indices = range(start_idx, end_idx)
+        selected_frames = frames[start_idx:end_idx]
+
+        point_names = self.get_point_names()
+
+        # Precompute all coordinates for efficiency
+        coords_per_frame = []
+        for frame in selected_frames:
+            coords = {}
+            for point in point_names:
+                try:
+                    x = self.data.loc[frame, point + ".x"]
+                    y = self.data.loc[frame, point + ".y"]
+                    z = self.data.loc[frame, point + ".z"]
+                    if np.isfinite(x) and np.isfinite(y) and np.isfinite(z):
+                        coords[point] = (x, y, -z)  # Reverse z
+                except KeyError:
+                    continue
+            coords_per_frame.append(coords)
+
+        # Set up figure and axes
+        fig = plt.figure(figsize=(12, 10))
+        axs = [
+            fig.add_subplot(221, projection="3d"),
+            fig.add_subplot(222, projection="3d"),
+            fig.add_subplot(223, projection="3d"),
+            fig.add_subplot(224, projection="3d"),
+        ]
+
+        # View settings: (elev, azim, proj_type)
+        views = [
+            (0, 0, "ortho"),  # front
+            (0, 90, "ortho"),  # side
+            (90, 0, "ortho"),  # top
+            (30, 45, "persp"),  # isometric
+        ]
+        titles = [
+            "Front (azim=0, elev=0, ortho)",
+            "Side (azim=90, elev=0, ortho)",
+            "Top (azim=0, elev=90, ortho)",
+            "Isometric (azim=45, elev=30, persp)",
+        ]
+
+        # Set up plot elements (scatter and lines) for each axis
+        scatters = []
+        line_objs = []
+        for ax, (elev, azim, proj_type), title in zip(axs, views, titles):
+            ax.view_init(elev=elev, azim=azim)
+            ax.set_proj_type(proj_type)
+            ax.set_title(title)
+            ax.set_xlabel("X")
+            ax.set_ylabel("Y")
+            ax.set_zlabel("Z")
+            scatters.append(ax.scatter([], [], [], s=point_size, c=point_color))
+            line_objs.append(
+                [
+                    ax.plot([], [], [], color=line_color, linewidth=line_width)[0]
+                    for _ in lines
+                ]
+            )
+
+        # Set axis limits based on all data (robust to outliers)
+        all_x, all_y, all_z = [], [], []
+        for coords in coords_per_frame:
+            for x, y, z in coords.values():
+                all_x.append(x)
+                all_y.append(y)
+                all_z.append(z)
+        if not all_x or not all_y or not all_z:
+            raise ValueError("No valid 3D points found for plotting.")
+
+        if xlim is None:
+            xlim = get_robust_limits(all_x, robust_percentile, 100 - robust_percentile)
+        if ylim is None:
+            ylim = get_robust_limits(all_y, robust_percentile, 100 - robust_percentile)
+        if zlim is None:
+            zlim = get_robust_limits(all_z, robust_percentile, 100 - robust_percentile)
+
+        for ax in axs:
+            set_axes_equal(ax, xlim, ylim, zlim)
+
+        def update(frame_idx):
+            coords = coords_per_frame[frame_idx]
+            xs, ys, zs = zip(*coords.values()) if coords else ([], [], [])
+            for i, ax in enumerate(axs):
+                scatters[i]._offsets3d = (xs, ys, zs)
+                # Update lines
+                for j, (p1, p2) in enumerate(lines):
+                    if p1 in coords and p2 in coords:
+                        xline = [coords[p1][0], coords[p2][0]]
+                        yline = [coords[p1][1], coords[p2][1]]
+                        zline = [coords[p1][2], coords[p2][2]]
+                        line_objs[i][j].set_data(xline, yline)
+                        line_objs[i][j].set_3d_properties(zline)
+                        line_objs[i][j].set_visible(True)
+                    else:
+                        line_objs[i][j].set_visible(False)
+                ax.set_title(f"{titles[i]}\nFrame {selected_frames[frame_idx]}")
+            return [item for sublist in line_objs for item in sublist] + scatters
+
+        anim = animation.FuncAnimation(
+            fig, update, frames=len(coords_per_frame), interval=1000 / fps, blit=False
+        )
+
+        # Save animation
+        if writer == "ffmpeg":
+            Writer = animation.FFMpegWriter
+        elif writer == "pillow":
+            Writer = animation.PillowWriter
+        else:
+            raise ValueError("writer must be 'ffmpeg' or 'pillow'")
+        anim.save(out_path, writer=Writer(fps=fps), dpi=dpi)
+        plt.close(fig)
+        print(f"Saved 3D tracking video to {out_path}")
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.data)} rows, fps={self.meta.get('fps', 'unknown')}>"
 
