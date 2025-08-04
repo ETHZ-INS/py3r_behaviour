@@ -49,7 +49,20 @@ from py3r.behaviour.features import Features, FeaturesCollection, MultipleFeatur
 from py3r.behaviour.summary import Summary, SummaryCollection, MultipleSummaryCollection
 
 # load a single tracking file
+# (now also supports .interpolate, .add_usermeta, .save, etc.)
 t = Tracking.from_dlc('path/to/file.csv', handle='animal1', options=opts)
+t.interpolate(method="linear")
+t.add_usermeta({"experiment": "test"})
+t.save('path/to/file.csv')
+
+# boundary and ellipse features (see API.md for details)
+# features.define_boundary, features.within_boundary_static, features.define_elliptical_boundary_from_params, etc.
+
+# embedding, clustering, and kNN regression
+# features.embedding_df, features.cluster_embedding, features.train_knn_regressor, features.predict_knn, etc.
+
+# summary binning and behaviour flow analysis
+# summary.make_bin, summary.make_bins, summary_collection.bfa, summary_collection.bfa_stats
 
 # load a folder of tracking files as a collection
 tc = TrackingCollection.from_dlc_folder('path/to/folder', options=opts)
@@ -153,6 +166,10 @@ All collections support `.keys()`, `.values()`, and `.items()`:
 for group, collection in mfc.items():
     print(group, collection)
 ```
+
+### FeaturesResult and SummaryResult usage
+# FeaturesResult acts as a pandas Series (no .value property, use Series methods directly)
+# SummaryResult has a .value property for the underlying value
 
 ---
 

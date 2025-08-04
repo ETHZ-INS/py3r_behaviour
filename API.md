@@ -16,14 +16,13 @@ Tracking(data: pd.DataFrame, meta: dict, handle: str)
 
 **main methods:**
 - `get_point_names()` — list of tracked point names
-- `distance_between_points(point1, point2, dims=('x','y'))` — framewise distance between two points
+- `distance_between(point1, point2, dims=("x","y"))` — framewise distance between two points
 - `rescale_by_known_distance(point1, point2, distance_in_metres, dims=('x','y'))` — rescale all dims by known distance
 - `smooth(smoothing_dict)` — apply smoothing to tracking data
 - `trim(startframe=None, endframe=None)` — trim the tracking data between frames
 - `filter_likelihood(threshold)` — set positions with likelihood below threshold to NaN
 - `time_as_expected(mintime, maxtime)` — check if total length is within expected time
 - `generate_smoothdict(pointslists, windows, smoothtypes)` — create smoothing parameter dict
-- `distance_between_points(point1, point2, dims=('x','y'))` — framewise distance between two points
 - `.plot(trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, elev=30, azim=45)` — plot trajectories and/or static points for this Tracking object
 
 **plot() method:**
@@ -183,8 +182,12 @@ Features(tracking: Tracking)
 - `store(series, name, overwrite=False, meta=None)` — store a calculated feature manually
 - `embedding_df(embedding: dict[str, list[int]])` — generate a time series embedding DataFrame
 - `cluster_embedding(embedding: dict[str, list[int]], n_clusters: int)` — cluster the embedding using k-means
+- `assign_clusters_by_centroids(embedding, centroids_df)` — assign clusters by centroids
+- `train_knn_regressor(source_embedding, target_embedding, n_neighbors=5, normalize_source=False, **kwargs)` — train kNN regressor
+- `predict_knn(model, source_embedding, target_embedding, rescale_factors=None)` — predict using kNN regressor
+- `rms_error_between_embeddings(ground_truth, prediction, rescale=None)` — RMS error between embeddings
 
-**Note:** Most feature calculation methods return a `FeaturesResult` object, which behaves like a pandas Series and supports `.store()` to save the result in the parent Features object.
+**Note:** Most feature calculation methods return a `FeaturesResult` object, which behaves like a pandas Series and supports `.store()` to save the result in the parent Features object. You can use all Series methods directly on a FeaturesResult.
 
 **example:**
 ```python
@@ -293,6 +296,16 @@ Summary(trackingfeatures: Features)
 - `store(summarystat, name, overwrite=False, meta=None)` — store a summary statistic manually
 - `make_bin(startframe, endframe)` — create a binned Summary object
 - `make_bins(numbins)` — create a list of binned Summary objects
+- `define_boundary(points, scaling, scaling_y=None, centre=None)` — define a polygonal boundary
+- `within_boundary_static(point, boundary, boundary_name=None)` — check if point is within a static boundary
+- `within_boundary_dynamic(point, boundary, boundary_name=None)` — check if point is within a dynamic boundary
+- `distance_to_boundary_static(point, boundary, boundary_name=None)` — distance to static boundary
+- `distance_to_boundary_dynamic(point, boundary, boundary_name=None)` — distance to dynamic boundary
+- `area_of_boundary(boundary, median=True)` — area of a boundary
+- `define_elliptical_boundary_from_params(centre, major_axis_length, minor_axis_length, angle_in_radians=0.0, n_points=100)` — define ellipse from parameters
+- `define_elliptical_boundary_from_points(points, n_points=100, scaling=1.0, smallness_weight=0.1)` — fit ellipse to points
+- `bfa(column, all_states=None, numshuffles=1000)` — behaviour flow analysis
+- `bfa_stats(bfa_results)` — compute stats for behaviour flow analysis (static method)
 
 **Note:** Most summary calculation methods return a `SummaryResult` object, which behaves like the underlying value (scalar, Series, or DataFrame) and supports `.store()` to save the result in the parent Summary object.
 
