@@ -632,7 +632,21 @@ class Tracking:
 
         # Precompute all coordinates for efficiency
         coords_per_frame = []
-        for frame in selected_frames:
+        total_frames = len(selected_frames)
+        try:
+            from tqdm import tqdm
+
+            use_tqdm = True
+        except ImportError:
+            use_tqdm = False
+        if use_tqdm:
+            frame_iter = tqdm(
+                selected_frames, desc="Precomputing 3D coordinates", unit="frame"
+            )
+        else:
+            frame_iter = selected_frames
+            print("Precomputing 3D coordinates...")
+        for idx, frame in enumerate(frame_iter):
             coords = {}
             for point in point_names:
                 try:
@@ -644,6 +658,14 @@ class Tracking:
                 except KeyError:
                     continue
             coords_per_frame.append(coords)
+            if (
+                not use_tqdm
+                and total_frames > 0
+                and idx % max(1, total_frames // 10) == 0
+            ):
+                print(f"  {idx + 1}/{total_frames} frames processed...")
+        if not use_tqdm:
+            print("Precompute done.")
 
         # Set up figure and axes
         fig = plt.figure(figsize=(12, 10))
@@ -706,6 +728,24 @@ class Tracking:
         for ax in axs:
             set_axes_equal(ax, xlim, ylim, zlim)
 
+        # Progress bar for animation saving
+        save_progress = None
+        save_total = len(coords_per_frame)
+        try:
+            from tqdm import tqdm as tqdm_save
+
+            use_tqdm_save = True
+        except ImportError:
+            use_tqdm_save = False
+        if use_tqdm_save:
+            save_progress = tqdm_save(
+                total=save_total, desc="Rendering animation frames", unit="frame"
+            )
+        else:
+            print("Rendering animation frames...")
+            save_progress = None
+            save_last_print = -1
+
         def update(frame_idx):
             coords = coords_per_frame[frame_idx]
             xs, ys, zs = zip(*coords.values()) if coords else ([], [], [])
@@ -723,6 +763,18 @@ class Tracking:
                     else:
                         line_objs[i][j].set_visible(False)
                 ax.set_title(f"{titles[i]}\nFrame {selected_frames[frame_idx]}")
+            # Progress update
+            if save_progress is not None:
+                save_progress.update(1)
+            else:
+                nonlocal save_last_print
+                if (
+                    save_total > 0
+                    and frame_idx % max(1, save_total // 10) == 0
+                    and frame_idx != save_last_print
+                ):
+                    print(f"  {frame_idx + 1}/{save_total} frames rendered...")
+                    save_last_print = frame_idx
             return [item for sublist in line_objs for item in sublist] + scatters
 
         anim = animation.FuncAnimation(
@@ -737,6 +789,10 @@ class Tracking:
         else:
             raise ValueError("writer must be 'ffmpeg' or 'pillow'")
         anim.save(out_path, writer=Writer(fps=fps), dpi=dpi)
+        if save_progress is not None:
+            save_progress.close()
+        else:
+            print("Rendering done.")
         plt.close(fig)
         print(f"Saved 3D tracking video to {out_path}")
 
