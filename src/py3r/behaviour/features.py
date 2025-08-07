@@ -1,4 +1,6 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -27,7 +29,10 @@ from py3r.behaviour.util.bmicro_utils import (
     predict_knn_on_embedding,
 )
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
-from py3r.behaviour.classifier import BaseClassifier
+
+if TYPE_CHECKING:
+    from py3r.behaviour.classifier import BaseClassifier
+
 from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
 
 logger = logging.getLogger(__name__)
@@ -556,15 +561,15 @@ class Features:
 
         self.meta[name] = meta
 
-    def classify(self, classifier:BaseClassifier, **kwargs):
-        '''
+    def classify(self, classifier: BaseClassifier, **kwargs):
+        """
         classify behaviour using a classifier with inputs from this Features object
         returns a FeaturesResult object with the classification result
         this means that the output of the classifier should be a pd.Series with the same index as this Features object
-        '''
+        """
         result = classifier.predict(self, **kwargs)
         name = f"classified_{classifier.__class__.__name__}"
-        meta = {'function': 'classify', 'classifier': classifier.__class__.__name__}
+        meta = {"function": "classify", "classifier": classifier.__class__.__name__}
         return FeaturesResult(result, self, name, meta)
 
     def smooth(
