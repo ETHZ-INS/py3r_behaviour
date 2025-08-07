@@ -18,7 +18,7 @@ from py3r.behaviour.util.bmicro_utils import (
     train_knn_from_embeddings,
     predict_knn_on_embedding,
 )
-
+from py3r.behaviour.util.dev_utils import dev_mode
 
 logger = logging.getLogger(__name__)
 logformat = "%(funcName)s(): %(message)s"
