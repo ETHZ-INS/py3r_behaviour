@@ -13,6 +13,7 @@ import copy
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
+from py3r.behaviour.util.dev_utils import dev_mode
 
 Self = TypeVar("Self", bound="Tracking")
 
@@ -679,6 +680,7 @@ class TrackingCollection:
         trackings = {obj.handle: obj for obj in tracking_list}
         return cls(trackings)
 
+    @dev_mode
     @classmethod
     def from_dogfeather(
         cls,

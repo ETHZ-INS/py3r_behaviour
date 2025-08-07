@@ -29,6 +29,7 @@ from py3r.behaviour.util.bmicro_utils import (
     predict_knn_on_embedding,
 )
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+from py3r.behaviour.util.dev_utils import dev_mode
 
 if TYPE_CHECKING:
     from py3r.behaviour.classifier import BaseClassifier
@@ -697,6 +698,7 @@ class Features:
 
         return pd.Series(labels, index=embed_df.index, name="cluster")
 
+    @dev_mode
     def train_knn_regressor(
         self,
         *,
@@ -724,6 +726,7 @@ class Features:
         else:
             return model, train_cols, target_cols
 
+    @dev_mode
     def predict_knn(
         self,
         model: KNeighborsRegressor,
@@ -745,6 +748,7 @@ class Features:
         preds = preds.reindex(index=target_embed.index, columns=target_embed.columns)
         return preds
 
+    @dev_mode
     @staticmethod
     def rms_error_between_embeddings(
         ground_truth: pd.DataFrame, prediction: pd.DataFrame, rescale: dict | str = None
@@ -991,6 +995,7 @@ class FeaturesCollection:
 
         return labels_dict, centroids
 
+    @dev_mode
     def train_knn_regressor(
         self,
         embedding: dict[str, list[int]],
@@ -1313,6 +1318,7 @@ class MultipleFeaturesCollection:
         # Step 7: Return
         return nested_labels, centroids
 
+    @dev_mode
     def knn_cross_predict_rms_matrix(
         self,
         source_embedding: dict[str, list[int]],
@@ -1382,6 +1388,7 @@ class MultipleFeaturesCollection:
                 results[key] = df
         return results
 
+    @dev_mode
     def cross_predict_rms(
         self,
         source_embedding: dict[str, list[int]],
@@ -1585,6 +1592,7 @@ class MultipleFeaturesCollection:
                 results["between"][key] = rms_dict
         return results
 
+    @dev_mode
     @staticmethod
     def plot_cross_predict_results(
         results,
@@ -1653,6 +1661,7 @@ class MultipleFeaturesCollection:
             plt.show()
         return df  # Return the DataFrame for further inspection if needed
 
+    @dev_mode
     @staticmethod
     def dumbbell_plot_cross_predict(
         results, within_key, between_key, figsize=(3, 3), show=True
