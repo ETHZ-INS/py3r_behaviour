@@ -1,4 +1,4 @@
-DEV_MODE = True  # Set to False in production
+from py3r.behaviour.config import DEV_MODE
 
 
 def dev_mode(func):
