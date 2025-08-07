@@ -1,4 +1,6 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -28,6 +30,10 @@ from py3r.behaviour.util.bmicro_utils import (
 )
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 from py3r.behaviour.predictors import KNNPredictor, KNNPredictorPCA
+
+if TYPE_CHECKING:
+    from py3r.behaviour.classifier import BaseClassifier
+
 from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
 
 logger = logging.getLogger(__name__)
@@ -556,6 +562,17 @@ class Features:
 
         self.meta[name] = meta
 
+    def classify(self, classifier: BaseClassifier, **kwargs):
+        """
+        classify behaviour using a classifier with inputs from this Features object
+        returns a FeaturesResult object with the classification result
+        this means that the output of the classifier should be a pd.Series with the same index as this Features object
+        """
+        result = classifier.predict(self, **kwargs)
+        name = f"classified_{classifier.__class__.__name__}"
+        meta = {"function": "classify", "classifier": classifier.__class__.__name__}
+        return FeaturesResult(result, self, name, meta)
+
     def smooth(
         self,
         name: str,
@@ -687,8 +704,8 @@ class Features:
         source_embedding: dict[str, list[int]],
         target_embedding: dict[str, list[int]],
         n_neighbors: int = 5,
-        normalise_source: bool = False,
-        **kwargs
+        normalize_source: bool = False,
+        **kwargs,
     ):
         """
         Train a KNN regressor to predict a target embedding from a feature embedding on this Features object.
@@ -1367,7 +1384,7 @@ class MultipleFeaturesCollection:
                 key = f"from{source_coll_name}_to_{target_coll_name}"
                 results[key] = df
         return results
-    
+
     @staticmethod
     def _train_and_predict_rms(
         predictor_cls,
@@ -1383,9 +1400,16 @@ class MultipleFeaturesCollection:
         Helper to train a predictor and compute RMS error for each test_feat.
         Returns a list of RMS Series (one per test_feat, in order).
         """
-        from py3r.behaviour.util.normalisation_utils import normalise_df, apply_normalisation_to_df
-        from py3r.behaviour.util.bmicro_utils import train_knn_from_embeddings, predict_knn_on_embedding
+        from py3r.behaviour.util.normalisation_utils import (
+            normalise_df,
+            apply_normalisation_to_df,
+        )
+        from py3r.behaviour.util.bmicro_utils import (
+            train_knn_from_embeddings,
+            predict_knn_on_embedding,
+        )
         import numpy as np
+
         # 1. Prepare embeddings
         train_X = [f.embedding_df(source_embedding) for f in train_feats]
         train_y = [f.embedding_df(target_embedding) for f in train_feats]
@@ -1397,7 +1421,10 @@ class MultipleFeaturesCollection:
             train_X_concat, rescale_factors = normalise_df(pd.concat(train_X))
             lengths = [len(e) for e in train_X]
             starts = np.cumsum([0] + lengths[:-1])
-            train_X = [train_X_concat.iloc[start:start+length] for start, length in zip(starts, lengths)]
+            train_X = [
+                train_X_concat.iloc[start : start + length]
+                for start, length in zip(starts, lengths)
+            ]
             test_X = [apply_normalisation_to_df(x, rescale_factors) for x in test_X]
         else:
             rescale_factors = None
@@ -1411,7 +1438,9 @@ class MultipleFeaturesCollection:
         for x, y in zip(test_X, test_y):
             preds = predictor.predict(x)
             preds = pd.DataFrame(preds, index=y.index, columns=y.columns)
-            rms = Features.rms_error_between_embeddings(y, preds, rescale=normalize_pred)
+            rms = Features.rms_error_between_embeddings(
+                y, preds, rescale=normalize_pred
+            )
             rms_list.append(rms)
         return rms_list
 
@@ -1424,7 +1453,7 @@ class MultipleFeaturesCollection:
         normalize_pred: dict | str = None,
         set1: list[str] = None,
         set2: list[str] = None,
-        predictor_cls=None
+        predictor_cls=None,
     ):
         """
         Performs two types of cross-prediction:
@@ -1448,8 +1477,9 @@ class MultipleFeaturesCollection:
         """
         if predictor_cls is None:
             from py3r.behaviour.predictors import KNNPredictor
+
             predictor_cls = KNNPredictor
-        results = {'within': {}, 'between': {}}
+        results = {"within": {}, "between": {}}
         all_keys = list(self.features_collections.keys())
         if set1 is None:
             set1 = all_keys
@@ -1463,7 +1493,9 @@ class MultipleFeaturesCollection:
             coll = self.features_collections[coll_name]
             rms_dict = {}
             for left_out_name, left_out_feat in coll.features_dict.items():
-                train_feats = [f for n, f in coll.features_dict.items() if n != left_out_name]
+                train_feats = [
+                    f for n, f in coll.features_dict.items() if n != left_out_name
+                ]
                 test_feats = [left_out_feat]
                 rms_list = self._train_and_predict_rms(
                     predictor_cls,
@@ -1476,7 +1508,7 @@ class MultipleFeaturesCollection:
                     normalize_pred,
                 )
                 rms_dict[left_out_name] = rms_list[0]
-            results['within'][coll_name] = rms_dict
+            results["within"][coll_name] = rms_dict
 
         # Between-collection: all ordered pairs (A, B) with A in set1, B in set2, and A != B
         for coll1 in set1:
@@ -1554,28 +1586,35 @@ class MultipleFeaturesCollection:
                     normalize_source,
                     normalize_pred,
                 )
-                rms_dict = {name: rms for name, rms in zip(target_coll.features_dict.keys(), rms_list)}
+                rms_dict = {
+                    name: rms
+                    for name, rms in zip(target_coll.features_dict.keys(), rms_list)
+                }
                 key = f"from{coll1}_to_{coll2}"
                 results["between"][key] = rms_dict
         return results
 
     @staticmethod
-    def plot_cross_predict_vs_within(results, from_collection, to_collection, show=True):
+    def plot_cross_predict_vs_within(
+        results, from_collection, to_collection, show=True
+    ):
         """
         Plot mean RMS for between (fromX_to_Y), within (withinY), and their difference for each Features object in 'to_collection'.
         """
         # Keys
-        between_key = f'from{from_collection}_to_{to_collection}'
+        between_key = f"from{from_collection}_to_{to_collection}"
         within_key = to_collection
 
         # Get dicts of {handle: pd.Series}
-        between_dict = results['between'].get(between_key, {})
-        within_dict = results['within'].get(within_key, {})
+        between_dict = results["between"].get(between_key, {})
+        within_dict = results["within"].get(within_key, {})
 
         # Handles present in both
         handles = sorted(set(between_dict.keys()) & set(within_dict.keys()))
         if not handles:
-            raise ValueError(f"No overlapping handles between {between_key} and {within_key}")
+            raise ValueError(
+                f"No overlapping handles between {between_key} and {within_key}"
+            )
 
         # Compute means
         between_means = [between_dict[h].mean(skipna=True) for h in handles]
@@ -1585,38 +1624,46 @@ class MultipleFeaturesCollection:
         x = np.arange(len(handles))
         width = 0.3
 
-        fig, ax = plt.subplots(figsize=(max(8, len(handles)*0.7), 5))
-        #ax.bar(x - width, between_means, width, label=f'from{from_collection}_to_{to_collection}')
-        #ax.bar(x, within_means, width, label=f'within_{to_collection}')
-        ax.bar(x + width, diff_means, width, label='between - within')
+        fig, ax = plt.subplots(figsize=(max(8, len(handles) * 0.7), 5))
+        # ax.bar(x - width, between_means, width, label=f'from{from_collection}_to_{to_collection}')
+        # ax.bar(x, within_means, width, label=f'within_{to_collection}')
+        ax.bar(x + width, diff_means, width, label="between - within")
 
         ax.set_xticks(x)
         ax.set_xticklabels(handles, rotation=90)
-        ax.set_ylabel('Mean RMS difference')
-        ax.set_title(f'Cross-predict vs Within: {from_collection} → {to_collection}')
-        #ax.legend()
+        ax.set_ylabel("Mean RMS difference")
+        ax.set_title(f"Cross-predict vs Within: {from_collection} → {to_collection}")
+        # ax.legend()
 
         from scipy.stats import ttest_rel
 
         # Paired t-test
-        t_stat, p_value = ttest_rel(between_means, within_means, nan_policy='omit')
+        t_stat, p_value = ttest_rel(between_means, within_means, nan_policy="omit")
 
         # Annotate on the plot
-        ax.text(0.99, 0.99, f"Paired t-test: p = {p_value:.3g}", 
-                ha='right', va='top', transform=ax.transAxes, fontsize=12, color='red')
+        ax.text(
+            0.99,
+            0.99,
+            f"Paired t-test: p = {p_value:.3g}",
+            ha="right",
+            va="top",
+            transform=ax.transAxes,
+            fontsize=12,
+            color="red",
+        )
 
         plt.tight_layout()
         if show:
             plt.show()
         return {
-            'handles': handles,
-            'between_means': between_means,
-            'within_means': within_means,
-            'diff_means': diff_means,
-            't_stat': t_stat,
-            'p_value': p_value
+            "handles": handles,
+            "between_means": between_means,
+            "within_means": within_means,
+            "diff_means": diff_means,
+            "t_stat": t_stat,
+            "p_value": p_value,
         }
-    
+
     @staticmethod
     def plot_cross_predict_results(
         results,
@@ -1667,37 +1714,45 @@ class MultipleFeaturesCollection:
             plt.title("RMS prediction error by category")
         elif plot_type == "point":
             # Point plot: mean RMS per feature, grouped by category
-            means = df.groupby(['Category', 'Feature']).RMS.mean().reset_index()
+            means = df.groupby(["Category", "Feature"]).RMS.mean().reset_index()
             # Pivot to get within and between as columns
-            pivot = means.pivot(index='Feature', columns='Category', values='RMS')
+            pivot = means.pivot(index="Feature", columns="Category", values="RMS")
             # Try to infer the within and between column names
-            within_col = [c for c in pivot.columns if c.startswith('within_')]
-            between_col = [c for c in pivot.columns if not c.startswith('within_')]
+            within_col = [c for c in pivot.columns if c.startswith("within_")]
+            between_col = [c for c in pivot.columns if not c.startswith("within_")]
             if len(within_col) == 1 and len(between_col) == 1:
-                pivot['mean_diff'] = pivot[between_col[0]] - pivot[within_col[0]]
+                pivot["mean_diff"] = pivot[between_col[0]] - pivot[within_col[0]]
             else:
-                pivot['mean_diff'] = np.nan  # fallback if ambiguous
+                pivot["mean_diff"] = np.nan  # fallback if ambiguous
 
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(figsize[0], figsize[1]*1.5), sharex=True, gridspec_kw={'height_ratios': [2, 1]})
+            fig, (ax1, ax2) = plt.subplots(
+                2,
+                1,
+                figsize=(figsize[0], figsize[1] * 1.5),
+                sharex=True,
+                gridspec_kw={"height_ratios": [2, 1]},
+            )
 
             # Point plot
-            sns.pointplot(data=means, x='Feature', y='RMS', hue='Category', dodge=True, ax=ax1)
-            ax1.set_ylabel('mean RMS error')
-            ax1.set_title(f'{within_keys[0]} vs {within_keys[1]}')
-            ax1.tick_params(axis='x', rotation=90)
+            sns.pointplot(
+                data=means, x="Feature", y="RMS", hue="Category", dodge=True, ax=ax1
+            )
+            ax1.set_ylabel("mean RMS error")
+            ax1.set_title(f"{within_keys[0]} vs {within_keys[1]}")
+            ax1.tick_params(axis="x", rotation=90)
 
             # Bar plot of mean difference
-            ax2.bar(pivot.index, pivot['mean_diff'])
-            ax2.axhline(0, color='gray', linestyle='--')
-            ax2.set_ylabel('Mean (Between - Within)')
-            ax2.set_title('Mean RMS Difference per Video')
-            ax2.tick_params(axis='x', rotation=90)
+            ax2.bar(pivot.index, pivot["mean_diff"])
+            ax2.axhline(0, color="gray", linestyle="--")
+            ax2.set_ylabel("Mean (Between - Within)")
+            ax2.set_title("Mean RMS Difference per Video")
+            ax2.tick_params(axis="x", rotation=90)
 
             plt.tight_layout()
             if show:
                 plt.show()
             return df  # Return the DataFrame for further inspection if needed
-        elif plot_type == 'violin':
+        elif plot_type == "violin":
             # Violin plot: all raw RMS values
             sns.violinplot(data=df, x="Category", y="RMS", inner="point")
             plt.ylabel("RMS")
@@ -1814,40 +1869,51 @@ class MultipleFeaturesCollection:
         return f"<{self.__class__.__name__} with {len(self.features_collections)} FeaturesCollection objects>"
 
     @staticmethod
-    def plot_cross_predict_difference_histograms(results, from_collection, to_collection, show=True, bins=30):
+    def plot_cross_predict_difference_histograms(
+        results, from_collection, to_collection, show=True, bins=30
+    ):
         """
         For each handle in the intersection of between and within, plot a histogram of (between - within) RMS time series.
         """
-        between_key = f'from{from_collection}_to_{to_collection}'
+        between_key = f"from{from_collection}_to_{to_collection}"
         within_key = to_collection
 
-        between_dict = results['between'].get(between_key, {})
-        within_dict = results['within'].get(within_key, {})
+        between_dict = results["between"].get(between_key, {})
+        within_dict = results["within"].get(within_key, {})
 
         handles = sorted(set(between_dict.keys()) & set(within_dict.keys()))
         if not handles:
-            raise ValueError(f"No overlapping handles between {between_key} and {within_key}")
+            raise ValueError(
+                f"No overlapping handles between {between_key} and {within_key}"
+            )
 
         n = len(handles)
         ncols = min(4, n)
         nrows = int(np.ceil(n / ncols))
 
-        fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 3*nrows), squeeze=False)
+        fig, axes = plt.subplots(
+            nrows, ncols, figsize=(4 * ncols, 3 * nrows), squeeze=False
+        )
         axes = axes.flatten()
 
         for i, h in enumerate(handles):
             diff = between_dict[h] - within_dict[h]
             diff = diff.dropna()
-            axes[i].hist(diff, bins=bins, color='C0', alpha=0.7)
+            axes[i].hist(diff, bins=bins, color="C0", alpha=0.7)
             mean_val = diff.mean()
-            axes[i].axvline(0, color='gray', linestyle='--')
-            axes[i].axvline(mean_val, color='red', linestyle='-', linewidth=2, label='mean')
+            axes[i].axvline(0, color="gray", linestyle="--")
+            axes[i].axvline(
+                mean_val, color="red", linestyle="-", linewidth=2, label="mean"
+            )
             axes[i].set_title(h)
-            axes[i].set_xlabel('Between - Within (RMS)')
-            axes[i].set_ylabel('Count')
+            axes[i].set_xlabel("Between - Within (RMS)")
+            axes[i].set_ylabel("Count")
             axes[i].legend()
 
-        fig.suptitle(f'Histogram of (Between - Within) RMS Differences\n{from_collection} → {to_collection}', fontsize=14)
+        fig.suptitle(
+            f"Histogram of (Between - Within) RMS Differences\n{from_collection} → {to_collection}",
+            fontsize=14,
+        )
         plt.tight_layout(rect=[0, 0, 1, 0.96])
         if show:
             plt.show()
