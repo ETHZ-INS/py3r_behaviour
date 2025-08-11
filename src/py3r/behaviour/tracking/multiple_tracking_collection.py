@@ -1,9 +1,10 @@
+from __future__ import annotations
+import warnings
+
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.tracking.tracking import LoadOptions
 from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
-import warnings
-import copy
 
 
 class MultipleTrackingCollection:
@@ -42,8 +43,8 @@ class MultipleTrackingCollection:
 
     @classmethod
     def from_dlc_folder(
-        cls, parent_folder: str, options: "LoadOptions", tracking_cls: type = None
-    ) -> "MultipleTrackingCollection":
+        cls, parent_folder: str, options: LoadOptions, tracking_cls: type = None
+    ) -> MultipleTrackingCollection:
         import os
 
         if tracking_cls is None:
@@ -63,8 +64,8 @@ class MultipleTrackingCollection:
 
     @classmethod
     def from_yolo3r_folder(
-        cls, parent_folder: str, options: "LoadOptions", tracking_cls: type = None
-    ) -> "MultipleTrackingCollection":
+        cls, parent_folder: str, options: LoadOptions, tracking_cls: type = None
+    ) -> MultipleTrackingCollection:
         import os
 
         if tracking_cls is None:
@@ -84,8 +85,8 @@ class MultipleTrackingCollection:
 
     @classmethod
     def from_dlcma_folder(
-        cls, parent_folder: str, options: "LoadOptions", tracking_cls: type = None
-    ) -> "MultipleTrackingCollection":
+        cls, parent_folder: str, options: LoadOptions, tracking_cls: type = None
+    ) -> MultipleTrackingCollection:
         import os
 
         if tracking_cls is None:

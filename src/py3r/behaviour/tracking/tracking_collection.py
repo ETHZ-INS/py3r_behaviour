@@ -1,11 +1,13 @@
+from __future__ import annotations
+import json
+import os
+import warnings
+
 from py3r.behaviour.tracking.tracking import Tracking, LoadOptions
+from py3r.behaviour.tracking.tracking_mv import TrackingMV
 from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 from py3r.behaviour.util.dev_utils import dev_mode
-import warnings
-import os
-import json
-import copy
 
 
 class TrackingCollection:
@@ -142,8 +144,8 @@ class TrackingCollection:
 
     @classmethod
     def from_dlc_folder(
-        cls, folder_path: str, options: "LoadOptions", tracking_cls: type = Tracking
-    ) -> "TrackingCollection":
+        cls, folder_path: str, options: LoadOptions, tracking_cls: type = Tracking
+    ) -> TrackingCollection:
         tracking_dict = {}
         bookkeeping = cls._collect_tracking_files(
             folder_path, tracking_cls, options=options
@@ -155,8 +157,8 @@ class TrackingCollection:
 
     @classmethod
     def from_yolo3r_folder(
-        cls, folder_path: str, options: "LoadOptions", tracking_cls: type = Tracking
-    ) -> "TrackingCollection":
+        cls, folder_path: str, options: LoadOptions, tracking_cls: type = Tracking
+    ) -> TrackingCollection:
         tracking_dict = {}
         bookkeeping = cls._collect_tracking_files(
             folder_path, tracking_cls, options=options
@@ -168,8 +170,8 @@ class TrackingCollection:
 
     @classmethod
     def from_dlcma_folder(
-        cls, folder_path: str, options: "LoadOptions", tracking_cls: type = Tracking
-    ) -> "TrackingCollection":
+        cls, folder_path: str, options: LoadOptions, tracking_cls: type = Tracking
+    ) -> TrackingCollection:
         tracking_dict = {}
         bookkeeping = cls._collect_tracking_files(
             folder_path, tracking_cls, options=options
@@ -197,7 +199,7 @@ class TrackingCollection:
     @staticmethod
     def _collect_tracking_files(folder_path, tracking_cls, options):
         result = {}
-        if hasattr(tracking_cls, "is_mv") and tracking_cls.is_mv:
+        if issubclass(tracking_cls, TrackingMV):
             # Each subfolder is a recording
             print(f"Scanning {folder_path} for recordings...")
             for recording in sorted(os.listdir(folder_path)):

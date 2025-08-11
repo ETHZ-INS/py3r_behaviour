@@ -1,19 +1,17 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Optional, Dict, Any, Type, TypeVar
-import pandas as pd
+import copy
+import json
+import os
 import re
 import warnings
-import os
-import json
-import numpy as np
-from py3r.behaviour.exceptions import BatchProcessError
-from collections import defaultdict
-import copy
-from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+from dataclasses import dataclass
+from typing import Optional, Dict, Any, Type, TypeVar
+
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
-from py3r.behaviour.util.dev_utils import dev_mode
+import numpy as np
+import pandas as pd
+
+from py3r.behaviour.util.collection_utils import _Indexer
 
 Self = TypeVar("Self", bound="Tracking")
 
@@ -181,12 +179,6 @@ class Tracking:
         self.handle = handle
 
     # ----------- Instance methods -----------
-
-    def __getitem__(self, key: str) -> pd.Series:
-        """
-        returns a single column of the tracking data
-        """
-        return self.data[key]
 
     def add_usermeta(self, usermeta: dict, overwrite: bool = False) -> None:
         """
@@ -627,7 +619,6 @@ class Tracking:
                 end_idx = int(endframe) + 1
         else:
             end_idx = len(frames)
-        frame_indices = range(start_idx, end_idx)
         selected_frames = frames[start_idx:end_idx]
 
         point_names = self.get_point_names()
