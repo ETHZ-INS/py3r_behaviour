@@ -564,6 +564,248 @@ class Tracking:
             plt.show()
         return fig, ax
 
+    def save_3d_tracking_video_multi_view(
+        self,
+        out_path: str,
+        lines: list[tuple[str, str]] = None,
+        point_size=40,
+        line_width=2,
+        point_color="b",
+        line_color="k",
+        dpi=150,
+        writer="pillow",
+        startframe=None,
+        endframe=None,
+        xlim=None,
+        ylim=None,
+        zlim=None,
+        robust_percentile=1,
+        invert_z=True,
+    ):
+        """
+        Save a 3D animation of tracked points to a video file, with 4 subplots per frame:
+        - azim=0, elev=0, ortho
+        - azim=90, elev=0, ortho
+        - azim=0, elev=90, ortho
+        - azim=45, elev=30, persp
+        Optionally, set axis limits manually or use robust percentiles to ignore outliers.
+        Enforces equal aspect ratio for all axes.
+        """
+        import numpy as np
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        from matplotlib import animation
+        import matplotlib.pyplot as plt
+
+        def get_robust_limits(data, lower=1, upper=99):
+            return float(np.percentile(data, lower)), float(np.percentile(data, upper))
+
+        def set_axes_equal(ax, xlim, ylim, zlim):
+            xmid = np.mean(xlim)
+            ymid = np.mean(ylim)
+            zmid = np.mean(zlim)
+            max_range = max(xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]) / 2
+            ax.set_xlim(xmid - max_range, xmid + max_range)
+            ax.set_ylim(ymid - max_range, ymid + max_range)
+            ax.set_zlim(zmid - max_range, zmid + max_range)
+
+        if lines is None:
+            lines = []
+        frames = self.data.index
+        fps = self.meta["fps"]
+        # Determine frame range
+        if startframe is not None:
+            if startframe in frames:
+                start_idx = np.where(frames == startframe)[0][0]
+            else:
+                start_idx = int(startframe)
+        else:
+            start_idx = 0
+        if endframe is not None:
+            if endframe in frames:
+                end_idx = np.where(frames == endframe)[0][0] + 1
+            else:
+                end_idx = int(endframe) + 1
+        else:
+            end_idx = len(frames)
+        frame_indices = range(start_idx, end_idx)
+        selected_frames = frames[start_idx:end_idx]
+
+        point_names = self.get_point_names()
+
+        # Precompute all coordinates for efficiency
+        coords_per_frame = []
+        total_frames = len(selected_frames)
+        try:
+            from tqdm import tqdm
+
+            use_tqdm = True
+        except ImportError:
+            use_tqdm = False
+        if use_tqdm:
+            frame_iter = tqdm(
+                selected_frames, desc="Precomputing 3D coordinates", unit="frame"
+            )
+        else:
+            frame_iter = selected_frames
+            print("Precomputing 3D coordinates...")
+        for idx, frame in enumerate(frame_iter):
+            coords = {}
+            for point in point_names:
+                try:
+                    x = self.data.loc[frame, point + ".x"]
+                    y = self.data.loc[frame, point + ".y"]
+                    z = self.data.loc[frame, point + ".z"]
+                    if np.isfinite(x) and np.isfinite(y) and np.isfinite(z):
+                        coords[point] = (x, y, -z)  # Reverse z
+                except KeyError:
+                    continue
+            coords_per_frame.append(coords)
+            if (
+                not use_tqdm
+                and total_frames > 0
+                and idx % max(1, total_frames // 10) == 0
+            ):
+                print(f"  {idx + 1}/{total_frames} frames processed...")
+        if not use_tqdm:
+            print("Precompute done.")
+        if invert_z:
+            for coords in coords_per_frame:
+                for point in coords:
+                    coords[point] = (
+                        coords[point][0],
+                        coords[point][1],
+                        -coords[point][2],
+                    )
+
+        # Set up figure and axes
+        fig = plt.figure(figsize=(12, 10))
+        axs = [
+            fig.add_subplot(221, projection="3d"),
+            fig.add_subplot(222, projection="3d"),
+            fig.add_subplot(223, projection="3d"),
+            fig.add_subplot(224, projection="3d"),
+        ]
+
+        # View settings: (elev, azim, proj_type)
+        views = [
+            (30, 135, "persp"),  # front
+            (30, 225, "persp"),  # side
+            (90, 0, "ortho"),  # top
+            (30, 45, "persp"),  # isometric
+        ]
+        titles = [
+            "Isometric (azim=135, elev=30, persp)",
+            "Isometric (azim=225, elev=30, persp)",
+            "Top (azim=0, elev=90, ortho)",
+            "Isometric (azim=45, elev=30, persp)",
+        ]
+
+        # Set up plot elements (scatter and lines) for each axis
+        scatters = []
+        line_objs = []
+        for ax, (elev, azim, proj_type), title in zip(axs, views, titles):
+            ax.view_init(elev=elev, azim=azim)
+            ax.set_proj_type(proj_type)
+            ax.set_title(title)
+            ax.set_xlabel("X")
+            ax.set_ylabel("Y")
+            ax.set_zlabel("Z")
+            scatters.append(ax.scatter([], [], [], s=point_size, c=point_color))
+            line_objs.append(
+                [
+                    ax.plot([], [], [], color=line_color, linewidth=line_width)[0]
+                    for _ in lines
+                ]
+            )
+
+        # Set axis limits based on all data (robust to outliers)
+        all_x, all_y, all_z = [], [], []
+        for coords in coords_per_frame:
+            for x, y, z in coords.values():
+                all_x.append(x)
+                all_y.append(y)
+                all_z.append(z)
+        if not all_x or not all_y or not all_z:
+            raise ValueError("No valid 3D points found for plotting.")
+
+        if xlim is None:
+            xlim = get_robust_limits(all_x, robust_percentile, 100 - robust_percentile)
+        if ylim is None:
+            ylim = get_robust_limits(all_y, robust_percentile, 100 - robust_percentile)
+        if zlim is None:
+            zlim = get_robust_limits(all_z, robust_percentile, 100 - robust_percentile)
+
+        for ax in axs:
+            set_axes_equal(ax, xlim, ylim, zlim)
+
+        # Progress bar for animation saving
+        save_progress = None
+        save_total = len(coords_per_frame)
+        try:
+            from tqdm import tqdm as tqdm_save
+
+            use_tqdm_save = True
+        except ImportError:
+            use_tqdm_save = False
+        if use_tqdm_save:
+            save_progress = tqdm_save(
+                total=save_total, desc="Rendering animation frames", unit="frame"
+            )
+        else:
+            print("Rendering animation frames...")
+            save_progress = None
+            save_last_print = -1
+
+        def update(frame_idx):
+            coords = coords_per_frame[frame_idx]
+            xs, ys, zs = zip(*coords.values()) if coords else ([], [], [])
+            for i, ax in enumerate(axs):
+                scatters[i]._offsets3d = (xs, ys, zs)
+                # Update lines
+                for j, (p1, p2) in enumerate(lines):
+                    if p1 in coords and p2 in coords:
+                        xline = [coords[p1][0], coords[p2][0]]
+                        yline = [coords[p1][1], coords[p2][1]]
+                        zline = [coords[p1][2], coords[p2][2]]
+                        line_objs[i][j].set_data(xline, yline)
+                        line_objs[i][j].set_3d_properties(zline)
+                        line_objs[i][j].set_visible(True)
+                    else:
+                        line_objs[i][j].set_visible(False)
+                ax.set_title(f"{titles[i]}\nFrame {selected_frames[frame_idx]}")
+            # Progress update
+            if save_progress is not None:
+                save_progress.update(1)
+            else:
+                nonlocal save_last_print
+                if (
+                    save_total > 0
+                    and frame_idx % max(1, save_total // 10) == 0
+                    and frame_idx != save_last_print
+                ):
+                    print(f"  {frame_idx + 1}/{save_total} frames rendered...")
+                    save_last_print = frame_idx
+            return [item for sublist in line_objs for item in sublist] + scatters
+
+        anim = animation.FuncAnimation(
+            fig, update, frames=len(coords_per_frame), interval=1000 / fps, blit=False
+        )
+
+        # Save animation
+        if writer == "ffmpeg":
+            Writer = animation.FFMpegWriter
+        elif writer == "pillow":
+            Writer = animation.PillowWriter
+        else:
+            raise ValueError("writer must be 'ffmpeg' or 'pillow'")
+        anim.save(out_path, writer=Writer(fps=fps), dpi=dpi)
+        if save_progress is not None:
+            save_progress.close()
+        else:
+            print("Rendering done.")
+        plt.close(fig)
+        print(f"Saved 3D tracking video to {out_path}")
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.data)} rows, fps={self.meta.get('fps', 'unknown')}>"
 
@@ -1217,6 +1459,161 @@ class TrackingMV:
         triangulated_meta["calibration"] = calib
         triangulated_meta["views"] = views
         return Tracking(triangulated_df, triangulated_meta, self.handle)
+
+    @staticmethod
+    def _get_animals_and_bodyparts(df):
+        animals = set()
+        bodyparts = set()
+        for col in df.columns:
+            parts = col.split(".")
+            if len(parts) >= 2:
+                animals.add(parts[0])
+                bodyparts.add(parts[1])
+        return sorted(animals), sorted(bodyparts)
+
+    @staticmethod
+    def _extract_coords(df, animals, keypoints, frames):
+        import numpy as np
+
+        coords = np.full(
+            (len(frames), len(animals), len(keypoints), 2), np.nan, dtype=np.float32
+        )
+        for ai, animal in enumerate(animals):
+            for ki, kp in enumerate(keypoints):
+                xcol = f"{animal}.{kp}.x"
+                ycol = f"{animal}.{kp}.y"
+                if xcol in df.columns and ycol in df.columns:
+                    coords[:, ai, ki, 0] = df.loc[frames, xcol].values
+                    coords[:, ai, ki, 1] = df.loc[frames, ycol].values
+        return coords
+
+    @staticmethod
+    def _compute_cost_matrices(coords1, coords2):
+        import numpy as np
+
+        # coords1, coords2: (n_frames, n_animals, n_keypoints, 2)
+        coords1_exp = coords1[
+            :, :, None, :, :
+        ]  # (n_frames, n_animals, 1, n_keypoints, 2)
+        coords2_exp = coords2[
+            :, None, :, :, :
+        ]  # (n_frames, 1, n_animals, n_keypoints, 2)
+        diffs = (
+            coords1_exp - coords2_exp
+        )  # (n_frames, n_animals, n_animals, n_keypoints, 2)
+        sqdist = np.sum(
+            diffs**2, axis=-1
+        )  # (n_frames, n_animals, n_animals, n_keypoints)
+        dists = np.sqrt(sqdist)  # (n_frames, n_animals, n_animals, n_keypoints)
+        mask1 = np.isfinite(coords1).all(axis=-1)  # (n_frames, n_animals, n_keypoints)
+        mask2 = np.isfinite(coords2).all(axis=-1)  # (n_frames, n_animals, n_keypoints)
+        mask1_exp = mask1[:, :, None, :]  # (n_frames, n_animals, 1, n_keypoints)
+        mask2_exp = mask2[:, None, :, :]  # (n_frames, 1, n_animals, n_keypoints)
+        valid_mask = (
+            mask1_exp & mask2_exp
+        )  # (n_frames, n_animals, n_animals, n_keypoints)
+        dists_masked = np.where(valid_mask, dists, 0.0)
+        n_valid = np.sum(valid_mask, axis=-1)  # (n_frames, n_animals, n_animals)
+        sum_dists = np.sum(dists_masked, axis=-1)  # (n_frames, n_animals, n_animals)
+        large_cost = 1e6
+        cost_matrices = np.where(
+            n_valid > 0, sum_dists, large_cost
+        )  # (n_frames, n_animals, n_animals)
+        return cost_matrices
+
+    @staticmethod
+    def _reorder_view2_data(
+        df2, animals1, animals2, keypoints, aligned_indices, frames
+    ):
+        import numpy as np
+        import pandas as pd
+
+        n_frames = len(frames)
+        new_data_dict = {}
+        for ai, animal1 in enumerate(animals1):
+            for ki, kp in enumerate(keypoints):
+                for coord in ["x", "y", "likelihood"]:
+                    colname = f"{animal1}.{kp}.{coord}"
+                    new_data_dict[colname] = np.full(n_frames, np.nan, dtype=np.float32)
+        for fi, frame in enumerate(frames):
+            for ai, animal1 in enumerate(animals1):
+                aj = aligned_indices[fi, ai]
+                for ki, kp in enumerate(keypoints):
+                    for coord in ["x", "y", "likelihood"]:
+                        src_col = f"{animals2[aj]}.{kp}.{coord}"
+                        dst_col = f"{animal1}.{kp}.{coord}"
+                        if src_col in df2.columns:
+                            new_data_dict[dst_col][fi] = df2.loc[frame, src_col]
+        new_df2 = pd.DataFrame(new_data_dict, index=frames)
+        extra_cols = [c for c in df2.columns if not any(bp in c for bp in keypoints)]
+        if extra_cols:
+            new_df2 = pd.concat([new_df2, df2.loc[frames, extra_cols]], axis=1)
+        new_df2 = new_df2[
+            [c for c in df2.columns if c in new_df2.columns]
+            + [c for c in new_df2.columns if c not in df2.columns]
+        ]
+        return new_df2
+
+    def align_ids_by_keypoints(
+        self,
+        keypoints: list[str],
+        views: list[str] | None = None,
+    ) -> "TrackingMV":
+        """
+        Align animal IDs between two specified views by minimizing the sum of distances between specified keypoints.
+        Returns a new TrackingMV with aligned IDs in the second view.
+        Args:
+            keypoints: list of bodypart names (e.g., ["nose", "tailbase"])
+            views: list or tuple of two view names to align (default: first two views in self.views)
+        """
+        import numpy as np
+        from scipy.optimize import linear_sum_assignment
+
+        all_views = list(self.views.keys())
+        if views is not None:
+            if len(views) != 2:
+                raise ValueError(
+                    "views argument must be a list or tuple of two view names."
+                )
+            v1, v2 = views
+            if v1 not in self.views or v2 not in self.views:
+                raise ValueError(
+                    f"Specified views {views} not found in TrackingMV object."
+                )
+        else:
+            if len(all_views) < 2:
+                raise ValueError("TrackingMV must have at least two views to align.")
+            v1, v2 = all_views[:2]
+
+        df1, df2 = self.views[v1].data, self.views[v2].data
+        animals1, _ = self._get_animals_and_bodyparts(df1)
+        animals2, _ = self._get_animals_and_bodyparts(df2)
+        if len(animals1) != len(animals2):
+            raise ValueError("Number of animals differs between views.")
+        n_animals = len(animals1)
+        frames = df1.index.intersection(df2.index)
+        n_frames = len(frames)
+
+        coords1 = self._extract_coords(df1, animals1, keypoints, frames)
+        coords2 = self._extract_coords(df2, animals2, keypoints, frames)
+        cost_matrices = self._compute_cost_matrices(coords1, coords2)
+
+        aligned_indices = np.zeros((n_frames, n_animals), dtype=int)
+        for fi in range(n_frames):
+            row_ind, col_ind = linear_sum_assignment(cost_matrices[fi])
+            aligned_indices[fi] = col_ind
+
+        new_df2 = self._reorder_view2_data(
+            df2, animals1, animals2, keypoints, aligned_indices, frames
+        )
+        new_views = self.views.copy()
+        new_views[v1] = Tracking(
+            df1.loc[frames], self.views[v1].meta.copy(), self.views[v1].handle
+        )
+        new_views[v2] = Tracking(
+            new_df2, self.views[v2].meta.copy(), self.views[v2].handle
+        )
+        return TrackingMV(new_views, self.calibration, self.handle)
 
     def plot(
         self,
