@@ -4,12 +4,45 @@ This package is part of the `py3r` namespace and provides tools for behaviour an
 
 ## Structure
 
-- `src/py3r/behaviour/tracking.py` — tracking data structures and utilities
-- `src/py3r/behaviour/features.py` — feature extraction from tracking data
-- `src/py3r/behaviour/summary.py` — summary statistics and aggregation
+- `src/py3r/behaviour/tracking/` — tracking data structures and utilities
+- `src/py3r/behaviour/features/` — feature extraction from tracking data
+- `src/py3r/behaviour/summary/` — summary statistics and aggregation
 - `src/py3r/behaviour/util/` — utility functions (misc, bmicro, three_d, exceptions)
 
-## Installation (Development)
+## Installation (User)
+
+*note: requires pip and git; checks and upgrades version of pip if neccessary*
+
+### Windows
+
+```
+powershell -Command "$repo='ETH-INS/py3r_behaviour'; $min_ver='21.3'; \
+$ver = (python -c 'import pip; print(pip.__version__)'); \
+if (([Version]$ver) -lt ([Version]$min_ver)) { python -m pip install --upgrade pip }; \
+$latest = Invoke-RestMethod -Uri \"https://api.github.com/repos/$repo/releases/latest\"; \
+$tag = $latest.tag_name; \
+pip install --upgrade git+https://github.com/$repo.git@$tag"
+
+
+```
+
+### Linux/Mac OS
+```bash
+repo="ETH-INS/py3r_behaviour"
+min_ver="21.3"
+current_ver=$(python -c 'import pip; print(pip.__version__)')
+if python -c "from packaging import version; import sys; sys.exit(0 if version.parse('$current_ver') >= version.parse('$min_ver') else 1)"; then
+    echo "pip $current_ver OK"
+else
+    python -m pip install --upgrade pip
+fi
+latest_tag=$(curl -s https://api.github.com/repos/$repo/releases/latest | grep -Po '"tag_name": "\K.*?(?=")')
+pip install --upgrade git+https://github.com/$repo.git@$latest_tag
+
+
+```
+
+## Installation (Developer only)
 
 From the root of this repository:
 
@@ -22,14 +55,6 @@ This will install the package in editable mode, making it available as `py3r.beh
 ## Packaging
 
 This project uses a single `pyproject.toml` file for modern Python packaging with [setuptools](https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html). No `setup.py` is required.
-
-## Usage
-
-```python
-from py3r.behaviour.tracking import Tracking
-from py3r.behaviour.features import Features
-from py3r.behaviour.summary import Summary
-```
 
 ## Notes
 - This package uses [PEP 420](https://www.python.org/dev/peps/pep-0420/) namespace packages (empty `__init__.py` files).
@@ -44,43 +69,30 @@ from py3r.behaviour.summary import Summary
 ## Quickstart
 
 ```python
-from py3r.behaviour.tracking import Tracking, TrackingCollection, MultipleTrackingCollection, TrackingMV
-from py3r.behaviour.features import Features, FeaturesCollection, MultipleFeaturesCollection
-from py3r.behaviour.summary import Summary, SummaryCollection, MultipleSummaryCollection
+import py3r.behaviour as bv
 
 # load a single tracking file
 # (now also supports .interpolate, .add_usermeta, .save, etc.)
-t = Tracking.from_dlc('path/to/file.csv', handle='animal1', options=opts)
+t = bv.Tracking.from_dlc('path/to/file.csv', handle='animal1', options=opts)
 t.interpolate(method="linear")
 t.add_usermeta({"experiment": "test"})
 t.save('path/to/file.csv')
 
-# boundary and ellipse features (see API.md for details)
-# features.define_boundary, features.within_boundary_static, features.define_elliptical_boundary_from_params, etc.
-
-# embedding, clustering, and kNN regression
-# features.embedding_df, features.cluster_embedding, features.train_knn_regressor, features.predict_knn, etc.
-
-# summary binning and behaviour flow analysis
-# summary.make_bin, summary.make_bins, summary_collection.bfa, summary_collection.bfa_stats
-
 # load a folder of tracking files as a collection
-tc = TrackingCollection.from_dlc_folder('path/to/folder', options=opts)
+tc = bv.TrackingCollection.from_dlc_folder('path/to/folder', options=opts)
 
 # load multiple collections of tracking files
-mtc = MultipleTrackingCollection.from_dlc_folder('path/to/parent/folder', options=opts)
+mtc = bv.MultipleTrackingCollection.from_dlc_folder('path/to/parent/folder', options=opts)
 
-# batch process: get point names for all animals
-point_names = collection.get_point_names()  # returns dict: handle -> point names
 
 # multi batch process: get point names for all animals in all collections
-point_names = multicollection.get_point_names() # returns dict: collection -> (handle -> point names)
+point_names = mtc.get_point_names() # returns dict: collection -> (handle -> point names)
 
 # generate features for all animals
-fc = FeaturesCollection.from_tracking_collection(tc)
+fc = bv.FeaturesCollection.from_tracking_collection(tc)
 
 # generate features for all collections
-mfc = MultipleFeaturesCollection.from_multiple_tracking_collection(mtc)
+mfc = bv.MultipleFeaturesCollection.from_multiple_tracking_collection(mtc)
 
 ### Working with Collections and Batch Methods
 
@@ -168,8 +180,8 @@ for group, collection in mfc.items():
 ```
 
 ### FeaturesResult and SummaryResult usage
-# FeaturesResult acts as a pandas Series (no .value property, use Series methods directly)
-# SummaryResult has a .value property for the underlying value
+FeaturesResult acts as a pandas Series (no .value property, use Series methods directly)
+SummaryResult has a .value property for the underlying value
 
 ---
 
