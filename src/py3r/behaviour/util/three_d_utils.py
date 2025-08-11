@@ -4,9 +4,10 @@ import os
 import glob
 import json
 
+
 def find_chessboard_corners(image_paths, chessboard_size):
     """Find chessboard corners in a list of images. Returns (objpoints, imgpoints, valid_indices)."""
-    objp = np.zeros((chessboard_size[0]*chessboard_size[1], 3), np.float32)
+    objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
     objp[:, :2] = np.indices(chessboard_size).T.reshape(-1, 2)
     objpoints = []
     imgpoints = []
@@ -23,7 +24,10 @@ def find_chessboard_corners(image_paths, chessboard_size):
             valid_indices.append(idx)
     return objpoints, imgpoints, valid_indices
 
-def calibrate_stereo_system(view1_folder, view2_folder, chessboard_size, square_size, output_json):
+
+def calibrate_stereo_system(
+    view1_folder, view2_folder, chessboard_size, square_size, output_json
+):
     """
     Calibrate a stereo camera system using chessboard images from two folders.
     """
@@ -60,17 +64,24 @@ def calibrate_stereo_system(view1_folder, view2_folder, chessboard_size, square_
 
     # Calibrate one camera
     gray = cv2.cvtColor(cv2.imread(images1[0]), cv2.COLOR_BGR2GRAY)
-    ret, K, dist, _, _ = cv2.calibrateCamera(objpoints, imgpoints1_final, gray.shape[::-1], None, None)
+    ret, K, dist, _, _ = cv2.calibrateCamera(
+        objpoints, imgpoints1_final, gray.shape[::-1], None, None
+    )
     if not ret:
         raise RuntimeError("Single camera calibration failed.")
 
     # Stereo calibration
     ret, _, _, _, _, R, T, E, F = cv2.stereoCalibrate(
-        objpoints, imgpoints1_final, imgpoints2_final,
-        K, dist, K, dist,
+        objpoints,
+        imgpoints1_final,
+        imgpoints2_final,
+        K,
+        dist,
+        K,
+        dist,
         gray.shape[::-1],
         flags=cv2.CALIB_FIX_INTRINSIC,
-        criteria=(cv2.TERM_CRITERIA_MAX_ITER + cv2.TERM_CRITERIA_EPS, 100, 1e-5)
+        criteria=(cv2.TERM_CRITERIA_MAX_ITER + cv2.TERM_CRITERIA_EPS, 100, 1e-5),
     )
     if not ret:
         raise RuntimeError("Stereo calibration failed.")
@@ -78,11 +89,11 @@ def calibrate_stereo_system(view1_folder, view2_folder, chessboard_size, square_
     calib = {
         "views": {
             view1_name: {"K": K.tolist(), "dist": dist.tolist()},
-            view2_name: {"K": K.tolist(), "dist": dist.tolist()}
+            view2_name: {"K": K.tolist(), "dist": dist.tolist()},
         },
         "relative_pose": {"R": R.tolist(), "T": T.tolist()},
         "image_size": gray.shape[::-1],
-        "view_order": [view1_name, view2_name]
+        "view_order": [view1_name, view2_name],
     }
 
     with open(output_json, "w") as f:
@@ -90,7 +101,17 @@ def calibrate_stereo_system(view1_folder, view2_folder, chessboard_size, square_
     print(f"Calibration saved to {output_json} with views: {view1_name}, {view2_name}")
 
 
-def extract_calibration_images(video1_path, video2_path, out_dir1, out_dir2, num_images=200, chessboard_size=(9,6), min_sharpness=80.0, max_anisotropy=20.0, min_edge_density=0.005):
+def extract_calibration_images(
+    video1_path,
+    video2_path,
+    out_dir1,
+    out_dir2,
+    num_images=200,
+    chessboard_size=(9, 6),
+    min_sharpness=80.0,
+    max_anisotropy=20.0,
+    min_edge_density=0.005,
+):
     """
     Extracts num_images frames from two videos for calibration.
     Only saves frames where a sharp chessboard is detected.
@@ -99,10 +120,14 @@ def extract_calibration_images(video1_path, video2_path, out_dir1, out_dir2, num
     os.makedirs(out_dir2, exist_ok=True)
     cap1 = cv2.VideoCapture(video1_path)
     cap2 = cv2.VideoCapture(video2_path)
-    n_frames = int(min(cap1.get(cv2.CAP_PROP_FRAME_COUNT), cap2.get(cv2.CAP_PROP_FRAME_COUNT)))
+    n_frames = int(
+        min(cap1.get(cv2.CAP_PROP_FRAME_COUNT), cap2.get(cv2.CAP_PROP_FRAME_COUNT))
+    )
     if n_frames < num_images:
-        raise ValueError(f"Not enough frames in the videos to extract {num_images} images.")
-    indices = np.linspace(0, n_frames-1, num_images, dtype=int)
+        raise ValueError(
+            f"Not enough frames in the videos to extract {num_images} images."
+        )
+    indices = np.linspace(0, n_frames - 1, num_images, dtype=int)
     saved = 0
     for idx in indices:
         cap1.set(cv2.CAP_PROP_POS_FRAMES, idx)
@@ -110,7 +135,6 @@ def extract_calibration_images(video1_path, video2_path, out_dir1, out_dir2, num
         ret1, frame1 = cap1.read()
         ret2, frame2 = cap2.read()
         if not (ret1 and ret2):
-            
             continue
         print(f"Read frame {idx} from {video1_path} or {video2_path}")
         # convert to grayscale if needed
@@ -130,7 +154,11 @@ def extract_calibration_images(video1_path, video2_path, out_dir1, out_dir2, num
         if chessboard_found1 and chessboard_found2:
             print(f"Found chessboard in frame {idx} of {video1_path} and {video2_path}")
             # check not blurred
-            if not is_blurred(gray1, min_sharpness, max_anisotropy, min_edge_density) and not is_blurred(gray2, min_sharpness, max_anisotropy, min_edge_density):
+            if not is_blurred(
+                gray1, min_sharpness, max_anisotropy, min_edge_density
+            ) and not is_blurred(
+                gray2, min_sharpness, max_anisotropy, min_edge_density
+            ):
                 print(f"Not blurred in frame {idx} of {video1_path} and {video2_path}")
                 out1 = os.path.join(out_dir1, f"calib_{saved:03d}.png")
                 out2 = os.path.join(out_dir2, f"calib_{saved:03d}.png")
