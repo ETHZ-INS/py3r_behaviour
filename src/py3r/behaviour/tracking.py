@@ -580,6 +580,7 @@ class Tracking:
         ylim=None,
         zlim=None,
         robust_percentile=1,
+        invert_z=True,
     ):
         """
         Save a 3D animation of tracked points to a video file, with 4 subplots per frame:
@@ -667,6 +668,14 @@ class Tracking:
                 print(f"  {idx + 1}/{total_frames} frames processed...")
         if not use_tqdm:
             print("Precompute done.")
+        if invert_z:
+            for coords in coords_per_frame:
+                for point in coords:
+                    coords[point] = (
+                        coords[point][0],
+                        coords[point][1],
+                        -coords[point][2],
+                    )
 
         # Set up figure and axes
         fig = plt.figure(figsize=(12, 10))
@@ -679,14 +688,14 @@ class Tracking:
 
         # View settings: (elev, azim, proj_type)
         views = [
-            (0, 0, "ortho"),  # front
-            (0, 90, "ortho"),  # side
+            (30, 135, "persp"),  # front
+            (30, 225, "persp"),  # side
             (90, 0, "ortho"),  # top
             (30, 45, "persp"),  # isometric
         ]
         titles = [
-            "Front (azim=0, elev=0, ortho)",
-            "Side (azim=90, elev=0, ortho)",
+            "Isometric (azim=135, elev=30, persp)",
+            "Isometric (azim=225, elev=30, persp)",
             "Top (azim=0, elev=90, ortho)",
             "Isometric (azim=45, elev=30, persp)",
         ]
