@@ -776,7 +776,7 @@ class Features:
         rms = np.sqrt((diff**2).mean(axis=1))
         # Set to NaN if either input row has any NaNs
         mask = ground_truth.notna().all(axis=1) & prediction.notna().all(axis=1)
-        rms[~mask] = np.nan
+        rms[mask.invert()] = np.nan
         return rms
 
     @property

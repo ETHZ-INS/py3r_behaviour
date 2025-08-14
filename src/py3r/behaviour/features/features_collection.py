@@ -9,10 +9,7 @@ from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 from py3r.behaviour.util.dev_utils import dev_mode
-from py3r.behaviour.util.bmicro_utils import (
-    train_knn_from_embeddings,
-    predict_knn_on_embedding,
-)
+from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
 
 
 class FeaturesCollection:
@@ -127,34 +124,61 @@ class FeaturesCollection:
     @dev_mode
     def train_knn_regressor(
         self,
-        embedding: dict[str, list[int]],
+        *,
+        source_embedding: dict[str, list[int]],
         target_embedding: dict[str, list[int]],
-        n_neighbors: int = 5,
+        predictor_cls=None,
+        predictor_kwargs=None,
+        normalize_source: bool = False,
         **kwargs,
     ):
         """
-        Train a kNN regressor to predict a target embedding from a feature embedding.
-        Both embedding and target_embedding are dicts mapping column names to time shifts.
-        Returns the trained model, the indices used for training, and the feature/target DataFrames.
+        Train a regressor to predict a target embedding from a feature embedding on this Features object.
+        Uses predictor_cls (default: KNNPredictor) and passes predictor_kwargs.
+        If normalize_source is True, normalize the source embedding before training and return the rescale factors.
+        Returns the trained model, input columns, target columns, and (optionally) the rescale factors.
         """
-        train_embeds = self.embedding_df(embedding)
-        target_embeds = self.embedding_df(target_embedding)
+        if predictor_cls is None:
+            from py3r.behaviour.predictors import KNNPredictor
 
-        # do leave one out training
-        for i in range(len(train_embeds)):
-            train_embeds_i = train_embeds.drop(i)
-            target_embeds_i = target_embeds.drop(i)
-            model, train_columns, target_columns = train_knn_from_embeddings(
-                train_embeds_i, target_embeds_i, n_neighbors, **kwargs
-            )
-            predictions = predict_knn_on_embedding(
-                model, train_embeds_i, target_columns
-            )
-            self.store(predictions, "knn_predictions", overwrite=True)
-        model, train_columns, target_columns = train_knn_from_embeddings(
-            train_embeds_i, target_embeds_i, n_neighbors, **kwargs
+            predictor_cls = KNNPredictor
+        if predictor_kwargs is None:
+            predictor_kwargs = {}
+        train_embed = self.embedding_df(source_embedding)
+        target_embed = self.embedding_df(target_embedding)
+        rescale_factors = None
+        if normalize_source:
+            train_embed, rescale_factors = normalize_df(train_embed)
+        predictor = predictor_cls(**predictor_kwargs)
+        predictor.fit(train_embed, target_embed)
+        if normalize_source:
+            return predictor, train_embed.columns, target_embed.columns, rescale_factors
+        else:
+            return predictor, train_embed.columns, target_embed.columns
+
+    @dev_mode
+    def predict_knn(
+        self,
+        model,
+        source_embedding: dict[str, list[int]],
+        target_embedding: dict[str, list[int]],
+        rescale_factors: dict = None,
+    ) -> pd.DataFrame:
+        """
+        Predict using a trained regressor on this Features object.
+        If rescale_factors is provided, normalize the source embedding before prediction.
+        The prediction will match the shape and columns of self.embedding_df(target_embedding).
+        """
+        test_embed = self.embedding_df(source_embedding)
+        if rescale_factors is not None:
+            test_embed = apply_normalization_to_df(test_embed, rescale_factors)
+        target_embed = self.embedding_df(target_embedding)
+        preds = model.predict(test_embed)
+        # Ensure the output DataFrame has the same index and columns as target_embed
+        preds = pd.DataFrame(
+            preds, index=target_embed.index, columns=target_embed.columns
         )
-        return model, train_columns, target_columns
+        return preds
 
     def plot(self, arg=None, figsize=(8, 2), show: bool = True, title: str = None):
         """
