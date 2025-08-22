@@ -124,6 +124,8 @@ class MultipleFeaturesCollection:
         embedding_dict: dict[str, list[int]],
         n_clusters: int,
         random_state: int = 0,
+        auto_normalize: bool = False,
+        rescale_factors: dict | None = None,
     ):
         # Step 1: Build all embeddings
         all_embeddings = {}
@@ -138,6 +140,12 @@ class MultipleFeaturesCollection:
             keys=all_embeddings.keys(),
             names=["collection", "feature", "frame"],
         )
+
+        # Step 2a (optional): Normalize
+        if auto_normalize:
+            combined, normalization_factors = normalize_df(combined)
+        if rescale_factors is not None:
+            combined = apply_normalization_to_df(combined, rescale_factors)
 
         # Step 3: Mask
         valid_mask = combined.notna().all(axis=1)
@@ -165,8 +173,10 @@ class MultipleFeaturesCollection:
                 nested_labels[coll_name] = {}
             nested_labels[coll_name][feat_name] = labels.astype("Int64")
 
-        # Step 7: Return
-        return nested_labels, centroids
+        if auto_normalize:
+            return nested_labels, centroids, normalization_factors
+        else:
+            return nested_labels, centroids, None
 
     @discontinued_method
     def knn_cross_predict_rms_matrix(
