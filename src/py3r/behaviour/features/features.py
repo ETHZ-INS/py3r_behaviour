@@ -664,7 +664,14 @@ class Features:
         labels = np.full(len(embed_df), fill_value=np.nan)
         labels[mask] = np.argmin(d2, axis=1)
 
-        return pd.Series(labels, index=embed_df.index, name="cluster")
+        result = pd.Series(labels, index=embed_df.index, name="cluster")
+        name = f"kmeans_{len(centroids_df.columns)}"
+        meta = {
+            "function": "assign_clusters_by_centroids",
+            "embedding": embedding,
+            "centroids_df": centroids_df,
+        }
+        return FeaturesResult(result, self, name, meta)
 
     @dev_mode
     def train_knn_regressor(

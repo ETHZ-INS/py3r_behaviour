@@ -165,7 +165,16 @@ class MultipleFeaturesCollection:
         centroids = pd.DataFrame(model.cluster_centers_, columns=combined.columns)
 
         # Step 5: Assign labels
-        combined_labels = pd.Series(np.nan, index=combined.index, name="cluster")
+        clustermeta = {
+            "embedding_dict": embedding_dict,
+            "n_clusters": n_clusters,
+            "random_state": random_state,
+            "auto_normalize": auto_normalize,
+            "rescale_factors": rescale_factors,
+            "lowmem": lowmem,
+            "decimation_factor": decimation_factor,
+        }
+        combined_labels = pd.Series(np.nan, index=combined.index)
         combined_labels.loc[valid_mask] = model.labels_
         # Step 6: Split
         if lowmem:
@@ -178,8 +187,13 @@ class MultipleFeaturesCollection:
                 labels = combined_labels.xs(idx, level=["collection", "feature"])
                 if coll_name not in nested_labels:
                     nested_labels[coll_name] = {}
-                nested_labels[coll_name][feat_name] = labels.astype("Int64")
-                nested_labels = BatchResult(nested_labels, self)
+                nested_labels[coll_name][feat_name] = FeaturesResult(
+                    labels.astype("Int64"),
+                    self[coll_name][feat_name],
+                    f"kmeans_{n_clusters}",
+                    clustermeta,
+                )
+            nested_labels = BatchResult(nested_labels, self)
 
         if auto_normalize:
             return nested_labels, centroids, normalization_factors
