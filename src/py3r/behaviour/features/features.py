@@ -648,6 +648,8 @@ class Features:
         centroids_df: (n_clusters, n_features) DataFrame of cluster centers
         Returns a Series of cluster IDs (0..n_clusters-1) indexed like new_embed_df.
         """
+        from sklearn.metrics.pairwise import pairwise_distances_argmin
+
         embed_df = self.embedding_df(embedding)
         # check that columns are the same
         if not embed_df.columns.equals(centroids_df.columns):
@@ -657,21 +659,16 @@ class Features:
         embed_values = embed_df[mask].values
         centroids_values = centroids_df.values
 
-        # compute squared Euclidean distances: result shape (n_samples, n_clusters)
-        d2 = np.sum(
-            (embed_values[:, None, :] - centroids_values[None, :, :]) ** 2, axis=2
-        )
-        labels = np.full(len(embed_df), fill_value=np.nan)
-        labels[mask] = np.argmin(d2, axis=1)
+        labels = pd.Series(pd.NA, index=embed_df.index, dtype="Int64")
+        labels[mask] = pairwise_distances_argmin(embed_values, centroids_values)
 
-        result = pd.Series(labels, index=embed_df.index, name="cluster")
-        name = f"kmeans_{len(centroids_df.columns)}"
+        name = f"kmeans_{len(centroids_df.index)}"
         meta = {
             "function": "assign_clusters_by_centroids",
             "embedding": embedding,
             "centroids_df": centroids_df,
         }
-        return FeaturesResult(result, self, name, meta)
+        return FeaturesResult(labels, self, name, meta)
 
     @dev_mode
     def train_knn_regressor(
