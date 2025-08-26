@@ -126,12 +126,17 @@ class MultipleFeaturesCollection:
         random_state: int = 0,
         auto_normalize: bool = False,
         rescale_factors: dict | None = None,
+        lowmem: bool = False,
+        decimation_factor: int = 10,
     ):
         # Step 1: Build all embeddings
         all_embeddings = {}
         for coll_name, collection in self.features_collections.items():
             for feat_name, features in collection.features_dict.items():
                 embed_df = features.embedding_df(embedding_dict).astype(np.float32)
+                if lowmem:
+                    embed_df_decimated = embed_df.iloc[::decimation_factor]
+                    embed_df = embed_df_decimated
                 all_embeddings[(coll_name, feat_name)] = embed_df
 
         # Step 2: Concatenate
@@ -162,16 +167,19 @@ class MultipleFeaturesCollection:
         # Step 5: Assign labels
         combined_labels = pd.Series(np.nan, index=combined.index, name="cluster")
         combined_labels.loc[valid_mask] = model.labels_
-
         # Step 6: Split
-        nested_labels = {}
-        for (coll_name, feat_name), _ in all_embeddings.items():
-            idx = (coll_name, feat_name)
-            # Get all rows for this (collection, feature)
-            labels = combined_labels.xs(idx, level=["collection", "feature"])
-            if coll_name not in nested_labels:
-                nested_labels[coll_name] = {}
-            nested_labels[coll_name][feat_name] = labels.astype("Int64")
+        if lowmem:
+            nested_labels = self.assign_clusters_by_centroids(embedding_dict, centroids)
+        else:
+            nested_labels = {}
+            for (coll_name, feat_name), _ in all_embeddings.items():
+                idx = (coll_name, feat_name)
+                # Get all rows for this (collection, feature)
+                labels = combined_labels.xs(idx, level=["collection", "feature"])
+                if coll_name not in nested_labels:
+                    nested_labels[coll_name] = {}
+                nested_labels[coll_name][feat_name] = labels.astype("Int64")
+                nested_labels = BatchResult(nested_labels, self)
 
         if auto_normalize:
             return nested_labels, centroids, normalization_factors
