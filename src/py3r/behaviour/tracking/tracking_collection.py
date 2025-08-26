@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 import os
 import warnings
-
+import pandas as pd
 from py3r.behaviour.tracking.tracking import Tracking, LoadOptions
 from py3r.behaviour.tracking.tracking_mv import TrackingMV
 from py3r.behaviour.exceptions import BatchProcessError
@@ -180,6 +180,17 @@ class TrackingCollection:
             tracking_obj = tracking_cls.from_dlcma(**kwargs)
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
+
+    def add_tags_from_csv(self, csv_path: str) -> None:
+        """
+        Adds tags to all Tracking objects in the collection from a csv file.
+        csv_path: path to a csv file with two columns: "handle" and "tagname"
+        """
+        df = pd.read_csv(csv_path)
+        for handle, tagname, tagvalue in zip(
+            df["handle"], df["tagname"], df["tagvalue"]
+        ):
+            self.tracking_dict[handle].add_tag(tagname, tagvalue)
 
     def stereo_triangulate(self):
         """
