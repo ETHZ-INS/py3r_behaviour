@@ -131,7 +131,7 @@ class MultipleFeaturesCollection:
         all_embeddings = {}
         for coll_name, collection in self.features_collections.items():
             for feat_name, features in collection.features_dict.items():
-                embed_df = features.embedding_df(embedding_dict)
+                embed_df = features.embedding_df(embedding_dict).astype(np.float32)
                 all_embeddings[(coll_name, feat_name)] = embed_df
 
         # Step 2: Concatenate
