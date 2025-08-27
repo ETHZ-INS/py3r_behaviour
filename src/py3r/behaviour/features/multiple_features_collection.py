@@ -124,12 +124,19 @@ class MultipleFeaturesCollection:
         embedding_dict: dict[str, list[int]],
         n_clusters: int,
         random_state: int = 0,
+        auto_normalize: bool = False,
+        rescale_factors: dict | None = None,
+        lowmem: bool = False,
+        decimation_factor: int = 10,
     ):
         # Step 1: Build all embeddings
         all_embeddings = {}
         for coll_name, collection in self.features_collections.items():
             for feat_name, features in collection.features_dict.items():
-                embed_df = features.embedding_df(embedding_dict)
+                embed_df = features.embedding_df(embedding_dict).astype(np.float32)
+                if lowmem:
+                    embed_df_decimated = embed_df.iloc[::decimation_factor]
+                    embed_df = embed_df_decimated
                 all_embeddings[(coll_name, feat_name)] = embed_df
 
         # Step 2: Concatenate
@@ -138,6 +145,12 @@ class MultipleFeaturesCollection:
             keys=all_embeddings.keys(),
             names=["collection", "feature", "frame"],
         )
+
+        # Step 2a (optional): Normalize
+        if auto_normalize:
+            combined, normalization_factors = normalize_df(combined)
+        if rescale_factors is not None:
+            combined = apply_normalization_to_df(combined, rescale_factors)
 
         # Step 3: Mask
         valid_mask = combined.notna().all(axis=1)
@@ -152,21 +165,40 @@ class MultipleFeaturesCollection:
         centroids = pd.DataFrame(model.cluster_centers_, columns=combined.columns)
 
         # Step 5: Assign labels
-        combined_labels = pd.Series(np.nan, index=combined.index, name="cluster")
+        clustermeta = {
+            "embedding_dict": embedding_dict,
+            "n_clusters": n_clusters,
+            "random_state": random_state,
+            "auto_normalize": auto_normalize,
+            "rescale_factors": rescale_factors,
+            "lowmem": lowmem,
+            "decimation_factor": decimation_factor,
+        }
+        combined_labels = pd.Series(np.nan, index=combined.index)
         combined_labels.loc[valid_mask] = model.labels_
-
         # Step 6: Split
-        nested_labels = {}
-        for (coll_name, feat_name), _ in all_embeddings.items():
-            idx = (coll_name, feat_name)
-            # Get all rows for this (collection, feature)
-            labels = combined_labels.xs(idx, level=["collection", "feature"])
-            if coll_name not in nested_labels:
-                nested_labels[coll_name] = {}
-            nested_labels[coll_name][feat_name] = labels.astype("Int64")
+        if lowmem:
+            nested_labels = self.assign_clusters_by_centroids(embedding_dict, centroids)
+        else:
+            nested_labels = {}
+            for (coll_name, feat_name), _ in all_embeddings.items():
+                idx = (coll_name, feat_name)
+                # Get all rows for this (collection, feature)
+                labels = combined_labels.xs(idx, level=["collection", "feature"])
+                if coll_name not in nested_labels:
+                    nested_labels[coll_name] = {}
+                nested_labels[coll_name][feat_name] = FeaturesResult(
+                    labels.astype("Int64"),
+                    self[coll_name][feat_name],
+                    f"kmeans_{n_clusters}",
+                    clustermeta,
+                )
+            nested_labels = BatchResult(nested_labels, self)
 
-        # Step 7: Return
-        return nested_labels, centroids
+        if auto_normalize:
+            return nested_labels, centroids, normalization_factors
+        else:
+            return nested_labels, centroids, None
 
     @discontinued_method
     def knn_cross_predict_rms_matrix(
