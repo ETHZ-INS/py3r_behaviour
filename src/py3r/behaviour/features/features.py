@@ -660,7 +660,8 @@ class Features:
         centroids_values = centroids_df.values
 
         labels = pd.Series(pd.NA, index=embed_df.index, dtype="Int64")
-        labels[mask] = pairwise_distances_argmin(embed_values, centroids_values)
+        if len(embed_values) > 0:
+            labels[mask] = pairwise_distances_argmin(embed_values, centroids_values)
 
         name = f"kmeans_{len(centroids_df.index)}"
         meta = {
