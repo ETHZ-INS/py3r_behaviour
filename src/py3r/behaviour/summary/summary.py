@@ -50,6 +50,18 @@ class Summary:
         meta = {"function": "time_true", "column": column}
         return SummaryResult(time, self, f"time_true_{column}", meta)
 
+    def time_false(self, column: str) -> SummaryResult:
+        """returns time in seconds that condition in the given column is false"""
+        if column not in self.features.data.columns:
+            raise ValueError(f"Column '{column}' not found in features.data")
+        series = self.features.data[column]
+        nonan = pd.Series(list(series.dropna()))
+        if nonan.dtype != "bool":
+            raise Exception("time_true requires boolean series as input")
+        time = (~nonan).sum() / self.features.tracking.meta["fps"]
+        meta = {"function": "time_false", "column": column}
+        return SummaryResult(time, self, f"time_false_{column}", meta)
+
     def total_distance(
         self, point: str, startframe: int | None = None, endframe: int | None = None
     ) -> SummaryResult:
