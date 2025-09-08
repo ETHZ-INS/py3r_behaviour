@@ -42,6 +42,7 @@ class Features:
         self.data = pd.DataFrame()
         self.meta = dict()
         self.handle = tracking.handle
+        self.tags = tracking.tags
         if "usermeta" in tracking.meta:
             self.meta["usermeta"] = tracking.meta["usermeta"]
 

@@ -5,6 +5,9 @@ import numpy as np
 from sklearn.cluster import KMeans
 
 from py3r.behaviour.features.features import Features, FeaturesResult
+from py3r.behaviour.features.multiple_features_collection import (
+    MultipleFeaturesCollection,
+)
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
@@ -76,6 +79,59 @@ class FeaturesCollection:
             raise Exception("handles must be unique")
         features_dict = {obj.handle: obj for obj in features_list}
         return cls(features_dict)
+
+    def groupby(self, tags):
+        """
+        Group the collection by one or more tags.
+        Args:
+            tags (str or list/tuple of str): Tag(s) to group by.
+        Returns:
+            MultipleCollection: A MultipleCollection object with groups named by tag values.
+        Raises:
+            ValueError: If any tag is missing for any element.
+        """
+        # Accept single tag as string
+        if isinstance(tags, str):
+            tags = [tags]
+        tags = list(tags)
+
+        groups = {}
+        missing = []
+
+        for obj in (
+            self.tracking_dictvalues()
+        ):  # assumes .values() yields the elements (e.g., Features, Tracking, etc.)
+            # Check all tags are present
+            try:
+                key = tuple(str(obj.tags[tag]) for tag in tags)
+            except KeyError as e:
+                missing.append((getattr(obj, "handle", None), e.args[0]))
+                continue
+            groups.setdefault(key, []).append(obj)
+
+        if missing:
+            missing_str = "\n".join(f"{handle}: {tag}" for handle, tag in missing)
+            raise ValueError(
+                f"The following elements are missing required tags:\n{missing_str}"
+            )
+
+        # Create group names (e.g., 'male_treatment')
+        def group_name(key_tuple):
+            return "_".join(str(v) for v in key_tuple)
+
+        # Build the group collections
+        group_collections = {
+            group_name(key): self.__class__.from_list(
+                objs
+            )  # assumes from_list constructor
+            for key, objs in groups.items()
+        }
+
+        # Return a MultipleCollection of the appropriate type
+        # You may need to adjust this line to use the correct MultipleCollection class
+        return MultipleFeaturesCollection(
+            group_collections
+        )  # or MultipleTrackingCollection, etc.
 
     def cluster_embedding(
         self,

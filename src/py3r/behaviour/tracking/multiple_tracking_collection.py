@@ -104,6 +104,20 @@ class MultipleTrackingCollection:
             tracking_collections[subfolder] = tc
         return cls(tracking_collections)
 
+    def flatten(self):
+        """
+        Flatten a MultipleCollection into a single Collection containing all elements.
+        Returns:
+            Collection: a flat collection of all elements.
+        """
+        all_objs = []
+        for (
+            group_collection
+        ) in self.tracking_collections.values():  # .values() yields each sub-collection
+            all_objs.extend(group_collection.values())  # .values() yields the elements
+        # Use from_list to create a new flat collection
+        return TrackingCollection.from_list(all_objs)  # or TrackingCollection, etc.
+
     def stereo_triangulate(self):
         triangulated = {}
         for group, collection in self.tracking_collections.items():

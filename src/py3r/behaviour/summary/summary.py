@@ -20,6 +20,7 @@ class Summary:
         self.data = dict()
         self.meta = dict()
         self.handle = trackingfeatures.handle
+        self.tags = trackingfeatures.tags
         if "usermeta" in trackingfeatures.meta:
             self.meta["usermeta"] = trackingfeatures.meta["usermeta"]
 
