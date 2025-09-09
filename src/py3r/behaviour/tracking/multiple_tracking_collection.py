@@ -13,7 +13,10 @@ class MultipleTrackingCollection:
     """
 
     def __init__(self, tracking_collections: dict[str, TrackingCollection]):
-        self.tracking_collections = tracking_collections
+        super().__init__(tracking_collections)
+
+    def tracking_collections(self):
+        return self._obj_dict
 
     def __getattr__(self, name):
         def batch_method(*args, **kwargs):

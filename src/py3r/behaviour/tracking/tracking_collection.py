@@ -12,18 +12,21 @@ from py3r.behaviour.tracking.multiple_tracking_collection import (
 )
 from py3r.behaviour.tracking.tracking_mv import TrackingMV
 from py3r.behaviour.exceptions import BatchProcessError
+from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 from py3r.behaviour.util.dev_utils import dev_mode
 
 
-class TrackingCollection:
+class TrackingCollection(BaseCollection):
     """
     Collection of Tracking objects, keyed by name (e.g. for grouping individuals)
     note: type-hints refer to Tracking, but factory methods allow for other classes
     these are intended ONLY for subclasses of Tracking, and this is enforced
     """
 
-    tracking_dict: dict[str, Tracking]
+    _element_type = Tracking
+    _multiple_collection_type = MultipleTrackingCollection
+    obj_dict: dict[str, Tracking]
 
     def __init__(self, tracking_dict: dict[str, Tracking]):
         for key, obj in tracking_dict.items():
@@ -31,7 +34,7 @@ class TrackingCollection:
                 raise ValueError(
                     f"Key '{key}' does not match object's handle '{obj.handle}'"
                 )
-        self.tracking_dict = tracking_dict
+        super().__init__(tracking_dict)
 
     def __getattr__(self, name):
         def batch_method(*args, **kwargs):
@@ -50,6 +53,9 @@ class TrackingCollection:
             return BatchResult(results, self)
 
         return batch_method
+
+    def tracking_dict(self):
+        return self._obj_dict
 
     @classmethod
     def from_dlc(
