@@ -1,5 +1,4 @@
 from __future__ import annotations
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -10,38 +9,24 @@ from py3r.behaviour.summary.summary_result import SummaryResult
 from py3r.behaviour.features.multiple_features_collection import (
     MultipleFeaturesCollection,
 )
-from py3r.behaviour.exceptions import BatchProcessError
-from py3r.behaviour.util.collection_utils import BatchResult
+from py3r.behaviour.util.base_collection import BaseMultipleCollection
 
 
-class MultipleSummaryCollection:
+class MultipleSummaryCollection(BaseMultipleCollection):
     """
     collection of SummaryCollection objects
     (e.g. for comparison between groups)
     """
 
-    dict_of_summary_collections: dict[str, SummaryCollection]
+    _element_type = SummaryCollection
+    _multiple_collection_type = "MultipleSummaryCollection"
 
     def __init__(self, dict_of_summary_collections: dict[str, SummaryCollection]):
-        self.dict_of_summary_collections = dict_of_summary_collections
+        super().__init__(dict_of_summary_collections)
 
-    def __getattr__(self, name):
-        def batch_method(*args, **kwargs):
-            results = {}
-            for key, obj in self.dict_of_summary_collections.items():
-                try:
-                    method = getattr(obj, name)
-                    results[key] = method(*args, **kwargs)
-                except Exception as e:
-                    raise BatchProcessError(
-                        collection_name=key,
-                        object_name=getattr(e, "object_name", None),
-                        method=getattr(e, "method", None),
-                        original_exception=getattr(e, "original_exception", e),
-                    ) from e
-            return BatchResult(results, self)
-
-        return batch_method
+    @property
+    def dict_of_summary_collections(self):
+        return self._obj_dict
 
     @classmethod
     def from_multiple_features_collection(
@@ -194,45 +179,3 @@ class MultipleSummaryCollection:
                     v.store(name=name, meta=meta, overwrite=overwrite)
                 else:
                     raise ValueError(f"{v} is not a SummaryResult object")
-
-    def keys(self):
-        """Return the keys of the dict_of_summary_collections."""
-        return self.dict_of_summary_collections.keys()
-
-    def values(self):
-        """Return the values of the dict_of_summary_collections."""
-        return self.dict_of_summary_collections.values()
-
-    def items(self):
-        """Return the items of the dict_of_summary_collections."""
-        return self.dict_of_summary_collections.items()
-
-    def __getitem__(self, key):
-        """
-        Get SummaryCollection by handle (str), by integer index, or by slice.
-        """
-        if isinstance(key, int):
-            handle = list(self.dict_of_summary_collections)[key]
-            return self.dict_of_summary_collections[handle]
-        elif isinstance(key, slice):
-            handles = list(self.dict_of_summary_collections)[key]
-            return self.__class__(
-                {h: self.dict_of_summary_collections[h] for h in handles}
-            )
-        else:
-            return self.dict_of_summary_collections[key]
-
-    def __setitem__(self, key, value):
-        if not isinstance(value, SummaryCollection):
-            raise TypeError(
-                f"Value must be a SummaryCollection, got {type(value).__name__}"
-            )
-        warnings.warn(
-            "Direct assignment to MultipleSummaryCollection is deprecated and may be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.dict_of_summary_collections[key] = value
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} with {len(self.dict_of_summary_collections)} SummaryCollection objects>"

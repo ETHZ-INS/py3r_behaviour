@@ -1,49 +1,32 @@
 from __future__ import annotations
-import warnings
 import pandas as pd
 import numpy as np
 from sklearn.cluster import KMeans
 
 from py3r.behaviour.features.features import Features, FeaturesResult
-from py3r.behaviour.features.multiple_features_collection import (
-    MultipleFeaturesCollection,
-)
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-from py3r.behaviour.exceptions import BatchProcessError
-from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+from py3r.behaviour.util.base_collection import BaseCollection
+from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
 
 
-class FeaturesCollection:
+class FeaturesCollection(BaseCollection):
     """
     Collection of Features objects, keyed by name.
     note: type-hints refer to Features, but factory methods allow for other classes
     these are intended ONLY for subclasses of Features, and this is enforced
     """
 
-    features_dict: dict[str, Features]
+    _element_type = Features
+    _multiple_collection_type = "MultipleFeaturesCollection"
 
     def __init__(self, features_dict: dict[str, Features]):
-        self.features_dict = features_dict
+        super().__init__(features_dict)
 
-    def __getattr__(self, name):
-        def batch_method(*args, **kwargs):
-            results = {}
-            for key, obj in self.features_dict.items():
-                try:
-                    method = getattr(obj, name)
-                    results[key] = method(*args, **kwargs)
-                except Exception as e:
-                    raise BatchProcessError(
-                        collection_name=None,
-                        object_name=getattr(e, "object_name", key),
-                        method=getattr(e, "method", name),
-                        original_exception=getattr(e, "original_exception", e),
-                    ) from e
-            return BatchResult(results, self)
-
-        return batch_method
+    @property
+    def features_dict(self):
+        return self._obj_dict
 
     @classmethod
     def from_tracking_collection(
@@ -79,59 +62,6 @@ class FeaturesCollection:
             raise Exception("handles must be unique")
         features_dict = {obj.handle: obj for obj in features_list}
         return cls(features_dict)
-
-    def groupby(self, tags):
-        """
-        Group the collection by one or more tags.
-        Args:
-            tags (str or list/tuple of str): Tag(s) to group by.
-        Returns:
-            MultipleCollection: A MultipleCollection object with groups named by tag values.
-        Raises:
-            ValueError: If any tag is missing for any element.
-        """
-        # Accept single tag as string
-        if isinstance(tags, str):
-            tags = [tags]
-        tags = list(tags)
-
-        groups = {}
-        missing = []
-
-        for obj in (
-            self.tracking_dictvalues()
-        ):  # assumes .values() yields the elements (e.g., Features, Tracking, etc.)
-            # Check all tags are present
-            try:
-                key = tuple(str(obj.tags[tag]) for tag in tags)
-            except KeyError as e:
-                missing.append((getattr(obj, "handle", None), e.args[0]))
-                continue
-            groups.setdefault(key, []).append(obj)
-
-        if missing:
-            missing_str = "\n".join(f"{handle}: {tag}" for handle, tag in missing)
-            raise ValueError(
-                f"The following elements are missing required tags:\n{missing_str}"
-            )
-
-        # Create group names (e.g., 'male_treatment')
-        def group_name(key_tuple):
-            return "_".join(str(v) for v in key_tuple)
-
-        # Build the group collections
-        group_collections = {
-            group_name(key): self.__class__.from_list(
-                objs
-            )  # assumes from_list constructor
-            for key, objs in groups.items()
-        }
-
-        # Return a MultipleCollection of the appropriate type
-        # You may need to adjust this line to use the correct MultipleCollection class
-        return MultipleFeaturesCollection(
-            group_collections
-        )  # or MultipleTrackingCollection, etc.
 
     def cluster_embedding(
         self,
@@ -335,44 +265,3 @@ class FeaturesCollection:
 
     def _iloc(self, idx):
         return self.__class__({k: v.iloc[idx] for k, v in self.features_dict.items()})
-
-    def __getitem__(self, key):
-        """
-        Get Features by handle (str), by integer index, or by slice.
-        """
-        if isinstance(key, int):
-            handle = list(self.features_dict)[key]
-            return self.features_dict[handle]
-        elif isinstance(key, slice):
-            handles = list(self.features_dict)[key]
-            return self.__class__({h: self.features_dict[h] for h in handles})
-        else:
-            return self.features_dict[key]
-
-    def __setitem__(self, key, value):
-        """
-        Set Features by handle (str).
-        """
-        if not isinstance(value, Features):
-            raise TypeError(f"Value must be a Features, got {type(value).__name__}")
-        warnings.warn(
-            "Direct assignment to FeaturesCollection is deprecated and may be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.features_dict[key] = value
-
-    def keys(self):
-        """Return the keys of the features_dict."""
-        return self.features_dict.keys()
-
-    def values(self):
-        """Return the values of the features_dict."""
-        return self.features_dict.values()
-
-    def items(self):
-        """Return the items of the features_dict."""
-        return self.features_dict.items()
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} with {len(self.features_dict)} Features objects>"

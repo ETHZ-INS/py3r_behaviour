@@ -1,6 +1,12 @@
 # src/py3r/behaviour/util/base_collection.py
 
+from __future__ import annotations
+
 from collections.abc import MutableMapping
+import warnings
+
+from py3r.behaviour.exceptions import BatchProcessError
+from py3r.behaviour.util.collection_utils import BatchResult
 
 
 class BaseCollection(MutableMapping):
@@ -16,14 +22,53 @@ class BaseCollection(MutableMapping):
     def __init__(self, obj_dict):
         self._obj_dict = dict(obj_dict)  # {handle: element}
 
+    def _batch_error_context(self, key):
+        # Default: flat collection
+        return dict(collection_name=None, object_name=key)
+
+    def __getattr__(self, name):
+        def batch_method(*args, **kwargs):
+            results = {}
+            for key, obj in self._obj_dict.items():
+                try:
+                    method = getattr(obj, name)
+                    results[key] = method(*args, **kwargs)
+                except Exception as e:
+                    ctx = self._batch_error_context(key)
+                    raise BatchProcessError(
+                        collection_name=ctx["collection_name"],
+                        object_name=ctx["object_name"],
+                        method=getattr(e, "method", name),
+                        original_exception=getattr(e, "original_exception", e),
+                    ) from e
+            return BatchResult(results, self)
+
+        return batch_method
+
     def __getitem__(self, key):
-        return self._obj_dict[key]
+        """
+        Get element by handle (str), by integer index, or by slice.
+        """
+        if isinstance(key, int):
+            handle = list(self._obj_dict)[key]
+            return self._obj_dict[handle]
+        elif isinstance(key, slice):
+            handles = list(self._obj_dict)[key]
+            return self.__class__({h: self._obj_dict[h] for h in handles})
+        else:
+            return self._obj_dict[key]
 
     def __setitem__(self, key, value):
-        if not isinstance(value, self._element_type):
+        element_cls = type(self[0])
+        if not isinstance(value, element_cls):
             raise TypeError(
-                f"Value must be {self._element_type.__name__}, got {type(value).__name__}"
+                f"Value must be a {element_cls.__name__}, got {type(value).__name__}"
             )
+        warnings.warn(
+            f"Direct assignment to {self.__class__.__name__} is deprecated and may be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._obj_dict[key] = value
 
     def __delitem__(self, key):
@@ -43,6 +88,35 @@ class BaseCollection(MutableMapping):
 
     def keys(self):
         return self._obj_dict.keys()
+
+    def _batch_error_context(self, key):
+        # Default: flat collection
+        return dict(collection_name=None, object_name=key)
+
+    def _resolve_multiple_collection_type(self):
+        multiple_cls = self._multiple_collection_type
+        if isinstance(multiple_cls, str):
+            # Late import based on string name
+            if multiple_cls == "MultipleTrackingCollection":
+                from py3r.behaviour.tracking.multiple_tracking_collection import (
+                    MultipleTrackingCollection,
+                )
+
+                multiple_cls = MultipleTrackingCollection
+            elif multiple_cls == "MultipleFeaturesCollection":
+                from py3r.behaviour.features.multiple_features_collection import (
+                    MultipleFeaturesCollection,
+                )
+
+                multiple_cls = MultipleFeaturesCollection
+            elif multiple_cls == "MultipleSummaryCollection":
+                from py3r.behaviour.summary.multiple_summary_collection import (
+                    MultipleSummaryCollection,
+                )
+
+                multiple_cls = MultipleSummaryCollection
+            self._multiple_collection_type = multiple_cls  # cache for next time
+        return multiple_cls
 
     @classmethod
     def from_list(cls, objs):
@@ -91,7 +165,8 @@ class BaseCollection(MutableMapping):
             group_name(key): self.__class__.from_list(objs)
             for key, objs in groups.items()
         }
-        return self._multiple_collection_type(group_collections)
+        multiple_cls = self._resolve_multiple_collection_type()
+        return multiple_cls(group_collections)
 
     def flatten(self):
         """
@@ -104,7 +179,14 @@ class BaseCollection(MutableMapping):
                 all_objs.extend(obj.values())
             else:
                 all_objs.append(obj)
-        return self.__class__.from_list(all_objs)
+        flat_cls = type(all_objs[0])
+        return flat_cls.from_list(all_objs)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} with {len(self)} {self._element_type.__name__} objects>"
+
+
+class BaseMultipleCollection(BaseCollection):
+    def _batch_error_context(self, key):
+        # Multiple collection: key is the group name
+        return dict(collection_name=key, object_name=None)
