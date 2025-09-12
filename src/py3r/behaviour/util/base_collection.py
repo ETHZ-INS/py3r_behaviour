@@ -168,18 +168,42 @@ class BaseCollection(MutableMapping):
         multiple_cls = self._resolve_multiple_collection_type()
         return multiple_cls(group_collections)
 
+    # def flatten(self):
+    #     """
+    #     If this is a MultipleCollection, flatten to a single Collection.
+    #     If already flat, return self.
+    #     """
+    #     all_objs = []
+    #     for obj in self.values():
+    #         if isinstance(obj, self.__class__):
+    #             all_objs.extend(obj.values())
+    #         else:
+    #             all_objs.append(obj)
+    #     flat_cls = type(all_objs[0])
+    #     return flat_cls.from_list(all_objs)
+
     def flatten(self):
         """
-        If this is a MultipleCollection, flatten to a single Collection.
+        Flatten a MultipleCollection to a flat Collection.
         If already flat, return self.
         """
+        # If empty, just return self
+        if not self._obj_dict:
+            return self
+
+        first_value = next(iter(self._obj_dict.values()))
+        # If the first value is not a collection (i.e., is a leaf), return self
+        if not hasattr(first_value, "values") or not callable(first_value.values):
+            return self
+
+        # Otherwise, flatten
         all_objs = []
         for obj in self.values():
-            if isinstance(obj, self.__class__):
+            if hasattr(obj, "values") and callable(obj.values):
                 all_objs.extend(obj.values())
             else:
                 all_objs.append(obj)
-        flat_cls = type(all_objs[0])
+        flat_cls = type(first_value)
         return flat_cls.from_list(all_objs)
 
     def __repr__(self):

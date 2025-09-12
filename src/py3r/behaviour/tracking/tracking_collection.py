@@ -174,13 +174,13 @@ class TrackingCollection(BaseCollection):
     def add_tags_from_csv(self, csv_path: str) -> None:
         """
         Adds tags to all Tracking objects in the collection from a csv file.
-        csv_path: path to a csv file with two columns: "handle" and "tagname"
+        csv_path: path to a csv file with first column: "handle"
+        and other columns with tagnames as titles and tagvalues as values
         """
         df = pd.read_csv(csv_path)
-        for handle, tagname, tagvalue in zip(
-            df["handle"], df["tagname"], df["tagvalue"]
-        ):
-            self.tracking_dict[handle].add_tag(tagname, tagvalue)
+        for handle, *tagvalues in zip(df["handle"], *df.columns[1:]):
+            for tagname, tagvalue in zip(df.columns[1:], tagvalues):
+                self.tracking_dict[handle].add_tag(tagname, tagvalue)
 
     def stereo_triangulate(self):
         """

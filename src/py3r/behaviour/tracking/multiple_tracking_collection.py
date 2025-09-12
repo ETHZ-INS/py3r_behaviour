@@ -92,6 +92,9 @@ class MultipleTrackingCollection(BaseMultipleCollection):
             tracking_collections[subfolder] = tc
         return cls(tracking_collections)
 
+    def add_tags_from_csv(self, csv_path: str) -> None:
+        self.flatten().add_tags_from_csv(csv_path)
+
     def stereo_triangulate(self):
         triangulated = {}
         for group, collection in self.tracking_collections.items():
