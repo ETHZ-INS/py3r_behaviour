@@ -178,8 +178,11 @@ class TrackingCollection(BaseCollection):
         and other columns with tagnames as titles and tagvalues as values
         """
         df = pd.read_csv(csv_path)
-        for handle, *tagvalues in zip(df["handle"], *df.columns[1:]):
-            for tagname, tagvalue in zip(df.columns[1:], tagvalues):
+
+        for _, row in df.iterrows():
+            handle = row["handle"]
+            for tagname in df.columns[1:]:
+                tagvalue = row[tagname]
                 self.tracking_dict[handle].add_tag(tagname, tagvalue)
 
     def stereo_triangulate(self):

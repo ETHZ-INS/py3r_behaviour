@@ -190,7 +190,7 @@ class Tracking:
         data: pd.DataFrame,
         meta: Dict[str, Any],
         handle: str,
-        tags: dict[str, str] = {},
+        tags: dict[str, str] = None,
     ) -> None:
         if not isinstance(meta, dict):
             raise TypeError(f"meta must be a dictionary, got {type(meta).__name__}")
@@ -199,7 +199,7 @@ class Tracking:
         self.data = data
         self.meta = meta
         self.handle = handle
-        self.tags = tags
+        self.tags = tags if tags is not None else {}
 
     # ----------- Instance methods -----------
 
