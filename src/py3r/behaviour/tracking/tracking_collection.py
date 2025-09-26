@@ -1,23 +1,27 @@
 from __future__ import annotations
 import json
 import os
-import warnings
+import pandas as pd
+from py3r.behaviour.tracking.tracking import (
+    Tracking,
+    LoadOptions,
+)
 
-from py3r.behaviour.tracking.tracking import Tracking, LoadOptions
 from py3r.behaviour.tracking.tracking_mv import TrackingMV
-from py3r.behaviour.exceptions import BatchProcessError
-from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
+from py3r.behaviour.util.base_collection import BaseCollection
+from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
 
 
-class TrackingCollection:
+class TrackingCollection(BaseCollection):
     """
     Collection of Tracking objects, keyed by name (e.g. for grouping individuals)
     note: type-hints refer to Tracking, but factory methods allow for other classes
     these are intended ONLY for subclasses of Tracking, and this is enforced
     """
 
-    tracking_dict: dict[str, Tracking]
+    _element_type = Tracking
+    _multiple_collection_type = "MultipleTrackingCollection"
 
     def __init__(self, tracking_dict: dict[str, Tracking]):
         for key, obj in tracking_dict.items():
@@ -25,25 +29,11 @@ class TrackingCollection:
                 raise ValueError(
                     f"Key '{key}' does not match object's handle '{obj.handle}'"
                 )
-        self.tracking_dict = tracking_dict
+        super().__init__(tracking_dict)
 
-    def __getattr__(self, name):
-        def batch_method(*args, **kwargs):
-            results = {}
-            for key, obj in self.tracking_dict.items():
-                try:
-                    method = getattr(obj, name)
-                    results[key] = method(*args, **kwargs)
-                except Exception as e:
-                    raise BatchProcessError(
-                        collection_name=None,
-                        object_name=getattr(e, "object_name", key),
-                        method=getattr(e, "method", name),
-                        original_exception=getattr(e, "original_exception", e),
-                    ) from e
-            return BatchResult(results, self)
-
-        return batch_method
+    @property
+    def tracking_dict(self):
+        return self._obj_dict
 
     @classmethod
     def from_dlc(
@@ -181,6 +171,20 @@ class TrackingCollection:
             tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
+    def add_tags_from_csv(self, csv_path: str) -> None:
+        """
+        Adds tags to all Tracking objects in the collection from a csv file.
+        csv_path: path to a csv file with first column: "handle"
+        and other columns with tagnames as titles and tagvalues as values
+        """
+        df = pd.read_csv(csv_path)
+
+        for _, row in df.iterrows():
+            handle = row["handle"]
+            for tagname in df.columns[1:]:
+                tagvalue = row[tagname]
+                self.tracking_dict[handle].add_tag(tagname, tagvalue)
+
     def stereo_triangulate(self):
         """
         Triangulate all TrackingMV objects in the collection.
@@ -255,39 +259,7 @@ class TrackingCollection:
     def _iloc(self, idx):
         return self.__class__({k: v.iloc[idx] for k, v in self.tracking_dict.items()})
 
-    def __getitem__(self, key):
-        if isinstance(key, int):
-            handle = list(self.tracking_dict)[key]
-            return self.tracking_dict[handle]
-        elif isinstance(key, slice):
-            handles = list(self.tracking_dict)[key]
-            return self.__class__({h: self.tracking_dict[h] for h in handles})
-        else:
-            return self.tracking_dict[key]
-
-    def keys(self):
-        return self.tracking_dict.keys()
-
-    def values(self):
-        return self.tracking_dict.values()
-
-    def items(self):
-        return self.tracking_dict.items()
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} with {len(self.tracking_dict)} Tracking objects>"
-
     def plot(self, *args, **kwargs):
         print(f"\nCollection: {getattr(self, 'handle', 'unnamed')}")
         for handle, tracking in self.tracking_dict.items():
             tracking.plot(*args, title=handle, **kwargs)
-
-    def __setitem__(self, key, value):
-        if not isinstance(value, Tracking):
-            raise TypeError(f"Value must be a Tracking, got {type(value).__name__}")
-        warnings.warn(
-            "Direct assignment to TrackingCollection is deprecated and may be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.tracking_dict[key] = value

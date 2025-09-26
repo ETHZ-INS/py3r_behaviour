@@ -1,14 +1,12 @@
 from __future__ import annotations
-import warnings
 
 from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.features.features_collection import FeaturesCollection
 from py3r.behaviour.summary.summary_result import SummaryResult
-from py3r.behaviour.exceptions import BatchProcessError
-from py3r.behaviour.util.collection_utils import BatchResult
+from py3r.behaviour.util.base_collection import BaseCollection
 
 
-class SummaryCollection:
+class SummaryCollection(BaseCollection):
     """
     collection of Summary objects
     (e.g. for grouping individuals)
@@ -16,28 +14,15 @@ class SummaryCollection:
     these are intended ONLY for subclasses of Summary, and this is enforced
     """
 
-    summary_dict: dict[str, Summary]
+    _element_type = Summary
+    _multiple_collection_type = "MultipleSummaryCollection"
 
     def __init__(self, summary_dict: dict[str, Summary]):
-        self.summary_dict = summary_dict
+        super().__init__(summary_dict)
 
-    def __getattr__(self, name):
-        def batch_method(*args, **kwargs):
-            results = {}
-            for key, obj in self.summary_dict.items():
-                try:
-                    method = getattr(obj, name)
-                    results[key] = method(*args, **kwargs)
-                except Exception as e:
-                    raise BatchProcessError(
-                        collection_name=None,
-                        object_name=getattr(e, "object_name", key),
-                        method=getattr(e, "method", name),
-                        original_exception=getattr(e, "original_exception", e),
-                    ) from e
-            return BatchResult(results, self)
-
-        return batch_method
+    @property
+    def summary_dict(self):
+        return self._obj_dict
 
     @classmethod
     def from_features_collection(
@@ -108,43 +93,3 @@ class SummaryCollection:
                 v.store(name=name, meta=meta, overwrite=overwrite)
             else:
                 raise ValueError(f"{v} is not a SummaryResult object")
-
-    def keys(self):
-        """Return the keys of the summary_dict."""
-        return self.summary_dict.keys()
-
-    def values(self):
-        """Return the values of the summary_dict."""
-        return self.summary_dict.values()
-
-    def items(self):
-        """Return the items of the summary_dict."""
-        return self.summary_dict.items()
-
-    def __getitem__(self, key):
-        """
-        Get Summary by handle (str), by integer index, or by slice.
-        """
-        if isinstance(key, int):
-            handle = list(self.summary_dict)[key]
-            return self.summary_dict[handle]
-        elif isinstance(key, slice):
-            handles = list(self.summary_dict)[key]
-            return self.__class__({h: self.summary_dict[h] for h in handles})
-        else:
-            return self.summary_dict[key]
-
-    def __setitem__(self, key, value):
-        if not isinstance(value, Summary):
-            raise TypeError(f"Value must be a Summary, got {type(value).__name__}")
-        warnings.warn(
-            "Direct assignment to SummaryCollection is deprecated and may be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.summary_dict[key] = value
-
-    def __repr__(self) -> str:
-        return (
-            f"<{self.__class__.__name__} with {len(self.summary_dict)} Summary objects>"
-        )

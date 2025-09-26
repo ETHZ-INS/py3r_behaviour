@@ -1,5 +1,4 @@
 from __future__ import annotations
-import warnings
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,34 +12,26 @@ from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.multiple_tracking_collection import (
     MultipleTrackingCollection,
 )
-from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 from py3r.behaviour.util.dev_utils import dev_mode, discontinued_method
 from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
+from py3r.behaviour.util.base_collection import BaseMultipleCollection
 
 
-class MultipleFeaturesCollection:
+class MultipleFeaturesCollection(BaseMultipleCollection):
     """
     Collection of FeaturesCollection objects, keyed by name.
     """
 
-    def __init__(self, features_collections: dict[str, FeaturesCollection]):
-        self.features_collections = features_collections
+    _element_type = FeaturesCollection
+    _multiple_collection_type = "MultipleFeaturesCollection"
 
-    def __setitem__(self, key, value):
-        """
-        Set FeaturesCollection by handle (str).
-        """
-        if not isinstance(value, FeaturesCollection):
-            raise TypeError(
-                f"Value must be a FeaturesCollection, got {type(value).__name__}"
-            )
-        warnings.warn(
-            "Direct assignment to MultipleFeaturesCollection is deprecated and may be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self.features_collections[key] = value
+    def __init__(self, features_collections: dict[str, FeaturesCollection]):
+        super().__init__(features_collections)
+
+    @property
+    def features_collections(self):
+        return self._obj_dict
 
     @classmethod
     def from_multiple_tracking_collection(
@@ -60,23 +51,6 @@ class MultipleFeaturesCollection:
                 tracking_collection, feature_cls=feature_cls
             )
         return cls(collections)
-
-    def __getattr__(self, name):
-        def batch_method(*args, **kwargs):
-            results = {}
-            for coll_name, collection in self.features_collections.items():
-                try:
-                    results[coll_name] = getattr(collection, name)(*args, **kwargs)
-                except Exception as e:
-                    raise BatchProcessError(
-                        collection_name=coll_name,
-                        object_name=getattr(e, "object_name", None),
-                        method=getattr(e, "method", None),
-                        original_exception=getattr(e, "original_exception", e),
-                    ) from e
-            return BatchResult(results, self)
-
-        return batch_method
 
     def store(
         self,
@@ -757,31 +731,3 @@ class MultipleFeaturesCollection:
         return self.__class__(
             {k: v.iloc[idx] for k, v in self.features_collections.items()}
         )
-
-    def __getitem__(self, key):
-        """
-        Get FeaturesCollection by handle (str), by integer index, or by slice.
-        """
-        if isinstance(key, int):
-            handle = list(self.features_collections)[key]
-            return self.features_collections[handle]
-        elif isinstance(key, slice):
-            handles = list(self.features_collections)[key]
-            return self.__class__({h: self.features_collections[h] for h in handles})
-        else:
-            return self.features_collections[key]
-
-    def keys(self):
-        """Return the keys of the features_collections."""
-        return self.features_collections.keys()
-
-    def values(self):
-        """Return the values of the features_collections."""
-        return self.features_collections.values()
-
-    def items(self):
-        """Return the items of the features_collections."""
-        return self.features_collections.items()
-
-    def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} with {len(self.features_collections)} FeaturesCollection objects>"

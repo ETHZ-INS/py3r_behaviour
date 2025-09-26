@@ -49,10 +49,16 @@ class Tracking:
     data: pd.DataFrame
     meta: dict
     handle: str
+    tags: dict[str, str]
 
     @classmethod
     def from_dlc(
-        cls: Type[Self], filepath: str, *, handle: str, options: LoadOptions
+        cls: Type[Self],
+        filepath: str,
+        *,
+        handle: str,
+        options: LoadOptions,
+        tags: dict[str, str] = {},
     ) -> Self:
         """
         loads a Tracking object from a (single animal) deeplabcut tracking csv
@@ -84,7 +90,12 @@ class Tracking:
 
     @classmethod
     def from_dlcma(
-        cls: Type[Self], filepath: str, *, handle: str, options: LoadOptions
+        cls: Type[Self],
+        filepath: str,
+        *,
+        handle: str,
+        options: LoadOptions,
+        tags: dict[str, str] = {},
     ) -> Self:
         """
         loads a Tracking object from a multi-animal deeplabcut tracking csv
@@ -122,7 +133,12 @@ class Tracking:
 
     @classmethod
     def from_yolo3r(
-        cls: Type[Self], filepath: str, *, handle: str, options: LoadOptions
+        cls: Type[Self],
+        filepath: str,
+        *,
+        handle: str,
+        options: LoadOptions,
+        tags: dict[str, str] = {},
     ) -> Self:
         """
         loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format
@@ -169,7 +185,13 @@ class Tracking:
             df_corrected[point + ".x"] = df_corrected[point + ".x"] * correction
         return df_corrected
 
-    def __init__(self, data: pd.DataFrame, meta: Dict[str, Any], handle: str) -> None:
+    def __init__(
+        self,
+        data: pd.DataFrame,
+        meta: Dict[str, Any],
+        handle: str,
+        tags: dict[str, str] = None,
+    ) -> None:
         if not isinstance(meta, dict):
             raise TypeError(f"meta must be a dictionary, got {type(meta).__name__}")
         if "fps" not in meta:
@@ -177,6 +199,7 @@ class Tracking:
         self.data = data
         self.meta = meta
         self.handle = handle
+        self.tags = tags if tags is not None else {}
 
     # ----------- Instance methods -----------
 
@@ -197,6 +220,18 @@ class Tracking:
         self.meta["usermeta"] = usermeta
         if overwrite:
             warnings.warn("usermeta may be overwritten")
+
+    def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> None:
+        """
+        adds or updates a tag
+        """
+        if not isinstance(tagname, str):
+            raise TypeError(f"tagname must be a string, got {type(tagname).__name__}")
+        if tagname in self.tags and not overwrite:
+            raise Exception(
+                f"tag {tagname} already exists, set overwrite=True to overwrite"
+            )
+        self.tags[tagname] = tagvalue
 
     def save(self, filepath: str) -> None:
         """saves .csv file and _meta.json file to disk at location specified by filepath"""
