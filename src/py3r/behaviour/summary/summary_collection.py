@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pandas as pd
+
 from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.features.features_collection import FeaturesCollection
 from py3r.behaviour.summary.summary_result import SummaryResult
@@ -58,6 +60,31 @@ class SummaryCollection(BaseCollection):
             raise Exception("handles must be unique")
         summary_dict = {obj.handle: obj for obj in summary_list}
         return cls(summary_dict)
+
+    def to_df(self, include_tags: bool = False, tag_prefix: str = "tag_"):
+        """
+        Collate scalar values (numeric, string, bool) from each Summary.data into a pandas DataFrame.
+
+        - Index: handles of the Summary objects
+        - Columns: keys from each Summary.data (simple scalar values)
+        - If include_tags is True, include tag columns with the given prefix
+        """
+        import numbers
+
+        rows = {}
+        for handle, summary in self.summary_dict.items():
+            row = {}
+            for key, value in summary.data.items():
+                if isinstance(value, (numbers.Number, str, bool)):
+                    row[key] = value
+            if include_tags and getattr(summary, "tags", None):
+                for tag_key, tag_val in summary.tags.items():
+                    row[f"{tag_prefix}{tag_key}"] = tag_val
+            rows[handle] = row
+
+        df = pd.DataFrame.from_dict(rows, orient="index")
+        df.index.name = "handle"
+        return df
 
     def make_bin(self, startframe, endframe):
         # returns a new SummaryCollection with binned summaries

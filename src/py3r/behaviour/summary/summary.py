@@ -69,9 +69,20 @@ class Summary:
         """
         returns total distance traveled by a tracked point between optional start and end frames
         """
+        # Slice uses None gracefully to indicate full-range on that side
         distance_change = self.features.distance_change(point).loc[startframe:endframe]
         value = distance_change.sum()
-        name = f"total_distance_{point}_{startframe}_to_{endframe}"
+
+        # Build name: include frames only if explicitly provided by the caller
+        if startframe is not None and endframe is not None:
+            name = f"total_distance_{point}_{startframe}_to_{endframe}"
+        elif startframe is not None:
+            name = f"total_distance_{point}_from_{startframe}"
+        elif endframe is not None:
+            name = f"total_distance_{point}_to_{endframe}"
+        else:
+            name = f"total_distance_{point}"
+
         meta = {
             "function": "total_distance",
             "point": point,
