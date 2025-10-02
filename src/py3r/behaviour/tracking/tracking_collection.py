@@ -179,11 +179,28 @@ class TrackingCollection(BaseCollection):
         """
         df = pd.read_csv(csv_path)
 
+        missing_handles = []
+        handles_updated = set()
+        num_tags_added = 0
+
         for _, row in df.iterrows():
             handle = row["handle"]
+            if handle not in self.tracking_dict:
+                missing_handles.append(handle)
+                continue
+
             for tagname in df.columns[1:]:
                 tagvalue = row[tagname]
                 self.tracking_dict[handle].add_tag(tagname, tagvalue)
+                num_tags_added += 1
+                handles_updated.add(handle)
+
+        print(
+            f"added {num_tags_added} tags to {len(handles_updated)} elements in collection."
+        )
+        if len(missing_handles) > 0:
+            missing_str = ", ".join(sorted(set(map(str, missing_handles))))
+            print("the following handles were not found in collection: " + missing_str)
 
     def stereo_triangulate(self):
         """
