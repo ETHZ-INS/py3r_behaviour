@@ -1,4 +1,6 @@
 from __future__ import annotations
+import os
+import json
 import pandas as pd
 import numpy as np
 from sklearn.cluster import KMeans
@@ -251,6 +253,124 @@ class FeaturesCollection(BaseCollection):
                 v.store(name=name, meta=meta, overwrite=overwrite)
             else:
                 raise ValueError(f"{v} is not a FeaturesResult object")
+
+    def save_column_to_folder(self, column: str, folder_path: str) -> None:
+        """
+        Save a single feature column for all handles into a folder.
+
+        Writes one CSV per handle named "<handle>.csv" with index preserved and a
+        single column named after the feature. Also writes a companion "_meta.json"
+        with per-handle metadata for that feature.
+
+        Examples:
+            >>> import tempfile, os, pandas as pd
+            >>> class DummyTracking:
+            ...     def __init__(self, handle):
+            ...         self.handle = handle
+            ...         self.tags = {}
+            ...         self.meta = {'fps': 30}
+            ...
+            >>> from py3r.behaviour.features.features import Features
+            >>> f1, f2 = Features(DummyTracking('a')), Features(DummyTracking('b'))
+            >>> f1.data['foo'] = pd.Series([1,2,3], index=[0,1,2])
+            >>> f2.data['foo'] = pd.Series([4,5,6], index=[0,1,2])
+            >>> f1.meta['foo'] = {'note': 'x'}
+            >>> fc = FeaturesCollection.from_list([f1, f2])
+            >>> with tempfile.TemporaryDirectory() as d:
+            ...     fc.save_column_to_folder('foo', d)
+            ...     os.path.exists(os.path.join(d, 'a.csv')) and os.path.exists(os.path.join(d, 'b.csv'))
+            True
+        """
+        os.makedirs(folder_path, exist_ok=True)
+        meta_by_handle = {}
+        for handle, obj in self.features_dict.items():
+            if column not in obj.data.columns:
+                raise KeyError(f"Column '{column}' not found for handle '{handle}'")
+            out_path = os.path.join(folder_path, f"{handle}.csv")
+            obj.data[[column]].to_csv(out_path)
+            meta_by_handle[handle] = obj.meta.get(column, {})
+        meta_path = os.path.join(folder_path, "_meta.json")
+        payload = {"feature": column, "meta_by_handle": meta_by_handle}
+        with open(meta_path, "w") as f:
+            json.dump(payload, f)
+
+    def load_column_from_folder(
+        self,
+        folder_path: str,
+        column: str,
+        overwrite: bool = False,
+        strict: bool = True,
+    ) -> None:
+        """
+        Load a feature column previously saved by save_column_to_folder.
+
+        If strict=True, raises if any handle is missing its CSV file; otherwise
+        skips missing handles. Series are aligned by index when stored.
+
+        Examples:
+            >>> import tempfile, os, pandas as pd
+            >>> class DummyTracking:
+            ...     def __init__(self, handle):
+            ...         self.handle = handle
+            ...         self.tags = {}
+            ...         self.meta = {'fps': 30}
+            ...
+            >>> from py3r.behaviour.features.features import Features
+            >>> f1, f2 = Features(DummyTracking('a')), Features(DummyTracking('b'))
+            >>> fc = FeaturesCollection.from_list([f1, f2])
+            >>> with tempfile.TemporaryDirectory() as d:
+            ...     # write out
+            ...     df_a = pd.DataFrame({'bar': [1,2,3]}, index=[0,1,2])
+            ...     df_b = pd.DataFrame({'bar': [4,5,6]}, index=[0,1,2])
+            ...     df_a.to_csv(os.path.join(d, 'a.csv'))
+            ...     df_b.to_csv(os.path.join(d, 'b.csv'))
+            ...     with open(os.path.join(d, '_meta.json'), 'w') as f:
+            ...         json.dump({'feature': 'bar', 'meta_by_handle': {'a': {'note':'x'}, 'b': {}}}, f)
+            ...     # load back
+            ...     fc.load_column_from_folder(d, 'bar', overwrite=True)
+            ...     list(fc.features_dict['a'].data.columns)
+            ['bar']
+        """
+        meta_path = os.path.join(folder_path, "_meta.json")
+        saved_feature = None
+        meta_by_handle = {}
+        if os.path.exists(meta_path):
+            with open(meta_path, "r") as f:
+                payload = json.load(f)
+            saved_feature = payload.get("feature")
+            meta_by_handle = payload.get("meta_by_handle", {})
+        if saved_feature is not None and saved_feature != column:
+            raise ValueError(
+                f"Saved feature name '{saved_feature}' does not match requested '{column}'"
+            )
+
+        missing = []
+        for handle, obj in self.features_dict.items():
+            csv_path = os.path.join(folder_path, f"{handle}.csv")
+            if not os.path.exists(csv_path):
+                if strict:
+                    missing.append(handle)
+                continue
+            df = pd.read_csv(csv_path, index_col=0)
+            if column not in df.columns:
+                # if the CSV has a single unnamed column, permit it
+                if df.shape[1] == 1:
+                    series = df.iloc[:, 0]
+                    series.name = column
+                else:
+                    raise KeyError(
+                        f"File for handle '{handle}' does not contain column '{column}'"
+                    )
+            else:
+                series = df[column]
+            obj.store(
+                series, column, overwrite=overwrite, meta=meta_by_handle.get(handle)
+            )
+
+        if missing:
+            raise FileNotFoundError(
+                f"Missing CSVs for handles: {', '.join(sorted(missing))}"
+            )
 
     @property
     def loc(self):
