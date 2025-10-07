@@ -46,6 +46,127 @@ class LoadOptions:
 
 
 class Tracking:
+    """
+    Represent frame-by-frame tracked keypoints with convenience loaders and tools.
+
+    A `Tracking` holds a pandas DataFrame of columns like `p1.x`, `p1.y`,
+    `p1.z`, `p1.likelihood` with index named `frame`. Most users will create
+    objects via factory methods and then call instance methods to process or
+    analyze trajectories.
+
+    Quick start with realistic CSVs stored in the package data:
+
+    - Load from DLC CSV
+    - Load from DLC multi-animal CSV
+    - Load from YOLO3R CSV
+    - Inspect points, distances
+    - Filter, interpolate, smooth
+    - Rescale by known distance, trim, check time
+    - Save and slice (`loc` / `iloc`)
+    - Minimal plotting
+
+    Examples:
+        Create test DLC CSV and load a Tracking:
+
+        >>> from importlib import resources as ir
+        >>> from py3r.behaviour.tracking import _data
+        >>> p = ir.files(_data) / 'dlc_single.csv'
+        >>> t = Tracking.from_dlc(str(p), handle='ex', options=LoadOptions(fps=30))
+        >>> len(t.data), t.meta['fps'], t.handle
+        (5, 30.0, 'ex')
+        >>> t.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
+        [[0, 0.0, 0.0, 0.0, 1.0], [1, 1.0, 2.0, 3.0, 0.75]]
+
+        Load from DLC multi-animal (DLCMA):
+
+        >>> p_ma = ir.files(_data) / 'dlcma_multi.csv'
+        >>> tma = Tracking.from_dlcma(str(p_ma), handle='ma', options=LoadOptions(fps=30))
+        >>> tma.meta['fps'], tma.handle
+        (30.0, 'ma')
+
+        Load from YOLO3R (3D columns present):
+
+        >>> p_y = ir.files(_data) / 'yolo3r.csv'
+        >>> ty = Tracking.from_yolo3r(str(p_y), handle='y3r', options=LoadOptions(fps=30))
+        >>> 'p1.z' in ty.data.columns and 'p1.likelihood' in ty.data.columns
+        True
+        >>> ty.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
+        [[0, 0.0, 0.0, 0.0, 1.0], [1, 1.0, 2.0, 3.0, 0.9]]
+
+        Inspect points and distances:
+
+        >>> names = t.get_point_names()
+        >>> sorted(names)[:3]
+        ['p1', 'p2', 'p3']
+        >>> d = t.distance_between('p1', 'p2')
+        >>> len(d) == len(t.data)
+        True
+
+        Filter low-likelihood positions and interpolate:
+
+        >>> t2 = Tracking.from_dlc(str(p), handle='ex2', options=LoadOptions(fps=30))
+        >>> _ = t2.filter_likelihood(0.2)
+        >>> import numpy as np
+        >>> np.isnan(t2.data['p1.x']).any()
+        True
+        >>> _ = t2.interpolate(method='nearest', limit=1)
+        >>> t2.data.columns.str.endswith('.likelihood').any() and t2.meta['interpolation']['method'] == 'nearest'
+        True
+
+        Smooth all points with window=1 (no-op) and check metadata:
+
+        >>> sm = t.generate_smoothdict([t.get_point_names()], [1], ['mean'])
+        >>> _ = t.smooth(sm)
+        >>> 'smoothing' in t.meta
+        True
+
+        Rescale by known distance between two points (uniform across dims):
+
+        >>> _ = t.rescale_by_known_distance('p1', 'p2', distance_in_metres=2.0)
+        >>> t.meta['distance_units']
+        'm'
+
+        Trim frames and verify time window:
+
+        >>> t3 = Tracking.from_dlc(str(p), handle='ex3', options=LoadOptions(fps=30))
+        >>> _ = t3.trim(startframe=2, endframe=7)
+        >>> t3.data.index[0] == 2 and t3.data.index[-1] == 7
+        True
+        >>> t3.time_as_expected(mintime=0.0, maxtime=10.0)
+        True
+
+        Save to disk (CSV and _meta.json):
+
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     out = os.path.join(d, 'out.csv')
+        ...     _ = t.save(out)
+        ...     os.path.exists(out) and os.path.exists(out.replace('.csv', '_meta.json'))
+        True
+
+        Slice with loc/iloc and keep handle:
+
+        >>> t4 = Tracking.from_dlc(str(p), handle='ex4', options=LoadOptions(fps=30))
+        >>> t4s = t4.loc[0:3]
+        >>> isinstance(t4s, Tracking) and t4s.handle == 'ex4'
+        True
+        >>> t4s2 = t4.iloc[0:2]
+        >>> isinstance(t4s2, Tracking) and len(t4s2.data) == 2
+        True
+
+        Minimal plotting (no display):
+
+        >>> _ = t.plot(show=False)
+
+        Tagging and user metadata:
+
+        >>> t.add_tag('session', 'S1')
+        >>> t.tags['session']
+        'S1'
+        >>> t.add_usermeta({'group': 'G1'}, overwrite=True)
+        >>> t.meta['usermeta']['group']
+        'G1'
+    """
+
     data: pd.DataFrame
     meta: dict
     handle: str
