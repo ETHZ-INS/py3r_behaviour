@@ -14,7 +14,11 @@ from py3r.behaviour.tracking.multiple_tracking_collection import (
 )
 from py3r.behaviour.util.collection_utils import _Indexer, BatchResult
 from py3r.behaviour.util.dev_utils import dev_mode, discontinued_method
-from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
+from py3r.behaviour.util.series_utils import (
+    normalize_df,
+    apply_normalization_to_df,
+    custom_scaling as apply_custom_scaling,
+)
 from py3r.behaviour.util.base_collection import BaseMultipleCollection
 
 
@@ -102,6 +106,7 @@ class MultipleFeaturesCollection(BaseMultipleCollection):
         rescale_factors: dict | None = None,
         lowmem: bool = False,
         decimation_factor: int = 10,
+        custom_scaling: dict[str, dict] | None = None,
     ):
         # Step 1: Build all embeddings
         all_embeddings = {}
@@ -120,11 +125,19 @@ class MultipleFeaturesCollection(BaseMultipleCollection):
             names=["collection", "feature", "frame"],
         )
 
-        # Step 2a (optional): Normalize
+        # Step 2a (optional): Normalize or custom scaling (mutually exclusive)
+        if custom_scaling is not None and (
+            auto_normalize or rescale_factors is not None
+        ):
+            raise ValueError(
+                "custom_scaling is mutually exclusive with auto_normalize or rescale_factors"
+            )
         if auto_normalize:
             combined, normalization_factors = normalize_df(combined)
-        if rescale_factors is not None:
+        elif rescale_factors is not None:
             combined = apply_normalization_to_df(combined, rescale_factors)
+        elif custom_scaling is not None:
+            combined = apply_custom_scaling(combined, custom_scaling)
 
         # Step 3: Mask
         valid_mask = combined.notna().all(axis=1)

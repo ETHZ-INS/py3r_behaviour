@@ -145,3 +145,60 @@ def apply_normalization_to_df(df: pd.DataFrame, rescale_factors: dict) -> pd.Dat
             # std-only normalization
             normalized[col] = df[col] / factor
     return normalized
+
+
+def custom_scaling(df: pd.DataFrame, scaling: dict[str, dict]) -> pd.DataFrame:
+    """
+    Apply custom per-column scaling based on substring matches.
+
+    Rules:
+    - Each key in `scaling` is matched against column names by substring containment.
+    - For a matched column, apply (optional) normalization by its std, then multiply by `scale`.
+    - If a column matches more than one key, raise ValueError.
+
+    The input is not mutated; a scaled copy is returned.
+    """
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("custom_scaling expects a DataFrame")
+    if not isinstance(scaling, dict):
+        raise TypeError("custom_scaling expects a dict for scaling configuration")
+
+    df_scaled = df.copy()
+
+    # Build column -> matching keys mapping
+    col_matches: dict[str, list[str]] = {col: [] for col in df_scaled.columns}
+    for key in scaling.keys():
+        if not isinstance(key, str):
+            raise TypeError("custom_scaling keys must be strings")
+        for col in df_scaled.columns:
+            if key in col:
+                col_matches[col].append(key)
+
+    # Enforce uniqueness
+    conflicts = [col for col, keys in col_matches.items() if len(keys) > 1]
+    if conflicts:
+        raise ValueError(f"custom_scaling: columns match multiple keys: {conflicts}")
+
+    # Apply scaling
+    for col, keys in col_matches.items():
+        if not keys:
+            continue
+        key = keys[0]
+        cfg = scaling.get(key, {})
+        if not isinstance(cfg, dict):
+            raise TypeError(f"custom_scaling for key '{key}' must be a dict")
+
+        do_norm = bool(cfg.get("normalize", False))
+        scale = float(cfg.get("scale", 1.0))
+
+        s = df_scaled[col].astype(float)
+        if do_norm:
+            std = float(np.nanstd(s.values, ddof=0))
+            if not np.isfinite(std) or std == 0.0:
+                std = 1.0
+            s = s / std
+        if scale != 1.0:
+            s = s * scale
+        df_scaled[col] = s
+
+    return df_scaled
