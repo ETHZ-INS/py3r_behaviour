@@ -463,7 +463,7 @@ class KNNPredictorPCAnnoy(BasePredictor):
             raise ValueError("Predictor not fitted: train_y is missing.")
         y_path = os.path.join(dir_path, "train_y.npy")
         # Store as float32 to balance size/precision
-        np.save(y_path, self._train_y.values.astype(np.float32))
+        np.save(y_path, self._train_y.values.astype(np.float64))
         files["train_y"] = "train_y.npy"
         return files
 
