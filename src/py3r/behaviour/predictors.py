@@ -1,7 +1,14 @@
+import os
+import json
 import pandas as pd
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.decomposition import PCA
 import numpy as np
+
+try:
+    import joblib
+except Exception:  # joblib is a transitive dep of sklearn, but be defensive
+    joblib = None
 
 try:
     from annoy import AnnoyIndex
@@ -31,6 +38,118 @@ class BasePredictor:
     ) -> pd.DataFrame:
         self.fit(train_X, train_y, **kwargs)
         return self.predict(test_X, **kwargs)
+
+    # --- Serialization helpers (generic manifest with subclass hooks) ---
+    def _export_state(self) -> dict:
+        """
+        Subclasses should return a JSON-serializable dict capturing hyperparameters
+        and any small state needed to reconstruct the predictor, excluding large
+        artifacts saved via _save_artifacts.
+        """
+        raise NotImplementedError
+
+    def _import_state(self, state: dict) -> None:
+        """
+        Subclasses should restore internal parameters from the provided state dict.
+        """
+        raise NotImplementedError
+
+    def _save_artifacts(self, dir_path: str) -> dict:
+        """
+        Subclasses should write any large artifacts to dir_path and return a dict
+        mapping logical names to filenames, e.g. {"pca": "pca.joblib", "ann": "index.ann"}.
+        """
+        raise NotImplementedError
+
+    def _load_artifacts(
+        self, dir_path: str, files: dict, manifest: dict, mmap: bool = True
+    ) -> None:
+        """
+        Subclasses should load artifacts previously saved by _save_artifacts and
+        attach them to self. The manifest is provided for context (e.g. input/output columns).
+        """
+        raise NotImplementedError
+
+    def save(
+        self,
+        dir_path: str,
+        *,
+        input_columns: list[str] | None = None,
+        output_columns: list[str] | None = None,
+        input_normalization: dict | None = None,
+        manifest_extra: dict | None = None,
+    ) -> None:
+        """
+        Persist the trained predictor to a directory as a bundle consisting of:
+        - manifest.json (generic metadata)
+        - zero or more artifact files (subclass-defined)
+
+        If input/output columns are omitted, attempts to infer from attributes
+        commonly set during fit (self._train_X.columns and self._output_columns).
+        """
+        os.makedirs(dir_path, exist_ok=True)
+
+        # Try to infer columns if not explicitly provided
+        if (
+            input_columns is None
+            and hasattr(self, "_train_X")
+            and getattr(self, "_train_X") is not None
+        ):
+            try:
+                input_columns = list(self._train_X.columns)
+            except Exception:
+                pass
+        if (
+            output_columns is None
+            and hasattr(self, "_output_columns")
+            and getattr(self, "_output_columns") is not None
+        ):
+            try:
+                output_columns = list(self._output_columns)
+            except Exception:
+                pass
+
+        files = self._save_artifacts(dir_path)
+        state = self._export_state()
+
+        manifest = {
+            "predictor_class": self.__class__.__name__,
+            "predictor_module": self.__class__.__module__,
+            "state": state,
+            "files": files,
+            "input_columns": input_columns,
+            "output_columns": output_columns,
+            "input_normalization": input_normalization,
+        }
+        if manifest_extra:
+            manifest["extra"] = manifest_extra
+
+        with open(os.path.join(dir_path, "manifest.json"), "w") as f:
+            json.dump(manifest, f)
+
+    @staticmethod
+    def _read_manifest(dir_path: str) -> dict:
+        with open(os.path.join(dir_path, "manifest.json"), "r") as f:
+            return json.load(f)
+
+    @classmethod
+    def load(cls, dir_path: str, mmap: bool = True) -> "BasePredictor":
+        """
+        Load a predictor bundle previously saved via save().
+        This method assumes the predictor class matches the class on which it is called.
+        """
+        manifest = cls._read_manifest(dir_path)
+        # Defensive: ensure caller class matches manifest's class
+        manifest_class = manifest.get("predictor_class")
+        if manifest_class is not None and manifest_class != cls.__name__:
+            raise ValueError(
+                f"Manifest was saved for {manifest_class}, but load() called on {cls.__name__}."
+            )
+        inst = cls.__new__(cls)
+        # Ensure __init__ isn't required for these attrs; _import_state will set parameters
+        inst._import_state(manifest.get("state", {}))
+        inst._load_artifacts(dir_path, manifest.get("files", {}), manifest, mmap=mmap)
+        return inst
 
 
 class KNNPredictor(BasePredictor):
@@ -299,3 +418,94 @@ class KNNPredictorPCAnnoy(BasePredictor):
     ) -> pd.DataFrame:
         self.fit(train_X, train_y, **kwargs)
         return self.predict(test_X, **kwargs)
+
+    # ---- Serialization hooks ----
+    def _export_state(self) -> dict:
+        return {
+            "n_neighbors": self.n_neighbors,
+            "n_components": self.n_components,
+            "n_trees": self.n_trees,
+            "search_k": self.search_k,
+            "metric": self.metric,
+        }
+
+    def _import_state(self, state: dict) -> None:
+        # Recreate minimal parameter state; artifacts loaded separately
+        self.n_neighbors = state.get("n_neighbors", 5)
+        self.n_components = state.get("n_components", None)
+        self.n_trees = state.get("n_trees", 10)
+        self.search_k = state.get("search_k", None)
+        self.metric = state.get("metric", "euclidean")
+        self.pca_model = None
+        self.annoy_index = None
+        self._train_X = None
+        self._train_y = None
+        self._output_columns = None
+
+    def _save_artifacts(self, dir_path: str) -> dict:
+        if self.annoy_index is None:
+            raise ValueError("Predictor not fitted: Annoy index is missing.")
+        files: dict = {}
+        # Save PCA if present
+        if self.pca_model is not None:
+            if joblib is None:
+                raise ImportError("joblib is required to save PCA model.")
+            pca_path = os.path.join(dir_path, "pca.joblib")
+            joblib.dump(self.pca_model, pca_path)
+            files["pca"] = "pca.joblib"
+        # Save Annoy index
+        ann_path = os.path.join(dir_path, "index.ann")
+        # Recreate AnnoyIndex to ensure save works (existing object is fine)
+        self.annoy_index.save(ann_path)
+        files["ann"] = "index.ann"
+        # Save train_y (required at inference to compute neighbor aggregate)
+        if self._train_y is None:
+            raise ValueError("Predictor not fitted: train_y is missing.")
+        y_path = os.path.join(dir_path, "train_y.npy")
+        # Store as float32 to balance size/precision
+        np.save(y_path, self._train_y.values.astype(np.float64))
+        files["train_y"] = "train_y.npy"
+        return files
+
+    def _load_artifacts(
+        self, dir_path: str, files: dict, manifest: dict, mmap: bool = True
+    ) -> None:
+        # Load PCA if present
+        pca_file = files.get("pca")
+        if pca_file is not None:
+            if joblib is None:
+                raise ImportError("joblib is required to load PCA model.")
+            self.pca_model = joblib.load(os.path.join(dir_path, pca_file))
+        else:
+            self.pca_model = None
+        # Rebuild Annoy index
+        input_columns = manifest.get("input_columns")
+        dim = (
+            self.n_components
+            if self.n_components is not None
+            else (len(input_columns) if input_columns is not None else None)
+        )
+        if dim is None:
+            raise ValueError(
+                "Cannot determine Annoy index dimensionality from manifest/state."
+            )
+        if AnnoyIndex is None:
+            raise ImportError("annoy package is required to load Annoy index.")
+        self.annoy_index = AnnoyIndex(dim, self.metric)
+        ann_file = files.get("ann")
+        if ann_file is None:
+            raise ValueError("Annoy index file not listed in manifest files.")
+        self.annoy_index.load(os.path.join(dir_path, ann_file))
+        # Load train_y
+        y_file = files.get("train_y")
+        if y_file is None:
+            raise ValueError("train_y file not listed in manifest files.")
+        mmap_mode = "r" if mmap else None
+        y_arr = np.load(os.path.join(dir_path, y_file), mmap_mode=mmap_mode)
+        output_columns = manifest.get("output_columns")
+        if output_columns is None:
+            # Fallback: numeric columns
+            output_columns = list(range(y_arr.shape[1]))
+        # Wrap memmap/ndarray as DataFrame for convenient iloc/values behavior
+        self._train_y = pd.DataFrame(y_arr, columns=output_columns)
+        self._output_columns = output_columns
