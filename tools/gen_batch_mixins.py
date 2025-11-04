@@ -1,0 +1,214 @@
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+from typing import Iterable, Tuple, List, Optional
+
+"""
+Generate grouped-aware batch mixins for collection classes.
+
+Usage:
+  python -m tools.gen_batch_mixins
+
+Outputs:
+  - src/py3r/behaviour/tracking/tracking_collection_batch_mixin.py
+  - src/py3r/behaviour/features/features_collection_batch_mixin.py
+  - src/py3r/behaviour/summary/summary_collection_batch_mixin.py
+
+Each mixin provides concrete wrappers for all public instance methods of the
+respective leaf class (Tracking, Features, Summary), preserving signatures and
+(doc)strings, and delegating to a grouped-aware dispatcher that returns BatchResult.
+"""
+
+
+class MethodInfo:
+    def __init__(self, name: str, params_src: str, call_args: str, doc: str):
+        self.name = name
+        self.params_src = params_src
+        self.call_args = call_args
+        self.doc = doc
+
+
+def _expr_src(src: str, node: Optional[ast.AST]) -> Optional[str]:
+    if node is None:
+        return None
+    try:
+        return ast.get_source_segment(src, node)
+    except Exception:
+        return None
+
+
+def _build_params_and_calls(src: str, f: ast.FunctionDef) -> Tuple[str, str]:
+    args = f.args
+    parts: List[str] = []
+    call_parts: List[str] = []
+
+    # Positional-only (py3.8+)
+    posonly = getattr(args, "posonlyargs", [])
+    pos = args.args[:]  # includes self first
+    if pos and pos[0].arg == "self":
+        pos = pos[1:]
+
+    # Defaults align to the last N of posonly+pos
+    pos_all = posonly + pos
+    defaults = args.defaults or []
+    num_defaults = len(defaults)
+    num_no_default = len(pos_all) - num_defaults
+
+    # Positional-only
+    for i, a in enumerate(posonly):
+        name = a.arg
+        if i >= num_no_default:
+            dsrc = _expr_src(src, defaults[i - num_no_default]) or "None"
+            parts.append(f"{name}={dsrc}")
+        else:
+            parts.append(name)
+        call_parts.append(name)
+    if posonly:
+        parts.append("/")
+
+    # Positional-or-keyword
+    start = len(posonly)
+    for i, a in enumerate(pos, start=start):
+        name = a.arg
+        if i >= num_no_default:
+            dsrc = _expr_src(src, defaults[i - num_no_default]) or "None"
+            parts.append(f"{name}={dsrc}")
+        else:
+            parts.append(name)
+        call_parts.append(name)
+
+    # Var positional
+    if args.vararg is not None:
+        parts.append(f"*{args.vararg.arg}")
+        call_parts.append(f"*{args.vararg.arg}")
+    else:
+        if args.kwonlyargs:
+            parts.append("*")
+
+    # Keyword-only
+    for a, d in zip(args.kwonlyargs, args.kw_defaults or [None] * len(args.kwonlyargs)):
+        name = a.arg
+        if d is None:
+            parts.append(name)
+        else:
+            dsrc = _expr_src(src, d) or "None"
+            parts.append(f"{name}={dsrc}")
+        call_parts.append(f"{name}={name}")
+
+    # Var keyword
+    if args.kwarg is not None:
+        parts.append(f"**{args.kwarg.arg}")
+        call_parts.append(f"**{args.kwarg.arg}")
+
+    return ", ".join(parts), ", ".join(call_parts)
+
+
+def _iter_public_instance_methods_from_ast(
+    file_path: Path, leaf_class_name: str
+) -> Iterable[MethodInfo]:
+    src = file_path.read_text()
+    mod = ast.parse(src)
+    leaf_cls: Optional[ast.ClassDef] = None
+    for node in mod.body:
+        if isinstance(node, ast.ClassDef) and node.name == leaf_class_name:
+            leaf_cls = node
+            break
+    if leaf_cls is None:
+        return []
+    results: List[MethodInfo] = []
+    for node in leaf_cls.body:
+        if isinstance(node, ast.FunctionDef):
+            name = node.name
+            if name.startswith("_"):
+                continue
+            # skip properties
+            has_property = False
+            for dec in node.decorator_list:
+                if isinstance(dec, ast.Name) and dec.id in {
+                    "property",
+                    "cached_property",
+                }:
+                    has_property = True
+                    break
+                if isinstance(dec, ast.Attribute) and dec.attr in {
+                    "property",
+                    "cached_property",
+                }:
+                    has_property = True
+                    break
+            if has_property:
+                continue
+            if not node.args.args or node.args.args[0].arg != "self":
+                continue
+            params_src, call_args = _build_params_and_calls(src, node)
+            doc = ast.get_docstring(node) or ""
+            results.append(MethodInfo(name, params_src, call_args, doc))
+    return results
+
+
+def _escape_doc(doc: str) -> str:
+    return doc.replace('"""', '"""')
+
+
+def _generate_collection_mixin(leaf_py: Path, leaf_class: str, mixin_class: str) -> str:
+    lines = [
+        "# AUTO-GENERATED FILE — DO NOT EDIT",
+        f"# Generated by tools/gen_batch_mixins.py from {leaf_py.as_posix()}",
+        "# Regenerate with: PYTHONPATH=src python -m tools.gen_batch_mixins",
+        "from __future__ import annotations",
+        "",
+        "from py3r.behaviour.util.collection_utils import BatchResult",
+        "",
+        f"class {mixin_class}:",
+        "",
+    ]
+    for mi in _iter_public_instance_methods_from_ast(leaf_py, leaf_class):
+        params = f"self{', ' + mi.params_src if mi.params_src else ''}"
+        doc = _escape_doc(mi.doc)
+        lines.append(f"    def {mi.name}({params}) -> BatchResult:")
+        if doc and "\n" in doc:
+            lines.append('        """')
+            for dl in doc.splitlines():
+                lines.append(f"        {dl}")
+            lines.append('        """')
+        else:
+            lines.append(f'        """{doc}"""' if doc else '        """"""')
+        suffix = f", {mi.call_args}" if mi.call_args else ""
+        lines.append(f'        return self._invoke_batch("{mi.name}"{suffix})')
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def main() -> None:
+    root = Path("src/py3r/behaviour")
+    targets = [
+        # (leaf_file, leaf_class, output_file, mixin_class)
+        (
+            root / "tracking" / "tracking.py",
+            "Tracking",
+            root / "tracking" / "tracking_collection_batch_mixin.py",
+            "TrackingCollectionBatchMixin",
+        ),
+        (
+            root / "features" / "features.py",
+            "Features",
+            root / "features" / "features_collection_batch_mixin.py",
+            "FeaturesCollectionBatchMixin",
+        ),
+        (
+            root / "summary" / "summary.py",
+            "Summary",
+            root / "summary" / "summary_collection_batch_mixin.py",
+            "SummaryCollectionBatchMixin",
+        ),
+    ]
+    for leaf_py, leaf_cls, out_py, mixin in targets:
+        content = _generate_collection_mixin(leaf_py, leaf_cls, mixin)
+        out_py.parent.mkdir(parents=True, exist_ok=True)
+        out_py.write_text(content)
+        print(f"Wrote {out_py}")
+
+
+if __name__ == "__main__":
+    main()

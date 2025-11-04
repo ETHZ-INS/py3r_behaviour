@@ -32,24 +32,42 @@ class BaseCollection(MutableMapping):
         # Default: flat collection (key refers to object name/handle)
         return dict(collection_name=None, object_name=key)
 
-    def __getattr__(self, name):
-        def batch_method(*args, **kwargs):
-            results = {}
-            for key, obj in self._obj_dict.items():
-                try:
-                    method = getattr(obj, name)
-                    results[key] = method(*args, **kwargs)
-                except Exception as e:
-                    ctx = self._batch_error_context(key)
-                    raise BatchProcessError(
-                        collection_name=ctx["collection_name"],
-                        object_name=ctx["object_name"],
-                        method=getattr(e, "method", name),
-                        original_exception=getattr(e, "original_exception", e),
-                    ) from e
-            return BatchResult(results, self)
+    def _invoke_batch(self, _method_name: str, *args, **kwargs) -> BatchResult:
+        """
+        Group-aware batch dispatcher for leaf methods.
 
-        return batch_method
+        Applies the named method to each leaf object, collecting results into a
+        BatchResult. When grouped, produces a nested mapping of group -> BatchResult.
+        """
+        results = {}
+        if getattr(self, "is_grouped", False):
+            for group_key, subcoll in self.items():
+                group_results = {}
+                for obj_key, obj in subcoll.items():
+                    try:
+                        group_results[obj_key] = getattr(obj, _method_name)(
+                            *args, **kwargs
+                        )
+                    except Exception as e:
+                        group_results[obj_key] = BatchProcessError(
+                            collection_name=group_key,
+                            object_name=obj_key,
+                            method=_method_name,
+                            original_exception=e,
+                        )
+                results[group_key] = BatchResult(group_results, subcoll)
+        else:
+            for key, obj in self.items():
+                try:
+                    results[key] = getattr(obj, _method_name)(*args, **kwargs)
+                except Exception as e:
+                    results[key] = BatchProcessError(
+                        collection_name=None,
+                        object_name=key,
+                        method=_method_name,
+                        original_exception=e,
+                    )
+        return BatchResult(results, self)
 
     def __getitem__(self, key):
         """

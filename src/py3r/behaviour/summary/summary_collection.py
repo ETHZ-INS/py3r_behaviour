@@ -6,9 +6,12 @@ from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.features.features_collection import FeaturesCollection
 from py3r.behaviour.summary.summary_result import SummaryResult
 from py3r.behaviour.util.base_collection import BaseCollection
+from py3r.behaviour.summary.summary_collection_batch_mixin import (
+    SummaryCollectionBatchMixin,
+)
 
 
-class SummaryCollection(BaseCollection):
+class SummaryCollection(SummaryCollectionBatchMixin, BaseCollection):
     """
     collection of Summary objects
     (e.g. for grouping individuals)

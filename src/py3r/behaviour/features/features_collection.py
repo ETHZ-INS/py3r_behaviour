@@ -14,9 +14,12 @@ from py3r.behaviour.util.series_utils import (
     apply_custom_scaling,
 )
 from py3r.behaviour.util.collection_utils import BatchResult
+from py3r.behaviour.features.features_collection_batch_mixin import (
+    FeaturesCollectionBatchMixin,
+)
 
 
-class FeaturesCollection(BaseCollection):
+class FeaturesCollection(FeaturesCollectionBatchMixin, BaseCollection):
     """
     Collection of Features objects, keyed by name.
     note: type-hints refer to Features, but factory methods allow for other classes
