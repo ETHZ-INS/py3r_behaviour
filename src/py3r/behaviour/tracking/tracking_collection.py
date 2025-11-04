@@ -207,9 +207,18 @@ class TrackingCollection(BaseCollection):
 
     def stereo_triangulate(self):
         """
-        Triangulate all TrackingMV objects in the collection.
-        Returns a new TrackingCollection of triangulated Tracking objects.
+        Triangulate all TrackingMV objects. Grouped-aware:
+        - Flat: returns a flat TrackingCollection of triangulated Tracking
+        - Grouped: returns a grouped TrackingCollection with triangulated sub-collections
         """
+        if getattr(self, "is_grouped", False):
+            grouped = {}
+            for gkey, sub in self.items():
+                grouped[gkey] = sub.stereo_triangulate()
+            tc = TrackingCollection(grouped)
+            tc._is_grouped = True
+            tc._groupby_tags = self.groupby_tags
+            return tc
         triangulated = {}
         for handle, obj in self.tracking_dict.items():
             if hasattr(obj, "stereo_triangulate"):
@@ -280,6 +289,11 @@ class TrackingCollection(BaseCollection):
         return self.__class__({k: v.iloc[idx] for k, v in self.tracking_dict.items()})
 
     def plot(self, *args, **kwargs):
+        if getattr(self, "is_grouped", False):
+            for gkey, sub in self.items():
+                print(f"\n=== Group: {gkey} ===")
+                sub.plot(*args, **kwargs)
+            return
         print(f"\nCollection: {getattr(self, 'handle', 'unnamed')}")
         for handle, tracking in self.tracking_dict.items():
             tracking.plot(*args, title=handle, **kwargs)

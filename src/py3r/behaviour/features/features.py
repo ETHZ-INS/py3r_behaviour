@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point, Polygon
 from shapely.errors import GEOSException
-from sklearn.cluster import KMeans
 from sklearn.neighbors import KNeighborsRegressor
 
 from py3r.behaviour.tracking.tracking import Tracking
@@ -625,21 +624,6 @@ class Features:
                 data[f"{col}_{suffix}"] = shifted
         embed_df = pd.DataFrame(data, index=self.data.index)
         return embed_df
-
-    def cluster_embedding(
-        self, embedding: dict[str, list[int]], n_clusters: int
-    ) -> tuple[pd.Series, pd.DataFrame]:
-        """
-        cluster the embedding using k-means,
-        ensuring that the cluster label is nan where a row in the embedding has nan values
-        returns the labels and the centroids
-        """
-        embed_df = self.embedding_df(embedding)
-        kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(embed_df)
-        centroids = pd.DataFrame(kmeans.cluster_centers_, columns=embed_df.columns)
-        labels = pd.Series(kmeans.labels_, index=self.data.index)
-        labels.loc[embed_df.isna().any(axis=1)] = np.nan
-        return labels, centroids
 
     def assign_clusters_by_centroids(
         self, embedding: dict[str, list[int]], centroids_df: pd.DataFrame
