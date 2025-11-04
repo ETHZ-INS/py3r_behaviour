@@ -5,17 +5,17 @@ from __future__ import annotations
 
 from py3r.behaviour.util.collection_utils import BatchResult
 
-
 class TrackingCollectionBatchMixin:
-    def add_usermeta(self, usermeta, overwrite=False) -> BatchResult:
+
+    def add_usermeta(self, usermeta: dict, overwrite: bool=False) -> BatchResult:
         """adds or updates user-defined metadata"""
         return self._invoke_batch("add_usermeta", usermeta, overwrite)
 
-    def add_tag(self, tagname, tagvalue, overwrite=False) -> BatchResult:
+    def add_tag(self, tagname: str, tagvalue: str, overwrite: bool=False) -> BatchResult:
         """adds or updates a tag"""
         return self._invoke_batch("add_tag", tagname, tagvalue, overwrite)
 
-    def save(self, filepath) -> BatchResult:
+    def save(self, filepath: str) -> BatchResult:
         """saves .csv file and _meta.json file to disk at location specified by filepath"""
         return self._invoke_batch("save", filepath)
 
@@ -23,19 +23,19 @@ class TrackingCollectionBatchMixin:
         """strips out all column name string apart from last two sections delimited by dots"""
         return self._invoke_batch("strip_column_names")
 
-    def time_as_expected(self, mintime, maxtime) -> BatchResult:
+    def time_as_expected(self, mintime: float, maxtime: float) -> BatchResult:
         """checks that the total length of the tracking data is between mintime seconds and maxtime seconds"""
         return self._invoke_batch("time_as_expected", mintime, maxtime)
 
-    def trim(self, startframe=None, endframe=None) -> BatchResult:
+    def trim(self, startframe: int | None=None, endframe: int | None=None) -> BatchResult:
         """trims the tracking data object between startframe and endframe"""
         return self._invoke_batch("trim", startframe, endframe)
 
-    def filter_likelihood(self, threshold) -> BatchResult:
+    def filter_likelihood(self, threshold: float) -> BatchResult:
         """sets all tracking position values with likelihood less than threshold to np.nan"""
         return self._invoke_batch("filter_likelihood", threshold)
 
-    def distance_between(self, point1, point2, dims=("x", "y")) -> BatchResult:
+    def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> BatchResult:
         """framewise distance between two points"""
         return self._invoke_batch("distance_between", point1, point2, dims)
 
@@ -43,21 +43,15 @@ class TrackingCollectionBatchMixin:
         """list of tracked point names"""
         return self._invoke_batch("get_point_names")
 
-    def rescale_by_known_distance(
-        self, point1, point2, distance_in_metres, dims=("x", "y")
-    ) -> BatchResult:
+    def rescale_by_known_distance(self, point1: str, point2: str, distance_in_metres: float, dims=("x", "y")) -> BatchResult:
         """rescale all dims by known distance between two points"""
-        return self._invoke_batch(
-            "rescale_by_known_distance", point1, point2, distance_in_metres, dims
-        )
+        return self._invoke_batch("rescale_by_known_distance", point1, point2, distance_in_metres, dims)
 
-    def generate_smoothdict(self, pointslists, windows, smoothtypes) -> BatchResult:
+    def generate_smoothdict(self, pointslists: list, windows: list, smoothtypes: list) -> BatchResult:
         """make smoothdict for multiple point lists"""
-        return self._invoke_batch(
-            "generate_smoothdict", pointslists, windows, smoothtypes
-        )
+        return self._invoke_batch("generate_smoothdict", pointslists, windows, smoothtypes)
 
-    def smooth(self, smoothing_params) -> BatchResult:
+    def smooth(self, smoothing_params: dict) -> BatchResult:
         """
         runs rolling mean or median filter of specified window length over specified
         points. All points within the tracking data must be specified, even if the rolling
@@ -68,25 +62,14 @@ class TrackingCollectionBatchMixin:
         """
         return self._invoke_batch("smooth", smoothing_params)
 
-    def interpolate(self, method="linear", limit=1, **kwargs) -> BatchResult:
+    def interpolate(self, method: str="linear", limit: int=1, **kwargs) -> BatchResult:
         """
         interpolates missing data in the tracking data, and sets likelihood to np.nan
         uses pandas.DataFrame.interpolate() with kwargs
         """
         return self._invoke_batch("interpolate", method, limit, **kwargs)
 
-    def plot(
-        self,
-        trajectories=None,
-        static=None,
-        lines=None,
-        dims=("x", "y"),
-        ax=None,
-        title=None,
-        show=True,
-        elev=30,
-        azim=45,
-    ) -> BatchResult:
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, elev=30, azim=45) -> BatchResult:
         """
         Plot trajectories and static points for this Tracking object.
         Args:
@@ -99,28 +82,9 @@ class TrackingCollectionBatchMixin:
             show: whether to call plt.show()
         Returns: fig, ax
         """
-        return self._invoke_batch(
-            "plot", trajectories, static, lines, dims, ax, title, show, elev, azim
-        )
+        return self._invoke_batch("plot", trajectories, static, lines, dims, ax, title, show, elev, azim)
 
-    def save_3d_tracking_video_multi_view(
-        self,
-        out_path,
-        lines=None,
-        point_size=40,
-        line_width=2,
-        point_color="b",
-        line_color="k",
-        dpi=150,
-        writer="pillow",
-        startframe=None,
-        endframe=None,
-        xlim=None,
-        ylim=None,
-        zlim=None,
-        robust_percentile=1,
-        invert_z=True,
-    ) -> BatchResult:
+    def save_3d_tracking_video_multi_view(self, out_path: str, lines: list[tuple[str, str]]=None, point_size=40, line_width=2, point_color="b", line_color="k", dpi=150, writer="pillow", startframe=None, endframe=None, xlim=None, ylim=None, zlim=None, robust_percentile=1, invert_z=True) -> BatchResult:
         """
         Save a 3D animation of tracked points to a video file, with 4 subplots per frame:
         - azim=0, elev=0, ortho
@@ -130,21 +94,5 @@ class TrackingCollectionBatchMixin:
         Optionally, set axis limits manually or use robust percentiles to ignore outliers.
         Enforces equal aspect ratio for all axes.
         """
-        return self._invoke_batch(
-            "save_3d_tracking_video_multi_view",
-            out_path,
-            lines,
-            point_size,
-            line_width,
-            point_color,
-            line_color,
-            dpi,
-            writer,
-            startframe,
-            endframe,
-            xlim,
-            ylim,
-            zlim,
-            robust_percentile,
-            invert_z,
-        )
+        return self._invoke_batch("save_3d_tracking_video_multi_view", out_path, lines, point_size, line_width, point_color, line_color, dpi, writer, startframe, endframe, xlim, ylim, zlim, robust_percentile, invert_z)
+
