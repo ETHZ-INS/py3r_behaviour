@@ -20,10 +20,16 @@ class BaseCollection(MutableMapping):
     """
 
     def __init__(self, obj_dict):
-        self._obj_dict = dict(obj_dict)  # {handle: element}
+        self._obj_dict = dict(obj_dict)  # {handle: element or sub-collection}
+        # Grouped-view metadata defaults: always start flat unless explicitly set later
+        self._is_grouped = False
+        self._groupby_tags = None
 
     def _batch_error_context(self, key):
-        # Default: flat collection
+        # If this is a grouped view, treat top-level keys as collection names
+        if getattr(self, "_is_grouped", False):
+            return dict(collection_name=key, object_name=None)
+        # Default: flat collection (key refers to object name/handle)
         return dict(collection_name=None, object_name=key)
 
     def __getattr__(self, name):
@@ -89,35 +95,6 @@ class BaseCollection(MutableMapping):
     def keys(self):
         return self._obj_dict.keys()
 
-    def _batch_error_context(self, key):
-        # Default: flat collection
-        return dict(collection_name=None, object_name=key)
-
-    def _resolve_multiple_collection_type(self):
-        multiple_cls = self._multiple_collection_type
-        if isinstance(multiple_cls, str):
-            # Late import based on string name
-            if multiple_cls == "MultipleTrackingCollection":
-                from py3r.behaviour.tracking.multiple_tracking_collection import (
-                    MultipleTrackingCollection,
-                )
-
-                multiple_cls = MultipleTrackingCollection
-            elif multiple_cls == "MultipleFeaturesCollection":
-                from py3r.behaviour.features.multiple_features_collection import (
-                    MultipleFeaturesCollection,
-                )
-
-                multiple_cls = MultipleFeaturesCollection
-            elif multiple_cls == "MultipleSummaryCollection":
-                from py3r.behaviour.summary.multiple_summary_collection import (
-                    MultipleSummaryCollection,
-                )
-
-                multiple_cls = MultipleSummaryCollection
-            self._multiple_collection_type = multiple_cls  # cache for next time
-        return multiple_cls
-
     @classmethod
     def from_list(cls, objs):
         """
@@ -135,8 +112,9 @@ class BaseCollection(MutableMapping):
 
     def groupby(self, tags):
         """
-        Group the collection by one or more tags.
-        Returns a MultipleCollection object with group names as keys.
+        Group the collection by one or more existing tag names.
+        Returns a grouped view (this same collection type) whose values are
+        sub-collections keyed by a tuple of tag values in the order provided.
         """
         flat_self = self.flatten()
 
@@ -158,29 +136,13 @@ class BaseCollection(MutableMapping):
                 f"The following elements are missing required tags:\n{missing_str}"
             )
 
-        def group_name(key_tuple):
-            return "_".join(str(v) for v in key_tuple)
-
         group_collections = {
-            group_name(key): self.__class__.from_list(objs)
-            for key, objs in groups.items()
+            key: self.__class__.from_list(objs) for key, objs in groups.items()
         }
-        multiple_cls = self._resolve_multiple_collection_type()
-        return multiple_cls(group_collections)
-
-    # def flatten(self):
-    #     """
-    #     If this is a MultipleCollection, flatten to a single Collection.
-    #     If already flat, return self.
-    #     """
-    #     all_objs = []
-    #     for obj in self.values():
-    #         if isinstance(obj, self.__class__):
-    #             all_objs.extend(obj.values())
-    #         else:
-    #             all_objs.append(obj)
-    #     flat_cls = type(all_objs[0])
-    #     return flat_cls.from_list(all_objs)
+        grouped = self.__class__(group_collections)
+        grouped._is_grouped = True
+        grouped._groupby_tags = tags
+        return grouped
 
     def flatten(self):
         """
@@ -204,13 +166,43 @@ class BaseCollection(MutableMapping):
             else:
                 all_objs.append(obj)
         flat_cls = type(first_value)
-        return flat_cls.from_list(all_objs)
+        flat = flat_cls.from_list(all_objs)
+        # Ensure returned flat collection is not marked grouped
+        if hasattr(flat, "_is_grouped"):
+            flat._is_grouped = False
+            flat._groupby_tags = None
+        return flat
 
     def __repr__(self):
+        if getattr(self, "_is_grouped", False):
+            return f"<{self.__class__.__name__} grouped by {self._groupby_tags} with {len(self)} groups>"
         return f"<{self.__class__.__name__} with {len(self)} {self._element_type.__name__} objects>"
 
+    # ---- Grouped view helpers ----
+    @property
+    def is_grouped(self):
+        return getattr(self, "_is_grouped", False)
 
-class BaseMultipleCollection(BaseCollection):
-    def _batch_error_context(self, key):
-        # Multiple collection: key is the group name
-        return dict(collection_name=key, object_name=None)
+    @property
+    def groupby_tags(self):
+        return getattr(self, "_groupby_tags", None)
+
+    @property
+    def group_keys(self):
+        if not self.is_grouped:
+            return []
+        return list(self._obj_dict.keys())
+
+    def get_group(self, key):
+        if not self.is_grouped:
+            raise ValueError("Collection is not grouped.")
+        return self._obj_dict[key]
+
+    def regroup(self):
+        """
+        Recompute the same grouping using the current tags and the original
+        grouping tag order. If not grouped, returns self.
+        """
+        if not self.is_grouped or not self._groupby_tags:
+            return self
+        return self.flatten().groupby(self._groupby_tags)

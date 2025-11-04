@@ -8,7 +8,12 @@ from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
-from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
+from py3r.behaviour.util.series_utils import (
+    normalize_df,
+    apply_normalization_to_df,
+    apply_custom_scaling,
+)
+from py3r.behaviour.util.collection_utils import BatchResult
 
 
 class FeaturesCollection(BaseCollection):
@@ -19,7 +24,6 @@ class FeaturesCollection(BaseCollection):
     """
 
     _element_type = Features
-    _multiple_collection_type = "MultipleFeaturesCollection"
 
     def __init__(self, features_dict: dict[str, Features]):
         super().__init__(features_dict)
@@ -39,8 +43,27 @@ class FeaturesCollection(BaseCollection):
             raise TypeError(
                 f"feature_cls must be Features or a subclass, got {feature_cls}"
             )
-        # check that dict handles match tracking handles
-        for handle, t in tracking_collection.tracking_dict.items():
+        # If grouped, build a grouped FeaturesCollection preserving grouping
+        if getattr(tracking_collection, "is_grouped", False):
+            grouped_dict = {}
+            for gkey, sub_tc in tracking_collection.items():
+                # Validate mapping within subgroup
+                for handle, t in sub_tc._obj_dict.items():
+                    if handle != t.handle:
+                        raise ValueError(
+                            f"Key '{handle}' does not match object's handle '{t.handle}'"
+                        )
+                grouped_dict[gkey] = cls(
+                    {handle: feature_cls(t) for handle, t in sub_tc._obj_dict.items()}
+                )
+            grouped_fc = cls(grouped_dict)
+            grouped_fc._is_grouped = True
+            grouped_fc._groupby_tags = getattr(
+                tracking_collection, "groupby_tags", None
+            )
+            return grouped_fc
+        # Flat case
+        for handle, t in tracking_collection._obj_dict.items():
             if handle != t.handle:
                 raise ValueError(
                     f"Key '{handle}' does not match object's handle '{t.handle}'"
@@ -48,7 +71,7 @@ class FeaturesCollection(BaseCollection):
         return cls(
             {
                 handle: feature_cls(t)
-                for handle, t in tracking_collection.tracking_dict.items()
+                for handle, t in tracking_collection._obj_dict.items()
             }
         )
 
@@ -68,43 +91,133 @@ class FeaturesCollection(BaseCollection):
         embedding_dict: dict[str, list[int]],
         n_clusters: int,
         random_state: int = 0,
+        *,
+        auto_normalize: bool = False,
+        rescale_factors: dict | None = None,
+        lowmem: bool = False,
+        decimation_factor: int = 10,
+        custom_scaling: dict[str, dict] | None = None,
     ):
         """
-        Perform k-means clustering across all Features objects using the specified embedding.
-        Returns a dictionary of label Series (one per Features, keyed by name) and the centroids DataFrame.
+        Perform k-means clustering using the specified embedding.
+
+        - Flat collection: clusters across all Features in the collection.
+        - Grouped collection: clusters across all Features in all groups, and returns
+          a nested BatchResult of FeaturesResult labels per group and feature.
+
+        Returns:
+            - If grouped: (nested_labels: BatchResult[{group: {feature: FeaturesResult}}], centroids: DataFrame, normalization_factors: Optional[dict])
+            - If flat: (labels_dict: dict[handle -> Series[Int]], centroids: DataFrame)
         """
 
-        # Build embeddings and keep names in sync
+        # Grouped path mirrors former MultipleFeaturesCollection.cluster_embedding
+        if getattr(self, "is_grouped", False):
+            all_embeddings = {}
+            for gkey, sub in self.items():
+                for feat_name, features in sub.features_dict.items():
+                    embed_df = features.embedding_df(embedding_dict).astype(np.float32)
+                    if lowmem:
+                        embed_df = embed_df.iloc[::decimation_factor]
+                    all_embeddings[(gkey, feat_name)] = embed_df
+
+            combined = pd.concat(
+                all_embeddings.values(),
+                keys=all_embeddings.keys(),
+                names=["group", "feature", "frame"],
+            )
+
+            if custom_scaling is not None and (
+                auto_normalize or rescale_factors is not None
+            ):
+                raise ValueError(
+                    "custom_scaling is mutually exclusive with auto_normalize or rescale_factors"
+                )
+            if auto_normalize:
+                combined, normalization_factors = normalize_df(combined)
+            elif rescale_factors is not None:
+                combined = apply_normalization_to_df(combined, rescale_factors)
+                normalization_factors = None
+            elif custom_scaling is not None:
+                combined = apply_custom_scaling(combined, custom_scaling)
+                normalization_factors = None
+            else:
+                normalization_factors = None
+
+            valid_mask = combined.notna().all(axis=1)
+            valid_combined = combined[valid_mask]
+
+            model = KMeans(n_clusters=n_clusters, random_state=random_state).fit(
+                valid_combined
+            )
+            centroids = pd.DataFrame(model.cluster_centers_, columns=combined.columns)
+
+            combined_labels = pd.Series(np.nan, index=combined.index)
+            combined_labels.loc[valid_mask] = model.labels_
+
+            if lowmem:
+                # Assign by nearest centroid per item
+                nested_labels = {}
+                for (gkey, feat_name), _ in all_embeddings.items():
+                    feat = self[gkey][feat_name]
+                    nested_labels.setdefault(gkey, {})[feat_name] = FeaturesResult(
+                        feat.assign_clusters_by_centroids(embedding_dict, centroids),
+                        feat,
+                        f"kmeans_{n_clusters}",
+                        {
+                            "embedding_dict": embedding_dict,
+                            "n_clusters": n_clusters,
+                            "random_state": random_state,
+                            "auto_normalize": auto_normalize,
+                            "rescale_factors": rescale_factors,
+                            "lowmem": lowmem,
+                            "decimation_factor": decimation_factor,
+                        },
+                    )
+            else:
+                nested_labels = {}
+                for (gkey, feat_name), _ in all_embeddings.items():
+                    labels = combined_labels.xs(
+                        (gkey, feat_name), level=["group", "feature"]
+                    ).astype("Int64")
+                    feat = self[gkey][feat_name]
+                    nested_labels.setdefault(gkey, {})[feat_name] = FeaturesResult(
+                        labels,
+                        feat,
+                        f"kmeans_{n_clusters}",
+                        {
+                            "embedding_dict": embedding_dict,
+                            "n_clusters": n_clusters,
+                            "random_state": random_state,
+                            "auto_normalize": auto_normalize,
+                            "rescale_factors": rescale_factors,
+                            "lowmem": lowmem,
+                            "decimation_factor": decimation_factor,
+                        },
+                    )
+
+            return BatchResult(nested_labels, self), centroids, normalization_factors
+
+        # Flat path: original behavior
         embedding_dfs = {
             name: f.embedding_df(embedding_dict)
             for name, f in self.features_dict.items()
         }
-        # Check all embeddings have the same columns
         columns = next(iter(embedding_dfs.values())).columns
         if not all(df.columns.equals(columns) for df in embedding_dfs.values()):
             raise ValueError("All embeddings must have the same columns")
-
-        # Concatenate with keys to create a MultiIndex
         combined = pd.concat(embedding_dfs.values(), axis=0, keys=embedding_dfs.keys())
         valid_mask = combined.notna().all(axis=1)
         valid_combined = combined[valid_mask]
-
-        # Fit kmeans only on valid rows
         model = KMeans(n_clusters=n_clusters, random_state=random_state).fit(
             valid_combined
         )
         centroids = pd.DataFrame(model.cluster_centers_, columns=combined.columns)
-
-        # Assign cluster labels: nan for rows with any nan, cluster for valid rows
         combined_labels = pd.Series(np.nan, index=combined.index, name="cluster")
         combined_labels.loc[valid_mask] = model.labels_
-
-        # Split back to per-object labels using the first level of the MultiIndex
         labels_dict = {
             name: combined_labels.xs(name, level=0).astype("Int64")
             for name in embedding_dfs.keys()
         }
-
         return labels_dict, centroids
 
     @dev_mode
@@ -175,6 +288,15 @@ class FeaturesCollection(BaseCollection):
         """
         import matplotlib.pyplot as plt
 
+        # If grouped, delegate plotting per group and return a dict of (fig, axes)
+        if getattr(self, "is_grouped", False):
+            figs_axes = {}
+            for gkey, sub in self.items():
+                figs_axes[gkey] = sub.plot(
+                    arg, figsize=figsize, show=show, title=str(gkey)
+                )
+            return figs_axes
+
         if arg is None:
             # Plot all columns for each Features object
             features_dict = {
@@ -235,17 +357,26 @@ class FeaturesCollection(BaseCollection):
 
     def store(
         self,
-        results_dict: dict[str, FeaturesResult],
+        results_dict,
         name: str = None,
         meta: dict = None,
         overwrite: bool = False,
     ):
         """
-        Store all FeaturesResult objects in a one-layer dict (as returned by batch methods).
-        Example:
-            results = features_collection.speed('nose')
-            features_collection.store(results)
+        Store FeaturesResult objects returned by batch methods.
+
+        - Flat collection: results_dict is {handle: FeaturesResult}
+        - Grouped collection: results_dict is {group_key: {handle: FeaturesResult}}
         """
+        if getattr(self, "is_grouped", False):
+            for group_dict in results_dict.values():
+                for v in group_dict.values():
+                    if hasattr(v, "store"):
+                        v.store(name=name, meta=meta, overwrite=overwrite)
+                    else:
+                        raise ValueError(f"{v} is not a FeaturesResult object")
+            return
+        # Flat case
         for v in results_dict.values():
             if hasattr(v, "store"):
                 v.store(name=name, meta=meta, overwrite=overwrite)

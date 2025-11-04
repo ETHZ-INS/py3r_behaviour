@@ -147,7 +147,7 @@ def apply_normalization_to_df(df: pd.DataFrame, rescale_factors: dict) -> pd.Dat
     return normalized
 
 
-def custom_scaling(df: pd.DataFrame, scaling: dict[str, dict]) -> pd.DataFrame:
+def apply_custom_scaling(df: pd.DataFrame, scaling: dict[str, dict]) -> pd.DataFrame:
     """
     Apply custom per-column scaling based on substring matches.
 

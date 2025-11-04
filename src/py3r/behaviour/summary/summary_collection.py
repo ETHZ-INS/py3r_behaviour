@@ -17,7 +17,6 @@ class SummaryCollection(BaseCollection):
     """
 
     _element_type = Summary
-    _multiple_collection_type = "MultipleSummaryCollection"
 
     def __init__(self, summary_dict: dict[str, Summary]):
         super().__init__(summary_dict)
@@ -31,13 +30,34 @@ class SummaryCollection(BaseCollection):
         cls, features_collection: FeaturesCollection, summary_cls=Summary
     ):
         """
-        creates a SummaryCollection from a FeaturesCollection
+        creates a SummaryCollection from a FeaturesCollection (flat or grouped)
         """
         if not issubclass(summary_cls, Summary):
             raise TypeError(
                 f"summary_cls must be Summary or a subclass, got {summary_cls}"
             )
-        # check that dict handles match tracking handles
+        # Grouped case: preserve grouping
+        if getattr(features_collection, "is_grouped", False):
+            grouped_dict = {}
+            for gkey, sub_fc in features_collection.items():
+                for handle, f in sub_fc.features_dict.items():
+                    if handle != f.handle:
+                        raise ValueError(
+                            f"Key '{handle}' does not match object's handle '{f.handle}'"
+                        )
+                grouped_dict[gkey] = cls(
+                    {
+                        handle: summary_cls(f)
+                        for handle, f in sub_fc.features_dict.items()
+                    }
+                )
+            grouped_sc = cls(grouped_dict)
+            grouped_sc._is_grouped = True
+            grouped_sc._groupby_tags = getattr(
+                features_collection, "groupby_tags", None
+            )
+            return grouped_sc
+        # Flat case
         for handle, f in features_collection.features_dict.items():
             if handle != f.handle:
                 raise ValueError(
@@ -120,3 +140,114 @@ class SummaryCollection(BaseCollection):
                 v.store(name=name, meta=meta, overwrite=overwrite)
             else:
                 raise ValueError(f"{v} is not a SummaryResult object")
+
+    # ---- Cross-group analysis (formerly in MultipleSummaryCollection) ----
+    def bfa(self, column: str, all_states=None, numshuffles: int = 1000):
+        """
+        Behaviour Flow Analysis between groups for a grouped SummaryCollection.
+
+        Requires the collection to be grouped (via groupby). Computes transition
+        matrices per Summary within each group, then computes Manhattan distances
+        between group means and surrogate distributions via shuffling.
+        """
+        if not getattr(self, "is_grouped", False):
+            raise ValueError(
+                "bfa requires a grouped SummaryCollection (call groupby first)"
+            )
+
+        from itertools import combinations
+
+        # batch calculate transition matrix for each summary object
+        transition_matrices_result = self.transition_matrix(column, all_states)
+        # Extract the .value from each SummaryResult in the nested dict
+        transition_matrices = {
+            group: {k: v.value for k, v in d.items()}
+            for group, d in transition_matrices_result.items()
+        }
+        # calculate manhattan distance for each group pair
+        distances = {}
+        for group1, group2 in combinations(self.group_keys, 2):
+            _ = {}
+            list1 = list(transition_matrices[group1].values())
+            list2 = list(transition_matrices[group2].values())
+            _["observed"] = self._manhattan_distance_twogroups(list1, list2)
+            _["surrogates"] = [
+                self.shuffle_lists(*self.shuffle_lists(list1, list2))
+                and self._manhattan_distance_twogroups(
+                    *self.shuffle_lists(list1, list2)
+                )
+                for i in range(numshuffles)
+            ]
+            distances[f"{group1}_vs_{group2}"] = _
+        return distances
+
+    @staticmethod
+    def bfa_stats(
+        bfa_results: dict[str, dict[str, float]],
+    ) -> dict[str, dict[str, float]]:
+        import numpy as np
+        import pandas as pd
+
+        def percentile(observed: float, surrogates: list[float]) -> float:
+            return sum(observed > pd.Series(surrogates)) / (len(surrogates) + 1)
+
+        def zscore(observed: float, surrogates: list[float]) -> float:
+            return (observed - np.mean(surrogates)) / np.std(surrogates)
+
+        def right_tail_p(observed: float, surrogates: list[float]) -> float:
+            from math import erf
+
+            return 0.5 * (1 - erf(zscore(observed, surrogates) / np.sqrt(2)))
+
+        stats = {}
+        for group, result in bfa_results.items():
+            observed = result["observed"]
+            surrogates = result["surrogates"]
+            stats[group] = {
+                "percentile": percentile(observed, surrogates),
+                "zscore": zscore(observed, surrogates),
+                "right_tail_p": right_tail_p(observed, surrogates),
+            }
+        return stats
+
+    @staticmethod
+    def _manhattan_distance(
+        transition_matrix1: pd.DataFrame, transition_matrix2: pd.DataFrame
+    ) -> float:
+        # check that transition_matrix1 and transition_matrix2 have the same index and columns
+        if not transition_matrix1.index.equals(transition_matrix2.index):
+            raise ValueError(
+                "transition_matrix1 and transition_matrix2 must have the same index"
+            )
+        if not transition_matrix1.columns.equals(transition_matrix2.columns):
+            raise ValueError(
+                "transition_matrix1 and transition_matrix2 must have the same columns"
+            )
+        difference = transition_matrix1 - transition_matrix2
+        return difference.abs().sum(axis=1).sum()
+
+    @staticmethod
+    def _mean_transition_matrix(matrices: list[pd.DataFrame]) -> pd.DataFrame:
+        summed_matrix = sum(matrices)
+        mean_matrix = summed_matrix / len(matrices)
+        return mean_matrix
+
+    def _manhattan_distance_twogroups(
+        self, list1: list[pd.DataFrame], list2: list[pd.DataFrame]
+    ) -> float:
+        # calculate manhattan distance between two lists of transition matrices
+        distance = self._manhattan_distance(
+            self._mean_transition_matrix(list1), self._mean_transition_matrix(list2)
+        )
+        return distance
+
+    @staticmethod
+    def shuffle_lists(group1: list, group2: list) -> tuple[list, list]:
+        import random
+
+        n1 = len(group1)
+        combined = group1 + group2
+        random.shuffle(combined)
+        new_group1 = combined[:n1]
+        new_group2 = combined[n1:]
+        return new_group1, new_group2

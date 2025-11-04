@@ -21,14 +21,17 @@ class TrackingCollection(BaseCollection):
     """
 
     _element_type = Tracking
-    _multiple_collection_type = "MultipleTrackingCollection"
 
     def __init__(self, tracking_dict: dict[str, Tracking]):
-        for key, obj in tracking_dict.items():
-            if obj.handle != key:
-                raise ValueError(
-                    f"Key '{key}' does not match object's handle '{obj.handle}'"
-                )
+        # Only validate handle mapping when values are leaf Tracking objects.
+        # Grouped views (values are sub-collections) should skip this check.
+        values = list(tracking_dict.values())
+        if values and all(isinstance(v, Tracking) for v in values):
+            for key, obj in tracking_dict.items():
+                if obj.handle != key:
+                    raise ValueError(
+                        f"Key '{key}' does not match object's handle '{obj.handle}'"
+                    )
         super().__init__(tracking_dict)
 
     @property
