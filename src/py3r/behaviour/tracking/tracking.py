@@ -11,6 +11,14 @@ import numpy as np
 import pandas as pd
 
 from py3r.behaviour.util.collection_utils import _Indexer
+from py3r.behaviour.util.io_utils import (
+    SchemaVersion,
+    begin_save,
+    write_manifest,
+    read_manifest,
+    write_dataframe,
+    read_dataframe,
+)
 
 Self = TypeVar("Self", bound="Tracking")
 
@@ -203,12 +211,48 @@ class Tracking:
             )
         self.tags[tagname] = tagvalue
 
-    def save(self, filepath: str) -> None:
-        """saves .csv file and _meta.json file to disk at location specified by filepath"""
-        basefilepath = filepath.split(".csv")[0]
-        self.data.to_csv(basefilepath + ".csv")
-        with open(os.path.expanduser(basefilepath + "_meta.json"), "w") as f:
-            json.dump(self.meta, f)
+    # New round-trip save/load that preserves full state in a directory
+    def save(
+        self,
+        dirpath: str,
+        *,
+        data_format: str = "parquet",
+        overwrite: bool = False,
+    ) -> None:
+        """
+        Save this Tracking into a self-describing directory for exact round-trip.
+        """
+        target = begin_save(dirpath, overwrite)
+        # write data
+        data_spec = write_dataframe(
+            target,
+            self.data,
+            filename="data.parquet" if data_format == "parquet" else "data.csv",
+            format=data_format,
+        )
+        # write manifest
+        manifest = {
+            "schema_version": SchemaVersion,
+            "module": self.__class__.__module__,
+            "class": self.__class__.__name__,
+            "handle": self.handle,
+            "tags": self.tags,
+            "meta": self.meta,
+            "data": data_spec,
+        }
+        write_manifest(target, manifest)
+
+    @classmethod
+    def load(cls: Type[Self], dirpath: str) -> Self:
+        """
+        Load a Tracking (or subclass) previously saved with save().
+        """
+        manifest = read_manifest(dirpath)
+        df = read_dataframe(dirpath, manifest["data"])
+        handle = manifest["handle"]
+        meta = manifest["meta"]
+        tags = manifest.get("tags", {})
+        return cls(df, meta, handle, tags)
 
     def strip_column_names(self) -> None:
         """strips out all column name string apart from last two sections delimited by dots"""

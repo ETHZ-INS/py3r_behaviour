@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import MutableMapping
+import os
 import warnings
 
 from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util.collection_utils import BatchResult
+from py3r.behaviour.util.io_utils import (
+    SchemaVersion,
+    begin_save,
+    write_manifest,
+    read_manifest,
+)
 
 
 class BaseCollection(MutableMapping):
@@ -250,3 +257,84 @@ class BaseCollection(MutableMapping):
         # Flat case
         new_dict = {handle: fn(obj) for handle, obj in self.items()}
         return self.__class__(new_dict)
+
+    # ---- Generic persistence for collections ----
+    def save(
+        self, dirpath: str, *, overwrite: bool = False, data_format: str = "parquet"
+    ) -> None:
+        """
+        Save this collection to a directory. Preserves grouping and delegates to
+        leaf objects' save(dirpath, data_format, overwrite=True).
+        """
+        target = begin_save(dirpath, overwrite)
+        is_grouped = getattr(self, "is_grouped", False)
+        manifest: dict = {
+            "schema_version": SchemaVersion,
+            "module": self.__class__.__module__,
+            "class": self.__class__.__name__,
+            "is_grouped": is_grouped,
+            "groupby_tags": getattr(self, "groupby_tags", None),
+            "elements_index": {},
+        }
+        if is_grouped:
+            for gkey, sub in self.items():
+                subdir = os.path.join("groups", str(gkey))
+                abs_subdir = os.path.join(target, subdir)
+                os.makedirs(abs_subdir, exist_ok=True)
+                manifest["elements_index"][str(gkey)] = {}
+                for handle, obj in sub.items():
+                    leaf_dir_rel = os.path.join(subdir, handle)
+                    leaf_dir_abs = os.path.join(target, leaf_dir_rel)
+                    # delegate to leaf
+                    if hasattr(obj, "save"):
+                        obj.save(leaf_dir_abs, data_format=data_format, overwrite=True)
+                    else:
+                        raise AttributeError(f"Leaf object {type(obj)} has no save()")
+                    manifest["elements_index"][str(gkey)][handle] = leaf_dir_rel
+        else:
+            elems_dir = os.path.join(target, "elements")
+            os.makedirs(elems_dir, exist_ok=True)
+            for handle, obj in self.items():
+                leaf_dir_rel = os.path.join("elements", handle)
+                leaf_dir_abs = os.path.join(target, leaf_dir_rel)
+                if hasattr(obj, "save"):
+                    obj.save(leaf_dir_abs, data_format=data_format, overwrite=True)
+                else:
+                    raise AttributeError(f"Leaf object {type(obj)} has no save()")
+                manifest["elements_index"][handle] = leaf_dir_rel
+        write_manifest(target, manifest)
+
+    @classmethod
+    def load(cls, dirpath: str):
+        """
+        Load a collection previously saved with save(). Uses the class's
+        _element_type.load to reconstruct leaves.
+        """
+        manifest = read_manifest(dirpath)
+        is_grouped = manifest.get("is_grouped", False)
+        index = manifest.get("elements_index", {})
+        try:
+            element_cls = getattr(cls, "_element_type")
+        except AttributeError:
+            raise TypeError(
+                f"{cls.__name__} must define _element_type to load() collections"
+            )
+        if not hasattr(element_cls, "load"):
+            raise TypeError(f"{element_cls} must implement classmethod load(dirpath)")
+        if is_grouped:
+            grouped = {}
+            for gkey, mapping in index.items():
+                sub = {}
+                for handle, rel in mapping.items():
+                    sub[handle] = element_cls.load(os.path.join(dirpath, rel))
+                grouped[gkey] = cls(sub)
+            out = cls(grouped)
+            out._is_grouped = True
+            out._groupby_tags = manifest.get("groupby_tags")
+            return out
+        else:
+            flat = {
+                handle: element_cls.load(os.path.join(dirpath, rel))
+                for handle, rel in index.items()
+            }
+            return cls(flat)

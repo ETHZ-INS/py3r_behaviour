@@ -264,9 +264,8 @@ class TrackingCollection(TrackingCollectionBatchMixin, BaseCollection):
 
     def stereo_triangulate(self) -> TrackingCollection:
         """
-        Triangulate all TrackingMV objects. Grouped-aware:
-        - Flat: returns a flat TrackingCollection of triangulated Tracking
-        - Grouped: returns a grouped TrackingCollection with triangulated sub-collections
+        Triangulate all TrackingMV objects and return a new TrackingCollection.
+        The new collection will have the same grouping as the original.
         """
         return self.map_leaves(lambda t: t.stereo_triangulate())
 

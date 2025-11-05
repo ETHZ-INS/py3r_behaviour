@@ -1,6 +1,7 @@
 from __future__ import annotations
 import warnings
 from copy import deepcopy
+import os
 from typing import Any, List
 
 import numpy as np
@@ -8,6 +9,14 @@ import pandas as pd
 
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.summary.summary_result import SummaryResult
+from py3r.behaviour.util.io_utils import (
+    SchemaVersion,
+    begin_save,
+    write_manifest,
+    read_manifest,
+    write_dataframe,
+    read_dataframe,
+)
 
 
 class Summary:
@@ -23,6 +32,82 @@ class Summary:
         self.tags = trackingfeatures.tags
         if "usermeta" in trackingfeatures.meta:
             self.meta["usermeta"] = trackingfeatures.meta["usermeta"]
+
+    # Full round-trip persistence
+    def save(
+        self,
+        dirpath: str,
+        *,
+        data_format: str = "parquet",
+        overwrite: bool = False,
+    ) -> None:
+        target = begin_save(dirpath, overwrite)
+        # Save nested features (which saves nested tracking)
+        features_sub = os.path.join(target, "features")
+        self.features.save(features_sub, data_format=data_format, overwrite=True)
+        # Save summary data: scalars inline; pandas as separate files
+        data_dir = os.path.join(target, "data")
+        os.makedirs(data_dir, exist_ok=True)
+        scalars = {}
+        frames = {}
+        for name, value in self.data.items():
+            if isinstance(value, pd.DataFrame):
+                spec = write_dataframe(
+                    data_dir,
+                    value,
+                    filename=f"{name}.parquet"
+                    if data_format == "parquet"
+                    else f"{name}.csv",
+                    format=data_format,
+                )
+                frames[name] = {"type": "dataframe", **spec, "subdir": "data"}
+            elif isinstance(value, pd.Series):
+                spec = write_dataframe(
+                    data_dir,
+                    value,
+                    filename=f"{name}.parquet"
+                    if data_format == "parquet"
+                    else f"{name}.csv",
+                    format=data_format,
+                )
+                frames[name] = {"type": "series", **spec, "subdir": "data"}
+            else:
+                scalars[name] = value
+        manifest = {
+            "schema_version": SchemaVersion,
+            "module": self.__class__.__module__,
+            "class": self.__class__.__name__,
+            "handle": self.handle,
+            "tags": self.tags,
+            "meta": self.meta,
+            "features_path": "features",
+            "scalars": scalars,
+            "frames": frames,
+        }
+        write_manifest(target, manifest)
+
+    @classmethod
+    def load(cls, dirpath: str) -> "Summary":
+        manifest = read_manifest(dirpath)
+        features = Features.load(os.path.join(dirpath, manifest["features_path"]))
+        obj = cls(features)
+        obj.meta = manifest.get("meta", {})
+        obj.handle = manifest.get("handle", obj.handle)
+        obj.tags = manifest.get("tags", obj.tags)
+        # restore data
+        obj.data = {}
+        scalars = manifest.get("scalars", {})
+        frames = manifest.get("frames", {})
+        obj.data.update(scalars)
+        for name, spec in frames.items():
+            subdir = spec.get("subdir", "")
+            base = os.path.join(dirpath, subdir) if subdir else dirpath
+            df = read_dataframe(base, spec)
+            if spec.get("type") == "series":
+                obj.data[name] = df.iloc[:, 0]
+            else:
+                obj.data[name] = df
+        return obj
 
     def count_onset(self, column: str) -> SummaryResult:
         """
