@@ -11,7 +11,7 @@ from py3r.behaviour.summary.summary_collection_batch_mixin import (
 )
 
 
-class SummaryCollection(SummaryCollectionBatchMixin, BaseCollection):
+class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
     """
     collection of Summary objects
     (e.g. for grouping individuals)

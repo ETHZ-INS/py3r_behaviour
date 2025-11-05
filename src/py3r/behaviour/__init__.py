@@ -1,6 +1,5 @@
 from .tracking import (
     Tracking,
-    LoadOptions,
     TrackingCollection,
     TrackingMV,
 )
@@ -17,7 +16,6 @@ from .summary import (
 
 __all__ = [
     "Tracking",
-    "LoadOptions",
     "TrackingCollection",
     "TrackingMV",
     "Features",

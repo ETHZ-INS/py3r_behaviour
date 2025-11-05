@@ -19,7 +19,7 @@ from py3r.behaviour.features.features_collection_batch_mixin import (
 )
 
 
-class FeaturesCollection(FeaturesCollectionBatchMixin, BaseCollection):
+class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
     """
     Collection of Features objects, keyed by name.
     note: type-hints refer to Features, but factory methods allow for other classes

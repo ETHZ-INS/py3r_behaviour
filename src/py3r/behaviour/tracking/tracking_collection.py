@@ -12,7 +12,7 @@ from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
 
 
-class TrackingCollection(TrackingCollectionBatchMixin, BaseCollection):
+class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
     """
     Collection of Tracking objects, keyed by name (e.g. for grouping individuals)
     note: type-hints refer to Tracking, but factory methods allow for other classes
