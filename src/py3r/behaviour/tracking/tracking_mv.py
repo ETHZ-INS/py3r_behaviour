@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from py3r.behaviour.tracking.tracking import Tracking, LoadOptions
+from py3r.behaviour.tracking.tracking import Tracking
 
 
 class TrackingMV:
@@ -19,46 +19,77 @@ class TrackingMV:
         self.handle = handle
 
     @classmethod
+    def from_views(
+        cls,
+        filepaths: dict[str, str],
+        handle: str,
+        *,
+        calibration: dict,
+        tracking_loader,
+        **loader_kwargs,
+    ):
+        tracks = {
+            view: tracking_loader(fp, handle=f"{handle}_{view}", **loader_kwargs)
+            for view, fp in filepaths.items()
+        }
+        return cls(tracks, calibration, handle)
+
+    @classmethod
     def from_dlc(
         cls,
         filepaths: dict[str, str],
         handle: str,
-        options: LoadOptions,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
         calibration: dict,
     ):
-        tracks = {
-            view: Tracking.from_dlc(fp, handle=f"{handle}_{view}", options=options)
-            for view, fp in filepaths.items()
-        }
-        return cls(tracks, calibration, handle)
+        return cls.from_views(
+            filepaths,
+            handle,
+            calibration=calibration,
+            tracking_loader=Tracking.from_dlc,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @classmethod
     def from_dlcma(
         cls,
         filepaths: dict[str, str],
         handle: str,
-        options: LoadOptions,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
         calibration: dict,
     ):
-        tracks = {
-            view: Tracking.from_dlcma(fp, handle=f"{handle}_{view}", options=options)
-            for view, fp in filepaths.items()
-        }
-        return cls(tracks, calibration, handle)
+        return cls.from_views(
+            filepaths,
+            handle,
+            calibration=calibration,
+            tracking_loader=Tracking.from_dlcma,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @classmethod
     def from_yolo3r(
         cls,
         filepaths: dict[str, str],
         handle: str,
-        options: LoadOptions,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
         calibration: dict,
     ):
-        tracks = {
-            view: Tracking.from_yolo3r(fp, handle=f"{handle}_{view}", options=options)
-            for view, fp in filepaths.items()
-        }
-        return cls(tracks, calibration, handle)
+        return cls.from_views(
+            filepaths,
+            handle,
+            calibration=calibration,
+            tracking_loader=Tracking.from_yolo3r,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     def stereo_triangulate(self, invert_z: bool = True) -> "Tracking":
         import cv2

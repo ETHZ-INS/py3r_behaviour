@@ -4,8 +4,7 @@ import json
 import os
 import re
 import warnings
-from dataclasses import dataclass
-from typing import Optional, Dict, Any, Type, TypeVar
+from typing import Dict, Any, Type, TypeVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,35 +13,6 @@ import pandas as pd
 from py3r.behaviour.util.collection_utils import _Indexer
 
 Self = TypeVar("Self", bound="Tracking")
-
-
-@dataclass(kw_only=True)
-class LoadOptions:
-    fps: float
-    aspectratio_correction: float = 1.0
-    usermeta: Optional[Dict[str, Any]] = None
-
-    def __post_init__(self) -> None:
-        # Validate fps
-        if not isinstance(self.fps, (int, float)):
-            raise TypeError(
-                f"fps must be a number (int or float), got {type(self.fps).__name__}"
-            )
-        self.fps = float(self.fps)
-
-        # Validate aspectratio_correction
-        if not isinstance(self.aspectratio_correction, (int, float)):
-            raise TypeError(
-                f"aspectratio_correction must be a number (int or float), got {type(self.aspectratio_correction).__name__}"
-            )
-        self.aspectratio_correction = float(self.aspectratio_correction)
-
-        # Validate usermeta
-        if self.usermeta is not None:
-            if not isinstance(self.usermeta, dict):
-                raise TypeError(
-                    f"usermeta must be a dictionary, got {type(self.usermeta).__name__}"
-                )
 
 
 class Tracking:
@@ -57,8 +27,9 @@ class Tracking:
         filepath: str,
         *,
         handle: str,
-        options: LoadOptions,
-        tags: dict[str, str] = {},
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tags: dict[str, str] | None = None,
     ) -> Self:
         """
         loads a Tracking object from a (single animal) deeplabcut tracking csv
@@ -78,15 +49,14 @@ class Tracking:
 
         meta = {
             "filepath": filepath,
-            "fps": options.fps,
-            "aspectratio_correction": options.aspectratio_correction,
+            "fps": float(fps),
+            "aspectratio_correction": float(aspectratio_correction),
             "network": scorer,
-            "usermeta": options.usermeta,
         }
 
-        data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
+        data = cls._apply_aspectratio_correction(data, float(aspectratio_correction))
 
-        return cls(data, meta, handle)
+        return cls(data, meta, handle, tags)
 
     @classmethod
     def from_dlcma(
@@ -94,8 +64,9 @@ class Tracking:
         filepath: str,
         *,
         handle: str,
-        options: LoadOptions,
-        tags: dict[str, str] = {},
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tags: dict[str, str] | None = None,
     ) -> Self:
         """
         loads a Tracking object from a multi-animal deeplabcut tracking csv
@@ -121,15 +92,14 @@ class Tracking:
         # add meta specific to DLC
         meta = {
             "filepath": filepath,
-            "fps": options.fps,
-            "aspectratio_correction": options.aspectratio_correction,
+            "fps": float(fps),
+            "aspectratio_correction": float(aspectratio_correction),
             "network": scorer,
-            "usermeta": options.usermeta,
         }
 
-        data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
+        data = cls._apply_aspectratio_correction(data, float(aspectratio_correction))
 
-        return cls(data, meta, handle)
+        return cls(data, meta, handle, tags)
 
     @classmethod
     def from_yolo3r(
@@ -137,8 +107,9 @@ class Tracking:
         filepath: str,
         *,
         handle: str,
-        options: LoadOptions,
-        tags: dict[str, str] = {},
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tags: dict[str, str] | None = None,
     ) -> Self:
         """
         loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format
@@ -159,14 +130,13 @@ class Tracking:
 
         meta = {
             "filepath": filepath,
-            "fps": options.fps,
-            "aspectratio_correction": options.aspectratio_correction,
-            "usermeta": options.usermeta,
+            "fps": float(fps),
+            "aspectratio_correction": float(aspectratio_correction),
         }
 
-        data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
+        data = cls._apply_aspectratio_correction(data, float(aspectratio_correction))
 
-        return cls(data, meta, handle)
+        return cls(data, meta, handle, tags)
 
     @staticmethod
     def _apply_aspectratio_correction(

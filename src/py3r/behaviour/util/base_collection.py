@@ -224,3 +224,29 @@ class BaseCollection(MutableMapping):
         if not self.is_grouped or not self._groupby_tags:
             return self
         return self.flatten().groupby(self._groupby_tags)
+
+    # ---- Transform helpers ----
+    def map_leaves(self, fn):
+        """
+        Apply a function to every leaf element and return a new collection of the
+        same type. Preserves grouping shape and groupby metadata when grouped.
+
+        fn: callable(Element) -> ElementLike
+
+        Example:
+            # Turn a TrackingCollection[TrackingMV] into TrackingCollection[Tracking]
+            triangulated = tracking_collection.map_leaves(lambda t: t.stereo_triangulate())
+        """
+        if self.is_grouped:
+            grouped_new = {}
+            for gkey, sub in self.items():
+                # sub is a flat collection (same class as self), map each leaf
+                new_sub_dict = {handle: fn(obj) for handle, obj in sub.items()}
+                grouped_new[gkey] = sub.__class__(new_sub_dict)
+            out = self.__class__(grouped_new)
+            out._is_grouped = True
+            out._groupby_tags = list(self._groupby_tags) if self._groupby_tags else None
+            return out
+        # Flat case
+        new_dict = {handle: fn(obj) for handle, obj in self.items()}
+        return self.__class__(new_dict)

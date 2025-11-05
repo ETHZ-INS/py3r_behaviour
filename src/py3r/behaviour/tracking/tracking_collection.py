@@ -2,18 +2,14 @@ from __future__ import annotations
 import json
 import os
 import pandas as pd
-from py3r.behaviour.tracking.tracking import (
-    Tracking,
-    LoadOptions,
+from py3r.behaviour.tracking.tracking import Tracking
+from py3r.behaviour.tracking.tracking_collection_batch_mixin import (
+    TrackingCollectionBatchMixin,
 )
-
 from py3r.behaviour.tracking.tracking_mv import TrackingMV
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
-from py3r.behaviour.tracking.tracking_collection_batch_mixin import (
-    TrackingCollectionBatchMixin,
-)
 
 
 class TrackingCollection(TrackingCollectionBatchMixin, BaseCollection):
@@ -42,15 +38,16 @@ class TrackingCollection(TrackingCollectionBatchMixin, BaseCollection):
         return self._obj_dict
 
     @classmethod
-    def from_dlc(
+    def from_mapping(
         cls,
         handles_and_filepaths: dict[str, str],
-        options: LoadOptions,
+        *,
+        tracking_loader,
         tracking_cls=Tracking,
+        **loader_kwargs,
     ):
         """
-        Loads a TrackingCollection from a dict of DLC tracking csvs.
-        handles_and_filepaths: dict mapping handles to file paths.
+        Generic constructor from a mapping of handle -> filepath using a loader callable.
         """
         if not issubclass(tracking_cls, Tracking):
             raise TypeError(
@@ -58,72 +55,68 @@ class TrackingCollection(TrackingCollectionBatchMixin, BaseCollection):
             )
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_dlc(
-                fp, handle=handle, options=options
-            )
+            trackings[handle] = tracking_loader(fp, handle=handle, **loader_kwargs)
         return cls(trackings)
+
+    @classmethod
+    def from_dlc(
+        cls,
+        handles_and_filepaths: dict[str, str],
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tracking_cls=Tracking,
+    ):
+        return cls.from_mapping(
+            handles_and_filepaths,
+            tracking_loader=tracking_cls.from_dlc,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @classmethod
     def from_yolo3r(
         cls,
         handles_and_filepaths: dict[str, str],
-        options: LoadOptions,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
         tracking_cls=Tracking,
     ):
-        """
-        Loads a TrackingCollection from a dict of yolo3r tracking csvs.
-        handles_and_filepaths: dict mapping handles to file paths.
-        """
-        if not issubclass(tracking_cls, Tracking):
-            raise TypeError(
-                f"tracking_cls must be Tracking or a subclass, got {tracking_cls}"
-            )
-        trackings = {}
-        for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_yolo3r(
-                fp, handle=handle, options=options
-            )
-        return cls(trackings)
+        return cls.from_mapping(
+            handles_and_filepaths,
+            tracking_loader=tracking_cls.from_yolo3r,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @classmethod
     def from_dlcma(
         cls,
         handles_and_filepaths: dict[str, str],
-        options: LoadOptions,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
         tracking_cls=Tracking,
     ):
-        """
-        Loads a TrackingCollection from a dict of DLC multi-animal tracking csvs.
-        handles_and_filepaths: dict mapping handles to file paths.
-        """
-        if not issubclass(tracking_cls, Tracking):
-            raise TypeError(
-                f"tracking_cls must be Tracking or a subclass, got {tracking_cls}"
-            )
-        trackings = {}
-        for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_dlcma(
-                fp, handle=handle, options=options
-            )
-        return cls(trackings)
-
-    @classmethod
-    def from_list(cls, tracking_list: list[Tracking]):
-        """
-        creates a TrackingCollection from a list of Tracking objects, keyed by handle
-        """
-        handles = [obj.handle for obj in tracking_list]
-        if len(handles) != len(set(handles)):
-            raise Exception("handles must be unique")
-        trackings = {obj.handle: obj for obj in tracking_list}
-        return cls(trackings)
+        return cls.from_mapping(
+            handles_and_filepaths,
+            tracking_loader=tracking_cls.from_dlcma,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @dev_mode
     @classmethod
     def from_dogfeather(
         cls,
         handles_and_filepaths: dict[str, str],
-        options: LoadOptions,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
         tracking_cls=Tracking,
     ):
         """
@@ -134,48 +127,109 @@ class TrackingCollection(TrackingCollectionBatchMixin, BaseCollection):
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
             trackings[handle] = tracking_cls.from_dogfeather(
-                fp, handle=handle, options=options
+                fp,
+                handle=handle,
+                fps=fps,
+                aspectratio_correction=aspectratio_correction,
             )
         return cls(trackings)
 
     @classmethod
-    def from_dlc_folder(
-        cls, folder_path: str, options: LoadOptions, tracking_cls: type = Tracking
+    def from_folder(
+        cls,
+        folder_path: str,
+        *,
+        tracking_loader,
+        tracking_cls: type = Tracking,
+        **loader_kwargs,
     ) -> TrackingCollection:
         tracking_dict = {}
-        bookkeeping = cls._collect_tracking_files(
-            folder_path, tracking_cls, options=options
-        )
-        for handle, kwargs in bookkeeping.items():
-            tracking_obj = tracking_cls.from_dlc(**kwargs)
-            tracking_dict[handle] = tracking_obj
+        if issubclass(tracking_cls, TrackingMV):
+            for recording in sorted(os.listdir(folder_path)):
+                recording_path = os.path.join(folder_path, recording)
+                if not os.path.isdir(recording_path):
+                    continue
+                filepaths = {}
+                for fname in os.listdir(recording_path):
+                    if fname.endswith(".csv") and not fname.startswith("."):
+                        view = os.path.splitext(fname)[0]
+                        filepaths[view] = os.path.join(recording_path, fname)
+                calib_path = os.path.join(recording_path, "calibration.json")
+                if not os.path.exists(calib_path):
+                    raise FileNotFoundError(
+                        f"Missing calibration.json in {recording_path}"
+                    )
+                with open(calib_path, "r") as f:
+                    calibration = json.load(f)
+                tracking_obj = tracking_cls.from_views(
+                    filepaths,
+                    handle=recording,
+                    calibration=calibration,
+                    tracking_loader=tracking_loader,
+                    **loader_kwargs,
+                )
+                tracking_dict[recording] = tracking_obj
+        else:
+            for fname in os.listdir(folder_path):
+                if fname.endswith(".csv") and not fname.startswith("."):
+                    handle = os.path.splitext(fname)[0]
+                    fpath = os.path.join(folder_path, fname)
+                    tracking_obj = tracking_loader(
+                        fpath, handle=handle, **loader_kwargs
+                    )
+                    tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
     @classmethod
     def from_yolo3r_folder(
-        cls, folder_path: str, options: LoadOptions, tracking_cls: type = Tracking
+        cls,
+        folder_path: str,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tracking_cls: type = Tracking,
     ) -> TrackingCollection:
-        tracking_dict = {}
-        bookkeeping = cls._collect_tracking_files(
-            folder_path, tracking_cls, options=options
+        return cls.from_folder(
+            folder_path,
+            tracking_loader=tracking_cls.from_yolo3r,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
         )
-        for handle, kwargs in bookkeeping.items():
-            tracking_obj = tracking_cls.from_yolo3r(**kwargs)
-            tracking_dict[handle] = tracking_obj
-        return cls(tracking_dict)
+
+    @classmethod
+    def from_dlc_folder(
+        cls,
+        folder_path: str,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tracking_cls: type = Tracking,
+    ) -> TrackingCollection:
+        return cls.from_folder(
+            folder_path,
+            tracking_loader=tracking_cls.from_dlc,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @classmethod
     def from_dlcma_folder(
-        cls, folder_path: str, options: LoadOptions, tracking_cls: type = Tracking
+        cls,
+        folder_path: str,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tracking_cls: type = Tracking,
     ) -> TrackingCollection:
-        tracking_dict = {}
-        bookkeeping = cls._collect_tracking_files(
-            folder_path, tracking_cls, options=options
+        return cls.from_folder(
+            folder_path,
+            tracking_loader=tracking_cls.from_dlcma,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
         )
-        for handle, kwargs in bookkeeping.items():
-            tracking_obj = tracking_cls.from_dlcma(**kwargs)
-            tracking_dict[handle] = tracking_obj
-        return cls(tracking_dict)
 
     def add_tags_from_csv(self, csv_path: str) -> None:
         """
@@ -208,74 +262,13 @@ class TrackingCollection(TrackingCollectionBatchMixin, BaseCollection):
             missing_str = ", ".join(sorted(set(map(str, missing_handles))))
             print("the following handles were not found in collection: " + missing_str)
 
-    def stereo_triangulate(self):
+    def stereo_triangulate(self) -> TrackingCollection:
         """
         Triangulate all TrackingMV objects. Grouped-aware:
         - Flat: returns a flat TrackingCollection of triangulated Tracking
         - Grouped: returns a grouped TrackingCollection with triangulated sub-collections
         """
-        if getattr(self, "is_grouped", False):
-            grouped = {}
-            for gkey, sub in self.items():
-                grouped[gkey] = sub.stereo_triangulate()
-            tc = TrackingCollection(grouped)
-            tc._is_grouped = True
-            tc._groupby_tags = self.groupby_tags
-            return tc
-        triangulated = {}
-        for handle, obj in self.tracking_dict.items():
-            if hasattr(obj, "stereo_triangulate"):
-                triangulated[handle] = obj.stereo_triangulate()
-            else:
-                raise TypeError(
-                    f"Object {handle} does not support stereo_triangulate()"
-                )
-        return TrackingCollection(triangulated)
-
-    @staticmethod
-    def _collect_tracking_files(folder_path, tracking_cls, options):
-        result = {}
-        if issubclass(tracking_cls, TrackingMV):
-            # Each subfolder is a recording
-            print(f"Scanning {folder_path} for recordings...")
-            for recording in sorted(os.listdir(folder_path)):
-                recording_path = os.path.join(folder_path, recording)
-                print(f"  Checking {recording_path}...")
-                if not os.path.isdir(recording_path):
-                    print("    Not a directory, skipping.")
-                    continue
-                # Find all view csvs
-                filepaths = {}
-                for fname in os.listdir(recording_path):
-                    if fname.endswith(".csv") and not fname.startswith("."):
-                        view = os.path.splitext(fname)[0]
-                        filepaths[view] = os.path.join(recording_path, fname)
-                # Load calibration
-                calib_path = os.path.join(recording_path, "calibration.json")
-                if not os.path.exists(calib_path):
-                    raise FileNotFoundError(
-                        f"Missing calibration.json in {recording_path}"
-                    )
-                with open(calib_path, "r") as f:
-                    calibration = json.load(f)
-                result[recording] = {
-                    "filepaths": filepaths,
-                    "handle": recording,
-                    "options": options,
-                    "calibration": calibration,
-                }
-        else:
-            # Single-view: treat each csv as a single-view Tracking
-            for fname in os.listdir(folder_path):
-                if fname.endswith(".csv") and not fname.startswith("."):
-                    handle = os.path.splitext(fname)[0]
-                    fpath = os.path.join(folder_path, fname)
-                    result[handle] = {
-                        "filepath": fpath,
-                        "handle": handle,
-                        "options": options,
-                    }
-        return result
+        return self.map_leaves(lambda t: t.stereo_triangulate())
 
     @property
     def loc(self):
