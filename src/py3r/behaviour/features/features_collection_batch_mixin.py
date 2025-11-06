@@ -7,6 +7,10 @@ from py3r.behaviour.util.collection_utils import BatchResult
 
 class FeaturesCollectionBatchMixin:
 
+    def save(self, dirpath: str, *, data_format: str="parquet", overwrite: bool=False) -> BatchResult:
+        """"""
+        return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
+
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> BatchResult:
         """returns distance from point1 to point2"""
         return self._invoke_batch("distance_between", point1, point2, dims)

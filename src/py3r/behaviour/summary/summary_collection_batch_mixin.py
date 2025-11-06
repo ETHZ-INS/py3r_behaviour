@@ -8,6 +8,10 @@ from typing import Any
 
 class SummaryCollectionBatchMixin:
 
+    def save(self, dirpath: str, *, data_format: str="parquet", overwrite: bool=False) -> BatchResult:
+        """"""
+        return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
+
     def count_onset(self, column: str) -> BatchResult:
         """
         counts number of times boolean series in the given column changes from False to True, ignoring nan values

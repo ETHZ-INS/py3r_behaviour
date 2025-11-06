@@ -15,9 +15,9 @@ class TrackingCollectionBatchMixin:
         """adds or updates a tag"""
         return self._invoke_batch("add_tag", tagname, tagvalue, overwrite)
 
-    def save(self, filepath: str) -> BatchResult:
-        """saves .csv file and _meta.json file to disk at location specified by filepath"""
-        return self._invoke_batch("save", filepath)
+    def save(self, dirpath: str, *, data_format: str="parquet", overwrite: bool=False) -> BatchResult:
+        """Save this Tracking into a self-describing directory for exact round-trip."""
+        return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
 
     def strip_column_names(self) -> BatchResult:
         """strips out all column name string apart from last two sections delimited by dots"""
@@ -61,6 +61,21 @@ class TrackingCollectionBatchMixin:
         where windowlength:int and smoothtype:str in {'mean','median'}
         """
         return self._invoke_batch("smooth", smoothing_params)
+
+    def smooth_all(self, window: int | None=3, method: str="mean", *overrides: tuple[list[str] | tuple[str, ...] | str, str, int | None], dims: tuple[str, ...]=("x", "y"), strict: bool=False, inplace: bool=True, smoother=None, smoother_kwargs: dict | None=None) -> BatchResult:
+        """
+        Smooth all tracked points using a default method/window, with optional override groups.
+        
+        - window/method: default applied to any point without override
+        - overrides: zero or more tuples of (points, method, window), where
+            - points: list/tuple of point names (or a single str)
+            - method: 'median' or 'mean'
+            - window: int (or None to skip smoothing for those points)
+        - dims: coordinate dimensions to smooth
+        - strict: require an effective window for every point
+        - inplace: mutate or return a new object
+        """
+        return self._invoke_batch("smooth_all", window, method, *overrides, dims=dims, strict=strict, inplace=inplace, smoother=smoother, smoother_kwargs=smoother_kwargs)
 
     def interpolate(self, method: str="linear", limit: int=1, **kwargs) -> BatchResult:
         """
