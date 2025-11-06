@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from py3r.behaviour.util.collection_utils import _Indexer
+from py3r.behaviour.util.smoothing import apply_smoothing
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
     begin_save,
@@ -371,6 +372,12 @@ class Tracking:
         self, pointslists: list, windows: list, smoothtypes: list
     ) -> dict:
         """make smoothdict for multiple point lists"""
+        # deprecation warning
+        warnings.warn(
+            "generate_smoothdict is deprecated. use smooth_all instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         assert len(pointslists) == len(windows)
         assert len(pointslists) == len(smoothtypes)
 
@@ -393,6 +400,12 @@ class Tracking:
         {pointname:{window:windowlength,type:smoothtype}}
         where windowlength:int and smoothtype:str in {'mean','median'}
         """
+        # deprecation warning
+        warnings.warn(
+            "smooth is deprecated. use smooth_all instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         if "smoothing" in self.meta.keys():
             raise Exception(
@@ -441,6 +454,129 @@ class Tracking:
                     )
 
         self.meta["smoothing"] = smoothing_params
+
+    def smooth_all(
+        self,
+        window: int | None = 3,
+        method: str = "mean",
+        *overrides: tuple[list[str] | tuple[str, ...] | str, str, int | None],
+        dims: tuple[str, ...] = ("x", "y"),
+        strict: bool = False,
+        inplace: bool = True,
+        smoother=None,
+        smoother_kwargs: dict | None = None,
+    ) -> "Tracking | None":
+        """
+        Smooth all tracked points using a default method/window, with optional override groups.
+
+        - window/method: default applied to any point without override
+        - overrides: zero or more tuples of (points, method, window), where
+            - points: list/tuple of point names (or a single str)
+            - method: 'median' or 'mean'
+            - window: int (or None to skip smoothing for those points)
+        - dims: coordinate dimensions to smooth
+        - strict: require an effective window for every point
+        - inplace: mutate or return a new object
+        """
+        # Normalize override groups into a point->spec dict
+        overrides_dict: dict[str, dict] = {}
+        for grp in overrides:
+            if not (isinstance(grp, tuple) and len(grp) == 3):
+                raise ValueError(
+                    "each override must be a tuple: (points, method, window)"
+                )
+            pts, m, w = grp
+            if isinstance(pts, str):
+                pts_list = [pts]
+            elif isinstance(pts, (list, tuple)):
+                pts_list = list(pts)
+            else:
+                raise ValueError("points must be a list/tuple of names or a single str")
+            for p in pts_list:
+                overrides_dict[p] = {"method": m, "window": w}
+
+        self._validate_smoothing_inputs(method, dims, overrides_dict)
+        points = self.get_point_names()
+        specs = self._resolve_smoothing_specs(
+            default_method=method,
+            default_window=window,
+            overrides=overrides_dict,
+            points=points,
+            strict=strict,
+        )
+        df_target = self.data if inplace else self.data.copy()
+        df_smoothed = apply_smoothing(
+            df_target, specs, dims, smoother=smoother, smoother_kwargs=smoother_kwargs
+        )
+        meta_entry = self._build_smoothing_meta(specs, dims)
+        if inplace:
+            self.data = df_smoothed
+            self.meta["smoothing"] = meta_entry
+            return None
+        new_meta = copy.deepcopy(self.meta)
+        new_meta["smoothing"] = meta_entry
+        return self.__class__(df_smoothed, new_meta, self.handle, self.tags)
+
+    def _validate_smoothing_inputs(
+        self,
+        method: str,
+        dims: tuple[str, ...],
+        overrides: dict | None,
+    ) -> None:
+        if "smoothing" in self.meta.keys():
+            raise Exception(
+                "data already smoothed. load again to use different smoothing"
+            )
+        if method not in {"median", "mean"}:
+            raise ValueError("method must be one of {'median','mean'}")
+        if not set(dims).issubset({"x", "y", "z"}):
+            raise ValueError("dims must be a subset of {'x','y','z'}")
+        if overrides:
+            unknown = set(overrides.keys()) - set(self.get_point_names())
+            if unknown:
+                raise ValueError(f"overrides contain unknown points: {sorted(unknown)}")
+
+    def _resolve_smoothing_specs(
+        self,
+        *,
+        default_method: str,
+        default_window: int | None,
+        overrides: dict[str, dict],
+        points: list[str],
+        strict: bool,
+    ) -> dict[str, dict]:
+        allowed_methods = {"median", "mean"}
+        specs: dict[str, dict] = {}
+        for p in points:
+            m = default_method
+            w = default_window
+            spec = overrides.get(p)
+            if spec is None:
+                pass
+            elif isinstance(spec, dict):
+                if "method" in spec:
+                    if spec["method"] not in allowed_methods:
+                        raise ValueError(
+                            f"override for {p}: method must be one of {allowed_methods}"
+                        )
+                    m = spec["method"]
+                if "window" in spec:
+                    w = int(spec["window"]) if spec["window"] is not None else None
+            else:
+                raise ValueError(
+                    f"Invalid override for {p}: expected dict with keys 'method'/'window', got {type(spec)}"
+                )
+            if strict and (w is None or w <= 0):
+                raise ValueError(
+                    f"No valid window resolved for point '{p}' with strict=True"
+                )
+            specs[p] = {"method": m, "window": None if not w or w <= 0 else int(w)}
+        return specs
+
+    def _build_smoothing_meta(
+        self, specs: dict[str, dict], dims: tuple[str, ...]
+    ) -> dict:
+        return {"spec": specs, "dims": list(dims)}
 
     def interpolate(self, method: str = "linear", limit: int = 1, **kwargs) -> None:
         """
