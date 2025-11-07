@@ -33,6 +33,8 @@ from py3r.behaviour.util.io_utils import (
 
 if TYPE_CHECKING:
     from py3r.behaviour.classifier import BaseClassifier
+    import pandas as pd
+    from sklearn.neighbors import KNeighborsRegressor
 
 logger = logging.getLogger(__name__)
 logformat = "%(funcName)s(): %(message)s"

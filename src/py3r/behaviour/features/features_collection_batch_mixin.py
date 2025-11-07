@@ -7,6 +7,8 @@ from py3r.behaviour.util.collection_utils import BatchResult
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from py3r.behaviour.classifier import BaseClassifier
+    import pandas as pd
+    from sklearn.neighbors import KNeighborsRegressor
 
 class FeaturesCollectionBatchMixin:
 
