@@ -9,7 +9,10 @@ from typing import Any
 class SummaryCollectionBatchMixin:
 
     def save(self, dirpath: str, *, data_format: str="parquet", overwrite: bool=False) -> BatchResult:
-        """"""
+        """ """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'save')(dirpath, data_format=data_format, overwrite=overwrite))
         return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
 
     def count_onset(self, column: str) -> BatchResult:
@@ -17,22 +20,37 @@ class SummaryCollectionBatchMixin:
         counts number of times boolean series in the given column changes from False to True, ignoring nan values
         if first non nan value in series is true, this counts as an onset
         """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'count_onset')(column))
         return self._invoke_batch("count_onset", column)
 
     def time_true(self, column: str) -> BatchResult:
         """returns time in seconds that condition in the given column is true"""
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'time_true')(column))
         return self._invoke_batch("time_true", column)
 
     def time_false(self, column: str) -> BatchResult:
         """returns time in seconds that condition in the given column is false"""
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'time_false')(column))
         return self._invoke_batch("time_false", column)
 
     def total_distance(self, point: str, startframe: int | None=None, endframe: int | None=None) -> BatchResult:
         """returns total distance traveled by a tracked point between optional start and end frames"""
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'total_distance')(point, startframe, endframe))
         return self._invoke_batch("total_distance", point, startframe, endframe)
 
     def store(self, summarystat: Any, name: str, overwrite: bool=False, meta: Any=None) -> BatchResult:
         """stores a summary statistic and optional metadata, with optional overwrite protection"""
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'store')(summarystat, name, overwrite, meta))
         return self._invoke_batch("store", summarystat, name, overwrite, meta)
 
     def make_bin(self, startframe: int, endframe: int) -> BatchResult:
@@ -40,6 +58,9 @@ class SummaryCollectionBatchMixin:
         creates a copy of the Summary object with the dataframes
         restricted from startframe to endframe, inclusive
         """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'make_bin')(startframe, endframe))
         return self._invoke_batch("make_bin", startframe, endframe)
 
     def make_bins(self, numbins: int) -> BatchResult:
@@ -49,6 +70,9 @@ class SummaryCollectionBatchMixin:
         start/endpoints are duplicated between intervals to ensure no loss
         in e.g. distance calculations
         """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'make_bins')(numbins))
         return self._invoke_batch("make_bins", numbins)
 
     def transition_matrix(self, column: str, all_states=None) -> BatchResult:
@@ -56,13 +80,22 @@ class SummaryCollectionBatchMixin:
         Returns a transition matrix for a given column in self.features.data,
         with rows and columns as the unique values of the column or as specified by all_states.
         """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'transition_matrix')(column, all_states))
         return self._invoke_batch("transition_matrix", column, all_states)
 
     def count_state_onsets(self, column: str) -> BatchResult:
         """counts the number of times a state is entered in a given column"""
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'count_state_onsets')(column))
         return self._invoke_batch("count_state_onsets", column)
 
     def time_in_state(self, column: str) -> BatchResult:
         """returns the time spent in each state in a given column"""
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'time_in_state')(column))
         return self._invoke_batch("time_in_state", column)
 
