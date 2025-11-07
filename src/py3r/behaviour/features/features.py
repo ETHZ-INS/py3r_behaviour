@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point, Polygon
 from shapely.errors import GEOSException
-from sklearn.cluster import KMeans
 from sklearn.neighbors import KNeighborsRegressor
+import os
 
 from py3r.behaviour.tracking.tracking import Tracking
 from py3r.behaviour.util import series_utils
@@ -22,9 +22,19 @@ from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
 from py3r.behaviour.features.features_result import FeaturesResult
+from py3r.behaviour.util.io_utils import (
+    SchemaVersion,
+    begin_save,
+    write_manifest,
+    read_manifest,
+    write_dataframe,
+    read_dataframe,
+)
 
 if TYPE_CHECKING:
     from py3r.behaviour.classifier import BaseClassifier
+    import pandas as pd
+    from sklearn.neighbors import KNeighborsRegressor
 
 logger = logging.getLogger(__name__)
 logformat = "%(funcName)s(): %(message)s"
@@ -50,6 +60,49 @@ class Features:
             warnings.warn(
                 "distance has not been calibrated on these tracking data. some methods will be unavailable"
             )
+
+    # Full round-trip persistence
+    def save(
+        self,
+        dirpath: str,
+        *,
+        data_format: str = "parquet",
+        overwrite: bool = False,
+    ) -> None:
+        target = begin_save(dirpath, overwrite)
+        # Save own data
+        data_spec = write_dataframe(
+            target,
+            self.data,
+            filename="data.parquet" if data_format == "parquet" else "data.csv",
+            format=data_format,
+        )
+        # Save nested tracking in a subfolder
+        tracking_sub = os.path.join(target, "tracking")
+        self.tracking.save(tracking_sub, data_format=data_format, overwrite=True)
+        manifest = {
+            "schema_version": SchemaVersion,
+            "module": self.__class__.__module__,
+            "class": self.__class__.__name__,
+            "handle": self.handle,
+            "tags": self.tags,
+            "meta": self.meta,
+            "data": data_spec,
+            "tracking_path": "tracking",
+        }
+        write_manifest(target, manifest)
+
+    @classmethod
+    def load(cls, dirpath: str) -> "Features":
+        manifest = read_manifest(dirpath)
+        df = read_dataframe(dirpath, manifest["data"])
+        tracking = Tracking.load(os.path.join(dirpath, manifest["tracking_path"]))
+        obj = cls(tracking)
+        obj.data = df
+        obj.meta = manifest.get("meta", {})
+        obj.handle = manifest.get("handle", obj.handle)
+        obj.tags = manifest.get("tags", obj.tags)
+        return obj
 
     def distance_between(
         self, point1: str, point2: str, dims=("x", "y")
@@ -625,21 +678,6 @@ class Features:
                 data[f"{col}_{suffix}"] = shifted
         embed_df = pd.DataFrame(data, index=self.data.index)
         return embed_df
-
-    def cluster_embedding(
-        self, embedding: dict[str, list[int]], n_clusters: int
-    ) -> tuple[pd.Series, pd.DataFrame]:
-        """
-        cluster the embedding using k-means,
-        ensuring that the cluster label is nan where a row in the embedding has nan values
-        returns the labels and the centroids
-        """
-        embed_df = self.embedding_df(embedding)
-        kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(embed_df)
-        centroids = pd.DataFrame(kmeans.cluster_centers_, columns=embed_df.columns)
-        labels = pd.Series(kmeans.labels_, index=self.data.index)
-        labels.loc[embed_df.isna().any(axis=1)] = np.nan
-        return labels, centroids
 
     def assign_clusters_by_centroids(
         self, embedding: dict[str, list[int]], centroids_df: pd.DataFrame

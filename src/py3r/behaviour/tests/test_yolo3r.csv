@@ -1,4 +1,0 @@
-frame_index,animal1.nose.x,animal1.nose.y,animal1.nose.conf,animal1.nose.bbox.x1,animal1.nose.bbox.y1,animal1.nose.bbox.x2,animal1.nose.bbox.y2,animal2.nose.x,animal2.nose.y,animal2.nose.conf,animal2.nose.bbox.x1,animal2.nose.bbox.y1,animal2.nose.bbox.x2,animal2.nose.bbox.y2
-0,1.0,2.0,0.9,10,20,30,40,3.0,4.0,0.8,13,24,35,46
-1,1.1,2.1,0.8,11,21,31,41,3.1,4.1,0.7,14,25,36,47
-2,1.2,2.2,0.7,12,22,32,42,3.2,4.2,0.6,15,26,37,48 

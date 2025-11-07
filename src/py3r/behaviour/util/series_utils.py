@@ -147,14 +147,16 @@ def apply_normalization_to_df(df: pd.DataFrame, rescale_factors: dict) -> pd.Dat
     return normalized
 
 
-def custom_scaling(df: pd.DataFrame, scaling: dict[str, dict]) -> pd.DataFrame:
+def apply_custom_scaling(df: pd.DataFrame, scaling: dict[str, dict]) -> pd.DataFrame:
     """
     Apply custom per-column scaling based on substring matches.
 
     Rules:
     - Each key in `scaling` is matched against column names by substring containment.
-    - For a matched column, apply (optional) normalization by its std, then multiply by `scale`.
+    - For a matched column, apply (optional) normalization dividing by its std, then multiplying by `scale`.
     - If a column matches more than one key, raise ValueError.
+
+    Example: apply_custom_scaling(df, {"accel": {"normalize": False, "scale": 3.0}, "dist": {"normalize": True, "scale": 1.0}})
 
     The input is not mutated; a scaled copy is returned.
     """

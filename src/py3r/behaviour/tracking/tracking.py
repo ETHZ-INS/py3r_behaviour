@@ -1,48 +1,25 @@
 from __future__ import annotations
 import copy
-import json
-import os
 import re
 import warnings
-from dataclasses import dataclass
-from typing import Optional, Dict, Any, Type, TypeVar
+from typing import Dict, Any, Type, TypeVar
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from py3r.behaviour.util.collection_utils import _Indexer
+from py3r.behaviour.util.smoothing import apply_smoothing
+from py3r.behaviour.util.io_utils import (
+    SchemaVersion,
+    begin_save,
+    write_manifest,
+    read_manifest,
+    write_dataframe,
+    read_dataframe,
+)
 
 Self = TypeVar("Self", bound="Tracking")
-
-
-@dataclass(kw_only=True)
-class LoadOptions:
-    fps: float
-    aspectratio_correction: float = 1.0
-    usermeta: Optional[Dict[str, Any]] = None
-
-    def __post_init__(self) -> None:
-        # Validate fps
-        if not isinstance(self.fps, (int, float)):
-            raise TypeError(
-                f"fps must be a number (int or float), got {type(self.fps).__name__}"
-            )
-        self.fps = float(self.fps)
-
-        # Validate aspectratio_correction
-        if not isinstance(self.aspectratio_correction, (int, float)):
-            raise TypeError(
-                f"aspectratio_correction must be a number (int or float), got {type(self.aspectratio_correction).__name__}"
-            )
-        self.aspectratio_correction = float(self.aspectratio_correction)
-
-        # Validate usermeta
-        if self.usermeta is not None:
-            if not isinstance(self.usermeta, dict):
-                raise TypeError(
-                    f"usermeta must be a dictionary, got {type(self.usermeta).__name__}"
-                )
 
 
 class Tracking:
@@ -178,8 +155,9 @@ class Tracking:
         filepath: str,
         *,
         handle: str,
-        options: LoadOptions,
-        tags: dict[str, str] = {},
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tags: dict[str, str] | None = None,
     ) -> Self:
         """
         loads a Tracking object from a (single animal) deeplabcut tracking csv
@@ -199,15 +177,14 @@ class Tracking:
 
         meta = {
             "filepath": filepath,
-            "fps": options.fps,
-            "aspectratio_correction": options.aspectratio_correction,
+            "fps": float(fps),
+            "aspectratio_correction": float(aspectratio_correction),
             "network": scorer,
-            "usermeta": options.usermeta,
         }
 
-        data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
+        data = cls._apply_aspectratio_correction(data, float(aspectratio_correction))
 
-        return cls(data, meta, handle)
+        return cls(data, meta, handle, tags)
 
     @classmethod
     def from_dlcma(
@@ -215,8 +192,9 @@ class Tracking:
         filepath: str,
         *,
         handle: str,
-        options: LoadOptions,
-        tags: dict[str, str] = {},
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tags: dict[str, str] | None = None,
     ) -> Self:
         """
         loads a Tracking object from a multi-animal deeplabcut tracking csv
@@ -242,15 +220,14 @@ class Tracking:
         # add meta specific to DLC
         meta = {
             "filepath": filepath,
-            "fps": options.fps,
-            "aspectratio_correction": options.aspectratio_correction,
+            "fps": float(fps),
+            "aspectratio_correction": float(aspectratio_correction),
             "network": scorer,
-            "usermeta": options.usermeta,
         }
 
-        data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
+        data = cls._apply_aspectratio_correction(data, float(aspectratio_correction))
 
-        return cls(data, meta, handle)
+        return cls(data, meta, handle, tags)
 
     @classmethod
     def from_yolo3r(
@@ -258,8 +235,9 @@ class Tracking:
         filepath: str,
         *,
         handle: str,
-        options: LoadOptions,
-        tags: dict[str, str] = {},
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tags: dict[str, str] | None = None,
     ) -> Self:
         """
         loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format
@@ -280,14 +258,13 @@ class Tracking:
 
         meta = {
             "filepath": filepath,
-            "fps": options.fps,
-            "aspectratio_correction": options.aspectratio_correction,
-            "usermeta": options.usermeta,
+            "fps": float(fps),
+            "aspectratio_correction": float(aspectratio_correction),
         }
 
-        data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
+        data = cls._apply_aspectratio_correction(data, float(aspectratio_correction))
 
-        return cls(data, meta, handle)
+        return cls(data, meta, handle, tags)
 
     @staticmethod
     def _apply_aspectratio_correction(
@@ -354,12 +331,48 @@ class Tracking:
             )
         self.tags[tagname] = tagvalue
 
-    def save(self, filepath: str) -> None:
-        """saves .csv file and _meta.json file to disk at location specified by filepath"""
-        basefilepath = filepath.split(".csv")[0]
-        self.data.to_csv(basefilepath + ".csv")
-        with open(os.path.expanduser(basefilepath + "_meta.json"), "w") as f:
-            json.dump(self.meta, f)
+    # New round-trip save/load that preserves full state in a directory
+    def save(
+        self,
+        dirpath: str,
+        *,
+        data_format: str = "parquet",
+        overwrite: bool = False,
+    ) -> None:
+        """
+        Save this Tracking into a self-describing directory for exact round-trip.
+        """
+        target = begin_save(dirpath, overwrite)
+        # write data
+        data_spec = write_dataframe(
+            target,
+            self.data,
+            filename="data.parquet" if data_format == "parquet" else "data.csv",
+            format=data_format,
+        )
+        # write manifest
+        manifest = {
+            "schema_version": SchemaVersion,
+            "module": self.__class__.__module__,
+            "class": self.__class__.__name__,
+            "handle": self.handle,
+            "tags": self.tags,
+            "meta": self.meta,
+            "data": data_spec,
+        }
+        write_manifest(target, manifest)
+
+    @classmethod
+    def load(cls: Type[Self], dirpath: str) -> Self:
+        """
+        Load a Tracking (or subclass) previously saved with save().
+        """
+        manifest = read_manifest(dirpath)
+        df = read_dataframe(dirpath, manifest["data"])
+        handle = manifest["handle"]
+        meta = manifest["meta"]
+        tags = manifest.get("tags", {})
+        return cls(df, meta, handle, tags)
 
     def strip_column_names(self) -> None:
         """strips out all column name string apart from last two sections delimited by dots"""
@@ -480,6 +493,12 @@ class Tracking:
         self, pointslists: list, windows: list, smoothtypes: list
     ) -> dict:
         """make smoothdict for multiple point lists"""
+        # deprecation warning
+        warnings.warn(
+            "generate_smoothdict is deprecated. use smooth_all instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         assert len(pointslists) == len(windows)
         assert len(pointslists) == len(smoothtypes)
 
@@ -502,6 +521,12 @@ class Tracking:
         {pointname:{window:windowlength,type:smoothtype}}
         where windowlength:int and smoothtype:str in {'mean','median'}
         """
+        # deprecation warning
+        warnings.warn(
+            "smooth is deprecated. use smooth_all instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         if "smoothing" in self.meta.keys():
             raise Exception(
@@ -550,6 +575,129 @@ class Tracking:
                     )
 
         self.meta["smoothing"] = smoothing_params
+
+    def smooth_all(
+        self,
+        window: int | None = 3,
+        method: str = "mean",
+        *overrides: tuple[list[str] | tuple[str, ...] | str, str, int | None],
+        dims: tuple[str, ...] = ("x", "y"),
+        strict: bool = False,
+        inplace: bool = True,
+        smoother=None,
+        smoother_kwargs: dict | None = None,
+    ) -> "Tracking | None":
+        """
+        Smooth all tracked points using a default method/window, with optional override groups.
+
+        - window/method: default applied to any point without override
+        - overrides: zero or more tuples of (points, method, window), where
+            - points: list/tuple of point names (or a single str)
+            - method: 'median' or 'mean'
+            - window: int (or None to skip smoothing for those points)
+        - dims: coordinate dimensions to smooth
+        - strict: require an effective window for every point
+        - inplace: mutate or return a new object
+        """
+        # Normalize override groups into a point->spec dict
+        overrides_dict: dict[str, dict] = {}
+        for grp in overrides:
+            if not (isinstance(grp, tuple) and len(grp) == 3):
+                raise ValueError(
+                    "each override must be a tuple: (points, method, window)"
+                )
+            pts, m, w = grp
+            if isinstance(pts, str):
+                pts_list = [pts]
+            elif isinstance(pts, (list, tuple)):
+                pts_list = list(pts)
+            else:
+                raise ValueError("points must be a list/tuple of names or a single str")
+            for p in pts_list:
+                overrides_dict[p] = {"method": m, "window": w}
+
+        self._validate_smoothing_inputs(method, dims, overrides_dict)
+        points = self.get_point_names()
+        specs = self._resolve_smoothing_specs(
+            default_method=method,
+            default_window=window,
+            overrides=overrides_dict,
+            points=points,
+            strict=strict,
+        )
+        df_target = self.data if inplace else self.data.copy()
+        df_smoothed = apply_smoothing(
+            df_target, specs, dims, smoother=smoother, smoother_kwargs=smoother_kwargs
+        )
+        meta_entry = self._build_smoothing_meta(specs, dims)
+        if inplace:
+            self.data = df_smoothed
+            self.meta["smoothing"] = meta_entry
+            return None
+        new_meta = copy.deepcopy(self.meta)
+        new_meta["smoothing"] = meta_entry
+        return self.__class__(df_smoothed, new_meta, self.handle, self.tags)
+
+    def _validate_smoothing_inputs(
+        self,
+        method: str,
+        dims: tuple[str, ...],
+        overrides: dict | None,
+    ) -> None:
+        if "smoothing" in self.meta.keys():
+            raise Exception(
+                "data already smoothed. load again to use different smoothing"
+            )
+        if method not in {"median", "mean"}:
+            raise ValueError("method must be one of {'median','mean'}")
+        if not set(dims).issubset({"x", "y", "z"}):
+            raise ValueError("dims must be a subset of {'x','y','z'}")
+        if overrides:
+            unknown = set(overrides.keys()) - set(self.get_point_names())
+            if unknown:
+                raise ValueError(f"overrides contain unknown points: {sorted(unknown)}")
+
+    def _resolve_smoothing_specs(
+        self,
+        *,
+        default_method: str,
+        default_window: int | None,
+        overrides: dict[str, dict],
+        points: list[str],
+        strict: bool,
+    ) -> dict[str, dict]:
+        allowed_methods = {"median", "mean"}
+        specs: dict[str, dict] = {}
+        for p in points:
+            m = default_method
+            w = default_window
+            spec = overrides.get(p)
+            if spec is None:
+                pass
+            elif isinstance(spec, dict):
+                if "method" in spec:
+                    if spec["method"] not in allowed_methods:
+                        raise ValueError(
+                            f"override for {p}: method must be one of {allowed_methods}"
+                        )
+                    m = spec["method"]
+                if "window" in spec:
+                    w = int(spec["window"]) if spec["window"] is not None else None
+            else:
+                raise ValueError(
+                    f"Invalid override for {p}: expected dict with keys 'method'/'window', got {type(spec)}"
+                )
+            if strict and (w is None or w <= 0):
+                raise ValueError(
+                    f"No valid window resolved for point '{p}' with strict=True"
+                )
+            specs[p] = {"method": m, "window": None if not w or w <= 0 else int(w)}
+        return specs
+
+    def _build_smoothing_meta(
+        self, specs: dict[str, dict], dims: tuple[str, ...]
+    ) -> dict:
+        return {"spec": specs, "dims": list(dims)}
 
     def interpolate(self, method: str = "linear", limit: int = 1, **kwargs) -> None:
         """
