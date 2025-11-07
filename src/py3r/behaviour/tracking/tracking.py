@@ -27,7 +27,7 @@ class Tracking:
     Represent frame-by-frame tracked keypoints with convenience loaders and tools.
 
     A `Tracking` holds a pandas DataFrame of columns like `p1.x`, `p1.y`,
-    `p1.z`, `p1.likelihood` with index named `frame`. Most users will create
+    `p1.z`, `p1.likelihood` with index named `frame`. Most users create
     objects via factory methods and then call instance methods to process or
     analyze trajectories.
 
@@ -43,12 +43,11 @@ class Tracking:
     - Minimal plotting
 
     Examples:
-        Create test DLC CSV and load a Tracking:
+        Minimal DLC example:
 
-        >>> from importlib import resources as ir
-        >>> from py3r.behaviour.tracking import _data
-        >>> p = ir.files(_data) / 'dlc_single.csv'
-        >>> t = Tracking.from_dlc(str(p), handle='ex', options=LoadOptions(fps=30))
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> len(t.data), t.meta['fps'], t.handle
         (5, 30.0, 'ex')
         >>> t.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
@@ -56,15 +55,15 @@ class Tracking:
 
         Load from DLC multi-animal (DLCMA):
 
-        >>> p_ma = ir.files(_data) / 'dlcma_multi.csv'
-        >>> tma = Tracking.from_dlcma(str(p_ma), handle='ma', options=LoadOptions(fps=30))
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p_ma:
+        ...     tma = Tracking.from_dlcma(str(p_ma), handle='ma', fps=30)
         >>> tma.meta['fps'], tma.handle
         (30.0, 'ma')
 
         Load from YOLO3R (3D columns present):
 
-        >>> p_y = ir.files(_data) / 'yolo3r.csv'
-        >>> ty = Tracking.from_yolo3r(str(p_y), handle='y3r', options=LoadOptions(fps=30))
+        >>> with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p_y:
+        ...     ty = Tracking.from_yolo3r(str(p_y), handle='y3r', fps=30)
         >>> 'p1.z' in ty.data.columns and 'p1.likelihood' in ty.data.columns
         True
         >>> ty.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
@@ -81,7 +80,8 @@ class Tracking:
 
         Filter low-likelihood positions and interpolate:
 
-        >>> t2 = Tracking.from_dlc(str(p), handle='ex2', options=LoadOptions(fps=30))
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t2 = Tracking.from_dlc(str(p), handle='ex2', fps=30)
         >>> _ = t2.filter_likelihood(0.2)
         >>> import numpy as np
         >>> np.isnan(t2.data['p1.x']).any()
@@ -90,10 +90,9 @@ class Tracking:
         >>> t2.data.columns.str.endswith('.likelihood').any() and t2.meta['interpolation']['method'] == 'nearest'
         True
 
-        Smooth all points with window=1 (no-op) and check metadata:
+        Smooth all points with default window=3 rolling mean, and optional exception for point 'p1':
 
-        >>> sm = t.generate_smoothdict([t.get_point_names()], [1], ['mean'])
-        >>> _ = t.smooth(sm)
+        >>> _ = t.smooth_all(window=3, method='mean',(['p1'],'median',4))
         >>> 'smoothing' in t.meta
         True
 
@@ -105,24 +104,27 @@ class Tracking:
 
         Trim frames and verify time window:
 
-        >>> t3 = Tracking.from_dlc(str(p), handle='ex3', options=LoadOptions(fps=30))
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t3 = Tracking.from_dlc(str(p), handle='ex3', fps=30)
         >>> _ = t3.trim(startframe=2, endframe=7)
         >>> t3.data.index[0] == 2 and t3.data.index[-1] == 7
         True
         >>> t3.time_as_expected(mintime=0.0, maxtime=10.0)
         True
 
-        Save to disk (CSV and _meta.json):
+        Save to a directory (parquet backend) and load back:
 
+        >>> import os, tempfile
         >>> with tempfile.TemporaryDirectory() as d:
-        ...     out = os.path.join(d, 'out.csv')
-        ...     _ = t.save(out)
-        ...     os.path.exists(out) and os.path.exists(out.replace('.csv', '_meta.json'))
+        ...     _ = t.save(d, data_format='csv')
+        ...     t_loaded = Tracking.load(d)
+        >>> isinstance(t_loaded, Tracking) and len(t_loaded.data) == len(t.data)
         True
 
         Slice with loc/iloc and keep handle:
 
-        >>> t4 = Tracking.from_dlc(str(p), handle='ex4', options=LoadOptions(fps=30))
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t4 = Tracking.from_dlc(str(p), handle='ex4', fps=30)
         >>> t4s = t4.loc[0:3]
         >>> isinstance(t4s, Tracking) and t4s.handle == 'ex4'
         True
