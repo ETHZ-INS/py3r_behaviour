@@ -43,107 +43,132 @@ class Tracking:
     - Minimal plotting
 
     Examples:
-        Minimal DLC example:
+    Minimal DLC example:
 
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> len(t.data), t.meta['fps'], t.handle
-        (5, 30.0, 'ex')
-        >>> t.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
-        [[0, 0.0, 0.0, 0.0, 1.0], [1, 1.0, 2.0, 3.0, 0.75]]
+    ```pycon
+    >>> from py3r.behaviour.util.docdata import data_path
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+    >>> len(t.data), t.meta['fps'], t.handle
+    (5, 30.0, 'ex')
+    >>> t.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
+    [[0.0, 0.0, 0.0, 0.0, 1.0], [1.0, 1.0, 2.0, 3.0, 0.75]]
+    ```
 
-        Load from DLC multi-animal (DLCMA):
+    Load from DLC multi-animal (DLCMA):
 
-        >>> with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p_ma:
-        ...     tma = Tracking.from_dlcma(str(p_ma), handle='ma', fps=30)
-        >>> tma.meta['fps'], tma.handle
-        (30.0, 'ma')
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p_ma:
+    ...     tma = Tracking.from_dlcma(str(p_ma), handle='ma', fps=30)
+    >>> tma.meta['fps'], tma.handle
+    (30.0, 'ma')
+    ```
 
-        Load from YOLO3R (3D columns present):
+    Load from YOLO3R (3D columns present):
 
-        >>> with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p_y:
-        ...     ty = Tracking.from_yolo3r(str(p_y), handle='y3r', fps=30)
-        >>> 'p1.z' in ty.data.columns and 'p1.likelihood' in ty.data.columns
-        True
-        >>> ty.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
-        [[0, 0.0, 0.0, 0.0, 1.0], [1, 1.0, 2.0, 3.0, 0.9]]
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p_y:
+    ...     ty = Tracking.from_yolo3r(str(p_y), handle='y3r', fps=30)
+    >>> 'p1.z' in ty.data.columns and 'p1.likelihood' in ty.data.columns
+    True
+    >>> ty.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
+    [[0.0, 0.0, 0.0, 0.0, 1.0], [1.0, 1.0, 2.0, 3.0, 0.9]]
+    ```
 
-        Inspect points and distances:
+    Inspect points and distances:
 
-        >>> names = t.get_point_names()
-        >>> sorted(names)[:3]
-        ['p1', 'p2', 'p3']
-        >>> d = t.distance_between('p1', 'p2')
-        >>> len(d) == len(t.data)
-        True
+    ```pycon
+    >>> names = t.get_point_names()
+    >>> sorted(names)[:3]
+    ['p1', 'p2', 'p3']
+    >>> d = t.distance_between('p1', 'p2')
+    >>> len(d) == len(t.data)
+    True
+    ```
 
-        Filter low-likelihood positions and interpolate:
+    Filter low-likelihood positions and interpolate:
 
-        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...     t2 = Tracking.from_dlc(str(p), handle='ex2', fps=30)
-        >>> _ = t2.filter_likelihood(0.2)
-        >>> import numpy as np
-        >>> np.isnan(t2.data['p1.x']).any()
-        True
-        >>> _ = t2.interpolate(method='nearest', limit=1)
-        >>> t2.data.columns.str.endswith('.likelihood').any() and t2.meta['interpolation']['method'] == 'nearest'
-        True
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...     t2 = Tracking.from_dlc(str(p), handle='ex2', fps=30)
+    >>> _ = t2.filter_likelihood(0.2)
+    >>> import numpy as np
+    >>> bool(np.isnan(t2.data['p1.x']).any())
+    True
+    >>> _ = t2.interpolate(method='nearest', limit=1)
+    >>> t2.data.columns.str.endswith('.likelihood').any() and t2.meta['interpolation']['method'] == 'nearest'
+    True
+    ```
 
-        Smooth all points with default window=3 rolling mean, and optional exception for point 'p1':
+    Smooth all points with default window=3 rolling mean, and optional exception for point 'p1':
 
-        >>> _ = t.smooth_all(window=3, method='mean',(['p1'],'median',4))
-        >>> 'smoothing' in t.meta
-        True
+    ```pycon
+    >>> _ = t.smooth_all(3, 'mean',(['p1'],'median',4))
+    >>> 'smoothing' in t.meta
+    True
+    ```
 
-        Rescale by known distance between two points (uniform across dims):
+    Rescale by known distance between two points (uniform across dims):
 
-        >>> _ = t.rescale_by_known_distance('p1', 'p2', distance_in_metres=2.0)
-        >>> t.meta['distance_units']
-        'm'
+    ```pycon
+    >>> _ = t.rescale_by_known_distance('p1', 'p2', distance_in_metres=2.0)
+    >>> t.meta['distance_units']
+    'm'
+    ```
 
-        Trim frames and verify time window:
+    Trim frames and verify time window:
 
-        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...     t3 = Tracking.from_dlc(str(p), handle='ex3', fps=30)
-        >>> _ = t3.trim(startframe=2, endframe=7)
-        >>> t3.data.index[0] == 2 and t3.data.index[-1] == 7
-        True
-        >>> t3.time_as_expected(mintime=0.0, maxtime=10.0)
-        True
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...     t3 = Tracking.from_dlc(str(p), handle='ex3', fps=30)
+    >>> _ = t3.trim(startframe=2, endframe=4)
+    >>> bool(t3.data.index[0] == 2 and t3.data.index[-1] == 4)
+    True
+    >>> bool(t3.time_as_expected(mintime=0.0, maxtime=10.0))
+    True
+    ```
 
-        Save to a directory (parquet backend) and load back:
+    Save to a directory (parquet backend) and load back:
 
-        >>> import os, tempfile
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     _ = t.save(d, data_format='csv')
-        ...     t_loaded = Tracking.load(d)
-        >>> isinstance(t_loaded, Tracking) and len(t_loaded.data) == len(t.data)
-        True
+    ```pycon
+    >>> import os, tempfile
+    >>> with tempfile.TemporaryDirectory() as d:
+    ...     _ = t.save(d, overwrite=True)
+    ...     t_loaded = Tracking.load(d)
+    >>> isinstance(t_loaded, Tracking) and len(t_loaded.data) == len(t.data)
+    True
+    ```
 
-        Slice with loc/iloc and keep handle:
+    Slice with loc/iloc and keep handle:
 
-        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...     t4 = Tracking.from_dlc(str(p), handle='ex4', fps=30)
-        >>> t4s = t4.loc[0:3]
-        >>> isinstance(t4s, Tracking) and t4s.handle == 'ex4'
-        True
-        >>> t4s2 = t4.iloc[0:2]
-        >>> isinstance(t4s2, Tracking) and len(t4s2.data) == 2
-        True
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...     t4 = Tracking.from_dlc(str(p), handle='ex4', fps=30)
+    >>> t4s = t4.loc[0:3]
+    >>> isinstance(t4s, Tracking) and t4s.handle == 'ex4'
+    True
+    >>> t4s2 = t4.iloc[0:2]
+    >>> isinstance(t4s2, Tracking) and len(t4s2.data) == 2
+    True
+    ```
 
-        Minimal plotting (no display):
 
-        >>> _ = t.plot(show=False)
+    Minimal plotting (no display):
 
-        Tagging and user metadata:
+    ```pycon
+    >>> _ = t.plot(show=False)
+    ```
 
-        >>> t.add_tag('session', 'S1')
-        >>> t.tags['session']
-        'S1'
-        >>> t.add_usermeta({'group': 'G1'}, overwrite=True)
-        >>> t.meta['usermeta']['group']
-        'G1'
+    Tagging and user metadata:
+
+    ```pycon
+    >>> t.add_tag('session', 'S1')
+    >>> t.tags['session']
+    'S1'
+    >>> t.add_usermeta({'group': 'G1'}, overwrite=True)
+    >>> t.meta['usermeta']['group']
+    'G1'
+    ```
     """
 
     data: pd.DataFrame
@@ -167,7 +192,11 @@ class Tracking:
         # read header
         header = pd.read_csv(filepath, header=None, nrows=3)
         cols = [
-            ".".join(i) for i in zip(list(header.iloc[1, 1:]), list(header.iloc[2, 1:]))
+            ".".join(i)
+            for i in zip(
+                list(header.iloc[1, 1:].astype(str)),
+                list(header.iloc[2, 1:].astype(str)),
+            )
         ]
         scorer = header.iloc[0, 1]
 
@@ -206,9 +235,9 @@ class Tracking:
         cols = [
             ".".join(i)
             for i in zip(
-                list(header.iloc[1, 1:]),
-                list(header.iloc[2, 1:]),
-                list(header.iloc[3, 1:]),
+                list(header.iloc[1, 1:].astype(str)),
+                list(header.iloc[2, 1:].astype(str)),
+                list(header.iloc[3, 1:].astype(str)),
             )
         ]
         scorer = header.iloc[0, 1]

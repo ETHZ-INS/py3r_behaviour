@@ -28,6 +28,9 @@ class TrackingMV:
         tracking_loader,
         **loader_kwargs,
     ):
+        """
+        Loads a TrackingMV object from a dictionary of filepaths and a calibration dictionary.
+        """
         tracks = {
             view: tracking_loader(fp, handle=f"{handle}_{view}", **loader_kwargs)
             for view, fp in filepaths.items()

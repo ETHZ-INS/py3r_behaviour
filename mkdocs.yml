@@ -1,0 +1,63 @@
+site_name: py3r-behaviour
+site_url: ""
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+    - content.code.select
+    - toc.integrate
+    - toc.collapsible
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+nav:
+  - Home: index.md
+  - API:
+    - Tracking: api/tracking.md
+    - TrackingMV: api/tracking_mv.md
+    - TrackingCollection: api/tracking_collection.md
+    - Features: api/features.md
+    - FeaturesCollection: api/features_collection.md
+    - Summary: api/summary.md
+    - SummaryCollection: api/summary_collection.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - src
+          options:
+            docstring_style: numpy
+            separate_signature: true
+            show_signature: true
+            show_signature_annotations: true
+            show_source: false
+            show_root_heading: true
+            members_order: source
+            merge_init_into_class: true
+            parameter_headings: true
+            allow_inspection: true
+            show_if_no_docstring: true
+            filters: 
+                - public
+                - "!@py3r.behaviour.util.dev_utils.dev_mode"
+            extra:
+              show_private_members: false
+              show_special_members: true
+              show_inheritance: true
+              show_inherited_members: true
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: false
+      pygments_lang_class: true
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+extra_css:
+  - css/extra.css
+
