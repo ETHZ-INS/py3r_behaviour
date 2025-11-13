@@ -4,3 +4,5 @@ __pycache__/
 *.egg-info/
 dev/
 .pytest_cache/
+site/
+.cache/

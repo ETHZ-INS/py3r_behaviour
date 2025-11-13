@@ -42,9 +42,7 @@ plugins:
             parameter_headings: true
             allow_inspection: true
             show_if_no_docstring: true
-            filters: 
-                - public
-                - "!@py3r.behaviour.util.dev_utils.dev_mode"
+            filters: public
             extra:
               show_private_members: false
               show_special_members: true
