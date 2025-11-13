@@ -54,6 +54,7 @@ class Tracking:
     (5, 30.0, 'ex')
     >>> t.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
     [[0.0, 0.0, 0.0, 0.0, 1.0], [1.0, 1.0, 2.0, 3.0, 0.75]]
+
     ```
 
     Load from DLC multi-animal (DLCMA):
@@ -63,6 +64,7 @@ class Tracking:
     ...     tma = Tracking.from_dlcma(str(p_ma), handle='ma', fps=30)
     >>> tma.meta['fps'], tma.handle
     (30.0, 'ma')
+
     ```
 
     Load from YOLO3R (3D columns present):
@@ -74,6 +76,7 @@ class Tracking:
     True
     >>> ty.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
     [[0.0, 0.0, 0.0, 0.0, 1.0], [1.0, 1.0, 2.0, 3.0, 0.9]]
+
     ```
 
     Inspect points and distances:
@@ -85,6 +88,7 @@ class Tracking:
     >>> d = t.distance_between('p1', 'p2')
     >>> len(d) == len(t.data)
     True
+
     ```
 
     Filter low-likelihood positions and interpolate:
@@ -99,6 +103,7 @@ class Tracking:
     >>> _ = t2.interpolate(method='nearest', limit=1)
     >>> t2.data.columns.str.endswith('.likelihood').any() and t2.meta['interpolation']['method'] == 'nearest'
     True
+
     ```
 
     Smooth all points with default window=3 rolling mean, and optional exception for point 'p1':
@@ -107,6 +112,7 @@ class Tracking:
     >>> _ = t.smooth_all(3, 'mean',(['p1'],'median',4))
     >>> 'smoothing' in t.meta
     True
+
     ```
 
     Rescale by known distance between two points (uniform across dims):
@@ -115,6 +121,7 @@ class Tracking:
     >>> _ = t.rescale_by_known_distance('p1', 'p2', distance_in_metres=2.0)
     >>> t.meta['distance_units']
     'm'
+
     ```
 
     Trim frames and verify time window:
@@ -127,6 +134,7 @@ class Tracking:
     True
     >>> bool(t3.time_as_expected(mintime=0.0, maxtime=10.0))
     True
+
     ```
 
     Save to a directory (parquet backend) and load back:
@@ -138,6 +146,7 @@ class Tracking:
     ...     t_loaded = Tracking.load(d)
     >>> isinstance(t_loaded, Tracking) and len(t_loaded.data) == len(t.data)
     True
+
     ```
 
     Slice with loc/iloc and keep handle:
@@ -151,6 +160,7 @@ class Tracking:
     >>> t4s2 = t4.iloc[0:2]
     >>> isinstance(t4s2, Tracking) and len(t4s2.data) == 2
     True
+
     ```
 
 
@@ -158,6 +168,7 @@ class Tracking:
 
     ```pycon
     >>> _ = t.plot(show=False)
+
     ```
 
     Tagging and user metadata:
@@ -169,6 +180,7 @@ class Tracking:
     >>> t.add_usermeta({'group': 'G1'}, overwrite=True)
     >>> t.meta['usermeta']['group']
     'G1'
+
     ```
     """
 
@@ -199,6 +211,7 @@ class Tracking:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> len(t.data), t.meta['fps'], t.handle
         (5, 30.0, 'ex')
+
         ```
         """
         # normalize path
@@ -251,7 +264,8 @@ class Tracking:
         >>> with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p:
         ...     t = Tracking.from_dlcma(str(p), handle='ma', fps=30)
         >>> len(t.data), t.meta['fps'], t.handle
-        (5, 30.0, 'ma')
+        (4, 30.0, 'ma')
+
         ```
         """
         # normalize path
@@ -307,6 +321,7 @@ class Tracking:
         ...     t = Tracking.from_yolo3r(str(p), handle='y3r', fps=30)
         >>> 'p1.z' in t.data.columns and 'p1.likelihood' in t.data.columns
         True
+
         ```
         """
         # normalize path
@@ -383,6 +398,7 @@ class Tracking:
         >>> t.add_usermeta({'group': 'G1'}, overwrite=True)
         >>> t.meta['usermeta']['group']
         'G1'
+
         ```
         """
         if not isinstance(usermeta, dict):
@@ -412,6 +428,7 @@ class Tracking:
         >>> t.add_tag('session', 'S1', overwrite=True)
         >>> t.tags['session']
         'S1'
+
         ```
         """
         if not isinstance(tagname, str):
@@ -444,6 +461,7 @@ class Tracking:
         ...     t.save(d, data_format='parquet', overwrite=True)
         ...     os.path.exists(os.path.join(d, 'manifest.json'))
         True
+
         ```
         """
         target = begin_save(dirpath, overwrite)
@@ -483,6 +501,7 @@ class Tracking:
         ...     t2 = Tracking.load(d)
         >>> isinstance(t2, Tracking) and len(t2.data) == len(t.data)
         True
+
         ```
         """
         manifest = read_manifest(dirpath)
@@ -506,6 +525,7 @@ class Tracking:
         >>> after = list(t.data.columns)[:3]
         >>> all(len(c.split('.')) == 2 for c in after)
         True
+
         ```
         """
         stripped_colnames = [".".join(col.split(".")[-2:]) for col in self.data.columns]
@@ -525,6 +545,7 @@ class Tracking:
         True
         >>> bool(t.time_as_expected(0.0, 0.1)) # less than 0.1 seconds
         False
+
         ```
         """
         if "trim" in self.meta.keys():
@@ -547,6 +568,7 @@ class Tracking:
         >>> _ = t.trim(1, 3)
         >>> int(t.data.index[0]), int(t.data.index[-1])
         (1, 3)
+
         ```
         """
         if startframe is not None:
@@ -574,6 +596,7 @@ class Tracking:
         >>> t.filter_likelihood(0.5)
         >>> bool(np.isnan(t.data.filter(like='.x')).any().any())
         True
+
         ```
         """
         if "filter_likelihood_threshold" in self.meta.keys():
@@ -611,6 +634,7 @@ class Tracking:
         >>> d = t.distance_between('p1', 'p2')
         >>> len(d) == len(t.data)
         True
+
         ```
         """
         distance = np.sqrt(
@@ -635,6 +659,7 @@ class Tracking:
         >>> names = sorted(t.get_point_names())
         >>> set(['p1','p2','p3']).issubset(names)
         True
+
         ```
         """
         tracked_points = list(
@@ -656,6 +681,7 @@ class Tracking:
         >>> t.rescale_by_known_distance('p1','p2', 2.0)
         >>> t.meta['distance_units']
         'm'
+
         ```
         """
         if "rescale_distance_method" in self.meta.keys():
@@ -809,6 +835,7 @@ class Tracking:
         >>> t.smooth_all(3, 'mean', (['p1'], 'median', 4))
         >>> 'smoothing' in t.meta
         True
+
         ```
         """
         # Normalize override groups into a point->spec dict
@@ -927,6 +954,7 @@ class Tracking:
         >>> t.interpolate(method='linear', limit=1)
         >>> 'interpolation' in t.meta
         True
+
         ```
         """
         if "interpolation" in self.meta.keys():
@@ -962,12 +990,13 @@ class Tracking:
         >>> from py3r.behaviour.util.docdata import data_path
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> t.shape
-        (5, 3)
+        >>> t.data.shape
+        (5, 12)
         >>> t.loc[0:2,'p1.x'].data.shape
-        (2, 1)
+        (3,)
         >>> t.loc[0:2].handle
         'ex'
+
         ```
         """
         return _Indexer(self, self._loc)
@@ -983,12 +1012,13 @@ class Tracking:
         >>> from py3r.behaviour.util.docdata import data_path
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> t.shape
-        (5, 3)
+        >>> t.data.shape
+        (5, 12)
         >>> t.iloc[0:2,0].data.shape
-        (2, 1)
+        (2,)
         >>> t.iloc[0:2,0].handle
         'ex'
+
         ```
         """
         return _Indexer(self, self._iloc)
@@ -1037,6 +1067,7 @@ class Tracking:
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> _ = t.plot(show=False)
+
         ```
         """
         import numpy as np

@@ -42,10 +42,12 @@ plugins:
             parameter_headings: true
             allow_inspection: true
             show_if_no_docstring: true
-            filters: public
+            filters: 
+              - "!^__"
+              - "!^_"
             extra:
               show_private_members: false
-              show_special_members: true
+              show_special_members: false
               show_inheritance: true
               show_inherited_members: true
 markdown_extensions:
