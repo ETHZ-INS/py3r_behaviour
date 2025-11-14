@@ -109,6 +109,22 @@ class Features:
     ) -> FeaturesResult:
         """
         returns distance from point1 to point2
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> res = f.distance_between('p1','p2')
+        >>> isinstance(res, pd.Series) and len(res) == len(t.data)
+        True
+
+        ```
         """
         if "rescale_distance_method" not in self.tracking.meta.keys():
             warnings.warn("distance has not been calibrated")
@@ -130,6 +146,22 @@ class Features:
     ) -> FeaturesResult:
         """
         returns True for frames where point1 is within specified distance of point2
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> res = f.within_distance('p1','p2', distance=15.0)
+        >>> isinstance(res, pd.Series) and res.notna().any()
+        True
+
+        ```
         """
         obs_distance = self.distance_between(point1, point2, dims=dims)
         result = obs_distance <= distance
@@ -217,6 +249,23 @@ class Features:
         """
         checks whether point is inside polygon defined by ordered list of boundary points
         boundary points must be specified as a list of numerical tuples
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> boundary = f.define_boundary(['p1','p2','p3'], scaling=1.0)
+        >>> res = f.within_boundary_static('p1', boundary)
+        >>> isinstance(res, pd.Series) and res.notna().any()
+        True
+
+        ```
         """
         if len(boundary) < 3:
             raise Exception("boundary encloses no area")
@@ -248,6 +297,22 @@ class Features:
         """
         checks whether point is inside polygon defined by ordered list of boundary points
         boundary points must be specified as a list of names of tracked points
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> res = f.within_boundary_dynamic('p1', ['p1','p2','p3'])
+        >>> isinstance(res, pd.Series) and res.notna().any()
+        True
+
+        ```
         """
         if len(boundary) < 3:
             raise Exception("boundary encloses no area")
@@ -396,6 +461,22 @@ class Features:
     ) -> FeaturesResult:
         """
         returns area of boundary as a FeaturesResult (constant for static, per-frame for dynamic)
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> res = f.area_of_boundary(['p1','p2','p3'], median=True)
+        >>> isinstance(res, pd.Series) and res.nunique() == 1
+        True
+
+        ```
         """
         name = f"area_of_boundary_{self._short_boundary_id(boundary)}_{'static' if median else 'dynamic'}"
         meta = {"function": "area_of_boundary", "boundary": boundary, "median": median}
@@ -488,7 +569,25 @@ class Features:
         return FeaturesResult(result, self, name, meta)
 
     def speed(self, point: str, dims=("x", "y")) -> FeaturesResult:
-        """returns average speed of point from previous frame to current frame, for each frame"""
+        """
+        returns average speed of point from previous frame to current frame, for each frame
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> sp = f.speed('p1')
+        >>> isinstance(sp, pd.Series) and len(sp) == len(t.data)
+        True
+
+        ```
+        """
         if "rescale_distance_method" not in self.tracking.meta.keys():
             warnings.warn("distance has not been calibrated")
         if "smoothing" not in self.tracking.meta.keys():
@@ -548,7 +647,25 @@ class Features:
         return FeaturesResult(result, self, name, meta)
 
     def distance_change(self, point: str, dims=("x", "y")) -> FeaturesResult:
-        """returns unsigned distance moved by point from previous frame to current frame, for each frame"""
+        """
+        returns unsigned distance moved by point from previous frame to current frame, for each frame
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> dc = f.distance_change('p1')
+        >>> isinstance(dc, pd.Series) and len(dc) == len(t.data)
+        True
+
+        ```
+        """
         if "rescale_distance_method" not in self.tracking.meta.keys():
             warnings.warn("distance has not been calibrated")
         if "smoothing" not in self.tracking.meta.keys():
@@ -568,7 +685,26 @@ class Features:
         overwrite: bool = False,
         meta: dict = dict(),
     ) -> None:
-        """stores calculated feature with name and associated freeform metadata object"""
+        """
+        stores calculated feature with name and associated freeform metadata object
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> s = pd.Series(range(len(t.data)), index=t.data.index)
+        >>> f.store(s, 'counter', meta={'unit':'frames'})
+        >>> 'counter' in f.data.columns and f.meta['counter']['unit'] == 'frames'
+        True
+
+        ```
+        """
         if name in self.data.columns:
             if overwrite:
                 self.data[name] = feature
@@ -661,6 +797,25 @@ class Features:
         where embedding is a dict mapping column names to lists of shifts
         positive shift: value from the future (t+n)
         negative shift: value from the past (t-n)
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> # prepare a simple feature to embed
+        >>> s = pd.Series(range(len(t.data)), index=t.data.index)
+        >>> f.store(s, 'counter', meta={})
+        >>> emb = f.embedding_df({'counter':[0,1,-1]})
+        >>> list(emb.columns)
+        ['counter_t0', 'counter_t+1', 'counter_t-1']
+
+        ```
         """
         missing = [col for col in embedding if col not in self.data.columns]
         if len(missing) > 0:
