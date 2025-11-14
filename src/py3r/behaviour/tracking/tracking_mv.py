@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 from py3r.behaviour.tracking.tracking import Tracking
 
@@ -30,6 +31,29 @@ class TrackingMV:
     ):
         """
         Loads a TrackingMV object from a dictionary of filepaths and a calibration dictionary.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, json
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     # two views using the same packaged CSV for simplicity
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p_csv:
+        ...         left = d / 'left.csv'; right = d / 'right.csv'
+        ...         _ = shutil.copy(p_csv, left); _ = shutil.copy(p_csv, right)
+        ...     # load a packaged calibration json (must define 'view_order' incl. 'left','right')
+        ...     with data_path('py3r.behaviour.tracking._data', 'calibration.json') as p_cal:
+        ...         calib = json.loads(Path(p_cal).read_text())
+        ...     mv = TrackingMV.from_views({'left': str(left), 'right': str(right)}, handle='rec1',
+        ...                                 calibration=calib, tracking_loader=Tracking.from_dlc, fps=30)
+        >>> isinstance(mv, TrackingMV) and set(mv.views.keys()) == {'left','right'}
+        True
+
+        ```
         """
         tracks = {
             view: tracking_loader(fp, handle=f"{handle}_{view}", **loader_kwargs)
@@ -38,19 +62,79 @@ class TrackingMV:
         return cls(tracks, calibration, handle)
 
     @classmethod
-    def from_dlc(
+    def from_folder(
         cls,
-        filepaths: dict[str, str],
+        folder_path: str | Path,
         handle: str,
         *,
+        tracking_loader,
         fps: float,
         aspectratio_correction: float = 1.0,
-        calibration: dict,
-    ):
+    ) -> "TrackingMV":
+        """
+        Build a TrackingMV from a folder containing view CSVs and calibration.json.
+        """
+        from pathlib import Path as _Path
+        import os
+        import json
+
+        folder = _Path(folder_path)
+        if not folder.is_dir():
+            raise ValueError(f"Expected folder path, got {folder}")
+        filepaths = {
+            os.path.splitext(p.name)[0]: str(p)
+            for p in sorted(folder.glob("*.csv"))
+            if not p.name.startswith(".")
+        }
+        if not filepaths:
+            raise FileNotFoundError(f"No CSV views found in {folder}")
+        cpath = folder / "calibration.json"
+        if not cpath.exists():
+            raise FileNotFoundError(f"Missing calibration.json in {folder}")
+        calibration = json.loads(cpath.read_text())
         return cls.from_views(
             filepaths,
             handle,
             calibration=calibration,
+            tracking_loader=tracking_loader,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
+
+    @classmethod
+    def from_dlc(
+        cls,
+        folder_path: str | Path,
+        handle: str,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
+    ):
+        """
+        Build a TrackingMV from a folder containing DLC view CSVs and calibration.json.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, json
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p_csv:
+        ...         left = d / 'left.csv'; right = d / 'right.csv'
+        ...         _ = shutil.copy(p_csv, left); _ = shutil.copy(p_csv, right)
+        ...     calib = {'view_order':['left','right'],'views':{'left':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]},'right':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]}},'relative_pose':{'R':[[1,0,0],[0,1,0],[0,0,1]],'T':[0.1,0,0]}}
+        ...     (d/'calibration.json').write_text(json.dumps(calib))
+        ...     mv = TrackingMV.from_dlc(str(d), 'rec1', fps=30)
+        >>> isinstance(mv, TrackingMV)
+        True
+
+        ```
+        """
+        return cls.from_folder(
+            folder_path,
+            handle,
             tracking_loader=Tracking.from_dlc,
             fps=fps,
             aspectratio_correction=aspectratio_correction,
@@ -59,17 +143,37 @@ class TrackingMV:
     @classmethod
     def from_dlcma(
         cls,
-        filepaths: dict[str, str],
+        folder_path: str | Path,
         handle: str,
         *,
         fps: float,
         aspectratio_correction: float = 1.0,
-        calibration: dict,
     ):
-        return cls.from_views(
-            filepaths,
+        """
+        Build a TrackingMV from a folder containing DLC multi-animal view CSVs and calibration.json.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, json
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p_csv:
+        ...         left = d / 'left.csv'; right = d / 'right.csv'
+        ...         _ = shutil.copy(p_csv, left); _ = shutil.copy(p_csv, right)
+        ...     calib = {'view_order':['left','right'],'views':{'left':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]},'right':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]}},'relative_pose':{'R':[[1,0,0],[0,1,0],[0,0,1]],'T':[0.1,0,0]}}
+        ...     (d/'calibration.json').write_text(json.dumps(calib))
+        ...     mv = TrackingMV.from_dlcma(str(d), 'rec1', fps=30)
+        >>> isinstance(mv, TrackingMV)
+        True
+
+        ```
+        """
+        return cls.from_folder(
+            folder_path,
             handle,
-            calibration=calibration,
             tracking_loader=Tracking.from_dlcma,
             fps=fps,
             aspectratio_correction=aspectratio_correction,
@@ -78,17 +182,37 @@ class TrackingMV:
     @classmethod
     def from_yolo3r(
         cls,
-        filepaths: dict[str, str],
+        folder_path: str | Path,
         handle: str,
         *,
         fps: float,
         aspectratio_correction: float = 1.0,
-        calibration: dict,
     ):
-        return cls.from_views(
-            filepaths,
+        """
+        Build a TrackingMV from a folder containing YOLO3R CSVs and calibration.json.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, json
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p_csv:
+        ...         left = d / 'left.csv'; right = d / 'right.csv'
+        ...         _ = shutil.copy(p_csv, left); _ = shutil.copy(p_csv, right)
+        ...     calib = {'view_order':['left','right'],'views':{'left':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]},'right':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]}},'relative_pose':{'R':[[1,0,0],[0,1,0],[0,0,1]],'T':[0.1,0,0]}}
+        ...     (d/'calibration.json').write_text(json.dumps(calib))
+        ...     mv = TrackingMV.from_yolo3r(str(d), 'rec1', fps=30)
+        >>> isinstance(mv, TrackingMV)
+        True
+
+        ```
+        """
+        return cls.from_folder(
+            folder_path,
             handle,
-            calibration=calibration,
             tracking_loader=Tracking.from_yolo3r,
             fps=fps,
             aspectratio_correction=aspectratio_correction,
@@ -98,6 +222,36 @@ class TrackingMV:
         import cv2
         import numpy as np
 
+        """
+        Triangulate 3D coordinates from two-view 2D tracks using the calibration.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, json
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p_csv:
+        ...         left = d / 'left.csv'; right = d / 'right.csv'
+        ...         _ = shutil.copy(p_csv, left); _ = shutil.copy(p_csv, right)
+        ...     with data_path('py3r.behaviour.tracking._data', 'calibration.json') as p_cal:
+        ...         calib = json.loads(Path(p_cal).read_text())
+        ...     mv = TrackingMV.from_dlc({'left': str(left), 'right': str(right)}, 'rec1', fps=30, calibration=calib)
+        ...     tri = mv.stereo_triangulate()
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> isinstance(tri, Tracking)
+        True
+        >>> 'p1.z' in tri.data.columns
+        True
+        >>> 'p1.z' in mv.views['left'].data.columns
+        False
+        >>> 'p1.z' in mv.views['right'].data.columns
+        False
+        
+        ```
+        """
         calib = self.calibration
 
         # validation

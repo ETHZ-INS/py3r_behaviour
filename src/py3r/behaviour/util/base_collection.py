@@ -24,6 +24,29 @@ class BaseCollection(MutableMapping):
         - _element_type: the type of elements (e.g., Features)
         - _multiple_collection_type: the MultipleCollection class to return from groupby
         - from_list(cls, objs): classmethod to construct from a list of elements
+
+    Examples
+    --------
+    A concrete example using TrackingCollection:
+
+    ```pycon
+    >>> import tempfile, shutil
+    >>> from pathlib import Path
+    >>> from py3r.behaviour.util.docdata import data_path
+    >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+    >>> from py3r.behaviour.tracking.tracking import Tracking
+    >>> with tempfile.TemporaryDirectory() as d:
+    ...     d = Path(d)
+    ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...         a = d / 'A.csv'; b = d / 'B.csv'
+    ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+    ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+    >>> list(sorted(coll.keys()))
+    ['A', 'B']
+    >>> len(coll)
+    2
+
+    ```
     """
 
     def __init__(self, obj_dict):
@@ -79,6 +102,28 @@ class BaseCollection(MutableMapping):
     def __getitem__(self, key):
         """
         Get element by handle (str), by integer index, or by slice.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> isinstance(coll['A'].data, type(coll['B'].data))
+        True
+        >>> isinstance(coll[0].data, type(coll['A'].data))
+        True
+        >>> isinstance(coll[0:1], type(coll))
+        True
+
+        ```
         """
         if isinstance(key, int):
             handle = list(self._obj_dict)[key]
@@ -109,15 +154,99 @@ class BaseCollection(MutableMapping):
         return iter(self._obj_dict)
 
     def __len__(self):
+        """
+        Number of elements (or groups if grouped).
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> len(coll)
+        2
+
+        ```
+        """
         return len(self._obj_dict)
 
     def values(self):
+        """
+        Values iterator (elements or sub-collections).
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> len(list(coll.values())) == 2
+        True
+
+        ```
+        """
         return self._obj_dict.values()
 
     def items(self):
+        """
+        Items iterator (handle, element).
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> sorted([h for h, _ in coll.items()])
+        ['A', 'B']
+
+        ```
+        """
         return self._obj_dict.items()
 
     def keys(self):
+        """
+        Keys iterator (handles or group keys).
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> list(sorted(coll.keys()))
+        ['A', 'B']
+
+        ```
+        """
         return self._obj_dict.keys()
 
     @classmethod
@@ -125,6 +254,21 @@ class BaseCollection(MutableMapping):
         """
         Construct a collection from a list of items, using their .handle as the key.
         Raises a clear error if any item does not have a .handle attribute.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t1 = Tracking.from_dlc(str(p), handle='A', fps=30)
+        ...     t2 = Tracking.from_dlc(str(p), handle='B', fps=30)
+        >>> coll = TrackingCollection.from_list([t1, t2])
+        >>> list(sorted(coll.keys()))
+        ['A', 'B']
+
+        ```
         """
         try:
             obj_dict = {obj.handle: obj for obj in objs}
@@ -140,6 +284,28 @@ class BaseCollection(MutableMapping):
         Group the collection by one or more existing tag names.
         Returns a grouped view (this same collection type) whose values are
         sub-collections keyed by a tuple of tag values in the order provided.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     coll['A'].add_tag('group','G1'); coll['B'].add_tag('group','G2')
+        >>> g = coll.groupby('group')
+        >>> g.is_grouped
+        True
+        >>> sorted(g.group_keys)
+        [('G1',), ('G2',)]
+
+        ```
         """
         flat_self = self.flatten()
 
@@ -173,6 +339,29 @@ class BaseCollection(MutableMapping):
         """
         Flatten a MultipleCollection to a flat Collection.
         If already flat, return self.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     coll['A'].add_tag('group','G1'); coll['B'].add_tag('group','G1')
+        ...     g = coll.groupby('group')
+        >>> flat = g.flatten()
+        >>> flat.is_grouped
+        False
+        >>> sorted(flat.keys())
+        ['A', 'B']
+
+        ```
         """
         # If empty, just return self
         if not self._obj_dict:
@@ -206,19 +395,90 @@ class BaseCollection(MutableMapping):
     # ---- Grouped view helpers ----
     @property
     def is_grouped(self):
+        """
+        True if this collection is a grouped view.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> coll.is_grouped
+        False
+
+        ```
+        """
         return getattr(self, "_is_grouped", False)
 
     @property
     def groupby_tags(self):
+        """
+        The tag names used to form this grouped view (or None if flat).
+        """
         return getattr(self, "_groupby_tags", None)
 
     @property
     def group_keys(self):
+        """
+        Keys for the groups in a grouped view. Empty list if not grouped.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     coll['A'].add_tag('group','G1'); coll['B'].add_tag('group','G2')
+        >>> g = coll.groupby('group')
+        >>> sorted(g.group_keys)
+        [('G1',), ('G2',)]
+
+        ```
+        """
         if not self.is_grouped:
             return []
         return list(self._obj_dict.keys())
 
     def get_group(self, key):
+        """
+        Get a sub-collection by group key from a grouped view.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     coll['A'].add_tag('group','G1'); coll['B'].add_tag('group','G2')
+        >>> g = coll.groupby('group')
+        >>> sub = g.get_group(('G1',))
+        >>> list(sub.keys())
+        ['A']
+
+        ```
+        """
         if not self.is_grouped:
             raise ValueError("Collection is not grouped.")
         return self._obj_dict[key]
@@ -227,6 +487,28 @@ class BaseCollection(MutableMapping):
         """
         Recompute the same grouping using the current tags and the original
         grouping tag order. If not grouped, returns self.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     coll['A'].add_tag('group','G1'); coll['B'].add_tag('group','G1')
+        ...     g = coll.groupby('group')
+        ...     coll['B'].add_tag('group','G2', overwrite=True)  # change tag
+        >>> g2 = g.regroup()
+        >>> sorted(g2.group_keys)
+        [('G1',), ('G2',)]
+
+        ```
         """
         if not self.is_grouped or not self._groupby_tags:
             return self
@@ -240,9 +522,24 @@ class BaseCollection(MutableMapping):
 
         fn: callable(Element) -> ElementLike
 
-        Example:
-            # Turn a TrackingCollection[TrackingMV] into TrackingCollection[Tracking]
-            triangulated = tracking_collection.map_leaves(lambda t: t.stereo_triangulate())
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> sub = coll.map_leaves(lambda t: t.loc[0:1])
+        >>> all(len(t.data) == 2 for t in sub.values())
+        True
+
+        ```
         """
         if self.is_grouped:
             grouped_new = {}
@@ -265,6 +562,28 @@ class BaseCollection(MutableMapping):
         """
         Save this collection to a directory. Preserves grouping and delegates to
         leaf objects' save(dirpath, data_format, overwrite=True).
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, os
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     out = d / 'coll'
+        ...     coll.save(str(out), overwrite=True, data_format='csv')
+        ...     # collection-level manifest at top-level
+        ...     assert os.path.exists(os.path.join(str(out), 'manifest.json'))
+        ...     # element-level manifests under elements/<handle>/
+        ...     assert os.path.exists(os.path.join(str(out), 'elements', 'A', 'manifest.json'))
+
+        ```
         """
         target = begin_save(dirpath, overwrite)
         is_grouped = getattr(self, "is_grouped", False)
@@ -309,6 +628,27 @@ class BaseCollection(MutableMapping):
         """
         Load a collection previously saved with save(). Uses the class's
         _element_type.load to reconstruct leaves.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     out = d / 'coll'
+        ...     coll.save(str(out), overwrite=True, data_format='csv')
+        ...     coll2 = TrackingCollection.load(str(out))
+        >>> list(sorted(coll2.keys()))
+        ['A', 'B']
+
+        ```
         """
         manifest = read_manifest(dirpath)
         is_grouped = manifest.get("is_grouped", False)

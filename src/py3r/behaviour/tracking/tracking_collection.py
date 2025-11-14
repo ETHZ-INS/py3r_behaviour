@@ -1,5 +1,4 @@
 from __future__ import annotations
-import json
 import os
 import pandas as pd
 from py3r.behaviour.tracking.tracking import Tracking
@@ -246,28 +245,13 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         """
         tracking_dict = {}
         if issubclass(tracking_cls, TrackingMV):
+            # Each subfolder is a multi-view recording; delegate to loader on the folder
             for recording in sorted(os.listdir(folder_path)):
                 recording_path = os.path.join(folder_path, recording)
                 if not os.path.isdir(recording_path):
                     continue
-                filepaths = {}
-                for fname in os.listdir(recording_path):
-                    if fname.endswith(".csv") and not fname.startswith("."):
-                        view = os.path.splitext(fname)[0]
-                        filepaths[view] = os.path.join(recording_path, fname)
-                calib_path = os.path.join(recording_path, "calibration.json")
-                if not os.path.exists(calib_path):
-                    raise FileNotFoundError(
-                        f"Missing calibration.json in {recording_path}"
-                    )
-                with open(calib_path, "r") as f:
-                    calibration = json.load(f)
-                tracking_obj = tracking_cls.from_views(
-                    filepaths,
-                    handle=recording,
-                    calibration=calibration,
-                    tracking_loader=tracking_loader,
-                    **loader_kwargs,
+                tracking_obj = tracking_loader(
+                    recording_path, handle=recording, **loader_kwargs
                 )
                 tracking_dict[recording] = tracking_obj
         else:
@@ -456,6 +440,42 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         -----
         This requires multi-view `TrackingMV` elements;
         typical `Tracking` elements do not support stereo triangulation.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, json
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_mv import TrackingMV
+        >>> # Create a collection with a single multi-view recording
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d) / 'rec1'
+        ...     d.mkdir(parents=True, exist_ok=True)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p_csv:
+        ...         _ = shutil.copy(p_csv, d / 'left.csv')
+        ...         _ = shutil.copy(p_csv, d / 'right.csv')
+        ...     # write a minimal synthetic calibration.json
+        ...     calib = {
+        ...         'view_order': ['left', 'right'],
+        ...         'views': {
+        ...             'left':  {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0,0,0,0,0]},
+        ...             'right': {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0,0,0,0,0]},
+        ...         },
+        ...         'relative_pose': {'R': [[1,0,0],[0,1,0],[0,0,1]], 'T': [0.1, 0.0, 0.0]},
+        ...     }
+        ...     (d / 'calibration.json').write_text(json.dumps(calib))
+        ...     # Build collection by scanning the parent folder with TrackingMV
+        ...     parent = str(d.parent)
+        ...     coll_mv = TrackingCollection.from_dlc_folder(parent, tracking_cls=TrackingMV, fps=30)
+        ...     coll_3d = coll_mv.stereo_triangulate()
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> isinstance(next(iter(coll_3d.values())), Tracking)
+        True
+        >>> next(iter(coll_3d.keys()))
+        'rec1'
+
+        ```
         """
         return self.map_leaves(lambda t: t.stereo_triangulate())
 
