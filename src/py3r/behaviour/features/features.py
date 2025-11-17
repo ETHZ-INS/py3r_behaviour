@@ -69,6 +69,30 @@ class Features:
         data_format: str = "parquet",
         overwrite: bool = False,
     ) -> None:
+        """
+        Save this Features object (and its nested Tracking) to a self-describing directory.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, os
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> # add a trivial feature so data is not empty
+        >>> s = pd.Series(range(len(t.data)), index=t.data.index)
+        >>> f.store(s, 'counter', meta={})
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     f.save(d, data_format='csv', overwrite=True)
+        ...     os.path.exists(os.path.join(d, 'manifest.json'))
+        True
+
+        ```
+        """
         target = begin_save(dirpath, overwrite)
         # Save own data
         data_spec = write_dataframe(
@@ -94,6 +118,29 @@ class Features:
 
     @classmethod
     def load(cls, dirpath: str) -> "Features":
+        """
+        Load a Features object previously saved with save().
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, os
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter', meta={})
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     f.save(d, data_format='csv', overwrite=True)
+        ...     f2 = Features.load(d)
+        >>> isinstance(f2, Features) and 'counter' in f2.data.columns
+        True
+
+        ```
+        """
         manifest = read_manifest(dirpath)
         df = read_dataframe(dirpath, manifest["data"])
         tracking = Tracking.load(os.path.join(dirpath, manifest["tracking_path"]))
@@ -158,7 +205,7 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> res = f.within_distance('p1','p2', distance=15.0)
-        >>> isinstance(res, pd.Series) and res.notna().any()
+        >>> bool((isinstance(res, pd.Series) and res.notna().any()))
         True
 
         ```
@@ -176,6 +223,24 @@ class Features:
         return FeaturesResult(result, self, name, meta)
 
     def get_point_median(self, point: str, dims=("x", "y")) -> tuple:
+        """
+        Return the per-dimension median coordinate for a tracked point.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> med = f.get_point_median('p1', dims=('x','y'))
+        >>> isinstance(med, tuple) and len(med) == 2
+        True
+
+        ```
+        """
         return tuple(self.tracking.data[point + "." + dim].median() for dim in dims)
 
     def define_boundary(
@@ -262,7 +327,7 @@ class Features:
         >>> f = Features(t)
         >>> boundary = f.define_boundary(['p1','p2','p3'], scaling=1.0)
         >>> res = f.within_boundary_static('p1', boundary)
-        >>> isinstance(res, pd.Series) and res.notna().any()
+        >>> bool((isinstance(res, pd.Series) and res.notna().any()))
         True
 
         ```
@@ -309,7 +374,7 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> res = f.within_boundary_dynamic('p1', ['p1','p2','p3'])
-        >>> isinstance(res, pd.Series) and res.notna().any()
+        >>> bool((isinstance(res, pd.Series) and res.notna().any()))
         True
 
         ```
@@ -503,6 +568,22 @@ class Features:
     def acceleration(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
         returns acceleration of point from previous frame to current frame, for each frame
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> acc = f.acceleration('p1')
+        >>> isinstance(acc, pd.Series) and len(acc) == len(t.data)
+        True
+
+        ```
         """
         if "smoothing" not in self.tracking.meta.keys():
             warnings.warn("tracking data have not been smoothed")
@@ -516,6 +597,22 @@ class Features:
         """
         returns azimuth in radians from tracked point1 to tracked point2
         for each frame in the data, relative to the direction of the x-axis
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> ang = f.azimuth('p1','p2')
+        >>> isinstance(ang, pd.Series) and len(ang) == len(t.data)
+        True
+
+        ```
         """
         if "smoothing" not in self.tracking.meta.keys():
             warnings.warn("tracking data have not been smoothed")
@@ -533,6 +630,26 @@ class Features:
     def azimuth_deviation(
         self, basepoint: str, pointdirection1: str, pointdirection2: str
     ) -> FeaturesResult:
+        """
+        Compute the signed angular deviation (radians) between two directions
+        from a common basepoint for each frame.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> dev = f.azimuth_deviation('p1','p2','p3')
+        >>> bool((isinstance(dev, pd.Series) and len(dev) == len(t.data)))
+        True
+
+        ```
+        """
         a1 = self.azimuth(basepoint, pointdirection1)
         a2 = self.azimuth(basepoint, pointdirection2)
         deviation = (a1 - a2 + np.pi) % (2 * np.pi) - np.pi
@@ -554,6 +671,26 @@ class Features:
         pointdirection2: str,
         deviation: float,
     ) -> FeaturesResult:
+        """
+        Return True for frames where the angular deviation between two rays
+        from basepoint is <= deviation (radians).
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> mask = f.within_azimuth_deviation('p1','p2','p3', deviation=1.0)
+        >>> bool((isinstance(mask, pd.Series) and mask.notna().any()))
+        True
+
+        ```
+        """
         obs_deviation = self.azimuth_deviation(
             basepoint, pointdirection1, pointdirection2
         )
@@ -599,6 +736,25 @@ class Features:
         return FeaturesResult(result, self, name, meta)
 
     def above_speed(self, point: str, speed: float, dims=("x", "y")) -> FeaturesResult:
+        """
+        Return True for frames where the point's speed is >= threshold.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> m = f.above_speed('p1', speed=0.0)
+        >>> isinstance(m, pd.Series) and len(m) == len(t.data)
+        True
+
+        ```
+        """
         obs_speed = self.speed(point, dims=dims)
         result = obs_speed >= speed
         name = f"above_speed_{point}_geq_{speed}_in_{''.join(dims)}"
@@ -608,6 +764,25 @@ class Features:
     def all_above_speed(
         self, points: list, speed: float, dims=("x", "y")
     ) -> FeaturesResult:
+        """
+        Return True for frames where all listed points are moving at least at the threshold speed.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> m = f.all_above_speed(['p1','p2'], speed=0.0)
+        >>> isinstance(m, pd.Series) and len(m) == len(t.data)
+        True
+
+        ```
+        """
         df = pd.DataFrame(
             [self.above_speed(point, speed, dims=dims) for point in points]
         )
@@ -623,6 +798,25 @@ class Features:
         return FeaturesResult(result, self, name, meta)
 
     def below_speed(self, point: str, speed: float, dims=("x", "y")) -> FeaturesResult:
+        """
+        Return True for frames where the point's speed is < threshold.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> m = f.below_speed('p1', speed=9999.0)
+        >>> isinstance(m, pd.Series) and len(m) == len(t.data)
+        True
+
+        ```
+        """
         obs_speed = self.speed(point, dims=dims)
         result = obs_speed < speed
         name = f"below_speed_{point}_lt_{speed}_in_{''.join(dims)}"
@@ -632,6 +826,25 @@ class Features:
     def all_below_speed(
         self, points: list, speed: float, dims=("x", "y")
     ) -> FeaturesResult:
+        """
+        Return True for frames where all listed points are moving slower than the threshold speed.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> m = f.all_below_speed(['p1','p2'], speed=9999.0)
+        >>> isinstance(m, pd.Series) and len(m) == len(t.data)
+        True
+
+        ```
+        """
         df = pd.DataFrame(
             [self.below_speed(point, speed, dims=dims) for point in points]
         )
@@ -841,6 +1054,28 @@ class Features:
         new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
         centroids_df: (n_clusters, n_features) DataFrame of cluster centers
         Returns a Series of cluster IDs (0..n_clusters-1) indexed like new_embed_df.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> # add a simple feature to embed
+        >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter', meta={})
+        >>> emb = {'counter':[0, 1]}
+        >>> df = f.embedding_df(emb)
+        >>> # make 2 simple centroids matching columns
+        >>> cents = pd.DataFrame([[0, 0], [1, 1]], columns=df.columns)
+        >>> labels = f.assign_clusters_by_centroids(emb, cents)
+        >>> isinstance(labels, pd.Series) and len(labels) == len(t.data)
+        True
+
+        ```
         """
         from sklearn.metrics.pairwise import pairwise_distances_argmin
 
@@ -876,6 +1111,8 @@ class Features:
         **kwargs,
     ):
         """
+        Developer mode: not available in public release yet.
+
         Train a KNN regressor to predict a target embedding from a feature embedding on this Features object.
         If normalize_source is True, normalize the source embedding before training and return the rescale factors.
         Returns the trained model, input columns, target columns, and (optionally) the rescale factors.
@@ -902,6 +1139,8 @@ class Features:
         rescale_factors: dict = None,
     ) -> pd.DataFrame:
         """
+        Developer mode: not available in public release yet.
+
         Predict using a trained KNN regressor on this Features object.
         If rescale_factors is provided, normalize the source embedding before prediction.
         The prediction will match the shape and columns of self.embedding_df(target_embedding).
@@ -921,6 +1160,8 @@ class Features:
         ground_truth: pd.DataFrame, prediction: pd.DataFrame, rescale: dict | str = None
     ) -> pd.Series:
         """
+        Developer mode: not available in public release yet.
+
         Compute the root mean squared error (RMS) for each row between two embedding DataFrames.
         If rescale is a dict, normalize both DataFrames using this dict before computing the error.
         If rescale == 'auto', compute normalization factors from ground_truth and apply to both DataFrames.
@@ -995,6 +1236,21 @@ class Features:
         around `centre` using explicit parameters.
         `centre` can be a single point name or a list of point names.
         if `centre` is a list, the boundary will be centred on the mean of the median coordinates of the points.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> poly = f.define_elliptical_boundary_from_params('p1', major_axis_length=10, minor_axis_length=6, angle_in_radians=0.0, n_points=32)
+        >>> isinstance(poly, list) and len(poly) == 32
+        True
+
+        ```
         """
         from py3r.behaviour.util.ellipse_utils import ellipse_points
 
@@ -1024,6 +1280,22 @@ class Features:
         """
         Fit an ellipse to the median coordinates of the given tracked points (at least 4)
         and return a polygonal approximation. After fitting, the ellipse is scaled by `scaling`.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> # Use exactly 4 points to avoid requiring skimage in tests
+        >>> poly = f.define_elliptical_boundary_from_points(['p1','p2','p3','p2'], n_points=20, scaling=1.0)
+        >>> isinstance(poly, list) and len(poly) == 20
+        True
+
+        ```
         """
         from py3r.behaviour.util.ellipse_utils import (
             ellipse_points,

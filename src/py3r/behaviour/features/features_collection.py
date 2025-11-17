@@ -24,6 +24,24 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
     Collection of Features objects, keyed by name.
     note: type-hints refer to Features, but factory methods allow for other classes
     these are intended ONLY for subclasses of Features, and this is enforced
+
+    Examples
+    --------
+    ```pycon
+    >>> import tempfile, shutil
+    >>> from pathlib import Path
+    >>> from py3r.behaviour.util.docdata import data_path
+    >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+    >>> with tempfile.TemporaryDirectory() as d:
+    ...     d = Path(d)
+    ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+    ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+    >>> fc = FeaturesCollection.from_tracking_collection(tc)
+    >>> list(sorted(fc.keys()))
+    ['A', 'B']
+
+    ```
     """
 
     _element_type = Features
@@ -41,6 +59,24 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
     ):
         """
         Create a FeaturesCollection from a TrackingCollection.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> isinstance(fc['A'], Features) and isinstance(fc['B'], Features)
+        True
+
+        ```
         """
         if not issubclass(feature_cls, Features):
             raise TypeError(
@@ -82,6 +118,21 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
     def from_list(cls, features_list: list[Features]):
         """
         Create a FeaturesCollection from a list of Features objects, keyed by handle
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t1 = Tracking.from_dlc(str(p), handle='A', fps=30)
+        ...     t2 = Tracking.from_dlc(str(p), handle='B', fps=30)
+        >>> f1, f2 = Features(t1), Features(t2)
+        >>> fc = FeaturesCollection.from_list([f1, f2])
+        >>> list(sorted(fc.keys()))
+        ['A', 'B']
+
+        ```
         """
         handles = [obj.handle for obj in features_list]
         if len(handles) != len(set(handles)):
@@ -109,6 +160,30 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
           - grouped: {group_key: {feature_handle: FeaturesResult}}
           - flat:    {feature_handle: FeaturesResult}
         along with (centroids, normalization_factors or None).
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> # Create a trivial feature 'counter' in each Features to embed
+        >>> for f in fc.values():
+        ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
+        ...     f.store(s, 'counter')
+        >>> batch, centroids, norm = fc.cluster_embedding({'counter':[0]}, n_clusters=2, lowmem=True)
+        >>> isinstance(centroids, pd.DataFrame)
+        True
+
+        ```
         """
 
         # 1) Build embeddings map keyed by (group, feature)
@@ -171,25 +246,28 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         }
 
         if lowmem:
-            # Assign by nearest centroid, item-by-item
+            # Assign by nearest centroid, item-by-item (wrap into FeaturesResult)
             if is_grouped:
                 result_dict = {}
                 for gkey, sub in self.items():
                     group_map = {}
                     for feat_name, feat in sub.features_dict.items():
-                        group_map[feat_name] = feat.assign_clusters_by_centroids(
+                        labels = feat.assign_clusters_by_centroids(
                             embedding_dict, centroids
                         )
-                        group_map[feat_name].name = f"kmeans_{n_clusters}"
-                        group_map[feat_name].meta.update(meta)
+                        group_map[feat_name] = FeaturesResult(
+                            labels, feat, f"kmeans_{n_clusters}", meta
+                        )
                     result_dict[gkey] = group_map
             else:
                 result_dict = {}
                 for feat_name, feat in self.features_dict.items():
-                    fr = feat.assign_clusters_by_centroids(embedding_dict, centroids)
-                    fr.name = f"kmeans_{n_clusters}"
-                    fr.meta.update(meta)
-                    result_dict[feat_name] = fr
+                    labels = feat.assign_clusters_by_centroids(
+                        embedding_dict, centroids
+                    )
+                    result_dict[feat_name] = FeaturesResult(
+                        labels, feat, f"kmeans_{n_clusters}", meta
+                    )
         else:
             if is_grouped:
                 result_dict = {}
@@ -769,6 +847,27 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
         - Flat collection: results_dict is {handle: FeaturesResult}
         - Grouped collection: results_dict is {group_key: {handle: FeaturesResult}}
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> # Build a simple FeaturesResult dict from distance_between
+        >>> rd = {h: feat.distance_between('p1','p2') for h, feat in fc.items()}
+        >>> fc.store(rd, name='d12')
+        >>> all('d12' in feat.data.columns for feat in fc.values())
+        True
+
+        ```
         """
         if getattr(self, "is_grouped", False):
             for group_dict in results_dict.values():
