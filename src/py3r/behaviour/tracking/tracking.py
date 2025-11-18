@@ -458,7 +458,7 @@ class Tracking:
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> with tempfile.TemporaryDirectory() as d:
-        ...     t.save(d, data_format='parquet', overwrite=True)
+        ...     t.save(d, data_format='csv', overwrite=True)
         ...     os.path.exists(os.path.join(d, 'manifest.json'))
         True
 
