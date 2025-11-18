@@ -25,31 +25,29 @@ jobs:
           if [ -z "$LATEST_TAG" ]; then LATEST_TAG="v0.0.0"; fi
           echo "Latest tag: $LATEST_TAG"
           PYVER=$(python - <<'PY'
-from pathlib import Path
-import tomllib
-print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])
-PY
-)
+            from pathlib import Path
+            import tomllib
+            print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])
+            PY
+          )
           echo "pyproject version: $PYVER"
+          export LATEST_TAG PYVER
           python - <<'PY'
-import os, re, sys
-def parse(v):
-    m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', v)
-    if not m: raise SystemExit(f"Invalid semver: {v}")
-    return tuple(map(int, m.groups()))
-latest = os.environ.get("LATEST_TAG","v0.0.0").lstrip("v")
-newver = os.environ["PYVER"]
-la, lb, lc = parse(latest)
-na, nb, nc = parse(newver)
-allowed = {(la, lb, lc+1), (la, lb+1, 0), (la+1, 0, 0)}
-if (na, nb, nc) not in allowed:
-    sys.exit(f"pyproject version {newver} must be one of: "
-             f"{la}.{lb}.{lc+1} (patch) or {la}.{lb+1}.0 (minor) or {la+1}.0.0 (major); latest tag is v{latest}")
-print("Version bump check passed.")
-PY
-        env:
-          LATEST_TAG: ${{ steps.validate_version_bump.outputs.latest_tag }}
-          PYVER: ${{ steps.validate_version_bump.outputs.pyver }}
+            import os, re, sys
+            def parse(v):
+                m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', v)
+                if not m: raise SystemExit(f"Invalid semver: {v}")
+                return tuple(map(int, m.groups()))
+            latest = os.environ.get("LATEST_TAG","v0.0.0").lstrip("v")
+            newver = os.environ["PYVER"]
+            la, lb, lc = parse(latest)
+            na, nb, nc = parse(newver)
+            allowed = {(la, lb, lc+1), (la, lb+1, 0), (la+1, 0, 0)}
+            if (na, nb, nc) not in allowed:
+                sys.exit(f"pyproject version {newver} must be one of: "
+                         f"{la}.{lb}.{lc+1} (patch) or {la}.{lb+1}.0 (minor) or {la+1}.0.0 (major); latest tag is v{latest}")
+            print("Version bump check passed.")
+            PY
 
       - name: Setup Python
         uses: actions/setup-python@v5
