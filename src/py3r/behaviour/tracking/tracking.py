@@ -142,7 +142,7 @@ class Tracking:
     ```pycon
     >>> import os, tempfile
     >>> with tempfile.TemporaryDirectory() as d:
-    ...     _ = t.save(d, overwrite=True)
+    ...     _ = t.save(d, data_format='csv',overwrite=True)
     ...     t_loaded = Tracking.load(d)
     >>> isinstance(t_loaded, Tracking) and len(t_loaded.data) == len(t.data)
     True
