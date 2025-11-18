@@ -1,13 +1,6 @@
-## py3r-behaviour
+# py3r-behaviour
 
-High-level behavioural analysis utilities for tracking, features, summaries, and classifiers in the py3r namespace.
+Post-processing and analysis utilities for behavioural pose-estimation data.
 
-- Install dev docs deps: mkdocs, mkdocs-material, mkdocstrings[python]
-- Build: `mkdocs build`
-- Serve locally: `mkdocs serve`
-
-### API
-
-See the API reference for the core packages and classes.
 
 
