@@ -25,13 +25,14 @@ nav:
     - SummaryCollection: api/summary_collection.md
 plugins:
   - search
+  - autorefs
   - mkdocstrings:
       handlers:
         python:
           paths:
             - src
           options:
-            docstring_style: numpy
+            inherited_members: true
             separate_signature: true
             show_signature: true
             show_signature_annotations: true
@@ -42,7 +43,7 @@ plugins:
             parameter_headings: true
             allow_inspection: true
             show_if_no_docstring: true
-            inherited_members: true
+            docstring_style: numpy
             filters: 
               - "!^__"
               - "!^_"

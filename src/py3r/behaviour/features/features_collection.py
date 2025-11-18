@@ -380,14 +380,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         predictor_kwargs=None,
     ):
         """
-        Cross-prediction over grouped collections.
-
-        - If grouped: computes within-group leave-one-out and between-group predictions.
-        - If flat: computes within-collection leave-one-out only.
-
-        Returns a dict with keys:
-            'within': {group_key or '__flat__': {handle: rms_series}}
-            'between': {fromA_to_B: {target_handle: rms_series}}  (grouped only)
+        Dev mode only: not available in public release yet.
         """
         if predictor_cls is None:
             from py3r.behaviour.predictors import KNNPredictor
@@ -526,6 +519,9 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
     @dev_mode
     @staticmethod
     def plot_cross_predict_vs_within(results, from_group, to_group, show=True):
+        """
+        Dev mode only: not available in public release yet.
+        """
         import numpy as np
         import matplotlib.pyplot as plt
 
@@ -585,6 +581,9 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         figsize=(10, 6),
         show=True,
     ):
+        """
+        Dev mode only: not available in public release yet.
+        """
         import pandas as pd
         import matplotlib.pyplot as plt
         import seaborn as sns
@@ -658,6 +657,9 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
     def dumbbell_plot_cross_predict(
         results, within_key, between_key, figsize=(3, 3), show=True
     ):
+        """
+        Dev mode only: not available in public release yet.
+        """
         import pandas as pd
         import matplotlib.pyplot as plt
 
@@ -712,10 +714,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         **kwargs,
     ):
         """
-        Train a regressor to predict a target embedding from a feature embedding on this Features object.
-        Uses predictor_cls (default: KNNPredictor) and passes predictor_kwargs.
-        If normalize_source is True, normalize the source embedding before training and return the rescale factors.
-        Returns the trained model, input columns, target columns, and (optionally) the rescale factors.
+        Dev mode only: not available in public release yet.
         """
         if predictor_cls is None:
             from py3r.behaviour.predictors import KNNPredictor
@@ -744,9 +743,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         rescale_factors: dict = None,
     ) -> pd.DataFrame:
         """
-        Predict using a trained regressor on this Features object.
-        If rescale_factors is provided, normalize the source embedding before prediction.
-        The prediction will match the shape and columns of self.embedding_df(target_embedding).
+        Dev mode only: not available in public release yet.
         """
         test_embed = self.embedding_df(source_embedding)
         if rescale_factors is not None:

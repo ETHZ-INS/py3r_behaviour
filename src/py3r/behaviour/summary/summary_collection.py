@@ -17,6 +17,33 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
     (e.g. for grouping individuals)
     note: type-hints refer to Summary, but factory methods allow for other classes
     these are intended ONLY for subclasses of Summary, and this is enforced
+
+    Examples
+    --------
+    ```pycon
+    >>> import tempfile, shutil
+    >>> from pathlib import Path
+    >>> import pandas as pd
+    >>> from py3r.behaviour.util.docdata import data_path
+    >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+    >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+    >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+    >>> with tempfile.TemporaryDirectory() as d:
+    ...     d = Path(d)
+    ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+    ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+    >>> fc = FeaturesCollection.from_tracking_collection(tc)
+    >>> # add a simple boolean feature to each Features for summaries to consume
+    >>> for f in fc.values():
+    ...     s = pd.Series([True, False] * (len(f.tracking.data)//2 + 1))[:len(f.tracking.data)]
+    ...     s.index = f.tracking.data.index
+    ...     f.store(s, 'flag', meta={})
+    >>> sc = SummaryCollection.from_features_collection(fc)
+    >>> list(sorted(sc.keys()))
+    ['A', 'B']
+
+    ```
     """
 
     _element_type = Summary
@@ -34,6 +61,32 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
     ):
         """
         creates a SummaryCollection from a FeaturesCollection (flat or grouped)
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> # add numeric scalar per Features via a quick summary to test to_df later
+        >>> for f in fc.values():
+        ...     import numpy as np, pandas as pd
+        ...     f.store(pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index), 'counter', meta={})
+        >>> sc = SummaryCollection.from_features_collection(fc)
+        >>> isinstance(sc['A'], Summary) and isinstance(sc['B'], Summary)
+        True
+
+        ```
         """
         if not issubclass(summary_cls, Summary):
             raise TypeError(
@@ -77,6 +130,28 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
     def from_list(cls, summary_list: list[Summary]):
         """
         creates a SummaryCollection from a list of Summary objects, keyed by handle
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t1 = Tracking.from_dlc(str(p), handle='A', fps=30)
+        ...     t2 = Tracking.from_dlc(str(p), handle='B', fps=30)
+        >>> f1, f2 = Features(t1), Features(t2)
+        >>> # store simple scalar summaries
+        >>> s1, s2 = Summary(f1), Summary(f2)
+        >>> s1.store(1, 'count'); s2.store(2, 'count')
+        >>> sc = SummaryCollection.from_list([s1, s2])
+        >>> list(sorted(sc.keys()))
+        ['A', 'B']
+
+        ```
         """
         handles = [obj.handle for obj in summary_list]
         if len(handles) != len(set(handles)):
@@ -91,6 +166,28 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         - Index: handles of the Summary objects
         - Columns: keys from each Summary.data (simple scalar values)
         - If include_tags is True, include tag columns with the given prefix
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t1 = Tracking.from_dlc(str(p), handle='A', fps=30)
+        ...     t2 = Tracking.from_dlc(str(p), handle='B', fps=30)
+        >>> s1, s2 = Summary(Features(t1)), Summary(Features(t2))
+        >>> s1.store(1.0, 'score'); s2.store(2.0, 'score')
+        >>> s1.features.tracking.add_tag('group', 'G1'); s2.features.tracking.add_tag('group', 'G2')
+        >>> sc = SummaryCollection.from_list([s1, s2])
+        >>> df = sc.to_df(include_tags=True)
+        >>> set(df.columns) >= {'score', 'tag_group'}
+        True
+
+        ```
         """
         import numbers
 
@@ -110,14 +207,53 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         return df
 
     def make_bin(self, startframe, endframe):
-        # returns a new SummaryCollection with binned summaries
+        """
+        returns a new SummaryCollection with binned summaries
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='A', fps=30)
+        >>> s = Summary(Features(t))
+        >>> sc = SummaryCollection.from_list([s])
+        >>> b = sc.make_bin(0, 2)
+        >>> isinstance(b, SummaryCollection)
+        True
+
+        ```
+        """
         binned = {
             k: v.make_bin(startframe, endframe) for k, v in self.summary_dict.items()
         }
         return SummaryCollection(binned)
 
     def make_bins(self, numbins):
-        # returns a list of SummaryCollection, one per bin
+        """
+        returns a list of SummaryCollection, one per bin
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='A', fps=30)
+        >>> sc = SummaryCollection.from_list([Summary(Features(t))])
+        >>> bins = sc.make_bins(3)
+        >>> len(bins) == 3 and all(isinstance(b, SummaryCollection) for b in bins)
+        True
+
+        ```
+        """
         bins = {
             k: v.make_bins(numbins) for k, v in self.summary_dict.items()
         }  # {k: [Summary, ...]}
@@ -134,9 +270,34 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
     ):
         """
         Store all SummaryResult objects in a one-layer dict (as returned by batch methods).
-        Example:
-            results = summary_collection.time_true('is_running')
-            summary_collection.store(results)
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd, tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> # add a boolean column for summaries
+        >>> for f in fc.values():
+        ...     m = pd.Series([True, False] * (len(f.tracking.data)//2 + 1))[:len(f.tracking.data)]
+        ...     m.index = f.tracking.data.index
+        ...     f.store(m, 'mask', meta={})
+        >>> sc = SummaryCollection.from_features_collection(fc)
+        >>> rd = {h: s.time_true('mask') for h, s in sc.items()}
+        >>> sc.store(rd, name='t_mask')
+        >>> all('t_mask' in s.data for s in sc.values())
+        True
+
+        ```
         """
         for v in results_dict.values():
             if hasattr(v, "store"):
@@ -152,6 +313,36 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         Requires the collection to be grouped (via groupby). Computes transition
         matrices per Summary within each group, then computes Manhattan distances
         between group means and surrogate distributions via shuffling.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> # inject simple 2-state labels and tags to build groups
+        >>> for i, (h, f) in enumerate(fc.items()):
+        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
+        ...     states.index = f.tracking.data.index
+        ...     f.store(states, 'state', meta={})
+        ...     f.tracking.add_tag('group', f'G{i+1}')
+        >>> gfc = fc.groupby('group')
+        >>> sc = SummaryCollection.from_features_collection(gfc)
+        >>> res = sc.bfa('state', all_states=['A','B'], numshuffles=2)
+        >>> isinstance(res, dict) and 'observed' in next(iter(res.values()))
+        True
+
+        ```
         """
         if not getattr(self, "is_grouped", False):
             raise ValueError(
@@ -175,9 +366,9 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             list2 = list(transition_matrices[group2].values())
             _["observed"] = self._manhattan_distance_twogroups(list1, list2)
             _["surrogates"] = [
-                self.shuffle_lists(*self.shuffle_lists(list1, list2))
+                self._shuffle_lists(*self._shuffle_lists(list1, list2))
                 and self._manhattan_distance_twogroups(
-                    *self.shuffle_lists(list1, list2)
+                    *self._shuffle_lists(list1, list2)
                 )
                 for i in range(numshuffles)
             ]
@@ -188,6 +379,38 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
     def bfa_stats(
         bfa_results: dict[str, dict[str, float]],
     ) -> dict[str, dict[str, float]]:
+        """
+        Compute simple statistics (percentile, zscore, right_tail_p) from bfa results.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> for i, (h, f) in enumerate(fc.items()):
+        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
+        ...     states.index = f.tracking.data.index
+        ...     f.store(states, 'state', meta={})
+        ...     f.tracking.add_tag('group', f'G{i+1}')
+        >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
+        >>> bfa_out = sc.bfa('state', all_states=['A','B'], numshuffles=2)
+        >>> stats = SummaryCollection.bfa_stats(bfa_out)
+        >>> set(next(iter(stats.values())).keys()) >= {'percentile','zscore','right_tail_p'}
+        True
+
+        ```
+        """
         import numpy as np
         import pandas as pd
 
@@ -245,7 +468,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         return distance
 
     @staticmethod
-    def shuffle_lists(group1: list, group2: list) -> tuple[list, list]:
+    def _shuffle_lists(group1: list, group2: list) -> tuple[list, list]:
         import random
 
         n1 = len(group1)
