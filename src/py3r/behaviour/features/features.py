@@ -1248,7 +1248,7 @@ class Features:
         >>> f = Features(t)
         >>> poly = f.define_elliptical_boundary_from_params('p1', major_axis_length=10, minor_axis_length=6, angle_in_radians=0.0, n_points=32)
         >>> isinstance(poly, list) and len(poly) == 32
-        True
+        False #breaking change to test CI
 
         ```
         """
