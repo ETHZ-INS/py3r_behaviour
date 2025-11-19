@@ -2,7 +2,7 @@ This guide explains the end‑to‑end workflow and links to the relevant APIs. 
 
 *For detailed methods and syntax examples, see API*
 
-*For code pipeline examples, see [Examples](examples/full_pipeline.md)*
+*For code pipeline examples, see Examples*
 
 ### Core objects
 - [`Tracking`][py3r.behaviour.tracking.tracking.Tracking]: store and preprocess single‑view tracked keypoints with auto-generated metadata.
