@@ -1,4 +1,8 @@
-This guide explains the end‑to‑end workflow and links to the relevant APIs. It is intentionally minimal and focuses on “what” and “where,” not code.
+This guide explains the end‑to‑end workflow and links to the relevant APIs. It is intentionally minimal and focuses on “what” and “where,” not code. 
+
+*For detailed methods and syntax examples, see API*
+
+*For code pipeline examples, see [Examples](examples/full_pipeline.md)*
 
 ### Core objects
 - [`Tracking`][py3r.behaviour.tracking.tracking.Tracking]: store and preprocess single‑view tracked keypoints with auto-generated metadata.
@@ -16,8 +20,8 @@ This guide explains the end‑to‑end workflow and links to the relevant APIs. 
 - flexible collection indexing by handle (e.g. `coll['recording1']`), integer (e.g. `coll[0]`) and slice (e.g. `coll[0:2]`)
 
 ### General helpers
-- [`.save`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.save] and [`.load`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.load] method exist for all objects and preserve all data/metadata/groupings
-- `.loc`, `.iloc` allow (batch) slicing and indexing of the DataFrames in all `Tracking`, `TrackingCollection`, `Features` and `FeaturesCollection` objects
+- All core objects and collections have [`.save`][py3r.behaviour.tracking.tracking.Tracking.save] and [`.load`][py3r.behaviour.tracking.tracking.Tracking.load] methods that preserve all data/metadata/groupings
+- Objects and collections allow `.loc[]` and `.iloc[]` (batch) slicing and indexing of the DataFrames in all `Tracking`, `TrackingCollection`, `Features` and `FeaturesCollection` objects
 
 ### Typical workflow
 1.  Load a dataset of single-view tracking files from DeepLabCut: [`TrackingCollection.from_dlc_folder`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.from_dlc_folder]
@@ -27,60 +31,45 @@ This guide explains the end‑to‑end workflow and links to the relevant APIs. 
 1. Group the collection by any subset of tags: [`TrackingCollection.groupby`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.groupby] (grouping persists upon `FeaturesCollection` and `SummaryCollection` generation)
 
 1. Perform various QA checks:
-    1. ensure recording length is as expected: [`TrackingCollection.time_as_expected`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.time_as_expected]
+    1. ensure recording length is as expected: [`Tracking.time_as_expected`][py3r.behaviour.tracking.tracking.Tracking.time_as_expected]
     1. plot tracked point trajectories: [`TrackingCollection.plot`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.plot]
 
 1. Perform various batch pre-processing steps: 
-    1. remove low-likelihood tracked points: [`TrackingCollection.filter_likelihood`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.filter_likelihood]
-    1. smooth data: [`TrackingCollection.smooth_all`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.smooth_all]
-    1. interpolate gaps: [`TrackingCollection.interpolate`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.interpolate]
-    1. rescale pixels to metres: [`TrackingCollection.rescale_by_known_distance`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.rescale_by_known_distance]
-    1. trim the start/end of the recording: [`TrackingCollection.trim`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.trim]
+    1. remove low-likelihood tracked points: [`Tracking.filter_likelihood`][py3r.behaviour.tracking.tracking.Tracking.filter_likelihood]
+    1. smooth data: [`Tracking.smooth_all`][py3r.behaviour.tracking.tracking.Tracking.smooth_all]
+    1. interpolate gaps: [`Tracking.interpolate`][py3r.behaviour.tracking.tracking.Tracking.interpolate]
+    1. rescale pixels to metres: [`Tracking.rescale_by_known_distance`][py3r.behaviour.tracking.tracking.Tracking.rescale_by_known_distance]
+    1. trim the start/end of the recording: [`trim`][py3r.behaviour.tracking.tracking.Tracking.trim]
 
 1. Generate a `FeaturesCollection` object from the `TrackingCollection`: [`FeaturesCollection.from_tracking_collection`][py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection]
 
 1. Calculate various features and [`store`][py3r.behaviour.features.features_collection.FeaturesCollection.store] them with auto-generated names and metadata:
-    1. 
+    - Distance and movement:
+        - [`Features.distance_between`][py3r.behaviour.features.features.Features.distance_between]
+        - [`Features.distance_change`][py3r.behaviour.features.features.Features.distance_change]
+        - [`Features.speed`][py3r.behaviour.features.features.Features.speed]
+        - [`Features.acceleration`][py3r.behaviour.features.features.Features.acceleration]
+    - Boundaries and locations:
+        - Define static boundary from tracked points: [`Features.define_boundary`][py3r.behaviour.features.features.Features.define_boundary]
+        - Static membership: [`Features.within_boundary_static`][py3r.behaviour.features.features.Features.within_boundary_static]
+        - Dynamic membership: [`Features.within_boundary_dynamic`][py3r.behaviour.features.features.Features.within_boundary_dynamic]
+        - Boundary area: [`Features.area_of_boundary`][py3r.behaviour.features.features.Features.area_of_boundary]
+        - Distance to boundary (static/dynamic): [`Features.distance_to_boundary_static`][py3r.behaviour.features.features.Features.distance_to_boundary_static], [`Features.distance_to_boundary_dynamic`][py3r.behaviour.features.features.Features.distance_to_boundary_dynamic]
+    - Orientation:
+        - [`Features.azimuth`][py3r.behaviour.features.features.Features.azimuth]
+        - [`Features.azimuth_deviation`][py3r.behaviour.features.features.Features.azimuth_deviation]
+        - [`Features.within_azimuth_deviation`][py3r.behaviour.features.features.Features.within_azimuth_deviation]
+    - Thresholds:
+        - [`Features.above_speed`][py3r.behaviour.features.features.Features.above_speed], [`Features.all_above_speed`][py3r.behaviour.features.features.Features.all_above_speed]
+        - [`Features.below_speed`][py3r.behaviour.features.features.Features.below_speed], [`Features.all_below_speed`][py3r.behaviour.features.features.Features.all_below_speed]
+    - Embeddings and clustering:
+        - Build time‑shifted embeddings: [`Features.embedding_df`][py3r.behaviour.features.features.Features.embedding_df]
+        - Batch k‑means on embeddings: [`FeaturesCollection.cluster_embedding`][py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding]
+        - Assign to precomputed centroids: [`Features.assign_clusters_by_centroids`][py3r.behaviour.features.features.Features.assign_clusters_by_centroids]
 
+1. Generate a `SummaryCollection` object from the `FeaturesCollection`: [`SummaryCollection.from_features_collection`][py3r.behaviour.summary.summary_collection.SummaryCollection.from_features_collection]
 
-
-
-`
-   - Single‑view from folder of DLC CSVs: 
-   - Single file: [`Tracking.from_dlc`][py3r.behaviour.tracking.tracking.Tracking.from_dlc]
-   - Multi‑view from folder of recordings (each with views + calibration.json): [`TrackingCollection.from_dlc_folder`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.from_dlc_folder] with `tracking_cls=`[`TrackingMV`][py3r.behaviour.tracking.tracking_mv.TrackingMV], or per‑recording [`TrackingMV.from_dlc`][py3r.behaviour.tracking.tracking_mv.TrackingMV.from_dlc]
-
-2) Inspect and slice
-   - Access a frame‑indexed DataFrame via `.data`. Use [`Tracking.loc`][py3r.behaviour.tracking.tracking.Tracking.loc] / [`Tracking.iloc`][py3r.behaviour.tracking.tracking.Tracking.iloc] on the object.
-
-3) Tag and group
-   - Attach arbitrary tags for later grouping: [`Tracking.add_tag`][py3r.behaviour.tracking.tracking.Tracking.add_tag]
-   - Group any collection by tags: [`groupby`][py3r.behaviour.util.base_collection.BaseCollection.groupby] (inherited)
-   - Flatten a grouped view: [`flatten`][py3r.behaviour.util.base_collection.BaseCollection.flatten]
-
-4) Generate features
-   - Per recording: build [`Features`][py3r.behaviour.features.features.Features] and compute methods like [`distance_between`][py3r.behaviour.features.features.Features.distance_between], [`speed`][py3r.behaviour.features.features.Features.speed], etc.; persist with [`store`][py3r.behaviour.features.features.Features.store].
-   - Over a collection: [`FeaturesCollection.from_tracking_collection`][py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection] and batch [`store`][py3r.behaviour.features.features_collection.FeaturesCollection.store].
-
-5) Summarise
-   - Per recording: [`Summary`][py3r.behaviour.summary.summary.Summary] with metrics like [`time_true`][py3r.behaviour.summary.summary.Summary.time_true], [`total_distance`][py3r.behaviour.summary.summary.Summary.total_distance].
-   - Over a collection: [`SummaryCollection.from_features_collection`][py3r.behaviour.summary.summary_collection.SummaryCollection.from_features_collection] and collate with [`to_df`][py3r.behaviour.summary.summary_collection.SummaryCollection.to_df].
-
-6) Save and load (round‑trip)
-   - Each core object supports `save(dirpath, data_format=...)` and `load(dirpath)`:
-     - [`Tracking.save`][py3r.behaviour.tracking.tracking.Tracking.save] / [`Tracking.load`][py3r.behaviour.tracking.tracking.Tracking.load]
-     - [`Features.save`][py3r.behaviour.features.features.Features.save] / [`Features.load`][py3r.behaviour.features.features.Features.load]
-     - [`Summary.save`][py3r.behaviour.summary.summary.Summary.save] / [`Summary.load`][py3r.behaviour.summary.summary.Summary.load]
-   - Collections can be persisted too: see [`save`][py3r.behaviour.util.base_collection.BaseCollection.save] and [`load`][py3r.behaviour.util.base_collection.BaseCollection.load].
-
-7) Multi‑view notes
-   - Prefer folder‑based loaders:
-     - Per recording: [`TrackingMV.from_dlc`][py3r.behaviour.tracking.tracking_mv.TrackingMV.from_dlc]
-     - Batch: [`TrackingCollection.from_dlc_folder`][py3r.behaviour.tracking.tracking_collection.TrackingCollection.from_dlc_folder] with `tracking_cls=TrackingMV`
-
-### Next steps
-- Install and environment: see Install
-- Browse API pages for doctestable examples:
-  - Tracking, TrackingMV, TrackingCollection
-  - Features, FeaturesCollection
-  - Summary, SummaryCollection
+1. Generate summary statistics and export:
+    - Per‑recording metrics (batched over the collection): [`Summary.time_true`][py3r.behaviour.summary.summary.Summary.time_true], [`Summary.time_false`][py3r.behaviour.summary.summary.Summary.time_false], [`Summary.total_distance`][py3r.behaviour.summary.summary.Summary.total_distance], [`Summary.transition_matrix`][py3r.behaviour.summary.summary.Summary.transition_matrix], [`Summary.count_state_onsets`][py3r.behaviour.summary.summary.Summary.count_state_onsets], [`Summary.time_in_state`][py3r.behaviour.summary.summary.Summary.time_in_state]
+    - Collate scalar outputs into a tidy table: [`SummaryCollection.to_df`][py3r.behaviour.summary.summary_collection.SummaryCollection.to_df]
+    - Behaviour Flow Analysis on grouped collections: [`SummaryCollection.bfa`][py3r.behaviour.summary.summary_collection.SummaryCollection.bfa] and post‑processing stats via [`SummaryCollection.bfa_stats`][py3r.behaviour.summary.summary_collection.SummaryCollection.bfa_stats]

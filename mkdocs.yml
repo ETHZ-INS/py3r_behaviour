@@ -17,6 +17,8 @@ nav:
   - Home: index.md
   - Install: install.md
   - Getting Started: getting_started.md
+  - Examples:
+    - OFT pipeline: examples/oft_pipeline.md
   - API:
     - Tracking: api/tracking.md
     - TrackingMV: api/tracking_mv.md
