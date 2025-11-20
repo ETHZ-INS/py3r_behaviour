@@ -109,7 +109,7 @@ class Tracking:
     Smooth all points with default window=3 rolling mean, and optional exception for point 'p1':
 
     ```pycon
-    >>> _ = t.smooth_all(3, 'mean',(['p1'],'median',4))
+    >>> _ = t.smooth_all(3, 'mean',[(['p1'],'median',4)])
     >>> 'smoothing' in t.meta
     True
 
@@ -807,7 +807,8 @@ class Tracking:
         self,
         window: int | None = 3,
         method: str = "mean",
-        *overrides: tuple[list[str] | tuple[str, ...] | str, str, int | None],
+        overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]]
+        | None = None,
         dims: tuple[str, ...] = ("x", "y"),
         strict: bool = False,
         inplace: bool = True,
@@ -818,7 +819,7 @@ class Tracking:
         Smooth all tracked points using a default method/window, with optional override groups.
 
         - window/method: default applied to any point without override
-        - overrides: zero or more tuples of (points, method, window), where
+        - overrides: optional list of (points, method, window) tuples, where
             - points: list/tuple of point names (or a single str)
             - method: 'median' or 'mean'
             - window: int (or None to skip smoothing for those points)
@@ -832,7 +833,7 @@ class Tracking:
         >>> from py3r.behaviour.util.docdata import data_path
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> t.smooth_all(3, 'mean', (['p1'], 'median', 4))
+        >>> t.smooth_all(3, 'mean', overrides=[(['p1'], 'median', 4)])
         >>> 'smoothing' in t.meta
         True
 
@@ -840,20 +841,23 @@ class Tracking:
         """
         # Normalize override groups into a point->spec dict
         overrides_dict: dict[str, dict] = {}
-        for grp in overrides:
-            if not (isinstance(grp, tuple) and len(grp) == 3):
-                raise ValueError(
-                    "each override must be a tuple: (points, method, window)"
-                )
-            pts, m, w = grp
-            if isinstance(pts, str):
-                pts_list = [pts]
-            elif isinstance(pts, (list, tuple)):
-                pts_list = list(pts)
-            else:
-                raise ValueError("points must be a list/tuple of names or a single str")
-            for p in pts_list:
-                overrides_dict[p] = {"method": m, "window": w}
+        if overrides:
+            for grp in overrides:
+                if not (isinstance(grp, tuple) and len(grp) == 3):
+                    raise ValueError(
+                        "each override must be a tuple: (points, method, window)"
+                    )
+                pts, m, w = grp
+                if isinstance(pts, str):
+                    pts_list = [pts]
+                elif isinstance(pts, (list, tuple)):
+                    pts_list = list(pts)
+                else:
+                    raise ValueError(
+                        "points must be a list/tuple of names or a single str"
+                    )
+                for p in pts_list:
+                    overrides_dict[p] = {"method": m, "window": w}
 
         self._validate_smoothing_inputs(method, dims, overrides_dict)
         points = self.get_point_names()
