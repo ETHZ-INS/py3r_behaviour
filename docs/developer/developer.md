@@ -25,15 +25,6 @@ python -m pip install -U pip
 pip install -e ".[dev]" "mkdocstrings[python]" mkdocs-material mike mkdocs-autorefs xdoctest pytest packaging
 ```
 
-On Windows PowerShell, avoid Unix-style "\" line continuations. Use the single-line command above, or PowerShell backticks:
-
-```powershell
-python -m pip install -U pip
-pip install -e ".[dev]" `
-  "mkdocstrings[python]" mkdocs-material mike mkdocs-autorefs `
-  xdoctest pytest packaging
-```
-
 ### 3) Generate batch mixins (required before committing/building)
 
 ```bash
@@ -60,13 +51,11 @@ mkdocs serve
 mkdocs build --strict
 ```
 
-### 6) Optional: versioned docs with mike (local)
+### 6) Docs publishing (handled by CI)
 
-```bash
-# Deploy docs for version vX.Y.Z and alias "latest" (requires gh-pages branch config)
-mike deploy --update-aliases vX.Y.Z latest
-mike set-default latest
-```
+- Do not publish docs. GitHub Actions handles versioned docs deploys on pushes to `main`.
+- On PRs, CI builds docs and uploads a “site” artifact you can download for preview.
+- On pushes to `main`, the Release workflow reads the version from `pyproject.toml`, tags `vX.Y.Z`, and deploys docs with `mike` to `gh-pages` with alias `latest`.
 
 Notes:
 - CI (GitHub Actions) enforces:
