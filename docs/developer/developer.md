@@ -47,7 +47,7 @@ pytest -q --xdoctest --xdoctest-modules
 # Live-reloading dev server at http://127.0.0.1:8000
 mkdocs serve
 
-# Or build a static site into ./site
+# Or build a static site into ./site (in .gitignore)
 mkdocs build --strict
 ```
 
