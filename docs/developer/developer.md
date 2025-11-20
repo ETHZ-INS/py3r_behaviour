@@ -22,8 +22,15 @@ source .venv/bin/activate
 
 ```bash
 python -m pip install -U pip
-pip install -e ".[dev]" \
-  "mkdocstrings[python]" mkdocs-material mike mkdocs-autorefs \
+pip install -e ".[dev]" "mkdocstrings[python]" mkdocs-material mike mkdocs-autorefs xdoctest pytest packaging
+```
+
+On Windows PowerShell, avoid Unix-style "\" line continuations. Use the single-line command above, or PowerShell backticks:
+
+```powershell
+python -m pip install -U pip
+pip install -e ".[dev]" `
+  "mkdocstrings[python]" mkdocs-material mike mkdocs-autorefs `
   xdoctest pytest packaging
 ```
 
