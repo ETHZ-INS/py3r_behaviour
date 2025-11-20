@@ -1,0 +1,39 @@
+name: PR Labeler
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  labeler:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply labels based on strict checkbox syntax
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || "";
+            const number = context.payload.pull_request.number;
+
+            // Strict `[x]` only — no other variants
+            const labelMap = {
+              feature: /- \[x\] ✨ Feature/i,
+              bugfix: /- \[x\] 🐛 Bug fix/i,
+              "breaking-change": /- \[x\] 💥 Breaking change/i,
+              chore: /- \[x\] 🧹 Chore/i,
+              docs: /- \[x\] 📚 Docs/i
+            };
+
+            const labelsToAdd = [];
+            for (const [label, regex] of Object.entries(labelMap)) {
+              if (regex.test(body)) labelsToAdd.push(label);
+            }
+
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: number,
+                labels: labelsToAdd
+              });
+            }

@@ -1,5 +1,5 @@
 site_name: py3r-behaviour
-site_url: ""
+site_url: "https://ETHZ-INS.github.io/py3r_behaviour/"
 theme:
   name: material
   features:
@@ -27,6 +27,8 @@ nav:
     - FeaturesCollection: api/features_collection.md
     - Summary: api/summary.md
     - SummaryCollection: api/summary_collection.md
+  - Dev Only: 
+    - Developer Setup: developer/developer.md
 plugins:
   - search
   - autorefs
