@@ -163,7 +163,8 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'smooth')(smoothing_params))
         return self._invoke_batch("smooth", smoothing_params)
 
-    def smooth_all(self, window: int | None=3, method: str="mean", *overrides: tuple[list[str] | tuple[str, ...] | str, str, int | None], dims: tuple[str, ...]=("x", "y"), strict: bool=False, inplace: bool=True, smoother=None, smoother_kwargs: dict | None=None) -> BatchResult:
+    def smooth_all(self, window: int | None=3, method: str="mean", overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]]
+        | None=None, dims: tuple[str, ...]=("x", "y"), strict: bool=False, inplace: bool=True, smoother=None, smoother_kwargs: dict | None=None) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.smooth_all across the collection.
 
@@ -173,8 +174,8 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'smooth_all')(window, method, *overrides, dims=dims, strict=strict, inplace=inplace, smoother=smoother, smoother_kwargs=smoother_kwargs))
-        return self._invoke_batch("smooth_all", window, method, *overrides, dims=dims, strict=strict, inplace=inplace, smoother=smoother, smoother_kwargs=smoother_kwargs)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'smooth_all')(window, method, overrides, dims, strict, inplace, smoother, smoother_kwargs))
+        return self._invoke_batch("smooth_all", window, method, overrides, dims, strict, inplace, smoother, smoother_kwargs)
 
     def interpolate(self, method: str="linear", limit: int=1, **kwargs) -> BatchResult:
         """
