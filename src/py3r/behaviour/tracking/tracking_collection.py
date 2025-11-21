@@ -1,19 +1,17 @@
 from __future__ import annotations
-import json
 import os
 import pandas as pd
-from py3r.behaviour.tracking.tracking import (
-    Tracking,
-    LoadOptions,
+from py3r.behaviour.tracking.tracking import Tracking
+from py3r.behaviour.tracking.tracking_collection_batch_mixin import (
+    TrackingCollectionBatchMixin,
 )
-
 from py3r.behaviour.tracking.tracking_mv import TrackingMV
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
 
 
-class TrackingCollection(BaseCollection):
+class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
     """
     Collection of Tracking objects, keyed by name (e.g. for grouping individuals)
     note: type-hints refer to Tracking, but factory methods allow for other classes
@@ -21,14 +19,17 @@ class TrackingCollection(BaseCollection):
     """
 
     _element_type = Tracking
-    _multiple_collection_type = "MultipleTrackingCollection"
 
     def __init__(self, tracking_dict: dict[str, Tracking]):
-        for key, obj in tracking_dict.items():
-            if obj.handle != key:
-                raise ValueError(
-                    f"Key '{key}' does not match object's handle '{obj.handle}'"
-                )
+        # Only validate handle mapping when values are leaf Tracking objects.
+        # Grouped views (values are sub-collections) should skip this check.
+        values = list(tracking_dict.values())
+        if values and all(isinstance(v, Tracking) for v in values):
+            for key, obj in tracking_dict.items():
+                if obj.handle != key:
+                    raise ValueError(
+                        f"Key '{key}' does not match object's handle '{obj.handle}'"
+                    )
         super().__init__(tracking_dict)
 
     @property
@@ -36,15 +37,36 @@ class TrackingCollection(BaseCollection):
         return self._obj_dict
 
     @classmethod
-    def from_dlc(
+    def from_mapping(
         cls,
         handles_and_filepaths: dict[str, str],
-        options: LoadOptions,
+        *,
+        tracking_loader,
         tracking_cls=Tracking,
+        **loader_kwargs,
     ):
         """
-        Loads a TrackingCollection from a dict of DLC tracking csvs.
-        handles_and_filepaths: dict mapping handles to file paths.
+        Generic constructor from a mapping of handle -> filepath using a loader callable.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     # create two files for demonstration
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         f1 = d / 'a.csv'; f2 = d / 'b.csv'
+        ...         _ = shutil.copy(p, f1); _ = shutil.copy(p, f2)
+        ...     mapping = {'A': str(f1), 'B': str(f2)}
+        ...     coll = TrackingCollection.from_mapping(mapping, tracking_loader=Tracking.from_dlc, fps=30)
+        >>> sorted(coll.keys())
+        ['A', 'B']
+
+        ```
         """
         if not issubclass(tracking_cls, Tracking):
             raise TypeError(
@@ -52,72 +74,128 @@ class TrackingCollection(BaseCollection):
             )
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_dlc(
-                fp, handle=handle, options=options
-            )
+            trackings[handle] = tracking_loader(fp, handle=handle, **loader_kwargs)
         return cls(trackings)
+
+    @classmethod
+    def from_dlc(
+        cls,
+        handles_and_filepaths: dict[str, str],
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tracking_cls=Tracking,
+    ):
+        """
+        Load a collection from DLC CSVs.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'a.csv'; b = d / 'b.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> len(coll)
+        2
+
+        ```
+        """
+        return cls.from_mapping(
+            handles_and_filepaths,
+            tracking_loader=tracking_cls.from_dlc,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @classmethod
     def from_yolo3r(
         cls,
         handles_and_filepaths: dict[str, str],
-        options: LoadOptions,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
         tracking_cls=Tracking,
     ):
         """
-        Loads a TrackingCollection from a dict of yolo3r tracking csvs.
-        handles_and_filepaths: dict mapping handles to file paths.
+        Load a collection from YOLO3R CSVs.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p:
+        ...         a = d / 'a.csv'; b = d / 'b.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_yolo3r({'A': str(a), 'B': str(b)}, fps=30)
+        >>> set(coll.tracking_dict.keys()) == {'A','B'}
+        True
+
+        ```
         """
-        if not issubclass(tracking_cls, Tracking):
-            raise TypeError(
-                f"tracking_cls must be Tracking or a subclass, got {tracking_cls}"
-            )
-        trackings = {}
-        for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_yolo3r(
-                fp, handle=handle, options=options
-            )
-        return cls(trackings)
+        return cls.from_mapping(
+            handles_and_filepaths,
+            tracking_loader=tracking_cls.from_yolo3r,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @classmethod
     def from_dlcma(
         cls,
         handles_and_filepaths: dict[str, str],
-        options: LoadOptions,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
         tracking_cls=Tracking,
     ):
         """
-        Loads a TrackingCollection from a dict of DLC multi-animal tracking csvs.
-        handles_and_filepaths: dict mapping handles to file paths.
-        """
-        if not issubclass(tracking_cls, Tracking):
-            raise TypeError(
-                f"tracking_cls must be Tracking or a subclass, got {tracking_cls}"
-            )
-        trackings = {}
-        for handle, fp in handles_and_filepaths.items():
-            trackings[handle] = tracking_cls.from_dlcma(
-                fp, handle=handle, options=options
-            )
-        return cls(trackings)
+        Load a collection from DLC multi-animal CSVs.
 
-    @classmethod
-    def from_list(cls, tracking_list: list[Tracking]):
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p:
+        ...         a = d / 'a.csv'; b = d / 'b.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlcma({'A': str(a), 'B': str(b)}, fps=30)
+        >>> len(coll) == 2
+        True
+
+        ```
         """
-        creates a TrackingCollection from a list of Tracking objects, keyed by handle
-        """
-        handles = [obj.handle for obj in tracking_list]
-        if len(handles) != len(set(handles)):
-            raise Exception("handles must be unique")
-        trackings = {obj.handle: obj for obj in tracking_list}
-        return cls(trackings)
+        return cls.from_mapping(
+            handles_and_filepaths,
+            tracking_loader=tracking_cls.from_dlcma,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @dev_mode
     @classmethod
     def from_dogfeather(
         cls,
         handles_and_filepaths: dict[str, str],
-        options: LoadOptions,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
         tracking_cls=Tracking,
     ):
         """
@@ -128,54 +206,205 @@ class TrackingCollection(BaseCollection):
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
             trackings[handle] = tracking_cls.from_dogfeather(
-                fp, handle=handle, options=options
+                fp,
+                handle=handle,
+                fps=fps,
+                aspectratio_correction=aspectratio_correction,
             )
         return cls(trackings)
 
     @classmethod
-    def from_dlc_folder(
-        cls, folder_path: str, options: LoadOptions, tracking_cls: type = Tracking
+    def from_folder(
+        cls,
+        folder_path: str,
+        *,
+        tracking_loader,
+        tracking_cls: type = Tracking,
+        **loader_kwargs,
     ) -> TrackingCollection:
+        """
+        Build a collection by scanning a folder for CSVs (or multi-view subfolders).
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv')
+        ...         _ = shutil.copy(p, d / 'B.csv')
+        ...     coll = TrackingCollection.from_folder(str(d), tracking_loader=Tracking.from_dlc, fps=30)
+        >>> sorted(coll.keys())
+        ['A', 'B']
+
+        ```
+        """
         tracking_dict = {}
-        bookkeeping = cls._collect_tracking_files(
-            folder_path, tracking_cls, options=options
-        )
-        for handle, kwargs in bookkeeping.items():
-            tracking_obj = tracking_cls.from_dlc(**kwargs)
-            tracking_dict[handle] = tracking_obj
+        if issubclass(tracking_cls, TrackingMV):
+            # Each subfolder is a multi-view recording; delegate to loader on the folder
+            for recording in sorted(os.listdir(folder_path)):
+                recording_path = os.path.join(folder_path, recording)
+                if not os.path.isdir(recording_path):
+                    continue
+                tracking_obj = tracking_loader(
+                    recording_path, handle=recording, **loader_kwargs
+                )
+                tracking_dict[recording] = tracking_obj
+        else:
+            for fname in os.listdir(folder_path):
+                if fname.endswith(".csv") and not fname.startswith("."):
+                    handle = os.path.splitext(fname)[0]
+                    fpath = os.path.join(folder_path, fname)
+                    tracking_obj = tracking_loader(
+                        fpath, handle=handle, **loader_kwargs
+                    )
+                    tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
     @classmethod
     def from_yolo3r_folder(
-        cls, folder_path: str, options: LoadOptions, tracking_cls: type = Tracking
+        cls,
+        folder_path: str,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tracking_cls: type = Tracking,
     ) -> TrackingCollection:
-        tracking_dict = {}
-        bookkeeping = cls._collect_tracking_files(
-            folder_path, tracking_cls, options=options
+        """
+        Convenience for from_folder using YOLO3R loader.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv')
+        ...         _ = shutil.copy(p, d / 'B.csv')
+        ...     coll = TrackingCollection.from_yolo3r_folder(str(d), fps=30)
+        >>> len(coll)
+        2
+
+        ```
+        """
+        return cls.from_folder(
+            folder_path,
+            tracking_loader=tracking_cls.from_yolo3r,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
         )
-        for handle, kwargs in bookkeeping.items():
-            tracking_obj = tracking_cls.from_yolo3r(**kwargs)
-            tracking_dict[handle] = tracking_obj
-        return cls(tracking_dict)
+
+    @classmethod
+    def from_dlc_folder(
+        cls,
+        folder_path: str,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tracking_cls: type = Tracking,
+    ) -> TrackingCollection:
+        """
+        Convenience for from_folder using DLC loader.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv')
+        ...         _ = shutil.copy(p, d / 'B.csv')
+        ...     coll = TrackingCollection.from_dlc_folder(str(d), fps=30)
+        >>> set(coll.keys()) == {'A','B'}
+        True
+
+        ```
+        """
+        return cls.from_folder(
+            folder_path,
+            tracking_loader=tracking_cls.from_dlc,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
+        )
 
     @classmethod
     def from_dlcma_folder(
-        cls, folder_path: str, options: LoadOptions, tracking_cls: type = Tracking
+        cls,
+        folder_path: str,
+        *,
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tracking_cls: type = Tracking,
     ) -> TrackingCollection:
-        tracking_dict = {}
-        bookkeeping = cls._collect_tracking_files(
-            folder_path, tracking_cls, options=options
+        """
+        Convenience for from_folder using DLCMA loader.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv')
+        ...         _ = shutil.copy(p, d / 'B.csv')
+        ...     coll = TrackingCollection.from_dlcma_folder(str(d), fps=30)
+        >>> len(coll) == 2
+        True
+
+        ```
+        """
+        return cls.from_folder(
+            folder_path,
+            tracking_loader=tracking_cls.from_dlcma,
+            tracking_cls=tracking_cls,
+            fps=fps,
+            aspectratio_correction=aspectratio_correction,
         )
-        for handle, kwargs in bookkeeping.items():
-            tracking_obj = tracking_cls.from_dlcma(**kwargs)
-            tracking_dict[handle] = tracking_obj
-        return cls(tracking_dict)
 
     def add_tags_from_csv(self, csv_path: str) -> None:
         """
         Adds tags to all Tracking objects in the collection from a csv file.
         csv_path: path to a csv file with first column: "handle"
         and other columns with tagnames as titles and tagvalues as values
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, pandas as pd
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     # build a small collection
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     # tags csv
+        ...     tagcsv = d / 'tags.csv'
+        ...     pd.DataFrame([{'handle':'A','group':'G1'},{'handle':'B','group':'G2'}]).to_csv(tagcsv, index=False)
+        ...     coll.add_tags_from_csv(str(tagcsv))
+        >>> coll['A'].tags
+        {'group': 'G1'}
+        >>> coll['B'].tags
+        {'group': 'G2'}
+
+        ```
         """
         df = pd.read_csv(csv_path)
 
@@ -202,72 +431,102 @@ class TrackingCollection(BaseCollection):
             missing_str = ", ".join(sorted(set(map(str, missing_handles))))
             print("the following handles were not found in collection: " + missing_str)
 
-    def stereo_triangulate(self):
+    def stereo_triangulate(self) -> TrackingCollection:
         """
-        Triangulate all TrackingMV objects in the collection.
-        Returns a new TrackingCollection of triangulated Tracking objects.
-        """
-        triangulated = {}
-        for handle, obj in self.tracking_dict.items():
-            if hasattr(obj, "stereo_triangulate"):
-                triangulated[handle] = obj.stereo_triangulate()
-            else:
-                raise TypeError(
-                    f"Object {handle} does not support stereo_triangulate()"
-                )
-        return TrackingCollection(triangulated)
+        Triangulate all TrackingMV objects and return a new TrackingCollection.
+        The new collection will have the same grouping as the original.
 
-    @staticmethod
-    def _collect_tracking_files(folder_path, tracking_cls, options):
-        result = {}
-        if issubclass(tracking_cls, TrackingMV):
-            # Each subfolder is a recording
-            print(f"Scanning {folder_path} for recordings...")
-            for recording in sorted(os.listdir(folder_path)):
-                recording_path = os.path.join(folder_path, recording)
-                print(f"  Checking {recording_path}...")
-                if not os.path.isdir(recording_path):
-                    print("    Not a directory, skipping.")
-                    continue
-                # Find all view csvs
-                filepaths = {}
-                for fname in os.listdir(recording_path):
-                    if fname.endswith(".csv") and not fname.startswith("."):
-                        view = os.path.splitext(fname)[0]
-                        filepaths[view] = os.path.join(recording_path, fname)
-                # Load calibration
-                calib_path = os.path.join(recording_path, "calibration.json")
-                if not os.path.exists(calib_path):
-                    raise FileNotFoundError(
-                        f"Missing calibration.json in {recording_path}"
-                    )
-                with open(calib_path, "r") as f:
-                    calibration = json.load(f)
-                result[recording] = {
-                    "filepaths": filepaths,
-                    "handle": recording,
-                    "options": options,
-                    "calibration": calibration,
-                }
-        else:
-            # Single-view: treat each csv as a single-view Tracking
-            for fname in os.listdir(folder_path):
-                if fname.endswith(".csv") and not fname.startswith("."):
-                    handle = os.path.splitext(fname)[0]
-                    fpath = os.path.join(folder_path, fname)
-                    result[handle] = {
-                        "filepath": fpath,
-                        "handle": handle,
-                        "options": options,
-                    }
-        return result
+        Notes
+        -----
+        This requires multi-view `TrackingMV` elements;
+        typical `Tracking` elements do not support stereo triangulation.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, json
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_mv import TrackingMV
+        >>> # Create a collection with a single multi-view recording
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d) / 'rec1'
+        ...     d.mkdir(parents=True, exist_ok=True)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p_csv:
+        ...         _ = shutil.copy(p_csv, d / 'left.csv')
+        ...         _ = shutil.copy(p_csv, d / 'right.csv')
+        ...     # write a minimal synthetic calibration.json
+        ...     calib = {
+        ...         'view_order': ['left', 'right'],
+        ...         'views': {
+        ...             'left':  {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0,0,0,0,0]},
+        ...             'right': {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0,0,0,0,0]},
+        ...         },
+        ...         'relative_pose': {'R': [[1,0,0],[0,1,0],[0,0,1]], 'T': [0.1, 0.0, 0.0]},
+        ...     }
+        ...     (d / 'calibration.json').write_text(json.dumps(calib))
+        ...     # Build collection by scanning the parent folder with TrackingMV
+        ...     parent = str(d.parent)
+        ...     coll_mv = TrackingCollection.from_dlc_folder(parent, tracking_cls=TrackingMV, fps=30)
+        ...     coll_3d = coll_mv.stereo_triangulate()
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> isinstance(next(iter(coll_3d.values())), Tracking)
+        True
+        >>> next(iter(coll_3d.keys()))
+        'rec1'
+
+        ```
+        """
+        return self.map_leaves(lambda t: t.stereo_triangulate())
 
     @property
     def loc(self):
+        """
+        Slice all elements with Tracking object .loc and return a new collection.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> sub = coll.loc[0:2]
+        >>> all(len(t.data) == 3 for t in sub.values())
+        True
+
+        ```
+        """
         return _Indexer(self, self._loc)
 
     @property
     def iloc(self):
+        """
+        Slice all elements with Tracking object .iloc and return a new collection.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> sub = coll.iloc[0:2]
+        >>> all(len(t.data) == 2 for t in sub.values())
+        True
+
+        ```
+        """
         return _Indexer(self, self._iloc)
 
     def _loc(self, idx):
@@ -277,6 +536,30 @@ class TrackingCollection(BaseCollection):
         return self.__class__({k: v.iloc[idx] for k, v in self.tracking_dict.items()})
 
     def plot(self, *args, **kwargs):
+        """
+        Plot all elements in the collection (or per group if grouped).
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        >>> _ = coll.plot(show=False)
+
+        ```
+        """
+        if getattr(self, "is_grouped", False):
+            for gkey, sub in self.items():
+                print(f"\n=== Group: {gkey} ===")
+                sub.plot(*args, **kwargs)
+            return
         print(f"\nCollection: {getattr(self, 'handle', 'unnamed')}")
         for handle, tracking in self.tracking_dict.items():
             tracking.plot(*args, title=handle, **kwargs)

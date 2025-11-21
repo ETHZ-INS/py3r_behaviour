@@ -20,3 +20,9 @@ dependencies = [
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["py3r.*"] 
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["src", "tests"]
+doctest_optionflags = ["ELLIPSIS", "IGNORE_EXCEPTION_DETAIL", "NORMALIZE_WHITESPACE"]
+filterwarnings = ["ignore::UserWarning"]
