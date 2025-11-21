@@ -65,7 +65,7 @@ sc = SummaryCollection.from_features_collection(fc)
 
 # 9) Compute summary measures per recording
 # Total distance moved
-sc.total_distance("bodycentre").store()   # distance moved
+sc.total_distance("bodycentre").store()
 
 # Time in center
 sc.time_true("within_boundary_static_bodycentre_in_center").store("time_in_center")
