@@ -27,8 +27,6 @@ nav:
     - FeaturesCollection: api/features_collection.md
     - Summary: api/summary.md
     - SummaryCollection: api/summary_collection.md
-  - Dev Only: 
-    - Developer Setup: developer/developer.md
 plugins:
   - search
   - autorefs
