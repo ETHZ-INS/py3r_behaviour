@@ -99,6 +99,76 @@ class BaseCollection(MutableMapping):
                     )
         return BatchResult(results, self)
 
+    def _invoke_batch_mapped(
+        self,
+        _method_name: str,
+        *,
+        args: tuple = (),
+        kwargs: dict | None = None,
+    ) -> BatchResult:
+        """
+        Strict batch dispatcher that accepts positional and keyword arguments
+        where any argument may be either:
+          - a scalar (applied uniformly), or
+          - a mapping whose keys exactly mirror the collection's structure:
+            - flat: {handle: value}
+            - grouped: {group_key: {handle: value}}
+
+        The mapping shape must exactly match the collection; missing keys raise KeyError.
+        """
+        if kwargs is None:
+            kwargs = {}
+
+        def select(spec, group_key, obj_key):
+            # If spec is mapping-like, pick value using exact keys; otherwise use as-is
+            from collections.abc import Mapping
+
+            if isinstance(spec, Mapping):
+                if getattr(self, "is_grouped", False):
+                    return spec[group_key][obj_key]
+                return spec[obj_key]
+            return spec
+
+        results = {}
+        if getattr(self, "is_grouped", False):
+            for group_key, subcoll in self.items():
+                group_results = {}
+                for obj_key, obj in subcoll.items():
+                    try:
+                        leaf_args = tuple(select(a, group_key, obj_key) for a in args)
+                        leaf_kwargs = {
+                            k: select(v, group_key, obj_key) for k, v in kwargs.items()
+                        }
+                        group_results[obj_key] = getattr(obj, _method_name)(
+                            *leaf_args, **leaf_kwargs
+                        )
+                    except Exception as e:
+                        group_results[obj_key] = BatchProcessError(
+                            collection_name=group_key,
+                            object_name=obj_key,
+                            method=_method_name,
+                            original_exception=e,
+                        )
+                results[group_key] = BatchResult(group_results, subcoll)
+        else:
+            for obj_key, obj in self.items():
+                try:
+                    leaf_args = tuple(select(a, None, obj_key) for a in args)
+                    leaf_kwargs = {
+                        k: select(v, None, obj_key) for k, v in kwargs.items()
+                    }
+                    results[obj_key] = getattr(obj, _method_name)(
+                        *leaf_args, **leaf_kwargs
+                    )
+                except Exception as e:
+                    results[obj_key] = BatchProcessError(
+                        collection_name=None,
+                        object_name=obj_key,
+                        method=_method_name,
+                        original_exception=e,
+                    )
+        return BatchResult(results, self)
+
     def __getitem__(self, key):
         """
         Get element by handle (str), by integer index, or by slice.

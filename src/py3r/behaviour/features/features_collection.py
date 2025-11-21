@@ -114,6 +114,137 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
             }
         )
 
+    def within_boundary_static(
+        self,
+        point: str,
+        boundary,
+        boundary_name: str = None,
+    ):
+        """
+        Collection-aware wrapper that supports:
+          - a single static `boundary` (list[(x,y)]) applied to all items, or
+          - a per-handle mapping of boundaries produced by batch `define_boundary`:
+            - flat: {handle: list[(x,y)]}
+            - grouped: {group_key: {handle: list[(x,y)]}}
+            - BatchResult in either of the above shapes
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> boundaries = fc.define_boundary(['p1','p2','p3'], scaling=1.0)
+        >>> res = fc.within_boundary_static('p1', boundaries)
+        >>> isinstance(res, dict)
+        True
+        >>> any(isinstance(v, pd.Series) for v in res.values())
+        True
+
+        >>> # Grouped case: add tags on Tracking, group, then build grouped FeaturesCollection
+        >>> # (boundaries BatchResult structure matches grouped layout)
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        ...     tc['A'].add_tag('group', 'G1'); tc['B'].add_tag('group', 'G2')
+        ...     gtc = tc.groupby('group')
+        ...     gfc = FeaturesCollection.from_tracking_collection(gtc)
+        ...     g_boundaries = gfc.define_boundary(['p1','p2','p3'], scaling=1.0)
+        ...     g_res = gfc.within_boundary_static('p1', g_boundaries)
+        >>> isinstance(g_res, dict)
+        True
+        >>> any(any(isinstance(s, pd.Series) for s in sub.values()) for sub in g_res.values())
+        True
+
+        ```
+        """
+        # Case 1: one boundary applied to all leaves -> use standard batch path
+        if isinstance(boundary, list):
+            return self._invoke_batch(
+                "within_boundary_static", point, boundary, boundary_name
+            )
+
+        # Case 2: mapping or BatchResult providing per-handle boundaries
+        return self._invoke_batch_mapped(
+            "within_boundary_static",
+            args=(point,),
+            kwargs={"boundary": boundary, "boundary_name": boundary_name},
+        )
+
+    def distance_to_boundary_static(
+        self,
+        point: str,
+        boundary,
+        boundary_name: str = None,
+    ):
+        """
+        Collection-aware wrapper that supports:
+          - a single static `boundary` (list[(x,y)]) applied to all items, or
+          - a per-handle mapping of boundaries produced by batch `define_boundary`:
+            - flat: {handle: list[(x,y)]}
+            - grouped: {group_key: {handle: list[(x,y)]}}
+            - BatchResult in either of the above shapes
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> boundaries = fc.define_boundary(['p1','p2','p3'], scaling=1.0)
+        >>> res = fc.distance_to_boundary_static('p1', boundaries)
+        >>> isinstance(res, dict)
+        True
+        >>> any(isinstance(v, pd.Series) for v in res.values())
+        True
+
+        >>> # Grouped case
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        ...     tc['A'].add_tag('group', 'G1'); tc['B'].add_tag('group', 'G2')
+        ...     gtc = tc.groupby('group')
+        ...     gfc = FeaturesCollection.from_tracking_collection(gtc)
+        ...     g_boundaries = gfc.define_boundary(['p1','p2','p3'], scaling=1.0)
+        ...     g_res = gfc.distance_to_boundary_static('p1', g_boundaries)
+        >>> isinstance(g_res, dict)
+        True
+        >>> any(any(isinstance(s, pd.Series) for s in sub.values()) for sub in g_res.values())
+        True
+
+        ```
+        """
+        if isinstance(boundary, list):
+            return self._invoke_batch(
+                "distance_to_boundary_static", point, boundary, boundary_name
+            )
+
+        return self._invoke_batch_mapped(
+            "distance_to_boundary_static",
+            args=(point,),
+            kwargs={"boundary": boundary, "boundary_name": boundary_name},
+        )
+
     @classmethod
     def from_list(cls, features_list: list[Features]):
         """
