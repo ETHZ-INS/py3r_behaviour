@@ -123,7 +123,7 @@ labels.store(name="km25_standard_norm")
 
 
 # 7) (Optional) Save features to disk (parquet format)
-fc.save(f"{OUT_DIR}/features", data_format="parquet", overwrite=True)
+fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
 
 # 8) Create SummaryCollection object
 sc = p3b.SummaryCollection.from_features_collection(fc)
