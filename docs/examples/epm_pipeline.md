@@ -78,7 +78,7 @@ on_ca = on_ca1 | on_ca2
 on_oa.store(name="bodycentre_on_closed_arms")
 
 dist_change_on_ca = on_ca.astype(int) * fc.distance_change("bodycentre")
-dist_change_on_ca.store(name="dist_change_bodycentre_on_oa")
+dist_change_on_ca.store(name="dist_change_bodycentre_on_ca")
 
 # 7) (Optional) Save features to csv
 fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
@@ -96,9 +96,6 @@ sc.time_true("bodycentre_on_open_arms").store("time_on_open_arms")
 # Distance moved on open arms
 sc.sum_column("dist_change_bodycentre_on_oa").store(name="distance_moved_on_open_arms")
 
-dist_change_on_oa = on_oa.astype(int) * fc.distance_change("bodycentre")
-dist_change_on_oa.store(name="dist_change_on_oa")
-sc.sum()
 # Time on closed arms
 sc.time_true("bodycentre_on_closed_arms").store("time_on_closed_arms")
 
