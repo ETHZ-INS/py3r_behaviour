@@ -19,6 +19,8 @@ nav:
   - Getting Started: getting_started.md
   - Examples:
     - OFT pipeline: examples/oft_pipeline.md
+    - EPM pipeline: examples/epm_pipeline.md
+    - GrimACE pipeline with BehaviourFlow: examples/grimace_pipeline_behaviourflow.md
   - API:
     - Tracking: api/tracking.md
     - TrackingMV: api/tracking_mv.md
