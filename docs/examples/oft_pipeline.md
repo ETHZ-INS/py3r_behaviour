@@ -2,15 +2,13 @@ End‑to‑end example computing "distance moved" and "time in center" using fol
 
 ```python
 # 1) Load a dataset of single‑view DLC CSVs into a TrackingCollection
-from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-from py3r.behaviour.features.features_collection import FeaturesCollection
-from py3r.behaviour.summary.summary_collection import SummaryCollection
+import py3r.behaviour as p3b
 
 DATA_DIR = "/data/recordings"            # e.g. contains OFT_id1.csv, OFT_id2.csv, ...
 TAGS_CSV = "/data/tags.csv"              # optional, with columns: handle, treatment, genotype, ...
 OUT_DIR  = "/outputs"                    # where to save summary outputs
 
-tc = TrackingCollection.from_dlc_folder(folder_path=DATA_DIR, fps=30)
+tc = p3b.TrackingCollection.from_dlc_folder(folder_path=DATA_DIR, fps=30)
 
 # 2) (Optional) Add tags from a CSV for grouping/analysis
 # CSV must contain a 'handle' column matching filenames (without extension)
@@ -49,7 +47,7 @@ tc.plot(trajectories=["bodycentre"], static=["tr", "tl", "bl", "br"],
         lines=[("tr","tl"), ("tl","bl"), ("bl","br"), ("br","tr")])
 
 # 5) Create FeaturesCollection object
-fc = FeaturesCollection.from_tracking_collection(tc)
+fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 # 6) Compute features necessary to compute time in center 
 # Define boundary of center area and check if mouse (defined by 'bodycentre') is inside defined boundary
@@ -60,7 +58,7 @@ fc.within_boundary_static(point="bodycentre", boundary=center_boundary, boundary
 fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
 
 # 8) Create SummaryCollection object
-sc = SummaryCollection.from_features_collection(fc)
+sc = p3b.SummaryCollection.from_features_collection(fc)
 
 # 9) Compute summary measures per recording
 # Total distance moved
