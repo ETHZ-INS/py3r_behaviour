@@ -998,19 +998,30 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         ```
         """
         if getattr(self, "is_grouped", False):
-            for group_dict in results_dict.values():
-                for v in group_dict.values():
+            for gkey, group_dict in results_dict.items():
+                for handle, v in group_dict.items():
                     if hasattr(v, "store"):
                         v.store(name=name, meta=meta, overwrite=overwrite)
                     else:
-                        raise ValueError(f"{v} is not a FeaturesResult object")
+                        # Accept raw Series-like leaf values as well
+                        if isinstance(v, pd.Series):
+                            self._obj_dict[gkey].features_dict[handle].store(
+                                v, name, overwrite=overwrite, meta=meta or {}
+                            )
+                        else:
+                            raise ValueError(f"{v} is not a FeaturesResult or Series")
             return
         # Flat case
-        for v in results_dict.values():
+        for handle, v in results_dict.items():
             if hasattr(v, "store"):
                 v.store(name=name, meta=meta, overwrite=overwrite)
             else:
-                raise ValueError(f"{v} is not a FeaturesResult object")
+                if isinstance(v, pd.Series):
+                    self.features_dict[handle].store(
+                        v, name, overwrite=overwrite, meta=meta or {}
+                    )
+                else:
+                    raise ValueError(f"{v} is not a FeaturesResult or Series")
 
     @property
     def loc(self):
