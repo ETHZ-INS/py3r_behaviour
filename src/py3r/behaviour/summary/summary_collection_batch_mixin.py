@@ -68,6 +68,19 @@ class SummaryCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'total_distance')(point, startframe, endframe))
         return self._invoke_batch("total_distance", point, startframe, endframe)
 
+    def sum_column(self, column: str) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.sum_column across the collection.
+
+        Sum all non-NaN values in a `features.data` column and return as a SummaryResult.
+
+        See [`Summary.sum_column`][py3r.behaviour.summary.summary.Summary.sum_column] for examples.
+        """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'sum_column')(column))
+        return self._invoke_batch("sum_column", column)
+
     def store(self, summarystat: Any, name: str, overwrite: bool=False, meta: Any=None) -> BatchResult:
         """
         Batch-mode wrapper for Summary.store across the collection.

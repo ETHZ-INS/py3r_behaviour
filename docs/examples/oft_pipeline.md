@@ -20,7 +20,7 @@ tc = TrackingCollection.from_dlc_folder(folder_path=DATA_DIR, fps=30)
 #      filename2, f, crs
 #      ...etc
 try:
-    tc.add_tags_from_csv(path_tag_file=TAGS_CSV)
+    tc.add_tags_from_csv(csv_path=TAGS_CSV)
 except FileNotFoundError:
     pass
 
@@ -53,9 +53,8 @@ fc = FeaturesCollection.from_tracking_collection(tc)
 
 # 6) Compute features necessary to compute time in center 
 # Define boundary of center area and check if mouse (defined by 'bodycentre') is inside defined boundary
-for handle in fc.keys():
-    center_boundary = fc[handle].define_boundary(["tl", "tr", "bl", "br"], scaling=0.5)
-    fc[handle].within_boundary_static(point="bodycentre", boundary=center_boundary, boundary_name="center").store()
+center_boundary = fc.define_boundary(["tl", "tr", "bl", "br"], scaling=0.5)
+fc.within_boundary_static(point="bodycentre", boundary=center_boundary, boundary_name="center").store()
 
 # 7) (Optional) Save features to csv
 fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
