@@ -1,7 +1,7 @@
 ```python
 import json
-import py3r.behaviour as p3b
 import numpy as np
+import py3r.behaviour as p3b
 
 DATA_DIR = "/data/recordings"  # e.g. contains OFT_id1.csv, OFT_id2.csv, ...
 TAGS_CSV = "/data/tags.csv"  # optional, with columns: handle, treatment, genotype, ...
@@ -38,7 +38,7 @@ tc.smooth_all(
 # Rescale distance to metres according to corners of the GrimACE arena, here named 'tl' and 'br'
 tc.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.13)
 
-# 4) Basic QA such as checking length of recordings and ploting tracking trajectories
+# Basic QA such as checking length of recordings and ploting tracking trajectories
 # Length check (per recording, assuming 10 min, time in seconds)
 timecheck = tc.time_as_expected(
     mintime=RECORDING_LENGTH - (0.1 * RECORDING_LENGTH),
@@ -55,7 +55,7 @@ tc.plot(
     lines=[("tr", "tl"), ("tl", "bl"), ("bl", "br"), ("br", "tr")],
 )
 
-# 5) Create FeaturesCollection object
+# Create FeaturesCollection object
 fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 # 6) Compute features to be used for BehaviourFlow analysis
@@ -114,6 +114,9 @@ fc.distance_to_boundary_static("neck", bdry, boundary_name="grimacebox").store()
 fc.distance_to_boundary_static("bodycentre", bdry, boundary_name="grimacebox").store()
 fc.distance_to_boundary_static("tailbase", bdry, boundary_name="grimacebox").store()
 
+# (Optional) Save features to disk
+fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
+
 # Embed and cluster the features for BehaviourFlow analysis
 embedding_dict = {f: np.arange(-15, 16, 1) for f in fc[0].data.columns}
 labels, centroids, norm = fc.cluster_embedding(
@@ -121,14 +124,10 @@ labels, centroids, norm = fc.cluster_embedding(
 )
 labels.store(name="km25_standard_norm")
 
-
-# 7) (Optional) Save features to disk (parquet format)
-fc.save(f"{OUT_DIR}/features", data_format="parquet", overwrite=True)
-
-# 8) Create SummaryCollection object
+# Create SummaryCollection object
 sc = p3b.SummaryCollection.from_features_collection(fc)
 
-# 9) Compute summary measures per recording
+# Compute summary measures per recording
 # Total distance moved
 sc.total_distance("bodycentre").store()
 
@@ -154,5 +153,5 @@ bfa_stats = sc_grouped.bfa_stats(bfa_results)
 # Save the BehaviourFlow analysis statistics
 with open(f"{OUT_DIR}/bfa_stats.json", "w") as f:
     json.dump(bfa_stats, f, indent=4)
-    
+
 ```
