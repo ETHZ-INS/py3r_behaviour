@@ -305,6 +305,36 @@ class Summary:
         }
         return SummaryResult(value, self, name, meta)
 
+    def sum_column(self, column: str) -> SummaryResult:
+        """
+        Sum all non-NaN values in a `features.data` column and return as a SummaryResult.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> s = pd.Series([1, 2, 3, 4, 5][:len(t.data)], index=t.data.index)
+        >>> f.store(s, 'x', meta={})
+        >>> summ = Summary(f)
+        >>> res = summ.sum_column('x')
+        >>> bool(res.value == 15)
+        True
+
+        ```
+        """
+        if column not in self.features.data.columns:
+            raise ValueError(f"Column '{column}' not found in features.data")
+        value = self.features.data[column].sum(skipna=True)
+        meta = {"function": "sum_column", "column": column}
+        return SummaryResult(value, self, f"sum_{column}", meta)
+
     def store(
         self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None
     ) -> None:

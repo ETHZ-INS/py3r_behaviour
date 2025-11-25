@@ -20,7 +20,7 @@ tc = TrackingCollection.from_dlc_folder(folder_path=DATA_DIR, fps=30)
 #      filename2, f, crs
 #      ...etc
 try:
-    tc.add_tags_from_csv(path_tag_file=TAGS_CSV)
+    tc.add_tags_from_csv(csv_path=TAGS_CSV)
 except FileNotFoundError:
     pass
 
@@ -58,25 +58,27 @@ fc = FeaturesCollection.from_tracking_collection(tc)
 # Define different boundaries (open arms, closed arms) and check if mouse (defined by 'bodycentre') is inside defined boundary
 # Adjust boundaries so they match orientation of your EPM.
 # Open arms
-for handle in fc.keys():
-    _on_open_arm = []
-    _oa_boundary = fc[handle].define_boundary(['tl', 'tr', 'ctr', 'ctl'], scaling=1.1, centre = ["ctr", "ctl"])
-    _on_open_arm.append(fc[handle].within_boundary_static(point="bodycentre", boundary=_oa_boundary))
-    _oa_boundary = fc[handle].define_boundary(['cbl', 'cbr', 'br', 'bl'], scaling=1.1, centre = ["cbr", "cbl"])
-    _on_open_arm.append(fc[handle].within_boundary_static(point="bodycentre", boundary=_oa_boundary))
-    fc[handle].data["bodycentre_on_open_arms"] = (_on_open_arm[0] + _on_open_arm[1]).astype("boolean")
+_oa_boundary = fc.define_boundary(['tl', 'tr', 'ctr', 'ctl'], scaling=1.1, centre = ["ctr", "ctl"])
+on_oa1 = fc.within_boundary_static(point="bodycentre", boundary=_oa_boundary)
+_oa_boundary = fc.define_boundary(['cbl', 'cbr', 'br', 'bl'], scaling=1.1, centre = ["cbr", "cbl"])
+on_oa2 = fc.within_boundary_static(point="bodycentre", boundary=_oa_boundary)
+on_oa = on_oa1 | on_oa2
+on_oa.store(name="bodycentre_on_open_arms")
+
+dist_change_on_oa = on_oa.astype(int) * fc.distance_change("bodycentre")
+dist_change_on_oa.store(name="dist_change_bodycentre_on_oa")
 
 # Closed arms
-for handle in fc.keys():
-    _on_closed_arm = []
-    _ca_boundary = fc[handle].define_boundary(["ctr", "rt", "rb", "cbr"], scaling=1.1, centre = ["ctr", "cbr"])
-    _on_closed_arm.append(fc[handle].within_boundary_static(point="bodycentre", boundary=_ca_boundary))
-    _ca_boundary = fc[handle].define_boundary(["lt", "ctl", "cbl", "lb"], scaling=1.1, centre = ["ctl", "cbl"])
-    _on_closed_arm.append(fc[handle].within_boundary_static(point="bodycentre", boundary=_ca_boundary))
-    fc[handle].data["bodycentre_on_closed_arms"] = (_on_closed_arm[0] + _on_closed_arm[1]).astype("boolean")
+_ca_boundary = fc.define_boundary(["ctr", "rt", "rb", "cbr"], scaling=1.1, centre = ["ctr", "cbr"])
+on_ca1 = fc.within_boundary_static(point="bodycentre", boundary=_ca_boundary)
+_ca_boundary = fc.define_boundary(["lt", "ctl", "cbl", "lb"], scaling=1.1, centre = ["ctl", "cbl"])
+on_ca2 = fc.within_boundary_static(point="bodycentre", boundary=_ca_boundary)
+# you can apply binary operators to BatchResult objects
+on_ca = on_ca1 | on_ca2
+on_oa.store(name="bodycentre_on_closed_arms")
 
-# Distance change between one frame and the next for "bodycentre"
-fc.distance_change(point="bodycentre").store()
+dist_change_on_ca = on_ca.astype(int) * fc.distance_change("bodycentre")
+dist_change_on_ca.store(name="dist_change_bodycentre_on_oa")
 
 # 7) (Optional) Save features to csv
 fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
@@ -92,17 +94,16 @@ sc.total_distance("bodycentre").store()
 sc.time_true("bodycentre_on_open_arms").store("time_on_open_arms")
 
 # Distance moved on open arms
-for handle in sc.keys():
-    _temp_feature = sc[handle].features.data["bodycentre_on_open_arms"] * sc[handle].features.data["distance_change_bodycentre"]
-    sc[handle].data["distance_moved_on_open_arms"] = _temp_feature.sum()
+sc.sum_column("dist_change_bodycentre_on_oa").store(name="distance_moved_on_open_arms")
 
+dist_change_on_oa = on_oa.astype(int) * fc.distance_change("bodycentre")
+dist_change_on_oa.store(name="dist_change_on_oa")
+sc.sum()
 # Time on closed arms
 sc.time_true("bodycentre_on_closed_arms").store("time_on_closed_arms")
 
 # Distance moved on closed arms
-for handle in sc.keys():
-    _temp_feature = sc[handle].features.data["bodycentre_on_closed_arms"] * sc[handle].features.data["distance_change_bodycentre"]
-    sc[handle].data["distance_moved_on_closed_arms"] = _temp_feature.sum()
+sc.sum_column("dist_change_bodycentre_on_ca").store(name="distance_moved_on_closed_arms")
 
 # 10) Collate scalar outputs into DataFrame and save results in CSV
 summary_df = sc.to_df(include_tags=True)
