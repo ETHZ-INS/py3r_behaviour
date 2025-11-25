@@ -5,6 +5,7 @@ import os
 from typing import Literal
 
 import pandas as pd
+import numpy as np
 
 
 SchemaVersion = 1
@@ -22,8 +23,26 @@ def _ensure_dir(dirpath: str, overwrite: bool = False) -> None:
 
 def write_manifest(dirpath: str, manifest: dict) -> None:
     path = os.path.join(dirpath, "manifest.json")
+    def _json_safe(obj):
+        # Recursively cast numpy/pandas scalars to builtin types and replace pd.NA with None
+        if isinstance(obj, dict):
+            return {k: _json_safe(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [_json_safe(v) for v in obj]
+        if isinstance(obj, (np.integer,)):
+            return int(obj)
+        if isinstance(obj, (np.floating,)):
+            return float(obj)
+        try:
+            # pandas NA sentinel
+            import pandas as pd  # local import in case pandas not needed elsewhere
+            if obj is pd.NA:
+                return None
+        except Exception:
+            pass
+        return obj
     with open(path, "w") as f:
-        json.dump(manifest, f, indent=2)
+        json.dump(_json_safe(manifest), f, indent=2, allow_nan=False)
 
 
 def read_manifest(dirpath: str) -> dict:
