@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py3r-behaviour"
-version = "1.4.1"
+version = "2.0.0"
 description = "Behaviour analysis tools for the py3r namespace package"
 authors = [{ name = "Tom Lorimer" }]
 dependencies = [
@@ -13,8 +13,11 @@ dependencies = [
     "matplotlib",
     "seaborn",
     "scikit-learn",
+    "scipy",
+    "scikit-image",
     "shapely",
-    "opencv-python"
+    "opencv-python",
+    "pyarrow"
 ]
 
 [tool.setuptools.packages.find]
