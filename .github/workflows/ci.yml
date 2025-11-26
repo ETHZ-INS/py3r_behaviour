@@ -17,37 +17,27 @@ jobs:
 
       - name: Validate version bump for main (PRs and pushes)
         if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        shell: bash
+        shell: python
         run: |
-          set -euo pipefail
-          git fetch --tags --quiet
-          LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n1)
-          if [ -z "$LATEST_TAG" ]; then LATEST_TAG="v0.0.0"; fi
-          echo "Latest tag: $LATEST_TAG"
-          PYVER=$(python - <<'PY'
-            from pathlib import Path
-            import tomllib
-            print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])
-            PY
-          )
-          echo "pyproject version: $PYVER"
-          export LATEST_TAG PYVER
-          python - <<'PY'
-            import os, re, sys
-            def parse(v):
-                m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', v)
-                if not m: raise SystemExit(f"Invalid semver: {v}")
-                return tuple(map(int, m.groups()))
-            latest = os.environ.get("LATEST_TAG","v0.0.0").lstrip("v")
-            newver = os.environ["PYVER"]
-            la, lb, lc = parse(latest)
-            na, nb, nc = parse(newver)
-            allowed = {(la, lb, lc+1), (la, lb+1, 0), (la+1, 0, 0)}
-            if (na, nb, nc) not in allowed:
-                sys.exit(f"pyproject version {newver} must be one of: "
-                         f"{la}.{lb}.{lc+1} (patch) or {la}.{lb+1}.0 (minor) or {la+1}.0.0 (major); latest tag is v{latest}")
-            print("Version bump check passed.")
-            PY
+          import subprocess, sys, re
+          from pathlib import Path
+          import tomllib
+          subprocess.run(["git","fetch","--tags","--quiet"], check=True)
+          latest = subprocess.run(["bash","-lc","git tag -l 'v*' --sort=-v:refname | head -n1"], capture_output=True, text=True, check=True).stdout.strip() or "v0.0.0"
+          print(f"Latest tag: {latest}")
+          pyver = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          print(f"pyproject version: {pyver}")
+          def parse(v):
+              m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', v)
+              if not m:
+                  sys.exit(f"Invalid semver: {v}")
+              return tuple(map(int, m.groups()))
+          la, lb, lc = parse(latest.lstrip("v"))
+          na, nb, nc = parse(pyver)
+          allowed = {(la, lb, lc+1), (la, lb+1, 0), (la+1, 0, 0)}
+          if (na, nb, nc) not in allowed:
+              sys.exit(f"pyproject version {pyver} must be one of: {la}.{lb}.{lc+1} (patch) or {la}.{lb+1}.0 (minor) or {la+1}.0.0 (major); latest tag is {latest}")
+          print("Version bump check passed.")
 
       - name: Setup Python
         uses: actions/setup-python@v5
