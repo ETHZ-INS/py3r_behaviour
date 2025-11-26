@@ -1,0 +1,41 @@
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+
+categories:
+  - title: '✨ Features'
+    labels:
+      - 'feature'
+  - title: '🐛 Bug fixes'
+    labels:
+      - 'bugfix'
+  - title: '💥 Breaking changes'
+    labels:
+      - 'breaking-change'
+  - title: '🧹 Chores'
+    labels:
+      - 'chore'
+  - title: '📚 Docs'
+    labels:
+      - 'docs'
+
+exclude-labels:
+  - 'release'         # dev→main meta PRs
+  - 'skip-changelog'  # anything you explicitly don’t want in notes
+
+# 1) Use the PR BODY (not the title) and append the PR number.
+#    We’ll trim the body down to just the user-facing bullet with replacers.
+change-template: '$BODY (#$NUMBER)'
+
+# 2) Replacers: run regex over that text and keep only the User-facing change bullet.
+replacers:
+  - search: '(?s).*### User-facing change\\s*-\\s*(.*?)\\s*.*(\\(#\\d+\\)).*'
+    replace: '- $1 $2'
+
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS

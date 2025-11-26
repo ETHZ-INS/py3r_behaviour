@@ -1,0 +1,1 @@
+::: py3r.behaviour.summary.summary_collection.SummaryCollection

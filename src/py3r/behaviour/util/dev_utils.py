@@ -18,6 +18,7 @@ def dev_mode(func):
         return original_func(*args, **kwargs)
 
     wrapper.__doc__ = f"[DEV MODE ONLY]\n{original_func.__doc__ or ''}"
+
     if is_static:
         return staticmethod(wrapper)
     if is_class:

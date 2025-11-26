@@ -1,0 +1,70 @@
+site_name: py3r-behaviour
+site_url: "https://ETHZ-INS.github.io/py3r_behaviour/"
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - content.code.copy
+    - content.code.select
+    - toc.integrate
+    - toc.collapsible
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+nav:
+  - Home: index.md
+  - Install: install.md
+  - Getting Started: getting_started.md
+  - Examples:
+    - OFT pipeline: examples/oft_pipeline.md
+    - EPM pipeline: examples/epm_pipeline.md
+    - GrimACE pipeline with BehaviourFlow: examples/grimace_pipeline_behaviourflow.md
+  - API:
+    - Tracking: api/tracking.md
+    - TrackingMV: api/tracking_mv.md
+    - TrackingCollection: api/tracking_collection.md
+    - Features: api/features.md
+    - FeaturesCollection: api/features_collection.md
+    - Summary: api/summary.md
+    - SummaryCollection: api/summary_collection.md
+plugins:
+  - search
+  - autorefs
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - src
+          options:
+            inherited_members: true
+            separate_signature: true
+            show_signature: true
+            show_signature_annotations: true
+            show_source: false
+            show_root_heading: true
+            members_order: source
+            merge_init_into_class: true
+            parameter_headings: true
+            allow_inspection: true
+            show_if_no_docstring: true
+            docstring_style: numpy
+            filters: 
+              - "!^__"
+              - "!^_"
+            extra:
+              show_private_members: false
+              show_special_members: false
+              show_inheritance: true
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: false
+      pygments_lang_class: true
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+extra_css:
+  - css/extra.css
+

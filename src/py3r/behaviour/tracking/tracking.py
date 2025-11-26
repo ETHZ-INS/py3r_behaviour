@@ -1,51 +1,189 @@
 from __future__ import annotations
 import copy
-import json
-import os
 import re
 import warnings
-from dataclasses import dataclass
-from typing import Optional, Dict, Any, Type, TypeVar
+from typing import Dict, Any, Type, TypeVar
 
+from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from py3r.behaviour.util.collection_utils import _Indexer
+from py3r.behaviour.util.smoothing import apply_smoothing
+from py3r.behaviour.util.io_utils import (
+    SchemaVersion,
+    begin_save,
+    write_manifest,
+    read_manifest,
+    write_dataframe,
+    read_dataframe,
+)
 
 Self = TypeVar("Self", bound="Tracking")
 
 
-@dataclass(kw_only=True)
-class LoadOptions:
-    fps: float
-    aspectratio_correction: float = 1.0
-    usermeta: Optional[Dict[str, Any]] = None
-
-    def __post_init__(self) -> None:
-        # Validate fps
-        if not isinstance(self.fps, (int, float)):
-            raise TypeError(
-                f"fps must be a number (int or float), got {type(self.fps).__name__}"
-            )
-        self.fps = float(self.fps)
-
-        # Validate aspectratio_correction
-        if not isinstance(self.aspectratio_correction, (int, float)):
-            raise TypeError(
-                f"aspectratio_correction must be a number (int or float), got {type(self.aspectratio_correction).__name__}"
-            )
-        self.aspectratio_correction = float(self.aspectratio_correction)
-
-        # Validate usermeta
-        if self.usermeta is not None:
-            if not isinstance(self.usermeta, dict):
-                raise TypeError(
-                    f"usermeta must be a dictionary, got {type(self.usermeta).__name__}"
-                )
-
-
 class Tracking:
+    """
+    Represent frame-by-frame tracked keypoints with convenience loaders and tools.
+
+    A `Tracking` holds a pandas DataFrame of columns like `p1.x`, `p1.y`,
+    `p1.z`, `p1.likelihood` with index named `frame`. Most users create
+    objects via factory methods and then call instance methods to process or
+    analyze trajectories.
+
+    Quick start with realistic CSVs stored in the package data:
+
+    - Load from DLC CSV
+    - Load from DLC multi-animal CSV
+    - Load from YOLO3R CSV
+    - Inspect points, distances
+    - Filter, interpolate, smooth
+    - Rescale by known distance, trim, check time
+    - Save and slice (`loc` / `iloc`)
+    - Minimal plotting
+
+    Examples:
+    Minimal DLC example:
+
+    ```pycon
+    >>> from py3r.behaviour.util.docdata import data_path
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+    >>> len(t.data), t.meta['fps'], t.handle
+    (5, 30.0, 'ex')
+    >>> t.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
+    [[0.0, 0.0, 0.0, 0.0, 1.0], [1.0, 1.0, 2.0, 3.0, 0.75]]
+
+    ```
+
+    Load from DLC multi-animal (DLCMA):
+
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p_ma:
+    ...     tma = Tracking.from_dlcma(str(p_ma), handle='ma', fps=30)
+    >>> tma.meta['fps'], tma.handle
+    (30.0, 'ma')
+
+    ```
+
+    Load from YOLO3R (3D columns present):
+
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p_y:
+    ...     ty = Tracking.from_yolo3r(str(p_y), handle='y3r', fps=30)
+    >>> 'p1.z' in ty.data.columns and 'p1.likelihood' in ty.data.columns
+    True
+    >>> ty.data[['p1.x','p1.y','p1.z','p1.likelihood']].head(2).reset_index().values.tolist()
+    [[0.0, 0.0, 0.0, 0.0, 1.0], [1.0, 1.0, 2.0, 3.0, 0.9]]
+
+    ```
+
+    Inspect points and distances:
+
+    ```pycon
+    >>> names = t.get_point_names()
+    >>> sorted(names)[:3]
+    ['p1', 'p2', 'p3']
+    >>> d = t.distance_between('p1', 'p2')
+    >>> len(d) == len(t.data)
+    True
+
+    ```
+
+    Filter low-likelihood positions and interpolate:
+
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...     t2 = Tracking.from_dlc(str(p), handle='ex2', fps=30)
+    >>> _ = t2.filter_likelihood(0.2)
+    >>> import numpy as np
+    >>> bool(np.isnan(t2.data['p1.x']).any())
+    True
+    >>> _ = t2.interpolate(method='nearest', limit=1)
+    >>> t2.data.columns.str.endswith('.likelihood').any() and t2.meta['interpolation']['method'] == 'nearest'
+    True
+
+    ```
+
+    Smooth all points with default window=3 rolling mean, and optional exception for point 'p1':
+
+    ```pycon
+    >>> _ = t.smooth_all(3, 'mean',[(['p1'],'median',4)])
+    >>> 'smoothing' in t.meta
+    True
+
+    ```
+
+    Rescale by known distance between two points (uniform across dims):
+
+    ```pycon
+    >>> _ = t.rescale_by_known_distance('p1', 'p2', distance_in_metres=2.0)
+    >>> t.meta['distance_units']
+    'm'
+
+    ```
+
+    Trim frames and verify time window:
+
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...     t3 = Tracking.from_dlc(str(p), handle='ex3', fps=30)
+    >>> _ = t3.trim(startframe=2, endframe=4)
+    >>> bool(t3.data.index[0] == 2 and t3.data.index[-1] == 4)
+    True
+    >>> bool(t3.time_as_expected(mintime=0.0, maxtime=10.0))
+    True
+
+    ```
+
+    Save to a directory (parquet backend) and load back:
+
+    ```pycon
+    >>> import os, tempfile
+    >>> with tempfile.TemporaryDirectory() as d:
+    ...     _ = t.save(d, data_format='csv',overwrite=True)
+    ...     t_loaded = Tracking.load(d)
+    >>> isinstance(t_loaded, Tracking) and len(t_loaded.data) == len(t.data)
+    True
+
+    ```
+
+    Slice with loc/iloc and keep handle:
+
+    ```pycon
+    >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...     t4 = Tracking.from_dlc(str(p), handle='ex4', fps=30)
+    >>> t4s = t4.loc[0:3]
+    >>> isinstance(t4s, Tracking) and t4s.handle == 'ex4'
+    True
+    >>> t4s2 = t4.iloc[0:2]
+    >>> isinstance(t4s2, Tracking) and len(t4s2.data) == 2
+    True
+
+    ```
+
+
+    Minimal plotting (no display):
+
+    ```pycon
+    >>> _ = t.plot(show=False)
+
+    ```
+
+    Tagging and user metadata:
+
+    ```pycon
+    >>> t.add_tag('session', 'S1')
+    >>> t.tags['session']
+    'S1'
+    >>> t.add_usermeta({'group': 'G1'}, overwrite=True)
+    >>> t.meta['usermeta']['group']
+    'G1'
+
+    ```
+    """
+
     data: pd.DataFrame
     meta: dict
     handle: str
@@ -54,19 +192,38 @@ class Tracking:
     @classmethod
     def from_dlc(
         cls: Type[Self],
-        filepath: str,
+        filepath: str | Path,
         *,
         handle: str,
-        options: LoadOptions,
-        tags: dict[str, str] = {},
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tags: dict[str, str] | None = None,
     ) -> Self:
         """
         loads a Tracking object from a (single animal) deeplabcut tracking csv
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> len(t.data), t.meta['fps'], t.handle
+        (5, 30.0, 'ex')
+
+        ```
         """
+        # normalize path
+        filepath = Path(filepath)
         # read header
         header = pd.read_csv(filepath, header=None, nrows=3)
         cols = [
-            ".".join(i) for i in zip(list(header.iloc[1, 1:]), list(header.iloc[2, 1:]))
+            ".".join(i)
+            for i in zip(
+                list(header.iloc[1, 1:].astype(str)),
+                list(header.iloc[2, 1:].astype(str)),
+            )
         ]
         scorer = header.iloc[0, 1]
 
@@ -77,37 +234,50 @@ class Tracking:
         data.columns = cols
 
         meta = {
-            "filepath": filepath,
-            "fps": options.fps,
-            "aspectratio_correction": options.aspectratio_correction,
+            "filepath": str(filepath),
+            "fps": float(fps),
+            "aspectratio_correction": float(aspectratio_correction),
             "network": scorer,
-            "usermeta": options.usermeta,
         }
 
-        data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
+        data = cls._apply_aspectratio_correction(data, float(aspectratio_correction))
 
-        return cls(data, meta, handle)
+        return cls(data, meta, handle, tags)
 
     @classmethod
     def from_dlcma(
         cls: Type[Self],
-        filepath: str,
+        filepath: str | Path,
         *,
         handle: str,
-        options: LoadOptions,
-        tags: dict[str, str] = {},
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tags: dict[str, str] | None = None,
     ) -> Self:
         """
         loads a Tracking object from a multi-animal deeplabcut tracking csv
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p:
+        ...     t = Tracking.from_dlcma(str(p), handle='ma', fps=30)
+        >>> len(t.data), t.meta['fps'], t.handle
+        (4, 30.0, 'ma')
+
+        ```
         """
+        # normalize path
+        filepath = Path(filepath)
         # read header
         header = pd.read_csv(filepath, header=None, nrows=4)
         cols = [
             ".".join(i)
             for i in zip(
-                list(header.iloc[1, 1:]),
-                list(header.iloc[2, 1:]),
-                list(header.iloc[3, 1:]),
+                list(header.iloc[1, 1:].astype(str)),
+                list(header.iloc[2, 1:].astype(str)),
+                list(header.iloc[3, 1:].astype(str)),
             )
         ]
         scorer = header.iloc[0, 1]
@@ -120,29 +290,42 @@ class Tracking:
 
         # add meta specific to DLC
         meta = {
-            "filepath": filepath,
-            "fps": options.fps,
-            "aspectratio_correction": options.aspectratio_correction,
+            "filepath": str(filepath),
+            "fps": float(fps),
+            "aspectratio_correction": float(aspectratio_correction),
             "network": scorer,
-            "usermeta": options.usermeta,
         }
 
-        data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
+        data = cls._apply_aspectratio_correction(data, float(aspectratio_correction))
 
-        return cls(data, meta, handle)
+        return cls(data, meta, handle, tags)
 
     @classmethod
     def from_yolo3r(
         cls: Type[Self],
-        filepath: str,
+        filepath: str | Path,
         *,
         handle: str,
-        options: LoadOptions,
-        tags: dict[str, str] = {},
+        fps: float,
+        aspectratio_correction: float = 1.0,
+        tags: dict[str, str] | None = None,
     ) -> Self:
         """
         loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p:
+        ...     t = Tracking.from_yolo3r(str(p), handle='y3r', fps=30)
+        >>> 'p1.z' in t.data.columns and 'p1.likelihood' in t.data.columns
+        True
+
+        ```
         """
+        # normalize path
+        filepath = Path(filepath)
         # setup data
         data = pd.read_csv(filepath, index_col="frame_index")
         data.index.rename("frame", inplace=True)
@@ -158,15 +341,14 @@ class Tracking:
                 data.drop(columns=col, inplace=True)
 
         meta = {
-            "filepath": filepath,
-            "fps": options.fps,
-            "aspectratio_correction": options.aspectratio_correction,
-            "usermeta": options.usermeta,
+            "filepath": str(filepath),
+            "fps": float(fps),
+            "aspectratio_correction": float(aspectratio_correction),
         }
 
-        data = cls._apply_aspectratio_correction(data, options.aspectratio_correction)
+        data = cls._apply_aspectratio_correction(data, float(aspectratio_correction))
 
-        return cls(data, meta, handle)
+        return cls(data, meta, handle, tags)
 
     @staticmethod
     def _apply_aspectratio_correction(
@@ -206,6 +388,18 @@ class Tracking:
     def add_usermeta(self, usermeta: dict, overwrite: bool = False) -> None:
         """
         adds or updates user-defined metadata
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> t.add_usermeta({'group': 'G1'}, overwrite=True)
+        >>> t.meta['usermeta']['group']
+        'G1'
+
+        ```
         """
         if not isinstance(usermeta, dict):
             raise TypeError(
@@ -224,6 +418,18 @@ class Tracking:
     def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> None:
         """
         adds or updates a tag
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> t.add_tag('session', 'S1', overwrite=True)
+        >>> t.tags['session']
+        'S1'
+
+        ```
         """
         if not isinstance(tagname, str):
             raise TypeError(f"tagname must be a string, got {type(tagname).__name__}")
@@ -233,21 +439,114 @@ class Tracking:
             )
         self.tags[tagname] = tagvalue
 
-    def save(self, filepath: str) -> None:
-        """saves .csv file and _meta.json file to disk at location specified by filepath"""
-        basefilepath = filepath.split(".csv")[0]
-        self.data.to_csv(basefilepath + ".csv")
-        with open(os.path.expanduser(basefilepath + "_meta.json"), "w") as f:
-            json.dump(self.meta, f)
+    # New round-trip save/load that preserves full state in a directory
+    def save(
+        self,
+        dirpath: str,
+        *,
+        data_format: str = "parquet",
+        overwrite: bool = False,
+    ) -> None:
+        """
+        Save this Tracking into a self-describing directory for exact round-trip.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, os
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     t.save(d, data_format='csv', overwrite=True)
+        ...     os.path.exists(os.path.join(d, 'manifest.json'))
+        True
+
+        ```
+        """
+        target = begin_save(dirpath, overwrite)
+        # write data
+        data_spec = write_dataframe(
+            target,
+            self.data,
+            filename="data.parquet" if data_format == "parquet" else "data.csv",
+            format=data_format,
+        )
+        # write manifest
+        manifest = {
+            "schema_version": SchemaVersion,
+            "module": self.__class__.__module__,
+            "class": self.__class__.__name__,
+            "handle": self.handle,
+            "tags": self.tags,
+            "meta": self.meta,
+            "data": data_spec,
+        }
+        write_manifest(target, manifest)
+
+    @classmethod
+    def load(cls: Type[Self], dirpath: str) -> Self:
+        """
+        Load a Tracking (or subclass) previously saved with save().
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     t.save(d, data_format='csv', overwrite=True)
+        ...     t2 = Tracking.load(d)
+        >>> isinstance(t2, Tracking) and len(t2.data) == len(t.data)
+        True
+
+        ```
+        """
+        manifest = read_manifest(dirpath)
+        df = read_dataframe(dirpath, manifest["data"])
+        handle = manifest["handle"]
+        meta = manifest["meta"]
+        tags = manifest.get("tags", {})
+        return cls(df, meta, handle, tags)
 
     def strip_column_names(self) -> None:
-        """strips out all column name string apart from last two sections delimited by dots"""
+        """strips out all column name string apart from last two sections delimited by dots
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> before = list(t.data.columns)[:3]
+        >>> t.strip_column_names()
+        >>> after = list(t.data.columns)[:3]
+        >>> all(len(c.split('.')) == 2 for c in after)
+        True
+
+        ```
+        """
         stripped_colnames = [".".join(col.split(".")[-2:]) for col in self.data.columns]
         self.data.columns = stripped_colnames
 
     def time_as_expected(self, mintime: float, maxtime: float) -> bool:
         """
         checks that the total length of the tracking data is between mintime seconds and maxtime seconds
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> bool(t.time_as_expected(0.0, 1.0)) # between 0 and 1 second
+        True
+        >>> bool(t.time_as_expected(0.0, 0.1)) # less than 0.1 seconds
+        False
+
+        ```
         """
         if "trim" in self.meta.keys():
             warnings.warn("tracking data have been trimmed")
@@ -259,6 +558,18 @@ class Tracking:
     def trim(self, startframe: int | None = None, endframe: int | None = None) -> None:
         """
         trims the tracking data object between startframe and endframe
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> _ = t.trim(1, 3)
+        >>> int(t.data.index[0]), int(t.data.index[-1])
+        (1, 3)
+
+        ```
         """
         if startframe is not None:
             if (self.data.index[0] > startframe) or (self.data.index[-1] < startframe):
@@ -273,7 +584,21 @@ class Tracking:
         self.meta["trim"] = {"startframe": startframe, "endframe": endframe}
 
     def filter_likelihood(self, threshold: float) -> None:
-        """sets all tracking position values with likelihood less than threshold to np.nan"""
+        """sets all tracking position values with likelihood less than threshold to np.nan
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> import numpy as np
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> t.filter_likelihood(0.5)
+        >>> bool(np.isnan(t.data.filter(like='.x')).any().any())
+        True
+
+        ```
+        """
         if "filter_likelihood_threshold" in self.meta.keys():
             raise Exception(
                 "likelihood already filtered. re-load the raw data to change filter."
@@ -298,7 +623,20 @@ class Tracking:
         self.meta["filter_likelihood_threshold"] = threshold
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> pd.Series:
-        """framewise distance between two points"""
+        """framewise distance between two points
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> d = t.distance_between('p1', 'p2')
+        >>> len(d) == len(t.data)
+        True
+
+        ```
+        """
         distance = np.sqrt(
             sum(
                 [
@@ -310,7 +648,20 @@ class Tracking:
         return distance
 
     def get_point_names(self) -> list:
-        """list of tracked point names"""
+        """list of tracked point names
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> names = sorted(t.get_point_names())
+        >>> set(['p1','p2','p3']).issubset(names)
+        True
+
+        ```
+        """
         tracked_points = list(
             set([".".join(i.split(".")[:-1]) for i in self.data.columns])
         )
@@ -319,7 +670,20 @@ class Tracking:
     def rescale_by_known_distance(
         self, point1: str, point2: str, distance_in_metres: float, dims=("x", "y")
     ) -> None:
-        """rescale all dims by known distance between two points"""
+        """rescale all dims by known distance between two points
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> t.rescale_by_known_distance('p1','p2', 2.0)
+        >>> t.meta['distance_units']
+        'm'
+
+        ```
+        """
         if "rescale_distance_method" in self.meta.keys():
             if self.meta["rescale_distance_method"] == "two_point_scalar_uniform":
                 if any(d in self.meta["rescale_factor"].keys() for d in dims):
@@ -358,7 +722,15 @@ class Tracking:
     def generate_smoothdict(
         self, pointslists: list, windows: list, smoothtypes: list
     ) -> dict:
-        """make smoothdict for multiple point lists"""
+        """
+        deprecated, use smooth_all instead
+        """
+        # deprecation warning
+        warnings.warn(
+            "generate_smoothdict is deprecated. use smooth_all instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         assert len(pointslists) == len(windows)
         assert len(pointslists) == len(smoothtypes)
 
@@ -374,13 +746,14 @@ class Tracking:
 
     def smooth(self, smoothing_params: dict) -> None:
         """
-        runs rolling mean or median filter of specified window length over specified
-        points. All points within the tracking data must be specified, even if the rolling
-        window has length 1
-        smooth_dict has format
-        {pointname:{window:windowlength,type:smoothtype}}
-        where windowlength:int and smoothtype:str in {'mean','median'}
+        deprecated, use smooth_all instead
         """
+        # deprecation warning
+        warnings.warn(
+            "smooth is deprecated. use smooth_all instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         if "smoothing" in self.meta.keys():
             raise Exception(
@@ -430,10 +803,163 @@ class Tracking:
 
         self.meta["smoothing"] = smoothing_params
 
+    def smooth_all(
+        self,
+        window: int | None = 3,
+        method: str = "mean",
+        overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]]
+        | None = None,
+        dims: tuple[str, ...] = ("x", "y"),
+        strict: bool = False,
+        inplace: bool = True,
+        smoother=None,
+        smoother_kwargs: dict | None = None,
+    ) -> "Tracking | None":
+        """
+        Smooth all tracked points using a default method/window, with optional override groups.
+
+        - window/method: default applied to any point without override
+        - overrides: optional list of (points, method, window) tuples, where
+            - points: list/tuple of point names (or a single str)
+            - method: 'median' or 'mean'
+            - window: int (or None to skip smoothing for those points)
+        - dims: coordinate dimensions to smooth
+        - strict: require an effective window for every point
+        - inplace: mutate or return a new object
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> t.smooth_all(3, 'mean', overrides=[(['p1'], 'median', 4)])
+        >>> 'smoothing' in t.meta
+        True
+
+        ```
+        """
+        # Normalize override groups into a point->spec dict
+        overrides_dict: dict[str, dict] = {}
+        if overrides:
+            for grp in overrides:
+                if not (isinstance(grp, tuple) and len(grp) == 3):
+                    raise ValueError(
+                        "each override must be a tuple: (points, method, window)"
+                    )
+                pts, m, w = grp
+                if isinstance(pts, str):
+                    pts_list = [pts]
+                elif isinstance(pts, (list, tuple)):
+                    pts_list = list(pts)
+                else:
+                    raise ValueError(
+                        "points must be a list/tuple of names or a single str"
+                    )
+                for p in pts_list:
+                    overrides_dict[p] = {"method": m, "window": w}
+
+        self._validate_smoothing_inputs(method, dims, overrides_dict)
+        points = self.get_point_names()
+        specs = self._resolve_smoothing_specs(
+            default_method=method,
+            default_window=window,
+            overrides=overrides_dict,
+            points=points,
+            strict=strict,
+        )
+        df_target = self.data if inplace else self.data.copy()
+        df_smoothed = apply_smoothing(
+            df_target, specs, dims, smoother=smoother, smoother_kwargs=smoother_kwargs
+        )
+        meta_entry = self._build_smoothing_meta(specs, dims)
+        if inplace:
+            self.data = df_smoothed
+            self.meta["smoothing"] = meta_entry
+            return None
+        new_meta = copy.deepcopy(self.meta)
+        new_meta["smoothing"] = meta_entry
+        return self.__class__(df_smoothed, new_meta, self.handle, self.tags)
+
+    def _validate_smoothing_inputs(
+        self,
+        method: str,
+        dims: tuple[str, ...],
+        overrides: dict | None,
+    ) -> None:
+        if "smoothing" in self.meta.keys():
+            raise Exception(
+                "data already smoothed. load again to use different smoothing"
+            )
+        if method not in {"median", "mean"}:
+            raise ValueError("method must be one of {'median','mean'}")
+        if not set(dims).issubset({"x", "y", "z"}):
+            raise ValueError("dims must be a subset of {'x','y','z'}")
+        if overrides:
+            unknown = set(overrides.keys()) - set(self.get_point_names())
+            if unknown:
+                raise ValueError(f"overrides contain unknown points: {sorted(unknown)}")
+
+    def _resolve_smoothing_specs(
+        self,
+        *,
+        default_method: str,
+        default_window: int | None,
+        overrides: dict[str, dict],
+        points: list[str],
+        strict: bool,
+    ) -> dict[str, dict]:
+        allowed_methods = {"median", "mean"}
+        specs: dict[str, dict] = {}
+        for p in points:
+            m = default_method
+            w = default_window
+            spec = overrides.get(p)
+            if spec is None:
+                pass
+            elif isinstance(spec, dict):
+                if "method" in spec:
+                    if spec["method"] not in allowed_methods:
+                        raise ValueError(
+                            f"override for {p}: method must be one of {allowed_methods}"
+                        )
+                    m = spec["method"]
+                if "window" in spec:
+                    w = int(spec["window"]) if spec["window"] is not None else None
+            else:
+                raise ValueError(
+                    f"Invalid override for {p}: expected dict with keys 'method'/'window', got {type(spec)}"
+                )
+            if strict and (w is None or w <= 0):
+                raise ValueError(
+                    f"No valid window resolved for point '{p}' with strict=True"
+                )
+            specs[p] = {"method": m, "window": None if not w or w <= 0 else int(w)}
+        return specs
+
+    def _build_smoothing_meta(
+        self, specs: dict[str, dict], dims: tuple[str, ...]
+    ) -> dict:
+        return {"spec": specs, "dims": list(dims)}
+
     def interpolate(self, method: str = "linear", limit: int = 1, **kwargs) -> None:
         """
         interpolates missing data in the tracking data, and sets likelihood to np.nan
         uses pandas.DataFrame.interpolate() with kwargs
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> import numpy as np
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> t.filter_likelihood(0.5)
+        >>> t.interpolate(method='linear', limit=1)
+        >>> 'interpolation' in t.meta
+        True
+
+        ```
         """
         if "interpolation" in self.meta.keys():
             raise Exception(
@@ -459,10 +985,46 @@ class Tracking:
 
     @property
     def loc(self):
+        """
+        Return a new Tracking object with self.data sliced by np.loc
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> t.data.shape
+        (5, 12)
+        >>> t.loc[0:2,'p1.x'].data.shape
+        (3,)
+        >>> t.loc[0:2].handle
+        'ex'
+
+        ```
+        """
         return _Indexer(self, self._loc)
 
     @property
     def iloc(self):
+        """
+        Return a new Tracking object with self.data sliced by np.iloc
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> t.data.shape
+        (5, 12)
+        >>> t.iloc[0:2,0].data.shape
+        (2,)
+        >>> t.iloc[0:2,0].handle
+        'ex'
+
+        ```
+        """
         return _Indexer(self, self._iloc)
 
     def _loc(self, idx):
@@ -501,6 +1063,16 @@ class Tracking:
             title: plot title (default: self.handle)
             show: whether to call plt.show()
         Returns: fig, ax
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> _ = t.plot(show=False)
+
+        ```
         """
         import numpy as np
 
