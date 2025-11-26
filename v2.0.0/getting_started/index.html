@@ -1,0 +1,1029 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ETHZ-INS.github.io/py3r_behaviour/v2.0.0/getting_started/">
+      
+      
+        <link rel="prev" href="../install/">
+      
+      
+        <link rel="next" href="../examples/oft_pipeline/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Getting Started - py3r-behaviour</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../css/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#core-objects" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="py3r-behaviour" class="md-header__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            py3r-behaviour
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Getting Started
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="py3r-behaviour" class="md-nav__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    py3r-behaviour
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-objects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core objects
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#collections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Collections
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#collection-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Collection helpers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#general-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        General helpers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typical-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical workflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/oft_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OFT pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/epm_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EPM pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/grimace_pipeline_behaviourflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GrimACE pipeline with BehaviourFlow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tracking_mv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingMV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tracking_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/features_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FeaturesCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/summary_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SummaryCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>Getting Started</h1>
+
+<p>This guide explains the end‑to‑end workflow and links to the relevant APIs. It is intentionally minimal and focuses on “what” and “where,” not code. </p>
+<p><em>For detailed methods and syntax examples, see API</em></p>
+<p><em>For code pipeline examples, see Examples</em></p>
+<h3 id="core-objects">Core objects<a class="headerlink" href="#core-objects" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a class="autorefs autorefs-internal" title="py3r.behaviour.tracking.tracking.Tracking" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking"><code>Tracking</code></a>: store and preprocess single‑view tracked keypoints with auto-generated metadata.</li>
+<li><a class="autorefs autorefs-internal" title="py3r.behaviour.tracking.tracking_mv.TrackingMV" href="../api/tracking_mv/#py3r.behaviour.tracking.tracking_mv.TrackingMV"><code>TrackingMV</code></a>: like <code>Tracking</code> but with multi‑view plus calibration (for 3D).</li>
+<li><a class="autorefs autorefs-internal" title="py3r.behaviour.features.features.Features" href="../api/features/#py3r.behaviour.features.features.Features"><code>Features</code></a>: (generated from a <code>Tracking</code> object) derive per‑frame signals from a single <code>Tracking</code> (e.g. speeds, distances, location booleans, behavioural clusters).</li>
+<li><a class="autorefs autorefs-internal" title="py3r.behaviour.summary.summary.Summary" href="../api/summary/#py3r.behaviour.summary.summary.Summary"><code>Summary</code></a>: (generated from a <code>Features</code> object) derive scalar/statistical results from a single <code>Features</code> (e.g. av speeds, total distances, time in location, behavioural flow analysis stats).</li>
+</ul>
+<h3 id="collections">Collections<a class="headerlink" href="#collections" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a class="autorefs autorefs-internal" title="py3r.behaviour.tracking.tracking_collection.TrackingCollection" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection"><code>TrackingCollection</code></a>: batch load/process and group <code>Tracking</code> (or <code>TrackingMV</code>) objects.</li>
+<li><a class="autorefs autorefs-internal" title="py3r.behaviour.features.features_collection.FeaturesCollection" href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection"><code>FeaturesCollection</code></a>: (generated from <code>TrackingCollection</code> object) batch process and group <code>Features</code> objects, and perform whole-dataset operations (e.g. behavioural clustering from time-series embeddings).</li>
+<li><a class="autorefs autorefs-internal" title="py3r.behaviour.summary.summary_collection.SummaryCollection" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection"><code>SummaryCollection</code></a>: (generated from <code>FeaturesCollection</code> object) mapping of handle → <code>Summary</code> with grouping/batch helpers.</li>
+</ul>
+<h3 id="collection-helpers">Collection helpers<a class="headerlink" href="#collection-helpers" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a class="autorefs autorefs-internal" title="groupby" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.groupby"><code>.groupby</code></a> and <a class="autorefs autorefs-internal" title="groupby" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.groupby"><code>.flatten</code></a> allow dynamic reorganisation of collections based on arbitrary subsets of <code>tags</code> assigned to individual elements. Groupings persist when generating e.g. a <code>FeaturesCollection</code> from a <code>TrackingCollection</code></li>
+<li>flexible collection indexing by handle (e.g. <code>coll['recording1']</code>), integer (e.g. <code>coll[0]</code>) and slice (e.g. <code>coll[0:2]</code>)</li>
+</ul>
+<h3 id="general-helpers">General helpers<a class="headerlink" href="#general-helpers" title="Permanent link">&para;</a></h3>
+<ul>
+<li>All core objects and collections have <a class="autorefs autorefs-internal" title="save" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.save"><code>.save</code></a> and <a class="autorefs autorefs-internal" title="load
+
+
+  
+      classmethod
+  " href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.load"><code>.load</code></a> methods that preserve all data/metadata/groupings</li>
+<li>Objects and collections allow <code>.loc[]</code> and <code>.iloc[]</code> (batch) slicing and indexing of the DataFrames in all <code>Tracking</code>, <code>TrackingCollection</code>, <code>Features</code> and <code>FeaturesCollection</code> objects</li>
+</ul>
+<h3 id="typical-workflow">Typical workflow<a class="headerlink" href="#typical-workflow" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p>Load a dataset of single-view tracking files from DeepLabCut: <a class="autorefs autorefs-internal" title="from_dlc_folder
+
+
+  
+      classmethod
+  " href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.from_dlc_folder"><code>TrackingCollection.from_dlc_folder</code></a></p>
+</li>
+<li>
+<p>Add tags to each recording (e.g. 'treatment', 'genotype'): <a class="autorefs autorefs-internal" title="add_tags_from_csv" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.add_tags_from_csv"><code>TrackingCollection.add_tags_from_csv</code></a></p>
+</li>
+<li>
+<p>Group the collection by any subset of tags: <a class="autorefs autorefs-internal" title="groupby" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.groupby"><code>TrackingCollection.groupby</code></a> (grouping persists upon <code>FeaturesCollection</code> and <code>SummaryCollection</code> generation)</p>
+</li>
+<li>
+<p>Perform various QA checks:</p>
+<ol>
+<li>ensure recording length is as expected: <a class="autorefs autorefs-internal" title="time_as_expected" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.time_as_expected"><code>Tracking.time_as_expected</code></a></li>
+<li>plot tracked point trajectories: <a class="autorefs autorefs-internal" title="plot" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.plot"><code>TrackingCollection.plot</code></a></li>
+</ol>
+</li>
+<li>
+<p>Perform various batch pre-processing steps: </p>
+<ol>
+<li>remove low-likelihood tracked points: <a class="autorefs autorefs-internal" title="filter_likelihood" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.filter_likelihood"><code>Tracking.filter_likelihood</code></a></li>
+<li>smooth data: <a class="autorefs autorefs-internal" title="smooth_all" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.smooth_all"><code>Tracking.smooth_all</code></a></li>
+<li>interpolate gaps: <a class="autorefs autorefs-internal" title="interpolate" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.interpolate"><code>Tracking.interpolate</code></a></li>
+<li>rescale pixels to metres: <a class="autorefs autorefs-internal" title="rescale_by_known_distance" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.rescale_by_known_distance"><code>Tracking.rescale_by_known_distance</code></a></li>
+<li>trim the start/end of the recording: <a class="autorefs autorefs-internal" title="trim" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.trim"><code>trim</code></a></li>
+</ol>
+</li>
+<li>
+<p>Generate a <code>FeaturesCollection</code> object from the <code>TrackingCollection</code>: <a class="autorefs autorefs-internal" title="from_tracking_collection
+
+
+  
+      classmethod
+  " href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection"><code>FeaturesCollection.from_tracking_collection</code></a></p>
+</li>
+<li>
+<p>Calculate various features and <a class="autorefs autorefs-internal" title="store" href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection.store"><code>store</code></a> them with auto-generated names and metadata:</p>
+<ul>
+<li>Distance and movement:<ul>
+<li><a class="autorefs autorefs-internal" title="distance_between" href="../api/features/#py3r.behaviour.features.features.Features.distance_between"><code>Features.distance_between</code></a></li>
+<li><a class="autorefs autorefs-internal" title="distance_change" href="../api/features/#py3r.behaviour.features.features.Features.distance_change"><code>Features.distance_change</code></a></li>
+<li><a class="autorefs autorefs-internal" title="speed" href="../api/features/#py3r.behaviour.features.features.Features.speed"><code>Features.speed</code></a></li>
+<li><a class="autorefs autorefs-internal" title="acceleration" href="../api/features/#py3r.behaviour.features.features.Features.acceleration"><code>Features.acceleration</code></a></li>
+</ul>
+</li>
+<li>Boundaries and locations:<ul>
+<li>Define static boundary from tracked points: <a class="autorefs autorefs-internal" title="define_boundary" href="../api/features/#py3r.behaviour.features.features.Features.define_boundary"><code>Features.define_boundary</code></a></li>
+<li>Static membership: <a class="autorefs autorefs-internal" title="within_boundary_static" href="../api/features/#py3r.behaviour.features.features.Features.within_boundary_static"><code>Features.within_boundary_static</code></a></li>
+<li>Dynamic membership: <a class="autorefs autorefs-internal" title="within_boundary_dynamic" href="../api/features/#py3r.behaviour.features.features.Features.within_boundary_dynamic"><code>Features.within_boundary_dynamic</code></a></li>
+<li>Boundary area: <a class="autorefs autorefs-internal" title="area_of_boundary" href="../api/features/#py3r.behaviour.features.features.Features.area_of_boundary"><code>Features.area_of_boundary</code></a></li>
+<li>Distance to boundary (static/dynamic): <a class="autorefs autorefs-internal" title="distance_to_boundary_static" href="../api/features/#py3r.behaviour.features.features.Features.distance_to_boundary_static"><code>Features.distance_to_boundary_static</code></a>, <a class="autorefs autorefs-internal" title="distance_to_boundary_dynamic" href="../api/features/#py3r.behaviour.features.features.Features.distance_to_boundary_dynamic"><code>Features.distance_to_boundary_dynamic</code></a></li>
+</ul>
+</li>
+<li>Orientation:<ul>
+<li><a class="autorefs autorefs-internal" title="azimuth" href="../api/features/#py3r.behaviour.features.features.Features.azimuth"><code>Features.azimuth</code></a></li>
+<li><a class="autorefs autorefs-internal" title="azimuth_deviation" href="../api/features/#py3r.behaviour.features.features.Features.azimuth_deviation"><code>Features.azimuth_deviation</code></a></li>
+<li><a class="autorefs autorefs-internal" title="within_azimuth_deviation" href="../api/features/#py3r.behaviour.features.features.Features.within_azimuth_deviation"><code>Features.within_azimuth_deviation</code></a></li>
+</ul>
+</li>
+<li>Thresholds:<ul>
+<li><a class="autorefs autorefs-internal" title="above_speed" href="../api/features/#py3r.behaviour.features.features.Features.above_speed"><code>Features.above_speed</code></a>, <a class="autorefs autorefs-internal" title="all_above_speed" href="../api/features/#py3r.behaviour.features.features.Features.all_above_speed"><code>Features.all_above_speed</code></a></li>
+<li><a class="autorefs autorefs-internal" title="below_speed" href="../api/features/#py3r.behaviour.features.features.Features.below_speed"><code>Features.below_speed</code></a>, <a class="autorefs autorefs-internal" title="all_below_speed" href="../api/features/#py3r.behaviour.features.features.Features.all_below_speed"><code>Features.all_below_speed</code></a></li>
+</ul>
+</li>
+<li>Embeddings and clustering:<ul>
+<li>Build time‑shifted embeddings: <a class="autorefs autorefs-internal" title="embedding_df" href="../api/features/#py3r.behaviour.features.features.Features.embedding_df"><code>Features.embedding_df</code></a></li>
+<li>Batch k‑means on embeddings: <a class="autorefs autorefs-internal" title="cluster_embedding" href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding"><code>FeaturesCollection.cluster_embedding</code></a></li>
+<li>Assign to precomputed centroids: <a class="autorefs autorefs-internal" title="assign_clusters_by_centroids" href="../api/features/#py3r.behaviour.features.features.Features.assign_clusters_by_centroids"><code>Features.assign_clusters_by_centroids</code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Generate a <code>SummaryCollection</code> object from the <code>FeaturesCollection</code>: <a class="autorefs autorefs-internal" title="from_features_collection
+
+
+  
+      classmethod
+  " href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.from_features_collection"><code>SummaryCollection.from_features_collection</code></a></p>
+</li>
+<li>
+<p>Generate summary statistics and export:</p>
+<ul>
+<li>Per‑recording metrics (batched over the collection): <a class="autorefs autorefs-internal" title="time_true" href="../api/summary/#py3r.behaviour.summary.summary.Summary.time_true"><code>Summary.time_true</code></a>, <a class="autorefs autorefs-internal" title="time_false" href="../api/summary/#py3r.behaviour.summary.summary.Summary.time_false"><code>Summary.time_false</code></a>, <a class="autorefs autorefs-internal" title="total_distance" href="../api/summary/#py3r.behaviour.summary.summary.Summary.total_distance"><code>Summary.total_distance</code></a>, <a class="autorefs autorefs-internal" title="transition_matrix" href="../api/summary/#py3r.behaviour.summary.summary.Summary.transition_matrix"><code>Summary.transition_matrix</code></a>, <a class="autorefs autorefs-internal" title="count_state_onsets" href="../api/summary/#py3r.behaviour.summary.summary.Summary.count_state_onsets"><code>Summary.count_state_onsets</code></a>, <a class="autorefs autorefs-internal" title="time_in_state" href="../api/summary/#py3r.behaviour.summary.summary.Summary.time_in_state"><code>Summary.time_in_state</code></a></li>
+<li>Collate scalar outputs into a tidy table: <a class="autorefs autorefs-internal" title="to_df" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.to_df"><code>SummaryCollection.to_df</code></a></li>
+<li>Behaviour Flow Analysis on grouped collections: <a class="autorefs autorefs-internal" title="bfa" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.bfa"><code>SummaryCollection.bfa</code></a> and post‑processing stats via <a class="autorefs autorefs-internal" title="bfa_stats
+
+
+  
+      staticmethod
+  " href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.bfa_stats"><code>SummaryCollection.bfa_stats</code></a></li>
+</ul>
+</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "content.code.copy", "content.code.select", "toc.integrate", "toc.collapsible"], "search": "../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+    
+  </body>
+</html>
