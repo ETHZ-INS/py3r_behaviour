@@ -29,6 +29,12 @@ def write_manifest(dirpath: str, manifest: dict) -> None:
             return {k: _json_safe(v) for k, v in obj.items()}
         if isinstance(obj, (list, tuple)):
             return [_json_safe(v) for v in obj]
+        # numpy arrays -> lists (recursively converted)
+        if isinstance(obj, np.ndarray):
+            return _json_safe(obj.tolist())
+        # numpy/pandas scalar types
+        if isinstance(obj, (np.bool_,)):
+            return bool(obj)
         if isinstance(obj, (np.integer,)):
             return int(obj)
         if isinstance(obj, (np.floating,)):
@@ -38,6 +44,12 @@ def write_manifest(dirpath: str, manifest: dict) -> None:
             import pandas as pd  # local import in case pandas not needed elsewhere
             if obj is pd.NA:
                 return None
+            # pandas Timestamp/Timedelta
+            if isinstance(obj, (pd.Timestamp, pd.Timedelta)):
+                return str(obj)
+            # pandas Index -> list
+            if isinstance(obj, pd.Index):
+                return _json_safe(obj.tolist())
         except Exception:
             pass
         return obj
