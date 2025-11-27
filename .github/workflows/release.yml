@@ -89,6 +89,8 @@ jobs:
           version: ${{ steps.readver.outputs.version }}
           commitish: main
           publish: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build docs (validate only)
         run: mkdocs build --strict
