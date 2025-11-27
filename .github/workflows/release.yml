@@ -27,19 +27,10 @@ jobs:
           PYVER=$(python -c 'from pathlib import Path; import tomllib; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')
           echo "pyproject version: $PYVER"
           export LATEST_TAG PYVER
-          python -c 'import os, re, sys; \
-            def parse(v): \
-                m = re.match(r"^(\d+)\.(\d+)\.(\d+)$", v); \
-                if not m: raise SystemExit(f"Invalid semver: {v}"); \
-                return tuple(map(int, m.groups())); \
-            latest = os.environ.get("LATEST_TAG","v0.0.0").lstrip("v"); \
-            newver = os.environ["PYVER"]; \
-            la, lb, lc = parse(latest); \
-            na, nb, nc = parse(newver); \
-            allowed = {(la, lb, lc+1), (la, lb+1, 0), (la+1, 0, 0)}; \
-            if (na, nb, nc) not in allowed: \
-                sys.exit(f"pyproject version {newver} must be one of: {la}.{lb}.{lc+1} (patch) or {la}.{lb+1}.0 (minor) or {la+1}.0.0 (major); latest tag is v{latest}"); \
-            print("Version bump check passed.")'
+          python -c 'import os,re,sys; latest=os.environ.get("LATEST_TAG","v0.0.0").lstrip("v"); newver=os.environ["PYVER"]; rx=re.compile(r"^(\d+)\.(\d+)\.(\d+)$"); m1=rx.match(latest); m2=rx.match(newver); \
+            (sys.exit(f"Invalid semver(s): latest={latest}, new={newver}")) if not (m1 and m2) else None; \
+            la,lb,lc=map(int,m1.groups()); na,nb,nc=map(int,m2.groups()); allowed={(la,lb,lc+1),(la,lb+1,0),(la+1,0,0)}; \
+            (sys.exit(f"pyproject version {newver} must be one of: {la}.{lb}.{lc+1} (patch) or {la}.{lb+1}.0 (minor) or {la+1}.0.0 (major); latest tag is v{latest}")) if (na,nb,nc) not in allowed else print("Version bump check passed.")'
 
       - name: Setup Python
         uses: actions/setup-python@v5
