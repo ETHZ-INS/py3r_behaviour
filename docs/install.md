@@ -8,13 +8,10 @@ A virtual environment with:
 - git
 
 ## Windows
-copy and run this command in Command Prompt or Powershell
+copy and run this command in Powershell
 
 ```## 
-powershell -Command "$repo='ETHZ-INS/py3r_behaviour'; \
-$latest = Invoke-RestMethod -Uri \"https://api.github.com/repos/$repo/releases/latest\"; \
-$tag = $latest.tag_name; \
-pip install --upgrade git+https://github.com/$repo.git@$tag"
+$repo='ETHZ-INS/py3r_behaviour'; $latest = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest"; $tag = $latest.tag_name; pip install --upgrade git+https://github.com/$repo.git@$tag
 
 
 ```
