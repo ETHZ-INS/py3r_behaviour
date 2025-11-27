@@ -24,30 +24,22 @@ jobs:
           LATEST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -n1)
           if [ -z "$LATEST_TAG" ]; then LATEST_TAG="v0.0.0"; fi
           echo "Latest tag: $LATEST_TAG"
-          PYVER=$(python - <<'PY'
-            from pathlib import Path
-            import tomllib
-            print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])
-            PY
-          )
+          PYVER=$(python -c 'from pathlib import Path; import tomllib; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')
           echo "pyproject version: $PYVER"
           export LATEST_TAG PYVER
-          python - <<'PY'
-            import os, re, sys
-            def parse(v):
-                m = re.match(r'^(\d+)\.(\d+)\.(\d+)$', v)
-                if not m: raise SystemExit(f"Invalid semver: {v}")
-                return tuple(map(int, m.groups()))
-            latest = os.environ.get("LATEST_TAG","v0.0.0").lstrip("v")
-            newver = os.environ["PYVER"]
-            la, lb, lc = parse(latest)
-            na, nb, nc = parse(newver)
-            allowed = {(la, lb, lc+1), (la, lb+1, 0), (la+1, 0, 0)}
-            if (na, nb, nc) not in allowed:
-                sys.exit(f"pyproject version {newver} must be one of: "
-                         f"{la}.{lb}.{lc+1} (patch) or {la}.{lb+1}.0 (minor) or {la+1}.0.0 (major); latest tag is v{latest}")
-            print("Version bump check passed.")
-            PY
+          python -c 'import os, re, sys; \
+            def parse(v): \
+                m = re.match(r"^(\d+)\.(\d+)\.(\d+)$", v); \
+                if not m: raise SystemExit(f"Invalid semver: {v}"); \
+                return tuple(map(int, m.groups())); \
+            latest = os.environ.get("LATEST_TAG","v0.0.0").lstrip("v"); \
+            newver = os.environ["PYVER"]; \
+            la, lb, lc = parse(latest); \
+            na, nb, nc = parse(newver); \
+            allowed = {(la, lb, lc+1), (la, lb+1, 0), (la+1, 0, 0)}; \
+            if (na, nb, nc) not in allowed: \
+                sys.exit(f"pyproject version {newver} must be one of: {la}.{lb}.{lc+1} (patch) or {la}.{lb+1}.0 (minor) or {la+1}.0.0 (major); latest tag is v{latest}"); \
+            print("Version bump check passed.")'
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -97,15 +89,15 @@ jobs:
           git tag -a "$TAG" -m "$TAG"
           git push origin "$TAG"
 
-      - name: Build docs
-        run: mkdocs build --strict
+      - name: Create draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.readver.outputs.version }}
+          name: v${{ steps.readver.outputs.version }}
+          draft: true
+          generate_release_notes: true
 
-      - name: Deploy versioned docs with mike
-        env:
-          VERSION: v${{ steps.readver.outputs.version }}
-        run: |
-          git fetch origin gh-pages:gh-pages || true
-          mike deploy --push --update-aliases "${VERSION}" latest
-          mike set-default latest --push
+      - name: Build docs (validate only)
+        run: mkdocs build --strict
 
 
