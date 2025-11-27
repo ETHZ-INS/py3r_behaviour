@@ -319,6 +319,52 @@ class BaseCollection(MutableMapping):
         """
         return self._obj_dict.keys()
 
+    # ---- Dynamic fallback for user-extended leaf APIs ----
+    def __getattr__(self, name):
+        """
+        Dynamic batch wrapper fallback for methods that are not explicitly
+        provided by generated batch mixins.
+
+        - If `name` is a public callable on the leaf objects, return a callable
+          that dispatches via the grouped-aware batch dispatcher.
+        - Keeps BatchProcessError wrapping semantics from _invoke_batch.
+        - Avoids intercepting private/dunder names.
+        """
+        if name.startswith("_"):
+            # Preserve normal AttributeError semantics for private/dunder
+            raise AttributeError(
+                f"{self.__class__.__name__!s} has no attribute {name!r}"
+            )
+
+        # Find a representative leaf to introspect available methods,
+        # even when this collection is grouped.
+        flat_self = self.flatten()
+        try:
+            example_leaf = next(iter(flat_self.values()))
+        except StopIteration:
+            # Empty collection: nothing to expose dynamically
+            raise AttributeError(
+                f"{self.__class__.__name__!s} has no attribute {name!r}"
+            )
+
+        leaf_attr = getattr(example_leaf, name, None)
+        if not callable(leaf_attr):
+            raise AttributeError(
+                f"{self.__class__.__name__!s} has no attribute {name!r}"
+            )
+
+        # Build a thin wrapper that routes to the batch dispatcher.
+        def _batch_wrapper(*args, **kwargs):
+            return self._invoke_batch(name, *args, **kwargs)
+
+        # Best-effort attach docstring/name for nicer help() / hover info
+        try:
+            _batch_wrapper.__name__ = name  # type: ignore[attr-defined]
+            _batch_wrapper.__doc__ = getattr(leaf_attr, "__doc__", None)  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        return _batch_wrapper
+
     @classmethod
     def from_list(cls, objs):
         """
