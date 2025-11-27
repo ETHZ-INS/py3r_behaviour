@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   release:
@@ -89,9 +90,29 @@ jobs:
           version: ${{ steps.readver.outputs.version }}
           commitish: main
           publish: false
+          token: ${{ secrets.GITHUB_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify draft release updated
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expectedTag = `v${{ steps.readver.outputs.version }}`;
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+            const draft = releases.find(r => r.draft);
+            if (!draft) {
+              core.setFailed(`No draft release found after update (expected tag/name ${expectedTag}).`);
+              return;
+            }
+            const ok = draft.tag_name === expectedTag || draft.name === expectedTag;
+            if (!ok) {
+              core.setFailed(`Draft release not updated: found name='${draft.name}', tag='${draft.tag_name}', expected='${expectedTag}'.`);
+            }
       - name: Build docs (validate only)
         run: mkdocs build --strict
 
