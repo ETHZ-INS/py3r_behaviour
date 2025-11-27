@@ -72,7 +72,7 @@ jobs:
             echo "Tag $TAG already exists"; exit 1
           fi
 
-      - name: Create tag
+      - name: Create and push tag
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
@@ -80,13 +80,15 @@ jobs:
           git tag -a "$TAG" -m "$TAG"
           git push origin "$TAG"
 
-      - name: Create draft GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Update draft release with tag (Release Drafter)
+        uses: release-drafter/release-drafter@v6
         with:
-          tag_name: v${{ steps.readver.outputs.version }}
+          config-name: release-drafter.yml
+          tag: v${{ steps.readver.outputs.version }}
           name: v${{ steps.readver.outputs.version }}
-          draft: true
-          generate_release_notes: true
+          version: ${{ steps.readver.outputs.version }}
+          commitish: main
+          publish: false
 
       - name: Build docs (validate only)
         run: mkdocs build --strict
