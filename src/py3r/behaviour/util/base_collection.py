@@ -64,10 +64,12 @@ class BaseCollection(MutableMapping):
 
     def _invoke_batch(self, _method_name: str, *args, **kwargs) -> BatchResult:
         """
-        Group-aware batch dispatcher for leaf methods.
+        Group-aware batch dispatcher for leaf methods (fail-fast).
 
-        Applies the named method to each leaf object, collecting results into a
-        BatchResult. When grouped, produces a nested mapping of group -> BatchResult.
+        Applies the named method to each leaf object. If any leaf raises, a
+        BatchProcessError is raised immediately. On complete success, returns a
+        BatchResult of leaf return values. When grouped, produces a nested
+        mapping of group -> BatchResult.
         """
         results = {}
         if getattr(self, "is_grouped", False):
@@ -79,24 +81,24 @@ class BaseCollection(MutableMapping):
                             *args, **kwargs
                         )
                     except Exception as e:
-                        group_results[obj_key] = BatchProcessError(
+                        raise BatchProcessError(
                             collection_name=group_key,
                             object_name=obj_key,
                             method=_method_name,
                             original_exception=e,
-                        )
+                        ) from e
                 results[group_key] = BatchResult(group_results, subcoll)
         else:
             for key, obj in self.items():
                 try:
                     results[key] = getattr(obj, _method_name)(*args, **kwargs)
                 except Exception as e:
-                    results[key] = BatchProcessError(
+                    raise BatchProcessError(
                         collection_name=None,
                         object_name=key,
                         method=_method_name,
                         original_exception=e,
-                    )
+                    ) from e
         return BatchResult(results, self)
 
     def _invoke_batch_mapped(
@@ -107,7 +109,7 @@ class BaseCollection(MutableMapping):
         kwargs: dict | None = None,
     ) -> BatchResult:
         """
-        Strict batch dispatcher that accepts positional and keyword arguments
+        Strict batch dispatcher (fail-fast) that accepts positional and keyword arguments
         where any argument may be either:
           - a scalar (applied uniformly), or
           - a mapping whose keys exactly mirror the collection's structure:
@@ -115,6 +117,8 @@ class BaseCollection(MutableMapping):
             - grouped: {group_key: {handle: value}}
 
         The mapping shape must exactly match the collection; missing keys raise KeyError.
+        If any leaf raises, a BatchProcessError is raised immediately. On complete
+        success, returns a BatchResult of leaf return values (or nested results).
         """
         if kwargs is None:
             kwargs = {}
@@ -143,12 +147,12 @@ class BaseCollection(MutableMapping):
                             *leaf_args, **leaf_kwargs
                         )
                     except Exception as e:
-                        group_results[obj_key] = BatchProcessError(
+                        raise BatchProcessError(
                             collection_name=group_key,
                             object_name=obj_key,
                             method=_method_name,
                             original_exception=e,
-                        )
+                        ) from e
                 results[group_key] = BatchResult(group_results, subcoll)
         else:
             for obj_key, obj in self.items():
@@ -161,12 +165,12 @@ class BaseCollection(MutableMapping):
                         *leaf_args, **leaf_kwargs
                     )
                 except Exception as e:
-                    results[obj_key] = BatchProcessError(
+                    raise BatchProcessError(
                         collection_name=None,
                         object_name=obj_key,
                         method=_method_name,
                         original_exception=e,
-                    )
+                    ) from e
         return BatchResult(results, self)
 
     def __getitem__(self, key):
