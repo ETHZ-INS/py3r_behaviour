@@ -19,7 +19,7 @@ nav:
   - Getting Started: getting_started.md
   - Examples:
     - OFT pipeline: examples/oft_pipeline.md
-    - OFT pipeline with BehaviourFlow: examples/oft_pipeline_behaviourflow.md
+    - OFT pipeline with BehaviourFlow: examples/oft_bfa_pipeline.md
     - EPM pipeline: examples/epm_pipeline.md
     - GrimACE pipeline with BehaviourFlow: examples/grimace_pipeline_behaviourflow.md
   - API:
