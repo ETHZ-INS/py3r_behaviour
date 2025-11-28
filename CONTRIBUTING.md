@@ -1,4 +1,4 @@
-# Contributing to py3r-behaviour
+# Contributing to py3r_behaviour
 
 Thanks for your interest in contributing! This document explains the workflow and expectations for external contributors.
 
