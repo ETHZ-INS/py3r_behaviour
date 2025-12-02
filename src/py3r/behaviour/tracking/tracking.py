@@ -588,6 +588,8 @@ class Tracking:
             if (self.data.index[0] > startframe) or (self.data.index[-1] < startframe):
                 raise Exception("startframe not in data")
         if endframe is not None:
+            if endframe < 0:
+                endframe = self.data.index[-1] + endframe
             if (self.data.index[0] > endframe) or (self.data.index[-1] < endframe):
                 raise Exception("endframe not in data")
 
