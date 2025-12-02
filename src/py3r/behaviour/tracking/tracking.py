@@ -346,9 +346,12 @@ class Tracking:
             ]
             to_drop = list(set(bbox_cols).union(likelihood_to_drop))
             data.drop(columns=to_drop, inplace=True)
-        for col in data.columns:
-            if col.split(".")[-2] == "max_dim":
-                data.drop(columns=col, inplace=True)
+
+        # drop max_dim columns
+        max_dim_cols = [
+            col for col in data.columns if col == "max_dim.x" or col == "max_dim.y"
+        ]
+        data.drop(columns=max_dim_cols, inplace=True)
 
         meta = {
             "filepath": str(filepath),
