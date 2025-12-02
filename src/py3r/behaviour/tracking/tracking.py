@@ -332,11 +332,21 @@ class Tracking:
         newcols = [re.sub(".conf$", ".likelihood", col) for col in data.columns]
         data.columns = newcols
 
-        # drop bounding-box-related columns
-        # assumes bbox column names have 3 dot delimited sections
+        # drop only bounding-box corner coordinates
+        # keep everything else; only remove columns ending with .x1, .y1, .x2, .y2
+        # and also drop their corresponding '.likelihood' columns sharing the same prefix
+        drop_column_suffixes = (".x1", ".y1", ".x2", ".y2")
+        bbox_cols = [col for col in data.columns if col.endswith(drop_column_suffixes)]
+        if bbox_cols:
+            bbox_bases = {col.rsplit(".", 1)[0] for col in bbox_cols}
+            likelihood_to_drop = [
+                f"{base}.likelihood"
+                for base in bbox_bases
+                if f"{base}.likelihood" in data.columns
+            ]
+            to_drop = list(set(bbox_cols).union(likelihood_to_drop))
+            data.drop(columns=to_drop, inplace=True)
         for col in data.columns:
-            if len(col.split(".")) == 3:
-                data.drop(columns=col, inplace=True)
             if col.split(".")[-2] == "max_dim":
                 data.drop(columns=col, inplace=True)
 
