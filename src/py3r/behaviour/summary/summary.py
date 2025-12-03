@@ -305,6 +305,21 @@ class Summary:
         }
         return SummaryResult(value, self, name, meta)
 
+    def _apply_column(self, column: str, func, **kwargs) -> SummaryResult:
+        """
+        Internal method to apply aggregation function to a column
+        """
+        if column not in self.features.data.columns:
+            raise ValueError(f"Column '{column}' not found in features.data")
+
+        if callable(func):
+            value = func(self.features.data[column], **kwargs)
+            meta = {"function": f"{func.__name__}_column", "column": column}
+            return SummaryResult(value, self, f"{func.__name__}_{column}", meta)
+
+        raise TypeError("func must be callable.")
+
+
     def sum_column(self, column: str) -> SummaryResult:
         """
         Sum all non-NaN values in a `features.data` column and return as a SummaryResult.
@@ -329,11 +344,111 @@ class Summary:
 
         ```
         """
-        if column not in self.features.data.columns:
-            raise ValueError(f"Column '{column}' not found in features.data")
-        value = self.features.data[column].sum(skipna=True)
-        meta = {"function": "sum_column", "column": column}
-        return SummaryResult(value, self, f"sum_{column}", meta)
+        return self._apply_column(column, pd.Series.sum, skipna=True)
+
+    def mean_column(self, column: str) -> SummaryResult:
+        """
+        Mean of all non-NaN values in a `features.data` column and return as a SummaryResult.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> s = pd.Series([1, 2, 3, 4, 5][:len(t.data)], index=t.data.index)
+        >>> f.store(s, 'x', meta={})
+        >>> summ = Summary(f)
+        >>> res = summ.mean_column('x')
+        >>> bool(res.value == 3)
+        True
+
+        ```
+        """
+        return self._apply_column(column, pd.Series.mean, skipna=True)
+
+    def median_column(self, column: str) -> SummaryResult:
+        """
+        Median of all non-NaN values in a `features.data` column and return as a SummaryResult.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> s = pd.Series([1, 2, 3, 4, 5][:len(t.data)], index=t.data.index)
+        >>> f.store(s, 'x', meta={})
+        >>> summ = Summary(f)
+        >>> res = summ.median_column('x')
+        >>> bool(res.value == 3)
+        True
+
+        ```
+        """
+        return self._apply_column(column, pd.Series.median, skipna=True)
+
+    def max_column(self, column: str) -> SummaryResult:
+        """
+        Max of all non-NaN values in a `features.data` column and return as a SummaryResult.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> s = pd.Series([1, 2, 3, 4, 5][:len(t.data)], index=t.data.index)
+        >>> f.store(s, 'x', meta={})
+        >>> summ = Summary(f)
+        >>> res = summ.max_column('x')
+        >>> bool(res.value == 5)
+        True
+
+        ```
+        """
+        return self._apply_column(column, pd.Series.max, skipna=True)
+
+    def min_column(self, column: str) -> SummaryResult:
+        """
+        Min of all non-NaN values in a `features.data` column and return as a SummaryResult.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> s = pd.Series([1, 2, 3, 4, 5][:len(t.data)], index=t.data.index)
+        >>> f.store(s, 'x', meta={})
+        >>> summ = Summary(f)
+        >>> res = summ.min_column('x')
+        >>> bool(res.value == 1)
+        True
+
+        ```
+        """
+        return self._apply_column(column, pd.Series.min, skipna=True)
 
     def store(
         self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None
