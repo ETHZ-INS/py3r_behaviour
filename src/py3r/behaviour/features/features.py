@@ -193,6 +193,7 @@ class Features:
     ) -> FeaturesResult:
         """
         returns True for frames where point1 is within specified distance of point2
+        NA is propagated where inputs are missing (pd.NA).
 
         Examples
         --------
@@ -211,7 +212,10 @@ class Features:
         ```
         """
         obs_distance = self.distance_between(point1, point2, dims=dims)
-        result = obs_distance <= distance
+        # Propagate NA: comparisons with missing distances should yield pd.NA
+        mask = obs_distance.notna()
+        result = pd.Series(pd.NA, index=obs_distance.index, dtype="boolean")
+        result[mask] = (obs_distance[mask] <= distance).astype("boolean")
         name = f"within_distance_{point1}_to_{point2}_leq_{distance}_in_{''.join(dims)}"
         meta = {
             "function": "within_distance",
@@ -348,12 +352,14 @@ class Features:
         def local_contains_static(x):
             px, py = x[point + ".x"], x[point + ".y"]
             if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return np.nan
+                return pd.NA
             local_point = Point(px, py)
             local_poly = Polygon(boundary)
             return local_poly.contains(local_point)
 
-        result = self.tracking.data.apply(local_contains_static, axis=1)
+        result = self.tracking.data.apply(local_contains_static, axis=1).astype(
+            "boolean"
+        )
         return FeaturesResult(result, self, name, meta)
 
     def within_boundary_dynamic(
@@ -397,12 +403,14 @@ class Features:
             bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
             boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
             if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return np.nan
+                return pd.NA
             local_point = Point(px, py)
             local_poly = Polygon(bdry_pts)
             return local_poly.contains(local_point)
 
-        result = self.tracking.data.apply(local_contains_dynamic, axis=1)
+        result = self.tracking.data.apply(local_contains_dynamic, axis=1).astype(
+            "boolean"
+        )
         return FeaturesResult(result, self, name, meta)
 
     def within_boundary(
@@ -674,6 +682,7 @@ class Features:
         """
         Return True for frames where the angular deviation between two rays
         from basepoint is <= deviation (radians).
+        NA is propagated where inputs are missing (pd.NA).
 
         Examples
         --------
@@ -694,7 +703,10 @@ class Features:
         obs_deviation = self.azimuth_deviation(
             basepoint, pointdirection1, pointdirection2
         )
-        result = obs_deviation <= deviation
+        # Propagate NA: comparisons with missing deviations should yield pd.NA
+        mask = obs_deviation.notna()
+        result = pd.Series(pd.NA, index=obs_deviation.index, dtype="boolean")
+        result[mask] = (obs_deviation[mask] <= deviation).astype("boolean")
         name = f"within_azimuth_deviation_{basepoint}_to_{pointdirection1}_and_{pointdirection2}_leq_{deviation}"
         meta = {
             "function": "within_angle_deviation",
@@ -738,6 +750,7 @@ class Features:
     def above_speed(self, point: str, speed: float, dims=("x", "y")) -> FeaturesResult:
         """
         Return True for frames where the point's speed is >= threshold.
+        NA is propagated where inputs are missing (pd.NA).
 
         Examples
         --------
@@ -756,7 +769,9 @@ class Features:
         ```
         """
         obs_speed = self.speed(point, dims=dims)
-        result = obs_speed >= speed
+        mask = obs_speed.notna()
+        result = pd.Series(pd.NA, index=obs_speed.index, dtype="boolean")
+        result[mask] = (obs_speed[mask] >= speed).astype("boolean")
         name = f"above_speed_{point}_geq_{speed}_in_{''.join(dims)}"
         meta = {"function": "above_speed", "point": point, "speed": speed, "dims": dims}
         return FeaturesResult(result, self, name, meta)
@@ -766,6 +781,7 @@ class Features:
     ) -> FeaturesResult:
         """
         Return True for frames where all listed points are moving at least at the threshold speed.
+        NA is propagated: if any input is NA at a frame, result is NA.
 
         Examples
         --------
@@ -785,8 +801,13 @@ class Features:
         """
         df = pd.DataFrame(
             [self.above_speed(point, speed, dims=dims) for point in points]
-        )
-        result = df.all(axis=0)
+        ).astype("boolean")
+        # Manual NA-propagating "all" across points per frame to avoid ambiguous NA reductions
+        has_false = (~df.fillna(True)).any(axis=0)
+        has_na = df.isna().any(axis=0)
+        result = pd.Series(pd.NA, index=df.columns, dtype="boolean")
+        result[has_false] = False
+        result[~has_false & ~has_na] = True
         points_str = "_".join(str(p) for p in points)
         name = f"all_above_speed_{points_str}_geq_{speed}_in_{''.join(dims)}"
         meta = {
@@ -800,6 +821,7 @@ class Features:
     def below_speed(self, point: str, speed: float, dims=("x", "y")) -> FeaturesResult:
         """
         Return True for frames where the point's speed is < threshold.
+        NA is propagated where inputs are missing (pd.NA).
 
         Examples
         --------
@@ -818,7 +840,9 @@ class Features:
         ```
         """
         obs_speed = self.speed(point, dims=dims)
-        result = obs_speed < speed
+        mask = obs_speed.notna()
+        result = pd.Series(pd.NA, index=obs_speed.index, dtype="boolean")
+        result[mask] = (obs_speed[mask] < speed).astype("boolean")
         name = f"below_speed_{point}_lt_{speed}_in_{''.join(dims)}"
         meta = {"function": "below_speed", "point": point, "speed": speed, "dims": dims}
         return FeaturesResult(result, self, name, meta)
@@ -828,6 +852,7 @@ class Features:
     ) -> FeaturesResult:
         """
         Return True for frames where all listed points are moving slower than the threshold speed.
+        NA is propagated: if any input is NA at a frame, result is NA.
 
         Examples
         --------
@@ -847,8 +872,13 @@ class Features:
         """
         df = pd.DataFrame(
             [self.below_speed(point, speed, dims=dims) for point in points]
-        )
-        result = df.all(axis=0)
+        ).astype("boolean")
+        # Manual NA-propagating "all" across points per frame to avoid ambiguous NA reductions
+        has_false = (~df.fillna(True)).any(axis=0)
+        has_na = df.isna().any(axis=0)
+        result = pd.Series(pd.NA, index=df.columns, dtype="boolean")
+        result[has_false] = False
+        result[~has_false & ~has_na] = True
         points_str = "_".join(str(p) for p in points)
         name = f"all_below_speed_{points_str}_lt_{speed}_in_{''.join(dims)}"
         meta = {
