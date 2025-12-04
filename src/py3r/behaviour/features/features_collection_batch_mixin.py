@@ -210,6 +210,7 @@ class FeaturesCollectionBatchMixin:
 
         Return True for frames where the angular deviation between two rays
         from basepoint is <= deviation (radians).
+        NA is propagated where inputs are missing (pd.NA).
 
         See [`Features.within_azimuth_deviation`][py3r.behaviour.features.features.Features.within_azimuth_deviation] for examples.
         """
@@ -234,6 +235,7 @@ class FeaturesCollectionBatchMixin:
         Batch-mode wrapper for Features.above_speed across the collection.
 
         Return True for frames where the point's speed is >= threshold.
+        NA is propagated where inputs are missing (pd.NA).
 
         See [`Features.above_speed`][py3r.behaviour.features.features.Features.above_speed] for examples.
         """
@@ -247,6 +249,7 @@ class FeaturesCollectionBatchMixin:
         Batch-mode wrapper for Features.all_above_speed across the collection.
 
         Return True for frames where all listed points are moving at least at the threshold speed.
+        NA is propagated: if any input is NA at a frame, result is NA.
 
         See [`Features.all_above_speed`][py3r.behaviour.features.features.Features.all_above_speed] for examples.
         """
@@ -260,6 +263,7 @@ class FeaturesCollectionBatchMixin:
         Batch-mode wrapper for Features.below_speed across the collection.
 
         Return True for frames where the point's speed is < threshold.
+        NA is propagated where inputs are missing (pd.NA).
 
         See [`Features.below_speed`][py3r.behaviour.features.features.Features.below_speed] for examples.
         """
@@ -273,6 +277,7 @@ class FeaturesCollectionBatchMixin:
         Batch-mode wrapper for Features.all_below_speed across the collection.
 
         Return True for frames where all listed points are moving slower than the threshold speed.
+        NA is propagated: if any input is NA at a frame, result is NA.
 
         See [`Features.all_below_speed`][py3r.behaviour.features.features.Features.all_below_speed] for examples.
         """
