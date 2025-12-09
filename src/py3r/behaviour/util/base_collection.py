@@ -664,9 +664,15 @@ class BaseCollection(MutableMapping):
         ...     coll['A'].add_tag('genotype', 'WT')
         ...     coll['B'].add_tag('timepoint', 'T1')
         >>> info = coll.tags_info()
-        >>> int(info.loc['genotype','present'])
+        >>> int(info.loc['genotype','attached_to'])
         1
-        >>> int(info.loc['timepoint','present'])
+        >>> int(info.loc['genotype','missing_from'])
+        1
+        >>> int(info.loc['genotype','unique_values'])
+        1
+        >>> info.loc['genotype','value_counts']
+        {'WT': 1}
+        >>> int(info.loc['timepoint','attached_to'])
         1
         ```
         """
