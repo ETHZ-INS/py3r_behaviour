@@ -1,0 +1,2595 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ETHZ-INS.github.io/py3r_behaviour/v2.2.0/api/features/">
+      
+      
+        <link rel="prev" href="../tracking_collection/">
+      
+      
+        <link rel="next" href="../features_collection/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Features - py3r-behaviour</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#py3r.behaviour.features.features.Features" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="py3r-behaviour" class="md-header__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            py3r-behaviour
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Features
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-hidden="true"  type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="py3r-behaviour" class="md-nav__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    py3r-behaviour
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/oft_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OFT pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/oft_bfa_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OFT pipeline with BehaviourFlow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/epm_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EPM pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/grimace_pipeline_behaviourflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GrimACE pipeline with BehaviourFlow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking_mv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingMV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Features
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tracking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.meta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        meta
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.handle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        handle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.loc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        loc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.iloc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        iloc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.distance_between" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        distance_between
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.within_distance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        within_distance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.get_point_median" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_point_median
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.define_boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        define_boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.within_boundary_static" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        within_boundary_static
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.within_boundary_dynamic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        within_boundary_dynamic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.within_boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        within_boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.distance_to_boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        distance_to_boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.distance_to_boundary_static" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        distance_to_boundary_static
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.distance_to_boundary_dynamic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        distance_to_boundary_dynamic
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.area_of_boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        area_of_boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.acceleration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        acceleration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.azimuth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        azimuth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.azimuth_deviation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        azimuth_deviation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.within_azimuth_deviation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        within_azimuth_deviation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        speed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.above_speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        above_speed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.all_above_speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        all_above_speed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.below_speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        below_speed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.all_below_speed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        all_below_speed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.distance_change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        distance_change
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.classify" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        classify
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.smooth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        smooth
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.embedding_df" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        embedding_df
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.assign_clusters_by_centroids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        assign_clusters_by_centroids
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.train_knn_regressor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        train_knn_regressor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.predict_knn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        predict_knn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.rms_error_between_embeddings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        rms_error_between_embeddings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.define_elliptical_boundary_from_params" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        define_elliptical_boundary_from_params
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features.Features.define_elliptical_boundary_from_points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        define_elliptical_boundary_from_points
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FeaturesCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../summary_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SummaryCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>Features</h1>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="py3r.behaviour.features.features.Features" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">py3r.behaviour.features.features.Features</span>
+
+
+<a href="#py3r.behaviour.features.features.Features" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">Features</span><span class="p">(</span><span class="n">tracking</span><span class="p">:</span> <span class="n">Tracking</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>generates features from a pre-processed Tracking object</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features.Features.tracking" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">tracking</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features.Features.tracking" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">tracking</span> <span class="o">=</span> <span class="n">tracking</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features.Features.data" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">data</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features.Features.data" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">data</span> <span class="o">=</span> <span class="n">DataFrame</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features.Features.meta" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">meta</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features.Features.meta" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">meta</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features.Features.handle" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">handle</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features.Features.handle" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">handle</span> <span class="o">=</span> <span class="n">handle</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features.Features.tags" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">tags</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features.Features.tags" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">tags</span> <span class="o">=</span> <span class="n">tags</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features.Features.loc" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">loc</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features.Features.loc" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">loc</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features.Features.iloc" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">iloc</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features.Features.iloc" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">iloc</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.save" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">save</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.save" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">save</span><span class="p">(</span><span class="n">dirpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">data_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;parquet&#39;</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Save this Features object (and its nested Tracking) to a self-describing directory.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># add a trivial feature so data is not empty</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">&#39;counter&#39;</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">f</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">data_format</span><span class="o">=</span><span class="s1">&#39;csv&#39;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s1">&#39;manifest.json&#39;</span><span class="p">))</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.load" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">load</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features.Features.load" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">load</span><span class="p">(</span><span class="n">dirpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;Features&#39;</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Load a Features object previously saved with save().</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">),</span> <span class="s1">&#39;counter&#39;</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">f</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">data_format</span><span class="o">=</span><span class="s1">&#39;csv&#39;</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">f2</span> <span class="o">=</span> <span class="n">Features</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">f2</span><span class="p">,</span> <span class="n">Features</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">&#39;counter&#39;</span> <span class="ow">in</span> <span class="n">f2</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">columns</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.distance_between" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">distance_between</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.distance_between" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">distance_between</span><span class="p">(</span><span class="n">point1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">point2</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns distance from point1 to point2</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">distance_between</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.within_distance" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">within_distance</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.within_distance" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">within_distance</span><span class="p">(</span><span class="n">point1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">point2</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">distance</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns True for frames where point1 is within specified distance of point2
+NA is propagated where inputs are missing (pd.NA).</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">within_distance</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">,</span> <span class="n">distance</span><span class="o">=</span><span class="mf">15.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">((</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="n">res</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">()))</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.get_point_median" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get_point_median</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.get_point_median" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">get_point_median</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="nb">tuple</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return the per-dimension median coordinate for a tracked point.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">med</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">get_point_median</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span><span class="s1">&#39;y&#39;</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">med</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">med</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.define_boundary" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">define_boundary</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.define_boundary" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">define_boundary</span><span class="p">(</span><span class="n">points</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">scaling</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">scaling_y</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">centre</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>takes a list of defined points, and creates a static rescaled list of point coordinates based on median location of those points
+'centre' (point about which to scale) can be a string or list of strings, in which case the median of the points will be used as the centre
+if 'centre' is None, the median of all the boundary points will be used as the centre
+'scaling' is the factor by which to scale the boundary points, and 'scaling_y' is the factor by which to scale the y-axis
+if 'scaling_y' is not provided, 'scaling' will be applied to both axes</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.within_boundary_static" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">within_boundary_static</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.within_boundary_static" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">within_boundary_static</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">boundary</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span> <span class="n">boundary_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>checks whether point is inside polygon defined by ordered list of boundary points
+boundary points must be specified as a list of numerical tuples</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">boundary</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">define_boundary</span><span class="p">([</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">,</span><span class="s1">&#39;p3&#39;</span><span class="p">],</span> <span class="n">scaling</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">within_boundary_static</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="n">boundary</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">((</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="n">res</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">()))</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.within_boundary_dynamic" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">within_boundary_dynamic</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.within_boundary_dynamic" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">within_boundary_dynamic</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">boundary</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">boundary_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>checks whether point is inside polygon defined by ordered list of boundary points
+boundary points must be specified as a list of names of tracked points</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">within_boundary_dynamic</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">,</span><span class="s1">&#39;p3&#39;</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">((</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="n">res</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">()))</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.within_boundary" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">within_boundary</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.within_boundary" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">within_boundary</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">boundary</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">median</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">boundary_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>deprecated: use within_boundary_static or within_boundary_dynamic instead
+checks whether point is inside polygon defined by ordered list of boundary points
+boundary points may either be specified as a list of numerical tuples,
+or as a list of names of tracked points.
+Optionally, pass boundary_name for a custom short name in the feature name/meta.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.distance_to_boundary" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">distance_to_boundary</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.distance_to_boundary" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">distance_to_boundary</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">boundary</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">median</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">boundary_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Deprecated: use distance_to_boundary_static or distance_to_boundary_dynamic instead
+returns distance from point to boundary
+Optionally, pass boundary_name for a custom short name in the feature name/meta.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.distance_to_boundary_static" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">distance_to_boundary_static</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.distance_to_boundary_static" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">distance_to_boundary_static</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">boundary</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span> <span class="n">boundary_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns distance from point to a static boundary defined by a list of (x, y) tuples.
+If boundary_name is provided, it overrides the automatic id.
+NaN is returned if the point or any boundary vertex is NaN.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.distance_to_boundary_dynamic" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">distance_to_boundary_dynamic</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.distance_to_boundary_dynamic" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">distance_to_boundary_dynamic</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">boundary</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">boundary_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns distance from point to a dynamic boundary defined by a list of point names.
+If boundary_name is provided, it overrides the automatic id.
+NaN is returned if the point or any boundary vertex is NaN.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.area_of_boundary" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">area_of_boundary</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.area_of_boundary" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">area_of_boundary</span><span class="p">(</span><span class="n">boundary</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">median</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns area of boundary as a FeaturesResult (constant for static, per-frame for dynamic)</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">area_of_boundary</span><span class="p">([</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">,</span><span class="s1">&#39;p3&#39;</span><span class="p">],</span> <span class="n">median</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="n">res</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.acceleration" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">acceleration</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.acceleration" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">acceleration</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns acceleration of point from previous frame to current frame, for each frame</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">acc</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">acceleration</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">acc</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.azimuth" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">azimuth</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.azimuth" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">azimuth</span><span class="p">(</span><span class="n">point1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">point2</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns azimuth in radians from tracked point1 to tracked point2
+for each frame in the data, relative to the direction of the x-axis</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ang</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">azimuth</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">ang</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">ang</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.azimuth_deviation" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">azimuth_deviation</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.azimuth_deviation" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">azimuth_deviation</span><span class="p">(</span><span class="n">basepoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">pointdirection1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">pointdirection2</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Compute the signed angular deviation (radians) between two directions
+from a common basepoint for each frame.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dev</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">azimuth_deviation</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">,</span><span class="s1">&#39;p3&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">((</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">dev</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">dev</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)))</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.within_azimuth_deviation" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">within_azimuth_deviation</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.within_azimuth_deviation" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">within_azimuth_deviation</span><span class="p">(</span><span class="n">basepoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">pointdirection1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">pointdirection2</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">deviation</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return True for frames where the angular deviation between two rays
+from basepoint is &lt;= deviation (radians).
+NA is propagated where inputs are missing (pd.NA).</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">within_azimuth_deviation</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">,</span><span class="s1">&#39;p3&#39;</span><span class="p">,</span> <span class="n">deviation</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">((</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="n">mask</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span><span class="o">.</span><span class="n">any</span><span class="p">()))</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.speed" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">speed</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.speed" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">speed</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns average speed of point from previous frame to current frame, for each frame</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sp</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">speed</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.above_speed" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">above_speed</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.above_speed" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">above_speed</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">speed</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return True for frames where the point's speed is &gt;= threshold.
+NA is propagated where inputs are missing (pd.NA).</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">m</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">above_speed</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="n">speed</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.all_above_speed" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">all_above_speed</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.all_above_speed" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">all_above_speed</span><span class="p">(</span><span class="n">points</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">speed</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return True for frames where all listed points are moving at least at the threshold speed.
+NA is propagated: if any input is NA at a frame, result is NA.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">m</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">all_above_speed</span><span class="p">([</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">],</span> <span class="n">speed</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.below_speed" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">below_speed</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.below_speed" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">below_speed</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">speed</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return True for frames where the point's speed is &lt; threshold.
+NA is propagated where inputs are missing (pd.NA).</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">m</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">below_speed</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="n">speed</span><span class="o">=</span><span class="mf">9999.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.all_below_speed" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">all_below_speed</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.all_below_speed" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">all_below_speed</span><span class="p">(</span><span class="n">points</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">speed</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return True for frames where all listed points are moving slower than the threshold speed.
+NA is propagated: if any input is NA at a frame, result is NA.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">m</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">all_below_speed</span><span class="p">([</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">],</span> <span class="n">speed</span><span class="o">=</span><span class="mf">9999.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.distance_change" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">distance_change</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.distance_change" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">distance_change</span><span class="p">(</span><span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">FeaturesResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns unsigned distance moved by point from previous frame to current frame, for each frame</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">dc</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">distance_change</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">dc</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">dc</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.store" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">store</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.store" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">store</span><span class="p">(</span><span class="n">feature</span><span class="p">:</span> <span class="n">Series</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">())</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>stores calculated feature with name and associated freeform metadata object</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">&#39;counter&#39;</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;unit&#39;</span><span class="p">:</span><span class="s1">&#39;frames&#39;</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">&#39;counter&#39;</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">columns</span> <span class="ow">and</span> <span class="n">f</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;counter&#39;</span><span class="p">][</span><span class="s1">&#39;unit&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;frames&#39;</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.classify" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">classify</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.classify" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">classify</span><span class="p">(</span><span class="n">classifier</span><span class="p">:</span> <span class="n">BaseClassifier</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>classify behaviour using a classifier with inputs from this Features object
+returns a FeaturesResult object with the classification result
+this means that the output of the classifier should be a pd.Series with the same index as this Features object</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.smooth" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">smooth</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.smooth" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">smooth</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">window</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">center</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">inplace</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>smooths specified feature with specified method over rolling window. if inplace=True then feature
+will be directly edited and metadata updated
+method:
+    'median' : median of value in window, requires numerical series values
+    'mean' : mean of value in window, requires numerical series values
+    'mode' : mode value in window, works with numerical or non-numerical types
+    'block' : removes labels that occur in blocks of less than length window
+              and replaces them with value from previous block unless there is
+              no previous block, in which case replaced from next block after smoothing
+              note: all nan values will be filled using this method (dangerous!)</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.embedding_df" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">embedding_df</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.embedding_df" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">embedding_df</span><span class="p">(</span><span class="n">embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]])</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>generate a time series embedding dataframe with specified time shifts for each column,
+where embedding is a dict mapping column names to lists of shifts
+positive shift: value from the future (t+n)
+negative shift: value from the past (t-n)</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># prepare a simple feature to embed</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">&#39;counter&#39;</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">emb</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">embedding_df</span><span class="p">({</span><span class="s1">&#39;counter&#39;</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">]})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">emb</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+<span class="go">[&#39;counter_t0&#39;, &#39;counter_t+1&#39;, &#39;counter_t-1&#39;]</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.assign_clusters_by_centroids" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">assign_clusters_by_centroids</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.assign_clusters_by_centroids" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">assign_clusters_by_centroids</span><span class="p">(</span><span class="n">embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">centroids_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
+centroids_df: (n_clusters, n_features) DataFrame of cluster centers
+Returns a Series of cluster IDs (0..n_clusters-1) indexed like new_embed_df.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># add a simple feature to embed</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">),</span> <span class="s1">&#39;counter&#39;</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">emb</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;counter&#39;</span><span class="p">:[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">df</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">embedding_df</span><span class="p">(</span><span class="n">emb</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># make 2 simple centroids matching columns</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">cents</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">]],</span> <span class="n">columns</span><span class="o">=</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">labels</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">assign_clusters_by_centroids</span><span class="p">(</span><span class="n">emb</span><span class="p">,</span> <span class="n">cents</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.train_knn_regressor" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">train_knn_regressor</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.train_knn_regressor" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">train_knn_regressor</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">source_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">target_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">n_neighbors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> <span class="n">normalize_source</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Developer mode: not available in public release yet.</p>
+<p>Train a KNN regressor to predict a target embedding from a feature embedding on this Features object.
+If normalize_source is True, normalize the source embedding before training and return the rescale factors.
+Returns the trained model, input columns, target columns, and (optionally) the rescale factors.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.predict_knn" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">predict_knn</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.predict_knn" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">predict_knn</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="n">KNeighborsRegressor</span><span class="p">,</span> <span class="n">source_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">target_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="n">rescale_factors</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Developer mode: not available in public release yet.</p>
+<p>Predict using a trained KNN regressor on this Features object.
+If rescale_factors is provided, normalize the source embedding before prediction.
+The prediction will match the shape and columns of self.embedding_df(target_embedding).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.rms_error_between_embeddings" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">rms_error_between_embeddings</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features.Features.rms_error_between_embeddings" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">rms_error_between_embeddings</span><span class="p">(</span><span class="n">ground_truth</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">prediction</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">,</span> <span class="n">rescale</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Developer mode: not available in public release yet.</p>
+<p>Compute the root mean squared error (RMS) for each row between two embedding DataFrames.
+If rescale is a dict, normalize both DataFrames using this dict before computing the error.
+If rescale == 'auto', compute normalization factors from ground_truth and apply to both DataFrames.
+Returns a Series indexed like the input DataFrames, with NaN for rows where either input has NaNs.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.define_elliptical_boundary_from_params" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">define_elliptical_boundary_from_params</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.define_elliptical_boundary_from_params" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">define_elliptical_boundary_from_params</span><span class="p">(</span><span class="n">centre</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">major_axis_length</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">minor_axis_length</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">angle_in_radians</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">n_points</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Generate a polygonal approximation of an ellipse as a list of (x, y) tuples,
+around <code>centre</code> using explicit parameters.
+<code>centre</code> can be a single point name or a list of point names.
+if <code>centre</code> is a list, the boundary will be centred on the mean of the median coordinates of the points.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">poly</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">define_elliptical_boundary_from_params</span><span class="p">(</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span> <span class="n">major_axis_length</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">minor_axis_length</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">angle_in_radians</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">n_points</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">poly</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">poly</span><span class="p">)</span> <span class="o">==</span> <span class="mi">32</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features.Features.define_elliptical_boundary_from_points" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">define_elliptical_boundary_from_points</span>
+
+
+<a href="#py3r.behaviour.features.features.Features.define_elliptical_boundary_from_points" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">define_elliptical_boundary_from_points</span><span class="p">(</span><span class="n">points</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">n_points</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">scaling</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">smallness_weight</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Fit an ellipse to the median coordinates of the given tracked points (at least 4)
+and return a polygonal approximation. After fitting, the ellipse is scaled by <code>scaling</code>.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">&#39;py3r.behaviour.tracking._data&#39;</span><span class="p">,</span> <span class="s1">&#39;dlc_single.csv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">&#39;ex&#39;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Use exactly 4 points to avoid requiring skimage in tests</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">poly</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">define_elliptical_boundary_from_points</span><span class="p">([</span><span class="s1">&#39;p1&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">,</span><span class="s1">&#39;p3&#39;</span><span class="p">,</span><span class="s1">&#39;p2&#39;</span><span class="p">],</span> <span class="n">n_points</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">scaling</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">poly</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">poly</span><span class="p">)</span> <span class="o">==</span> <span class="mi">20</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "content.code.copy", "content.code.select", "toc.integrate", "toc.collapsible"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+    
+  </body>
+</html>
