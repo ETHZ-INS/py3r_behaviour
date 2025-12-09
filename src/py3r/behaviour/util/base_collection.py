@@ -674,6 +674,7 @@ class BaseCollection(MutableMapping):
         {'WT': 1}
         >>> int(info.loc['timepoint','attached_to'])
         1
+
         ```
         """
 
