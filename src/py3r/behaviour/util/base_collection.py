@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import MutableMapping
 import os
 import warnings
+import pandas as pd
 
 from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util.collection_utils import BatchResult
@@ -635,6 +636,96 @@ class BaseCollection(MutableMapping):
         return self.flatten().groupby(self._groupby_tags)
 
     # ---- Transform helpers ----
+    def tags_info(
+        self,
+        *,
+        include_value_counts: bool = False,
+    ) -> pd.DataFrame:
+        """
+        Summarize tag presence across the collection's leaf objects.
+        Works for flat and grouped collections. If `include_value_counts` is True,
+        include a column 'value_counts' with a dict of `value->count` for each tag.
+        Returns a `pandas.DataFrame` with columns:
+        `['tag', 'attached_to', 'missing_from', 'unique_values', ('value_counts')]`
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     coll['A'].add_tag('genotype', 'WT')
+        ...     coll['B'].add_tag('timepoint', 'T1')
+        >>> info = coll.tags_info(include_value_counts=True)
+        >>> int(info.loc['genotype','attached_to'])
+        1
+        >>> int(info.loc['genotype','missing_from'])
+        1
+        >>> int(info.loc['genotype','unique_values'])
+        1
+        >>> info.loc['genotype','value_counts']
+        {'WT': 1}
+        >>> int(info.loc['timepoint','attached_to'])
+        1
+
+        ```
+        """
+
+        def summarize_leaves(leaves: list):
+            # Collect all tag keys and their values across leaves
+            all_keys = set()
+            values_by_key: dict[str, list] = {}
+            total = len(leaves)
+            for obj in leaves:
+                tags = getattr(obj, "tags", None)
+                if not isinstance(tags, dict):
+                    continue
+                for k, v in tags.items():
+                    all_keys.add(k)
+                    values_by_key.setdefault(k, []).append(v)
+            records = []
+            for k in sorted(all_keys):
+                vals = values_by_key.get(k, [])
+                present = len(vals)
+                missing = total - present
+                unique_values = len(set(vals)) if present else 0
+                rec = {
+                    "tag": k,
+                    "attached_to": present,
+                    "missing_from": missing,
+                    "unique_values": unique_values,
+                }
+                if include_value_counts:
+                    # preserve simple dict for readability
+                    vc = pd.Series(vals, dtype="object").value_counts(dropna=False)
+                    rec["value_counts"] = {
+                        str(idx): int(cnt) for idx, cnt in vc.items()
+                    }
+                records.append(rec)
+            if not records:
+                # No tags present anywhere; return empty frame with expected columns
+                cols = ["tag", "attached_to", "missing_from", "unique_values"]
+                if include_value_counts:
+                    cols.append("value_counts")
+                return pd.DataFrame(columns=cols).set_index("tag")
+            df = pd.DataFrame.from_records(records).set_index("tag")
+            # Ensure integer dtype where possible
+            for c in ["attached_to", "missing_from", "unique_values"]:
+                if c in df:
+                    df[c] = df[c].astype("int64")
+            return df
+
+        # Flat or aggregate across groups
+        leaves = list(self.flatten().values())
+        return summarize_leaves(leaves)
+
     def map_leaves(self, fn):
         """
         Apply a function to every leaf element and return a new collection of the
