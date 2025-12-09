@@ -663,7 +663,7 @@ class BaseCollection(MutableMapping):
         ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
         ...     coll['A'].add_tag('genotype', 'WT')
         ...     coll['B'].add_tag('timepoint', 'T1')
-        >>> info = coll.tags_info()
+        >>> info = coll.tags_info(include_value_counts=True)
         >>> int(info.loc['genotype','attached_to'])
         1
         >>> int(info.loc['genotype','missing_from'])
