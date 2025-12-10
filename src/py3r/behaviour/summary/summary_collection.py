@@ -644,7 +644,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         groups:
             - Optional list of group labels (strings) to include; defaults to all.
             - Or a list of lists for sequential groups, e.g.
-              [['control1','control2','control3'], ['treatment1','treatment2','treatment3']]
+              `[['control1','control2','control3'], ['treatment1','treatment2','treatment3']]`
               In this case, each sequence is plotted with a monochrome gradient of a distinct base color.
         n_neighbors, min_dist, random_state:
             UMAP hyperparameters.
