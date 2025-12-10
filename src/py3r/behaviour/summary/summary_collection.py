@@ -620,6 +620,244 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             return next(iter(out.values()))
         return out
 
+    def plot_transition_umap(
+        self,
+        column: str,
+        all_states=None,
+        groups: list[str] | list[list[str]] | None = None,
+        n_neighbors: int = 15,
+        min_dist: float = 0.1,
+        random_state: int = 0,
+        figsize: tuple[float, float] = (4.5, 4),
+        show: bool = True,
+        save_dir: str | None = None,
+    ):
+        """
+        Plot a simple UMAP embedding of per-subject transition matrices for selected groups.
+
+        Parameters
+        ----------
+        column:
+            Name of the categorical column used to compute transition matrices.
+        all_states:
+            Optional explicit state ordering for transition matrices.
+        groups:
+            - Optional list of group labels (strings) to include; defaults to all.
+            - Or a list of lists for sequential groups, e.g.
+              [['control1','control2','control3'], ['treatment1','treatment2','treatment3']]
+              In this case, each sequence is plotted with a monochrome gradient of a distinct base color.
+        n_neighbors, min_dist, random_state:
+            UMAP hyperparameters.
+        figsize, show:
+            Matplotlib options.
+
+        Returns
+        -------
+        (fig, ax): Matplotlib figure and axis.
+
+        Examples
+        --------
+        xdoctest: +REQUIRES(module: umap)
+        ```pycon
+        >>> import tempfile, shutil, os, pandas as pd
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> for i, (h, f) in enumerate(fc.items()):
+        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
+        ...     states.index = f.tracking.data.index
+        ...     f.store(states, 'state', meta={})
+        ...     f.tracking.add_tag('group', f'G{i+1}')
+        >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
+        >>> with tempfile.TemporaryDirectory() as outdir:
+        ...     fig, ax = sc.plot_transition_umap(column='state', all_states=['A','B'], groups=['G1','G2'], show=False, save_dir=outdir)
+        ...     os.path.exists(os.path.join(outdir, 'transition_umap.png'))
+        True
+
+        ```
+        """
+        import os
+        import numpy as np
+        import matplotlib.pyplot as plt
+        from sklearn.preprocessing import StandardScaler
+
+        try:
+            import umap  # type: ignore
+        except Exception as e:
+            raise ImportError(
+                "UMAP is required for this plot. Please install 'umap-learn'."
+            ) from e
+
+        if not getattr(self, "is_grouped", False):
+            raise ValueError(
+                "UMAP plot requires a grouped SummaryCollection (call groupby first)."
+            )
+
+        # Compute transition matrices per subject per group
+        matrices_result = self.transition_matrix(column, all_states)
+        matrices = {
+            group: {k: v.value for k, v in d.items()}
+            for group, d in matrices_result.items()
+        }
+
+        # Helpers to format group labels for nicer display/selection
+        def _fmt_group(g):
+            if isinstance(g, tuple) and len(g) == 1:
+                return g[0]
+            return g
+
+        label_to_key = {_fmt_group(g): g for g in self.group_keys}
+
+        # Determine which groups to include (supports sequential groups via nested lists)
+        sequence_mode = False
+        sequences: list[list[str]] = []
+        if groups is None:
+            selected = list(matrices.keys())
+        else:
+            if any(isinstance(g, (list, tuple)) for g in groups):
+                # sequence mode
+                sequence_mode = True
+                sequences = [list(seq) for seq in groups]  # type: ignore[arg-type]
+                selected = []
+                for seq in sequences:
+                    for lbl in seq:
+                        key = label_to_key.get(lbl, None)
+                        if key is None:
+                            key = lbl
+                        if key in matrices and key not in selected:
+                            selected.append(key)
+            else:
+                # flat list of labels
+                selected = []
+                for lbl in groups:  # type: ignore[assignment]
+                    key = label_to_key.get(lbl, None)
+                    if key is None:
+                        key = lbl
+                    if key in matrices:
+                        selected.append(key)
+
+        # Flatten matrices and collect labels
+        X, y = [], []
+        for g in selected:
+            for _, mat in matrices[g].items():
+                X.append(mat.to_numpy().flatten())
+                y.append(_fmt_group(g))
+        if len(X) == 0:
+            raise ValueError("No data found for the requested groups.")
+        X = np.vstack(X)
+
+        # Scale and embed
+        X_scaled = StandardScaler().fit_transform(X)
+        # guard for very small sample sizes to avoid eigsh issues in UMAP spectral init
+        n_samples = X_scaled.shape[0]
+        effective_neighbors = min(n_neighbors, max(2, n_samples - 1))
+        reducer = umap.UMAP(
+            n_neighbors=effective_neighbors,
+            min_dist=min_dist,
+            random_state=random_state,
+        )
+        try:
+            embedding = reducer.fit_transform(X_scaled)
+        except TypeError:
+            # fallback to random init if spectral layout fails for very small graphs
+            reducer = umap.UMAP(
+                n_neighbors=effective_neighbors,
+                min_dist=min_dist,
+                random_state=random_state,
+                init="random",
+            )
+            embedding = reducer.fit_transform(X_scaled)
+
+        # Plot
+        fig, ax = plt.subplots(figsize=figsize, facecolor="white")
+        ax.set_facecolor("white")
+        # Colors: either simple cycle (flat list) or per-sequence monochrome gradient
+        unique_groups = list(dict.fromkeys(y))  # preserve order
+        color_map = {}
+        if not sequence_mode:
+            base_colors = plt.cm.tab10.colors
+            color_map = {
+                g: base_colors[i % len(base_colors)]
+                for i, g in enumerate(unique_groups)
+            }
+        else:
+            base_colors = list(plt.cm.tab10.colors)
+            # build a mapping from label -> color shade based on its position in its sequence
+            label_to_color = {}
+            for si, seq in enumerate(sequences):
+                base = np.array(base_colors[si % len(base_colors)])
+                L = max(1, len(seq))
+                for pi, lbl in enumerate(seq):
+                    # t from 0.0 to 0.8 across the sequence to produce a lightening gradient
+                    t = 0.8 * (pi / max(L - 1, 1))
+                    shade = (1 - t) * base + t * np.array([1.0, 1.0, 1.0])
+                    label_to_color[lbl] = tuple(shade)
+            # resolve colors for observed group labels (already formatted)
+            for g in unique_groups:
+                color_map[g] = label_to_color.get(g, base_colors[0])
+        for g in unique_groups:
+            mask = [gi == g for gi in y]
+            ax.scatter(
+                embedding[mask, 0],
+                embedding[mask, 1],
+                label=g,
+                alpha=0.9,
+                color=color_map[g],
+            )
+        # Group means and SEMs
+        import pandas as pd  # local alias for clarity
+
+        embedding_df = pd.DataFrame(embedding, columns=["UMAP1", "UMAP2"])
+        embedding_df["group"] = y
+
+        def _sem(arr):
+            return np.std(arr, ddof=1) / np.sqrt(len(arr)) if len(arr) > 1 else 0.0
+
+        group_stats = (
+            embedding_df.groupby("group")
+            .agg(
+                mean_x=("UMAP1", "mean"),
+                mean_y=("UMAP2", "mean"),
+                sem_x=("UMAP1", _sem),
+                sem_y=("UMAP2", _sem),
+            )
+            .reset_index()
+        )
+        for _, row in group_stats.iterrows():
+            color = color_map.get(row["group"], "gray")
+            ax.errorbar(
+                row["mean_x"],
+                row["mean_y"],
+                xerr=row["sem_x"],
+                yerr=row["sem_y"],
+                fmt="x",
+                color=color,
+                linewidth=2,
+                capsize=5,
+            )
+        ax.set_xlabel("UMAP1")
+        ax.set_ylabel("UMAP2")
+        ax.legend(title="Group", loc="best")
+        plt.tight_layout()
+        if show:
+            plt.show()
+        if save_dir:
+            fig.savefig(
+                os.path.join(save_dir, "transition_umap.png"),
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0.02,
+            )
+        return fig, ax
+
     @staticmethod
     def _manhattan_distance(
         transition_matrix1: pd.DataFrame, transition_matrix2: pd.DataFrame
