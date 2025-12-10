@@ -306,13 +306,22 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 raise ValueError(f"{v} is not a SummaryResult object")
 
     # ---- Cross-group analysis (formerly in MultipleSummaryCollection) ----
-    def bfa(self, column: str, all_states=None, numshuffles: int = 1000):
+    def bfa(
+        self,
+        column: str,
+        all_states=None,
+        numshuffles: int = 1000,
+        pairs: list[tuple[str, str]] | None = None,
+    ):
         """
         Behaviour Flow Analysis between groups for a grouped SummaryCollection.
 
         Requires the collection to be grouped (via groupby). Computes transition
         matrices per Summary within each group, then computes Manhattan distances
         between group means and surrogate distributions via shuffling.
+
+        If `pairs` is provided, only those group pairs are analyzed; otherwise all
+        unique pairs in `self.group_keys` are evaluated.
 
         Examples
         --------
@@ -338,8 +347,13 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         ...     f.tracking.add_tag('group', f'G{i+1}')
         >>> gfc = fc.groupby('group')
         >>> sc = SummaryCollection.from_features_collection(gfc)
+        >>> # compute all pairs
         >>> res = sc.bfa('state', all_states=['A','B'], numshuffles=2)
         >>> isinstance(res, dict) and 'observed' in next(iter(res.values()))
+        True
+        >>> # compute only specific pair(s)
+        >>> res2 = sc.bfa('state', all_states=['A','B'], numshuffles=2, pairs=[('G1','G2')])
+        >>> list(res2.keys()) == ['G1_vs_G2']
         True
 
         ```
@@ -358,9 +372,36 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             group: {k: v.value for k, v in d.items()}
             for group, d in transition_matrices_result.items()
         }
-        # calculate manhattan distance for each group pair
+
+        # helper to format group keys for human-friendly labels
+        def _fmt_group(g):
+            if isinstance(g, tuple) and len(g) == 1:
+                return g[0]
+            return g
+
+        # map from formatted label back to original key for convenience
+        label_to_key = {_fmt_group(g): g for g in self.group_keys}
+        # determine group pairs to evaluate
+        if pairs is None:
+            pair_iter = combinations(self.group_keys, 2)
+        else:
+            # validate provided pairs
+            group_set = set(self.group_keys)
+            normalized_pairs: list[tuple] = []
+            for g1, g2 in pairs:
+                # allow passing either raw keys or formatted labels
+                _g1 = g1 if g1 in group_set else label_to_key.get(g1, None)
+                _g2 = g2 if g2 in group_set else label_to_key.get(g2, None)
+                if _g1 is None or _g2 is None:
+                    raise ValueError(
+                        f"Invalid group pair ({g1}, {g2}); valid groups: {sorted(map(_fmt_group, self.group_keys))}"
+                    )
+                normalized_pairs.append((_g1, _g2))
+            pair_iter = normalized_pairs
+
+        # calculate manhattan distance for each requested group pair
         distances = {}
-        for group1, group2 in combinations(self.group_keys, 2):
+        for group1, group2 in pair_iter:
             _ = {}
             list1 = list(transition_matrices[group1].values())
             list2 = list(transition_matrices[group2].values())
@@ -372,7 +413,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 )
                 for i in range(numshuffles)
             ]
-            distances[f"{group1}_vs_{group2}"] = _
+            # use formatted labels for result key
+            distances[f"{_fmt_group(group1)}_vs_{_fmt_group(group2)}"] = _
         return distances
 
     @staticmethod
@@ -435,6 +477,148 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 "right_tail_p": right_tail_p(observed, surrogates),
             }
         return stats
+
+    @staticmethod
+    def plot_bfa_results(
+        results: dict[str, dict[str, float]],
+        compares: str | list[str] | None = None,
+        add_stats: bool = True,
+        stats: dict[str, dict[str, float]] | None = None,
+        bins: int = 50,
+        figsize: tuple[float, float] = (4, 3),
+        save_dir: str | None = None,
+        show: bool = True,
+        # legacy: allow single 'compare' name
+        compare: str | None = None,
+    ):
+        """
+        Plot one or more BFA result comparisons as separate single-panel figures.
+
+        - If `compares` is None and results contain a single comparison, that one is plotted.
+        - If `compares` is a string, only that comparison is plotted.
+        - If `compares` is a list of strings, each comparison is plotted separately.
+        - If `add_stats` is True and `stats` not provided, statistics will be computed
+          via `SummaryCollection.bfa_stats(results)` and annotated on each plot.
+
+        Returns `(fig, ax)` for a single comparison, or a dict `{compare: (fig, ax)}`
+        for multiple.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, os
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> # add simple 2-state labels and tags to build two groups
+        >>> for i, (h, f) in enumerate(fc.items()):
+        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
+        ...     states.index = f.tracking.data.index
+        ...     f.store(states, 'state', meta={})
+        ...     f.tracking.add_tag('group', f'G{i+1}')
+        >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
+        >>> bfa_out = sc.bfa('state', all_states=['A','B'], numshuffles=5)
+        >>> # plot a single comparison and save it
+        >>> with tempfile.TemporaryDirectory() as outdir:
+        ...     fig, ax = SummaryCollection.plot_bfa_results(bfa_out, compare='G1_vs_G2', show=False, save_dir=outdir)
+        ...     os.path.exists(os.path.join(outdir, 'G1_vs_G2.png'))
+        True
+
+        ```
+        """
+        import matplotlib.pyplot as plt
+        import os
+
+        def _sanitize(name: str) -> str:
+            return "".join(
+                ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name)
+            )
+
+        # selection
+        if compares is None and compare is not None:
+            compares = compare
+        if compares is None:
+            keys = list(results.keys())
+        elif isinstance(compares, str):
+            keys = [compares]
+        elif isinstance(compares, list):
+            keys = compares
+        else:
+            raise TypeError("compares must be None, str, or list[str]")
+
+        if len(keys) == 0:
+            raise ValueError("No comparisons to plot.")
+
+        # compute stats once if requested and not provided
+        if add_stats and stats is None:
+            stats = SummaryCollection.bfa_stats(results)
+
+        out: dict[str, tuple] = {}
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+        for k in keys:
+            if k not in results:
+                continue
+            fig, ax = plt.subplots(figsize=figsize)
+            ax.hist(results[k]["surrogates"], color="gray", bins=bins)
+            ax.axvline(results[k]["observed"], color="red")
+            ax.set_xlabel("distance")
+            ax.set_ylabel("count")
+            ax.set_title(k, fontdict={"size": 10})
+            if add_stats and stats is not None and k in stats:
+                p_empirical = 1 - stats[k]["percentile"]
+                if p_empirical < 0.0001:
+                    sig = "****"
+                elif p_empirical < 0.001:
+                    sig = "***"
+                elif p_empirical < 0.01:
+                    sig = "**"
+                elif p_empirical < 0.05:
+                    sig = "*"
+                else:
+                    sig = "n.s."
+                text = f"p={p_empirical:.3f}\n{sig}"
+                ax.text(
+                    0.95,
+                    0.95,
+                    text,
+                    ha="right",
+                    va="top",
+                    transform=ax.transAxes,
+                    fontsize=9,
+                    color="black",
+                    bbox=dict(
+                        boxstyle="round,pad=0.3",
+                        facecolor="white",
+                        alpha=0.8,
+                        edgecolor="none",
+                    ),
+                    zorder=10,
+                )
+            plt.tight_layout()
+            if save_dir:
+                fig.savefig(
+                    os.path.join(save_dir, f"{_sanitize(k)}.png"),
+                    dpi=300,
+                    bbox_inches="tight",
+                    pad_inches=0.02,
+                )
+            if show:
+                plt.show()
+            out[k] = (fig, ax)
+        # return a single tuple when only one compare was requested to keep ergonomics
+        if len(out) == 1:
+            return next(iter(out.values()))
+        return out
 
     @staticmethod
     def _manhattan_distance(
