@@ -464,7 +464,6 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
           - if grouped: 'per_group': {group_key: {'per_recording': df, 'summary': {...}}}
         """
         import pandas as pd
-        import numpy as np
 
         # Unwrap BatchResult/dicts into a canonical mapping
         def is_grouped_mapping(obj) -> bool:
