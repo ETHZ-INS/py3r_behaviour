@@ -657,8 +657,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         Examples
         --------
-        xdoctest: +REQUIRES(module: umap-learn)
         ```pycon
+        >>> # xdoctest: +REQUIRES(module: umap)
         >>> import tempfile, shutil, os, pandas as pd
         >>> from pathlib import Path
         >>> from py3r.behaviour.util.docdata import data_path
