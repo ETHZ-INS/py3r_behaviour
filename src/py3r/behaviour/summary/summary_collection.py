@@ -642,9 +642,9 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         all_states:
             Optional explicit state ordering for transition matrices.
         groups:
-            - Optional list of group labels (strings) to include; defaults to all.
+            - Optional list of group keys (strings) to include; defaults to all.
             - Or a list of lists for sequential groups, e.g.
-              `[['control1','control2','control3'], ['treatment1','treatment2','treatment3']]`
+              `[['control_pre','control_45min','control_90min'], ['treatment_pre','treatment_45min','treatment_90min']]`
               In this case, each sequence is plotted with a monochrome gradient of a distinct base color.
         n_neighbors, min_dist, random_state:
             UMAP hyperparameters.
