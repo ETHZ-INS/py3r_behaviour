@@ -24,3 +24,15 @@
 .md-typeset h3 code {
     font-size: 0.7em;
 }
+
+/* Hide Parameters/Returns in the left (integrated) nav */
+.md-nav__link[href$="#parameters"],
+.md-nav__link[href$="#returns"] {
+    display: none;
+}
+
+/* Also hide in the right-hand page ToC if you keep it */
+.md-sidebar--secondary .md-nav__link[href$="#parameters"],
+.md-sidebar--secondary .md-nav__link[href$="#returns"] {
+    display: none;
+}
