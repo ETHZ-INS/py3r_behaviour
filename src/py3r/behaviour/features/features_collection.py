@@ -457,11 +457,10 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         Returns
         -------
         dict with:
-          - 'global': {'cluster_prevalence': {label: frac, ...}, 'percent_nan': frac}
-          - 'per_recording': pandas.DataFrame with rows per recording and columns:
-                ['percent_nan', 'num_missing', 'num_low', 'num_high']
-          - 'summary': min/median/max for the per_recording columns
-          - if grouped: 'per_group': {group_key: {'per_recording': df, 'summary': {...}}}
+            - 'global': {'cluster_prevalence': {label: frac, ...}, 'percent_nan': frac}
+            - 'per_recording': pandas.DataFrame with rows per recording and columns: ['percent_nan', 'num_missing', 'num_low', 'num_high']
+            - 'summary': min/median/max for the per_recording columns
+            - if grouped: 'per_group': {group_key: {'per_recording': df, 'summary': {...}}}
         """
         import pandas as pd
 
