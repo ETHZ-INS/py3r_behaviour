@@ -377,28 +377,34 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         }
 
         if lowmem:
-            # Assign by nearest centroid, item-by-item (wrap into FeaturesResult)
+            # Assign by nearest centroid, item-by-item (apply same scaling as training)
+            # Determine factors to apply during assignment
+            factors_for_assign = (
+                normalization_factors if auto_normalize else rescale_factors
+            )
             if is_grouped:
                 result_dict = {}
                 for gkey, sub in self.items():
                     group_map = {}
                     for feat_name, feat in sub.features_dict.items():
-                        labels = feat.assign_clusters_by_centroids(
-                            embedding_dict, centroids
+                        fr = feat.assign_clusters_by_centroids(
+                            embedding_dict,
+                            centroids,
+                            rescale_factors=factors_for_assign,
+                            custom_scaling=custom_scaling,
                         )
-                        group_map[feat_name] = FeaturesResult(
-                            labels, feat, f"kmeans_{n_clusters}", meta
-                        )
+                        group_map[feat_name] = fr
                     result_dict[gkey] = group_map
             else:
                 result_dict = {}
                 for feat_name, feat in self.features_dict.items():
-                    labels = feat.assign_clusters_by_centroids(
-                        embedding_dict, centroids
+                    fr = feat.assign_clusters_by_centroids(
+                        embedding_dict,
+                        centroids,
+                        rescale_factors=factors_for_assign,
+                        custom_scaling=custom_scaling,
                     )
-                    result_dict[feat_name] = FeaturesResult(
-                        labels, feat, f"kmeans_{n_clusters}", meta
-                    )
+                    result_dict[feat_name] = fr
         else:
             if is_grouped:
                 result_dict = {}
@@ -423,6 +429,185 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                     )
 
         return BatchResult(result_dict, self), centroids, normalization_factors
+
+    def cluster_diagnostics(
+        self,
+        labels_result,
+        n_clusters: int | None = None,
+        *,
+        low: float = 0.05,
+        high: float = 0.90,
+        verbose: bool = True,
+    ):
+        """
+        Compute diagnostic stats for cluster label assignments.
+
+        Parameters
+        ----------
+        labels_result:
+            Mapping from handle (or group->handle) to FeaturesResult of integer labels (with NA).
+            Accepts the return shape of `cluster_embedding(...)[0]` (BatchResult or dict).
+        n_clusters:
+            Optional number of clusters. If None, inferred from labels (max label + 1).
+        low, high:
+            Prevalence thresholds for low/high cluster labels per recording.
+        verbose:
+            If True, print a compact summary.
+
+        Returns
+        -------
+        dict with:
+            - 'global': {'cluster_prevalence': {label: frac, ...}, 'percent_nan': frac}
+            - 'per_recording': pandas.DataFrame with rows per recording and columns: ['percent_nan', 'num_missing', 'num_low', 'num_high']
+            - 'summary': min/median/max for the per_recording columns
+            - if grouped: 'per_group': {group_key: {'per_recording': df, 'summary': {...}}}
+        """
+        import pandas as pd
+
+        # Unwrap BatchResult/dicts into a canonical mapping
+        def is_grouped_mapping(obj) -> bool:
+            if isinstance(obj, dict):
+                if len(obj) == 0:
+                    return False
+                first_val = next(iter(obj.values()))
+                return isinstance(first_val, dict)
+            # BatchResult acts like mapping
+            try:
+                vals = list(obj.values())
+                if not vals:
+                    return False
+                return isinstance(vals[0], dict)
+            except Exception:
+                return False
+
+        def to_plain_dict(obj) -> dict:
+            # converts BatchResult or dict to regular dict
+            if isinstance(obj, dict):
+                return obj
+            return dict(obj)
+
+        labels_map = to_plain_dict(labels_result)
+        grouped = is_grouped_mapping(labels_map)
+
+        # Helper to flatten to per-recording series
+        def iter_series_flat(mapping):
+            if grouped:
+                for gkey, sub in mapping.items():
+                    for handle, fr in to_plain_dict(sub).items():
+                        yield (gkey, handle), pd.Series(fr)
+            else:
+                for handle, fr in mapping.items():
+                    yield handle, pd.Series(fr)
+
+        # Infer cluster set if needed
+        if n_clusters is None:
+            uniq = set()
+            for _, s in iter_series_flat(labels_map):
+                uniq |= set(s.dropna().astype(int).unique().tolist())
+            n_clusters = (max(uniq) + 1) if uniq else 0
+        cluster_labels = list(range(n_clusters))
+
+        # Global counts
+        total_frames = 0
+        total_nan = 0
+        cluster_counts = {c: 0 for c in cluster_labels}
+
+        # Per-recording stats
+        rows = []
+        if grouped:
+            per_group_rows = {}
+
+        for key, s in iter_series_flat(labels_map):
+            ser = s
+            count_total = int(ser.shape[0])
+            count_nan = int(ser.isna().sum())
+            total_frames += count_total
+            total_nan += count_nan
+            counts = ser.value_counts(dropna=True).to_dict()
+            for c in cluster_labels:
+                cluster_counts[c] += int(counts.get(c, 0))
+            # per recording prevalence using total frames (incl NaN)
+            missing = sum(1 for c in cluster_labels if counts.get(c, 0) == 0)
+            low_cnt = sum(
+                1
+                for c in cluster_labels
+                if (counts.get(c, 0) / max(1, count_total)) < low
+            )
+            high_cnt = sum(
+                1
+                for c in cluster_labels
+                if (counts.get(c, 0) / max(1, count_total)) > high
+            )
+            rec = {
+                "id": key,
+                "percent_nan": count_nan / max(1, count_total),
+                "num_missing": missing,
+                "num_low": low_cnt,
+                "num_high": high_cnt,
+            }
+            if grouped:
+                gkey, handle = key
+                rec["group"] = gkey
+                rec["handle"] = handle
+                per_group_rows.setdefault(gkey, []).append(
+                    {
+                        "handle": handle,
+                        **{
+                            k: rec[k]
+                            for k in [
+                                "percent_nan",
+                                "num_missing",
+                                "num_low",
+                                "num_high",
+                            ]
+                        },
+                    }
+                )
+            rows.append(rec)
+
+        # Build outputs
+        global_out = {
+            "cluster_prevalence": {
+                c: cluster_counts[c] / max(1, total_frames) for c in cluster_labels
+            },
+            "percent_nan": total_nan / max(1, total_frames),
+        }
+        per_df = pd.DataFrame(rows).set_index("id")
+        summary = (
+            per_df[["percent_nan", "num_missing", "num_low", "num_high"]]
+            .agg(["min", "median", "max"])
+            .to_dict()
+        )
+
+        out = {
+            "global": global_out,
+            "per_recording": per_df,
+            "summary": summary,
+        }
+        if grouped:
+            per_group = {}
+            for gkey, glist in per_group_rows.items():
+                gdf = pd.DataFrame(glist).set_index("handle")
+                gsummary = (
+                    gdf[["percent_nan", "num_missing", "num_low", "num_high"]]
+                    .agg(["min", "median", "max"])
+                    .to_dict()
+                )
+                per_group[gkey] = {"per_recording": gdf, "summary": gsummary}
+            out["per_group"] = per_group
+
+        if verbose:
+            # Compact printout
+            import pprint
+
+            pp = pprint.PrettyPrinter(indent=2, width=100)
+            print("Cluster diagnostics:")
+            print("- Global:")
+            pp.pprint(global_out)
+            print("- Summary (min/median/max across recordings):")
+            pp.pprint(summary)
+
+        return out
 
     # ---- Cross-prediction utilities migrated from MultipleFeaturesCollection ----
     @dev_mode

@@ -361,7 +361,7 @@ class FeaturesCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'embedding_df')(embedding))
         return self._invoke_batch("embedding_df", embedding)
 
-    def assign_clusters_by_centroids(self, embedding: dict[str, list[int]], centroids_df: pd.DataFrame) -> BatchResult:
+    def assign_clusters_by_centroids(self, embedding: dict[str, list[int]], centroids_df: pd.DataFrame, *, rescale_factors: dict | None=None, custom_scaling: dict[str, dict] | None=None) -> BatchResult:
         """
         Batch-mode wrapper for Features.assign_clusters_by_centroids across the collection.
 
@@ -372,8 +372,8 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'assign_clusters_by_centroids')(embedding, centroids_df))
-        return self._invoke_batch("assign_clusters_by_centroids", embedding, centroids_df)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'assign_clusters_by_centroids')(embedding, centroids_df, rescale_factors=rescale_factors, custom_scaling=custom_scaling))
+        return self._invoke_batch("assign_clusters_by_centroids", embedding, centroids_df, rescale_factors=rescale_factors, custom_scaling=custom_scaling)
 
     def train_knn_regressor(self, *, source_embedding: dict[str, list[int]], target_embedding: dict[str, list[int]], n_neighbors: int=5, normalize_source: bool=False, **kwargs) -> BatchResult:
         """

@@ -306,13 +306,22 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 raise ValueError(f"{v} is not a SummaryResult object")
 
     # ---- Cross-group analysis (formerly in MultipleSummaryCollection) ----
-    def bfa(self, column: str, all_states=None, numshuffles: int = 1000):
+    def bfa(
+        self,
+        column: str,
+        all_states=None,
+        numshuffles: int = 1000,
+        pairs: list[tuple[str, str]] | None = None,
+    ):
         """
         Behaviour Flow Analysis between groups for a grouped SummaryCollection.
 
         Requires the collection to be grouped (via groupby). Computes transition
         matrices per Summary within each group, then computes Manhattan distances
         between group means and surrogate distributions via shuffling.
+
+        If `pairs` is provided, only those group pairs are analyzed; otherwise all
+        unique pairs in `self.group_keys` are evaluated.
 
         Examples
         --------
@@ -338,8 +347,13 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         ...     f.tracking.add_tag('group', f'G{i+1}')
         >>> gfc = fc.groupby('group')
         >>> sc = SummaryCollection.from_features_collection(gfc)
+        >>> # compute all pairs
         >>> res = sc.bfa('state', all_states=['A','B'], numshuffles=2)
         >>> isinstance(res, dict) and 'observed' in next(iter(res.values()))
+        True
+        >>> # compute only specific pair(s)
+        >>> res2 = sc.bfa('state', all_states=['A','B'], numshuffles=2, pairs=[('G1','G2')])
+        >>> list(res2.keys()) == ['G1_vs_G2']
         True
 
         ```
@@ -358,9 +372,36 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             group: {k: v.value for k, v in d.items()}
             for group, d in transition_matrices_result.items()
         }
-        # calculate manhattan distance for each group pair
+
+        # helper to format group keys for human-friendly labels
+        def _fmt_group(g):
+            if isinstance(g, tuple) and len(g) == 1:
+                return g[0]
+            return g
+
+        # map from formatted label back to original key for convenience
+        label_to_key = {_fmt_group(g): g for g in self.group_keys}
+        # determine group pairs to evaluate
+        if pairs is None:
+            pair_iter = combinations(self.group_keys, 2)
+        else:
+            # validate provided pairs
+            group_set = set(self.group_keys)
+            normalized_pairs: list[tuple] = []
+            for g1, g2 in pairs:
+                # allow passing either raw keys or formatted labels
+                _g1 = g1 if g1 in group_set else label_to_key.get(g1, None)
+                _g2 = g2 if g2 in group_set else label_to_key.get(g2, None)
+                if _g1 is None or _g2 is None:
+                    raise ValueError(
+                        f"Invalid group pair ({g1}, {g2}); valid groups: {sorted(map(_fmt_group, self.group_keys))}"
+                    )
+                normalized_pairs.append((_g1, _g2))
+            pair_iter = normalized_pairs
+
+        # calculate manhattan distance for each requested group pair
         distances = {}
-        for group1, group2 in combinations(self.group_keys, 2):
+        for group1, group2 in pair_iter:
             _ = {}
             list1 = list(transition_matrices[group1].values())
             list2 = list(transition_matrices[group2].values())
@@ -372,7 +413,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 )
                 for i in range(numshuffles)
             ]
-            distances[f"{group1}_vs_{group2}"] = _
+            # use formatted labels for result key
+            distances[f"{_fmt_group(group1)}_vs_{_fmt_group(group2)}"] = _
         return distances
 
     @staticmethod
@@ -435,6 +477,386 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 "right_tail_p": right_tail_p(observed, surrogates),
             }
         return stats
+
+    @staticmethod
+    def plot_bfa_results(
+        results: dict[str, dict[str, float]],
+        compares: str | list[str] | None = None,
+        add_stats: bool = True,
+        stats: dict[str, dict[str, float]] | None = None,
+        bins: int = 50,
+        figsize: tuple[float, float] = (4, 3),
+        save_dir: str | None = None,
+        show: bool = True,
+        # legacy: allow single 'compare' name
+        compare: str | None = None,
+    ):
+        """
+        Plot one or more BFA result comparisons as separate single-panel figures.
+
+        - If `compares` is None and results contain a single comparison, that one is plotted.
+        - If `compares` is a string, only that comparison is plotted.
+        - If `compares` is a list of strings, each comparison is plotted separately.
+        - If `add_stats` is True and `stats` not provided, statistics will be computed
+          via `SummaryCollection.bfa_stats(results)` and annotated on each plot.
+
+        Returns `(fig, ax)` for a single comparison, or a dict `{compare: (fig, ax)}`
+        for multiple.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil, os
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> # add simple 2-state labels and tags to build two groups
+        >>> for i, (h, f) in enumerate(fc.items()):
+        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
+        ...     states.index = f.tracking.data.index
+        ...     f.store(states, 'state', meta={})
+        ...     f.tracking.add_tag('group', f'G{i+1}')
+        >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
+        >>> bfa_out = sc.bfa('state', all_states=['A','B'], numshuffles=5)
+        >>> # plot a single comparison and save it
+        >>> with tempfile.TemporaryDirectory() as outdir:
+        ...     fig, ax = SummaryCollection.plot_bfa_results(bfa_out, compare='G1_vs_G2', show=False, save_dir=outdir)
+        ...     os.path.exists(os.path.join(outdir, 'G1_vs_G2.png'))
+        True
+
+        ```
+        """
+        import matplotlib.pyplot as plt
+        import os
+
+        def _sanitize(name: str) -> str:
+            return "".join(
+                ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name)
+            )
+
+        # selection
+        if compares is None and compare is not None:
+            compares = compare
+        if compares is None:
+            keys = list(results.keys())
+        elif isinstance(compares, str):
+            keys = [compares]
+        elif isinstance(compares, list):
+            keys = compares
+        else:
+            raise TypeError("compares must be None, str, or list[str]")
+
+        if len(keys) == 0:
+            raise ValueError("No comparisons to plot.")
+
+        # compute stats once if requested and not provided
+        if add_stats and stats is None:
+            stats = SummaryCollection.bfa_stats(results)
+
+        out: dict[str, tuple] = {}
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+        for k in keys:
+            if k not in results:
+                continue
+            fig, ax = plt.subplots(figsize=figsize)
+            ax.hist(results[k]["surrogates"], color="gray", bins=bins)
+            ax.axvline(results[k]["observed"], color="red")
+            ax.set_xlabel("distance")
+            ax.set_ylabel("count")
+            ax.set_title(k, fontdict={"size": 10})
+            if add_stats and stats is not None and k in stats:
+                p_empirical = 1 - stats[k]["percentile"]
+                if p_empirical < 0.0001:
+                    sig = "****"
+                elif p_empirical < 0.001:
+                    sig = "***"
+                elif p_empirical < 0.01:
+                    sig = "**"
+                elif p_empirical < 0.05:
+                    sig = "*"
+                else:
+                    sig = "n.s."
+                text = f"p={p_empirical:.3f}\n{sig}"
+                ax.text(
+                    0.95,
+                    0.95,
+                    text,
+                    ha="right",
+                    va="top",
+                    transform=ax.transAxes,
+                    fontsize=9,
+                    color="black",
+                    bbox=dict(
+                        boxstyle="round,pad=0.3",
+                        facecolor="white",
+                        alpha=0.8,
+                        edgecolor="none",
+                    ),
+                    zorder=10,
+                )
+            plt.tight_layout()
+            if save_dir:
+                fig.savefig(
+                    os.path.join(save_dir, f"{_sanitize(k)}.png"),
+                    dpi=300,
+                    bbox_inches="tight",
+                    pad_inches=0.02,
+                )
+            if show:
+                plt.show()
+            out[k] = (fig, ax)
+        # return a single tuple when only one compare was requested to keep ergonomics
+        if len(out) == 1:
+            return next(iter(out.values()))
+        return out
+
+    def plot_transition_umap(
+        self,
+        column: str,
+        all_states=None,
+        groups: list[str] | list[list[str]] | None = None,
+        n_neighbors: int = 15,
+        min_dist: float = 0.1,
+        random_state: int = 0,
+        figsize: tuple[float, float] = (4.5, 4),
+        show: bool = True,
+        save_dir: str | None = None,
+    ):
+        """
+        Plot a simple UMAP embedding of per-subject transition matrices for selected groups.
+
+        Parameters
+        ----------
+        column:
+            Name of the categorical column used to compute transition matrices.
+        all_states:
+            Optional explicit state ordering for transition matrices.
+        groups:
+            - Optional list of group keys (strings) to include; defaults to all.
+            - Or a list of lists for sequential groups, e.g.
+              `[['control_pre','control_45min','control_90min'], ['treatment_pre','treatment_45min','treatment_90min']]`
+              In this case, each sequence is plotted with a monochrome gradient of a distinct base color.
+        n_neighbors, min_dist, random_state:
+            UMAP hyperparameters.
+        figsize, show:
+            Matplotlib options.
+
+        Returns
+        -------
+        (fig, ax): Matplotlib figure and axis.
+
+        Examples
+        --------
+        ```pycon
+        >>> # xdoctest: +REQUIRES(module: umap)
+        >>> import tempfile, shutil, os, pandas as pd
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> for i, (h, f) in enumerate(fc.items()):
+        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
+        ...     states.index = f.tracking.data.index
+        ...     f.store(states, 'state', meta={})
+        ...     f.tracking.add_tag('group', f'G{i+1}')
+        >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
+        >>> with tempfile.TemporaryDirectory() as outdir:
+        ...     fig, ax = sc.plot_transition_umap(column='state', all_states=['A','B'], groups=['G1','G2'], show=False, save_dir=outdir)
+        ...     os.path.exists(os.path.join(outdir, 'transition_umap.png'))
+        True
+
+        ```
+        """
+        import os
+        import numpy as np
+        import matplotlib.pyplot as plt
+        from sklearn.preprocessing import StandardScaler
+
+        try:
+            import umap  # type: ignore
+        except Exception as e:
+            raise ImportError(
+                "UMAP is required for this plot. Please install 'umap-learn'."
+            ) from e
+
+        if not getattr(self, "is_grouped", False):
+            raise ValueError(
+                "UMAP plot requires a grouped SummaryCollection (call groupby first)."
+            )
+
+        # Compute transition matrices per subject per group
+        matrices_result = self.transition_matrix(column, all_states)
+        matrices = {
+            group: {k: v.value for k, v in d.items()}
+            for group, d in matrices_result.items()
+        }
+
+        # Helpers to format group labels for nicer display/selection
+        def _fmt_group(g):
+            if isinstance(g, tuple) and len(g) == 1:
+                return g[0]
+            return g
+
+        label_to_key = {_fmt_group(g): g for g in self.group_keys}
+
+        # Determine which groups to include (supports sequential groups via nested lists)
+        sequence_mode = False
+        sequences: list[list[str]] = []
+        if groups is None:
+            selected = list(matrices.keys())
+        else:
+            if any(isinstance(g, (list, tuple)) for g in groups):
+                # sequence mode
+                sequence_mode = True
+                sequences = [list(seq) for seq in groups]  # type: ignore[arg-type]
+                selected = []
+                for seq in sequences:
+                    for lbl in seq:
+                        key = label_to_key.get(lbl, None)
+                        if key is None:
+                            key = lbl
+                        if key in matrices and key not in selected:
+                            selected.append(key)
+            else:
+                # flat list of labels
+                selected = []
+                for lbl in groups:  # type: ignore[assignment]
+                    key = label_to_key.get(lbl, None)
+                    if key is None:
+                        key = lbl
+                    if key in matrices:
+                        selected.append(key)
+
+        # Flatten matrices and collect labels
+        X, y = [], []
+        for g in selected:
+            for _, mat in matrices[g].items():
+                X.append(mat.to_numpy().flatten())
+                y.append(_fmt_group(g))
+        if len(X) == 0:
+            raise ValueError("No data found for the requested groups.")
+        X = np.vstack(X)
+
+        # Scale and embed
+        X_scaled = StandardScaler().fit_transform(X)
+        # guard for very small sample sizes to avoid eigsh issues in UMAP spectral init
+        n_samples = X_scaled.shape[0]
+        effective_neighbors = min(n_neighbors, max(2, n_samples - 1))
+        reducer = umap.UMAP(
+            n_neighbors=effective_neighbors,
+            min_dist=min_dist,
+            random_state=random_state,
+        )
+        try:
+            embedding = reducer.fit_transform(X_scaled)
+        except TypeError:
+            # fallback to random init if spectral layout fails for very small graphs
+            reducer = umap.UMAP(
+                n_neighbors=effective_neighbors,
+                min_dist=min_dist,
+                random_state=random_state,
+                init="random",
+            )
+            embedding = reducer.fit_transform(X_scaled)
+
+        # Plot
+        fig, ax = plt.subplots(figsize=figsize, facecolor="white")
+        ax.set_facecolor("white")
+        # Colors: either simple cycle (flat list) or per-sequence monochrome gradient
+        unique_groups = list(dict.fromkeys(y))  # preserve order
+        color_map = {}
+        if not sequence_mode:
+            base_colors = plt.cm.tab10.colors
+            color_map = {
+                g: base_colors[i % len(base_colors)]
+                for i, g in enumerate(unique_groups)
+            }
+        else:
+            base_colors = list(plt.cm.tab10.colors)
+            # build a mapping from label -> color shade based on its position in its sequence
+            label_to_color = {}
+            for si, seq in enumerate(sequences):
+                base = np.array(base_colors[si % len(base_colors)])
+                L = max(1, len(seq))
+                for pi, lbl in enumerate(seq):
+                    # t from 0.0 to 0.8 across the sequence to produce a lightening gradient
+                    t = 0.8 * (pi / max(L - 1, 1))
+                    shade = (1 - t) * base + t * np.array([1.0, 1.0, 1.0])
+                    label_to_color[lbl] = tuple(shade)
+            # resolve colors for observed group labels (already formatted)
+            for g in unique_groups:
+                color_map[g] = label_to_color.get(g, base_colors[0])
+        for g in unique_groups:
+            mask = [gi == g for gi in y]
+            ax.scatter(
+                embedding[mask, 0],
+                embedding[mask, 1],
+                label=g,
+                alpha=0.9,
+                color=color_map[g],
+            )
+        # Group means and SEMs
+        import pandas as pd  # local alias for clarity
+
+        embedding_df = pd.DataFrame(embedding, columns=["UMAP1", "UMAP2"])
+        embedding_df["group"] = y
+
+        def _sem(arr):
+            return np.std(arr, ddof=1) / np.sqrt(len(arr)) if len(arr) > 1 else 0.0
+
+        group_stats = (
+            embedding_df.groupby("group")
+            .agg(
+                mean_x=("UMAP1", "mean"),
+                mean_y=("UMAP2", "mean"),
+                sem_x=("UMAP1", _sem),
+                sem_y=("UMAP2", _sem),
+            )
+            .reset_index()
+        )
+        for _, row in group_stats.iterrows():
+            color = color_map.get(row["group"], "gray")
+            ax.errorbar(
+                row["mean_x"],
+                row["mean_y"],
+                xerr=row["sem_x"],
+                yerr=row["sem_y"],
+                fmt="x",
+                color=color,
+                linewidth=2,
+                capsize=5,
+            )
+        ax.set_xlabel("UMAP1")
+        ax.set_ylabel("UMAP2")
+        ax.legend(title="Group", loc="best")
+        plt.tight_layout()
+        if show:
+            plt.show()
+        if save_dir:
+            fig.savefig(
+                os.path.join(save_dir, "transition_umap.png"),
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0.02,
+            )
+        return fig, ax
 
     @staticmethod
     def _manhattan_distance(

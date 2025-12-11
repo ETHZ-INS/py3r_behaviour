@@ -20,7 +20,11 @@ from py3r.behaviour.util.bmicro_utils import (
 )
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
-from py3r.behaviour.util.series_utils import normalize_df, apply_normalization_to_df
+from py3r.behaviour.util.series_utils import (
+    normalize_df,
+    apply_normalization_to_df,
+    apply_custom_scaling,
+)
 from py3r.behaviour.features.features_result import FeaturesResult
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
@@ -1078,8 +1082,13 @@ class Features:
         return embed_df
 
     def assign_clusters_by_centroids(
-        self, embedding: dict[str, list[int]], centroids_df: pd.DataFrame
-    ) -> pd.Series:
+        self,
+        embedding: dict[str, list[int]],
+        centroids_df: pd.DataFrame,
+        *,
+        rescale_factors: dict | None = None,
+        custom_scaling: dict[str, dict] | None = None,
+    ) -> "FeaturesResult":
         """
         new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
         centroids_df: (n_clusters, n_features) DataFrame of cluster centers
@@ -1110,6 +1119,15 @@ class Features:
         from sklearn.metrics.pairwise import pairwise_distances_argmin
 
         embed_df = self.embedding_df(embedding)
+        # Apply the same scaling/normalization used during centroid fitting, if provided
+        if rescale_factors is not None and custom_scaling is not None:
+            raise ValueError(
+                "rescale_factors and custom_scaling are mutually exclusive"
+            )
+        if rescale_factors is not None:
+            embed_df = apply_normalization_to_df(embed_df, rescale_factors)
+        elif custom_scaling is not None:
+            embed_df = apply_custom_scaling(embed_df, custom_scaling)
         # check that columns are the same
         if not embed_df.columns.equals(centroids_df.columns):
             raise ValueError("Columns in embedding and centroids do not match")
@@ -1126,7 +1144,8 @@ class Features:
         meta = {
             "function": "assign_clusters_by_centroids",
             "embedding": embedding,
-            "centroids_df": centroids_df,
+            "rescale_factors": rescale_factors,
+            "custom_scaling": custom_scaling,
         }
         return FeaturesResult(labels, self, name, meta)
 
