@@ -899,3 +899,234 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         new_group1 = combined[:n1]
         new_group2 = combined[n1:]
         return new_group1, new_group2
+
+    # ---- Chord diagram (state transitions) ----
+    def plot_chord(
+        self,
+        column: str,
+        all_states: list[str | int],
+        *,
+        plot_individual: bool = False,
+        show: bool = True,
+        save_dir: str | None = None,
+        cmap: str | list | None = None,
+        **kwargs,
+    ):
+        """
+        Plot chord diagrams of state transitions using a minimal pattern.
+
+        - If not grouped:
+          - plot_individual=False: sum over the collection and plot a single chord.
+          - plot_individual=True: plot one chord per recording.
+        - If grouped:
+          - plot_individual=False: sum within each group and plot one chord per group.
+          - plot_individual=True: plot one chord per recording per group.
+
+        Parameters
+        ----------
+        column:
+            Name of the categorical column used to compute transitions.
+        all_states:
+            Explicit state ordering for transition matrices (required).
+        plot_individual:
+            If True, plot per recording; otherwise plot summed aggregate.
+        show:
+            If True, display figures.
+        save_dir:
+            Optional directory to save figures; created if missing.
+        kwargs:
+            Additional keyword arguments to pass to pycirclize.Circos.chord_diagram.
+
+        Returns
+        -------
+        object:
+            - flat & plot_individual=False: single fig
+            - flat & plot_individual=True: dict {handle: fig}
+            - grouped & plot_individual=False: dict {group: fig}
+            - grouped & plot_individual=True: dict {group: {handle: fig}}
+        """
+        import os
+        import matplotlib.pyplot as plt
+
+        try:
+            from pycirclize import Circos
+        except ImportError:
+            raise ImportError(
+                "pycirclize is required for chord diagram plotting. Please install: 'pip install pycirclize'."
+            )
+
+        if all_states is None:
+            raise ValueError("all_states must be provided to ensure aligned matrices.")
+
+        def _sanitize(name: str) -> str:
+            return "".join(
+                ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name)
+            )
+
+        # Build stable global label -> color mapping from chosen palette
+        def _base_colors_for_n(n_states: int):
+            import matplotlib.pyplot as _plt
+
+            if n_states <= 10:
+                return list(_plt.cm.tab10.colors)
+            elif n_states <= 20:
+                return list(_plt.cm.tab20.colors)
+            else:
+                base = list(_plt.cm.tab20.colors)
+                return base
+
+        if cmap is None:
+            base_colors = _base_colors_for_n(len(all_states))
+        elif isinstance(cmap, (list, tuple)):
+            base_colors = list(cmap)
+            if len(base_colors) == 0:
+                base_colors = _base_colors_for_n(len(all_states))
+        elif isinstance(cmap, str):
+            import matplotlib.pyplot as _plt
+
+            cm = _plt.cm.get_cmap(cmap)
+            if hasattr(cm, "colors") and getattr(cm, "colors", None):
+                base_colors = list(cm.colors)
+            else:
+                k = max(len(all_states), 10)
+                base_colors = [cm(i / max(k - 1, 1)) for i in range(k)]
+        else:
+            base_colors = _base_colors_for_n(len(all_states))
+
+        label_to_color = {
+            str(lbl): base_colors[i % len(base_colors)]
+            for i, lbl in enumerate(all_states)
+        }
+
+        def _render(df: pd.DataFrame, title: str | None, path: str | None):
+            # guard: empty matrix (zero total) -> placeholder
+            if float(df.to_numpy().sum()) <= 0.0:
+                fig, ax = plt.subplots(figsize=(4, 3))
+                ax.axis("off")
+                msg = "No transitions to plot"
+                if title:
+                    ax.text(0.5, 0.62, title, ha="center", va="center", fontsize=12)
+                    ax.text(0.5, 0.38, msg, ha="center", va="center", fontsize=10)
+                else:
+                    ax.text(0.5, 0.5, msg, ha="center", va="center", fontsize=12)
+                if path:
+                    fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.02)
+                if show:
+                    plt.show()
+                plt.close(fig)
+                return fig
+            # prune zero-only states and enforce global label order
+            row_sums = df.sum(axis=1)
+            col_sums = df.sum(axis=0)
+            keep = (row_sums + col_sums) > 0
+            present = [
+                lbl for lbl in all_states if lbl in df.index and keep.get(lbl, False)
+            ]
+            if len(present) == 0:
+                fig, ax = plt.subplots(figsize=(4, 3))
+                ax.axis("off")
+                msg = "No transitions to plot"
+                if title:
+                    ax.text(0.5, 0.62, title, ha="center", va="center", fontsize=12)
+                    ax.text(0.5, 0.38, msg, ha="center", va="center", fontsize=10)
+                else:
+                    ax.text(0.5, 0.5, msg, ha="center", va="center", fontsize=12)
+                if path:
+                    fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.02)
+                if show:
+                    plt.show()
+                plt.close(fig)
+                return fig
+            df_pruned = df.reindex(index=present, columns=present, fill_value=0)
+
+            # ensure labels are strings for mapping consistency
+            df_pruned.index = df_pruned.index.astype(str)
+            df_pruned.columns = df_pruned.columns.astype(str)
+
+            cmap_present = {lbl: label_to_color[lbl] for lbl in df_pruned.index}
+            kw = dict(kwargs)
+            kw.pop("cmap", None)
+            circos = Circos.chord_diagram(df_pruned, cmap=cmap_present, **kw)
+            fig = circos.plotfig()
+            if title:
+                try:
+                    plt.title(title)
+                except Exception:
+                    pass
+            if path:
+                fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.02)
+            if show:
+                plt.show()
+            # proactively close to avoid accumulating many open figures
+            plt.close(fig)
+            return fig
+
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+
+        is_grouped = getattr(self, "is_grouped", False)
+
+        # Flat collection
+        if not is_grouped:
+            # Compute per-recording matrices (aligned via all_states)
+            per = {
+                h: s.transition_matrix(column, all_states=all_states).value
+                for h, s in self.items()
+            }
+            if plot_individual:
+                out = {}
+                for h, df in per.items():
+                    path = (
+                        os.path.join(
+                            save_dir, f"{_sanitize(h)}_chord_{_sanitize(column)}.png"
+                        )
+                        if save_dir
+                        else None
+                    )
+                    out[h] = _render(df, f"{h}: {column}", path)
+                return out
+            # aggregate sum (labels already aligned by all_states)
+            if len(per) == 0:
+                raise ValueError("No recordings found.")
+            agg = sum(per.values())
+            path = (
+                os.path.join(save_dir, f"chord_{_sanitize(column)}.png")
+                if save_dir
+                else None
+            )
+            return _render(agg, f"Sum transitions: {column}", path)
+
+        # Grouped collection
+        out: dict = {}
+        for g, sub_sc in self.items():
+            # sub_sc is a SummaryCollection for the group
+            per = {
+                h: s.transition_matrix(column, all_states=all_states).value
+                for h, s in sub_sc.items()
+            }
+            if plot_individual:
+                inner = {}
+                for h, df in per.items():
+                    path = (
+                        os.path.join(
+                            save_dir,
+                            f"{_sanitize(g)}_{_sanitize(h)}_chord_{_sanitize(column)}.png",
+                        )
+                        if save_dir
+                        else None
+                    )
+                    inner[h] = _render(df, f"{g} · {h}: {column}", path)
+                out[g] = inner
+            else:
+                if len(per) == 0:
+                    continue
+                agg = sum(per.values())
+                path = (
+                    os.path.join(
+                        save_dir, f"{_sanitize(g)}_chord_{_sanitize(column)}.png"
+                    )
+                    if save_dir
+                    else None
+                )
+                out[g] = _render(agg, f"{g}: sum transitions · {column}", path)
+        return out

@@ -319,7 +319,6 @@ class Summary:
 
         raise TypeError("func must be callable.")
 
-
     def sum_column(self, column: str) -> SummaryResult:
         """
         Sum all non-NaN values in a `features.data` column and return as a SummaryResult.
@@ -668,3 +667,175 @@ class Summary:
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.data)} summary statistics>"
+
+    # ---- Chord diagram (state transitions) ----
+    def plot_chord(
+        self,
+        column: str,
+        all_states: list[str | int],
+        *,
+        cmap: str | list | None = None,
+        show: bool = True,
+        save_dir: str | None = None,
+        **kwargs,
+    ):
+        """
+        Plot a simple chord diagram of state transitions for this recording.
+
+        Parameters
+        ----------
+        column:
+            Name of the categorical column in `features.data` to compute transitions from.
+        all_states:
+            explicit list/array of states to define row/column presence and order.
+        kwargs:
+            Additional keyword arguments to pass to pycirclize.chordDiagram.
+
+        Returns
+        -------
+        fig_like:
+            Backend-dependent figure-like handle (from pycirclize).
+        """
+        try:
+            from pycirclize import Circos
+        except ImportError:
+            raise ImportError(
+                "pycirclize is required for chord diagram plotting. Please install: 'pip install pycirclize'."
+            )
+        import matplotlib.pyplot as plt
+
+        tm_res = self.transition_matrix(column, all_states=all_states)
+        df: pd.DataFrame = tm_res.value
+        # If empty/zero, render placeholder
+        if float(df.to_numpy().sum()) <= 0.0:
+            fig, ax = plt.subplots(figsize=(4, 3))
+            ax.axis("off")
+            ax.text(
+                0.5,
+                0.5,
+                "No transitions to plot",
+                ha="center",
+                va="center",
+                fontsize=12,
+            )
+            if save_dir:
+                os.makedirs(save_dir, exist_ok=True)
+                fig.savefig(
+                    os.path.join(save_dir, f"{self.handle}_chord_{column}.png"),
+                    dpi=300,
+                    bbox_inches="tight",
+                    pad_inches=0.02,
+                )
+            if show:
+                plt.show()
+            plt.close(fig)
+            return fig
+
+        # Build stable global label -> color mapping from chosen palette
+        def _base_colors_for_n(n_states: int):
+            import matplotlib.pyplot as _plt
+
+            if n_states <= 10:
+                return list(_plt.cm.tab10.colors)
+            elif n_states <= 20:
+                return list(_plt.cm.tab20.colors)
+            else:
+                base = list(_plt.cm.tab20.colors)
+                return base
+
+        if cmap is None:
+            base_colors = _base_colors_for_n(len(all_states))
+        elif isinstance(cmap, (list, tuple)):
+            base_colors = list(cmap) or _base_colors_for_n(len(all_states))
+        elif isinstance(cmap, str):
+            import matplotlib.pyplot as _plt
+
+            cm = _plt.cm.get_cmap(cmap)
+            if hasattr(cm, "colors") and getattr(cm, "colors", None):
+                base_colors = list(cm.colors)
+            else:
+                k = max(len(all_states), 10)
+                base_colors = [cm(i / max(k - 1, 1)) for i in range(k)]
+        else:
+            base_colors = _base_colors_for_n(len(all_states))
+        label_to_color = {
+            str(lbl): base_colors[i % len(base_colors)]
+            for i, lbl in enumerate(all_states)
+        }
+
+        # Drop zero-only states and enforce global order
+        row_sums = df.sum(axis=1)
+        col_sums = df.sum(axis=0)
+        keep = (row_sums + col_sums) > 0
+        present = [
+            lbl for lbl in all_states if lbl in df.index and keep.get(lbl, False)
+        ]
+        if len(present) == 0:
+            fig, ax = plt.subplots(figsize=(4, 3))
+            ax.axis("off")
+            ax.text(
+                0.5,
+                0.5,
+                "No transitions to plot",
+                ha="center",
+                va="center",
+                fontsize=12,
+            )
+            if save_dir:
+                os.makedirs(save_dir, exist_ok=True)
+                fig.savefig(
+                    os.path.join(save_dir, f"{self.handle}_chord_{column}.png"),
+                    dpi=300,
+                    bbox_inches="tight",
+                    pad_inches=0.02,
+                )
+            if show:
+                plt.show()
+            plt.close(fig)
+            return fig
+        df_pruned = df.reindex(index=present, columns=present, fill_value=0)
+        if df_pruned.empty or float(df_pruned.to_numpy().sum()) <= 0.0:
+            fig, ax = plt.subplots(figsize=(4, 3))
+            ax.axis("off")
+            ax.text(
+                0.5,
+                0.5,
+                "No transitions to plot",
+                ha="center",
+                va="center",
+                fontsize=12,
+            )
+            if save_dir:
+                os.makedirs(save_dir, exist_ok=True)
+                fig.savefig(
+                    os.path.join(save_dir, f"{self.handle}_chord_{column}.png"),
+                    dpi=300,
+                    bbox_inches="tight",
+                    pad_inches=0.02,
+                )
+            if show:
+                plt.show()
+            plt.close(fig)
+            return fig
+
+        # ensure labels as strings for mapping compatibility
+        df_pruned.index = df_pruned.index.astype(str)
+        df_pruned.columns = df_pruned.columns.astype(str)
+        cmap_present = {lbl: label_to_color[lbl] for lbl in df_pruned.index}
+        kw = dict(kwargs)
+        kw.pop("cmap", None)
+        kw.pop("show", None)
+        circos = Circos.chord_diagram(df_pruned, cmap=cmap_present, **kw)
+        fig = circos.plotfig()
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+            fig.savefig(
+                os.path.join(save_dir, f"{self.handle}_chord_{column}.png"),
+                dpi=300,
+                bbox_inches="tight",
+                pad_inches=0.02,
+            )
+        if show:
+            plt.show()
+        plt.close(fig)
+        return fig
