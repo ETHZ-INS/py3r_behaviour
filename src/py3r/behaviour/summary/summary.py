@@ -695,6 +695,31 @@ class Summary:
         -------
         fig_like:
             Backend-dependent figure-like handle (from pycirclize).
+
+        Examples
+        --------
+        ```pycon
+        >>> # xdoctest: +REQUIRES(module: pycirclize)
+        >>> import tempfile, os
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='A', fps=30)
+        >>> f = Features(t)
+        >>> # simple 3-state sequence to induce transitions
+        >>> states = pd.Series(['0','1','2','1','0'] * (len(t.data)//5 + 1))[:len(t.data)]
+        >>> states.index = t.data.index
+        >>> f.store(states, 'state', meta={})
+        >>> s = Summary(f)
+        >>> with tempfile.TemporaryDirectory() as outdir:
+        ...     _ = s.plot_chord('state', all_states=['0','1','2'], show=False, save_dir=outdir)
+        ...     os.path.exists(os.path.join(outdir, 'A_chord_state.png'))
+        True
+
+        ```
         """
         try:
             from pycirclize import Circos

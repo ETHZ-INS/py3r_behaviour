@@ -944,6 +944,38 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             - flat & plot_individual=True: dict {handle: fig}
             - grouped & plot_individual=False: dict {group: fig}
             - grouped & plot_individual=True: dict {group: {handle: fig}}
+
+        Examples
+        --------
+        ```pycon
+        >>> # xdoctest: +REQUIRES(module: pycirclize)
+        >>> import tempfile, os, shutil
+        >>> import pandas as pd
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     # create two recordings from the sample csv
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        ...     # build features and inject a simple 3-state sequence
+        ...     fc = FeaturesCollection.from_tracking_collection(tc)
+        ...     for _, f in fc.items():
+        ...         seq = pd.Series(['0','1','2','1','0'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
+        ...         seq.index = f.tracking.data.index
+        ...         f.store(seq, 'state', meta={})
+        ...     sc = SummaryCollection.from_features_collection(fc)
+        ...     # plot flat aggregate and save it
+        ...     with tempfile.TemporaryDirectory() as outdir:
+        ...         _ = sc.plot_chord('state', all_states=['0','1','2'], show=False, save_dir=outdir)
+        ...         os.path.exists(os.path.join(outdir, 'chord_state.png'))
+        True
+
+        ```
         """
         import os
         import matplotlib.pyplot as plt
