@@ -211,3 +211,16 @@ class SummaryCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'time_in_state')(column))
         return self._invoke_batch("time_in_state", column)
 
+    def plot_chord(self, column: str, all_states: list[str | int], *, cmap: str | list | None=None, show: bool=True, save_dir: str | None=None, **kwargs) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.plot_chord across the collection.
+
+        Plot a simple chord diagram of state transitions for this recording.
+
+        See [`Summary.plot_chord`][py3r.behaviour.summary.summary.Summary.plot_chord] for examples.
+        """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'plot_chord')(column, all_states, cmap=cmap, show=show, save_dir=save_dir, **kwargs))
+        return self._invoke_batch("plot_chord", column, all_states, cmap=cmap, show=show, save_dir=save_dir, **kwargs)
+
