@@ -249,7 +249,15 @@ class Features:
 
         ```
         """
-        return tuple(self.tracking.data[point + "." + dim].median() for dim in dims)
+        meds: list[float] = []
+        for dim in dims:
+            vals = self.tracking.data[point + "." + dim].to_numpy()
+            finite = vals[np.isfinite(vals)]
+            if finite.size == 0:
+                meds.append(np.nan)
+            else:
+                meds.append(float(np.median(finite)))
+        return tuple(meds)
 
     def define_boundary(
         self,

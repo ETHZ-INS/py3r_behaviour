@@ -38,7 +38,12 @@ def write_manifest(dirpath: str, manifest: dict) -> None:
         if isinstance(obj, (np.integer,)):
             return int(obj)
         if isinstance(obj, (np.floating,)):
-            return float(obj)
+            val = float(obj)
+            # Replace non-finite floats (NaN/Inf) with None to satisfy JSON allow_nan=False
+            return val if np.isfinite(val) else None
+        # native Python floats
+        if isinstance(obj, float):
+            return obj if np.isfinite(obj) else None
         try:
             # pandas NA sentinel
             import pandas as pd  # local import in case pandas not needed elsewhere

@@ -1141,7 +1141,12 @@ class Tracking:
             for c in cols:
                 if c not in self.data.columns:
                     raise ValueError(f"Column {c} not in data for point {point}")
-            med = [np.nanmedian(self.data[f"{point}.{d}"]) for d in dims]
+            # safe median without warnings on all-NaN slices
+            med = []
+            for d in dims:
+                arr = self.data[f"{point}.{d}"].to_numpy()
+                finite = arr[np.isfinite(arr)]
+                med.append(float(np.median(finite)) if finite.size > 0 else np.nan)
             if is3d:
                 ax.scatter(*med, marker="o", s=60)
             else:
