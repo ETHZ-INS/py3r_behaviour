@@ -101,7 +101,10 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
             if start > 0:
                 replacement_value = s1.iloc[start - 1]
             else:
-                replacement_value = s1.iloc[end + 1]
+                try:
+                    replacement_value = s1.iloc[end]
+                except IndexError:
+                    raise IndexError(f"Index {end} out of range for pandas series s1")
             s1[start:end] = replacement_value
 
     # Step 3: Assign back to DataFrame
