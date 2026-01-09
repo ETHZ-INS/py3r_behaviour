@@ -710,7 +710,25 @@ class Tracking:
                     "distance already rescaled. re-load the raw data to change scaling"
                 )
 
-        tracking_distance = self.distance_between(point1, point2, dims=dims).median()
+        tracking_distance = np.sqrt(
+            sum(
+                [
+                    (
+                        self.data[point1 + "." + dim].median()
+                        - self.data[point2 + "." + dim].median()
+                    )
+                    ** 2
+                    for dim in dims
+                ]
+            )
+        )
+        if tracking_distance == 0:
+            raise Exception(f"observed distance between '{point1}' and '{point2}' is 0")
+        if np.isnan(tracking_distance):
+            raise Exception(
+                f"observed distance between '{point1}' and '{point2}' is NaN"
+            )
+
         rescale_factor = distance_in_metres / tracking_distance
 
         tracked_points = self.get_point_names()
