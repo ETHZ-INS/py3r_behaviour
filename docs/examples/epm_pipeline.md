@@ -1,7 +1,7 @@
 End‑to‑end example computing various measures for different maze arms using folder‑based loaders, batch preprocessing, feature generation, and summary export. Paths are illustrative; adapt to your environment.
 
 ```python
-# 1) Load a dataset of single‑view DLC CSVs into a TrackingCollection
+# Load a dataset of single‑view DLC CSVs into a TrackingCollection
 import py3r.behaviour as p3b
 
 DATA_DIR = "/data/recordings"            # e.g. contains EPM_id1.csv, EPM_id2.csv, ...
@@ -10,7 +10,7 @@ OUT_DIR  = "/outputs"                    # where to save summary outputs
 
 tc = p3b.TrackingCollection.from_dlc_folder(folder_path=DATA_DIR, fps=30)
 
-# 2) (Optional) Add tags from a CSV for grouping/analysis
+# (Optional) Add tags from a CSV for grouping/analysis
 # CSV must contain a 'handle' column matching filenames (without extension)
 # other column names are the tag names, and those column values are the tag values
 # e.g. handle, sex, treatment
@@ -22,13 +22,14 @@ try:
 except FileNotFoundError:
     pass
 
-# 3) Batch preprocessing of tracking files
 # Remove low-confidence detections (method/thresholds depend on your DLC export)
-tc.filter_likelihood(threshold=0.95)
+tc.filter_likelihood(threshold=0.5)
 
-# Smooth all points with mean centre window 3, with exception for environment points
-environment_points = ["tl", "tr","ctr","rt","rb","cbr", "br", "bl","cbl","lb","lt","ctl"]
-tc.smooth_all(window=3, method="mean", overrides=[(environment_points, "median", 30)])
+# Interpolate missing points before smoothing
+tc.interpolate(limit=5)
+
+# Smooth all points with mean centre window 3
+tc.smooth_all(window=3, method="mean")
 
 # Rescale distance to metres according to two corners of the EPM, here named 'tl' and 'br'
 tc.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.655)
