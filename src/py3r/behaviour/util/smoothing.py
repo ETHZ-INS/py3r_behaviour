@@ -45,7 +45,7 @@ def apply_smoothing(
                 )
             else:
                 if m == "median":
-                    out[col] = out[col].rolling(window=w).median()
+                    out[col] = out[col].rolling(window=w, center=True).median()
                 else:
-                    out[col] = out[col].rolling(window=w).mean()
+                    out[col] = out[col].rolling(window=w, center=True).mean()
     return out
