@@ -524,7 +524,7 @@ class Tracking:
         tags = manifest.get("tags", {})
         return cls(df, meta, handle, tags)
 
-    def strip_column_names(self) -> None:
+    def strip_column_names(self, *, inplace: bool = True) -> "Tracking | None":
         """strips out all column name string apart from last two sections delimited by dots
 
         Examples
@@ -541,6 +541,15 @@ class Tracking:
 
         ```
         """
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.strip_column_names(inplace=True)
+            return new
         stripped_colnames = [".".join(col.split(".")[-2:]) for col in self.data.columns]
         self.data.columns = stripped_colnames
 
@@ -568,7 +577,13 @@ class Tracking:
 
         return (mintime <= totaltime) & (maxtime >= totaltime)
 
-    def trim(self, startframe: int | None = None, endframe: int | None = None) -> None:
+    def trim(
+        self,
+        startframe: int | None = None,
+        endframe: int | None = None,
+        *,
+        inplace: bool = True,
+    ) -> "Tracking | None":
         """
         trims the tracking data object between startframe and endframe
 
@@ -593,12 +608,22 @@ class Tracking:
             if (self.data.index[0] > endframe) or (self.data.index[-1] < endframe):
                 raise Exception("endframe not in data")
 
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.trim(startframe, endframe, inplace=True)
+            return new
         datatrim = self.data.loc[startframe:endframe, :].copy()
         self.data = datatrim
-
         self.meta["trim"] = {"startframe": startframe, "endframe": endframe}
 
-    def filter_likelihood(self, threshold: float) -> None:
+    def filter_likelihood(
+        self, threshold: float, *, inplace: bool = True
+    ) -> "Tracking | None":
         """sets all tracking position values with likelihood less than threshold to np.nan
 
         Examples
@@ -623,6 +648,15 @@ class Tracking:
                 "these data have been smoothed. you should filter likelihood before smoothing"
             )
 
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.filter_likelihood(threshold, inplace=True)
+            return new
         for point in self.get_point_names():
             self.data.loc[
                 (self.data[point + ".likelihood"] <= threshold), point + ".x"
@@ -683,8 +717,14 @@ class Tracking:
         return tracked_points
 
     def rescale_by_known_distance(
-        self, point1: str, point2: str, distance_in_metres: float, dims=("x", "y")
-    ) -> None:
+        self,
+        point1: str,
+        point2: str,
+        distance_in_metres: float,
+        dims=("x", "y"),
+        *,
+        inplace: bool = True,
+    ) -> "Tracking | None":
         """rescale all dims by known distance between two points
 
         Examples
@@ -710,6 +750,17 @@ class Tracking:
                     "distance already rescaled. re-load the raw data to change scaling"
                 )
 
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.rescale_by_known_distance(
+                point1, point2, distance_in_metres, dims=dims, inplace=True
+            )
+            return new
         tracking_distance = np.sqrt(
             sum(
                 [
@@ -990,7 +1041,9 @@ class Tracking:
     ) -> dict:
         return {"spec": specs, "dims": list(dims)}
 
-    def interpolate(self, method: str = "linear", limit: int = 1, **kwargs) -> None:
+    def interpolate(
+        self, method: str = "linear", limit: int = 1, *, inplace: bool = True, **kwargs
+    ) -> "Tracking | None":
         """
         interpolates missing data in the tracking data, and sets likelihood to np.nan
         uses pandas.DataFrame.interpolate() with kwargs
@@ -1014,6 +1067,15 @@ class Tracking:
                 "data already interpolated. re-load the raw data to interpolate again"
             )
 
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.interpolate(method=method, limit=limit, inplace=True, **kwargs)
+            return new
         # interpolate only the position columns, and set likelihood to np.nan
         position_columns = self.data.columns[
             self.data.columns.str.endswith(".x")
