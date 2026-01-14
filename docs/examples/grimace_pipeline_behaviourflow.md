@@ -26,13 +26,15 @@ try:
 except FileNotFoundError:
     pass
 
-# 3) Batch preprocessing of tracking files
 # Remove low-confidence detections (method/thresholds depend on your DLC export)
-tc.filter_likelihood(threshold=0.6)
+tc.filter_likelihood(threshold=0.5)
 
-# Smooth all points with mean centre window 3, with exception for environment points
+# interpolate before smoothing
+tc.interpolate(limit=5)
+
+# Smooth all points with mean centre window 3
 tc.smooth_all(
-    window=3, method="mean", overrides=[(["tr", "tl", "bl", "br"], "median", 30)]
+    window=3, method="mean"
 )
 
 # Rescale distance to metres according to corners of the GrimACE arena, here named 'tl' and 'br'
@@ -53,6 +55,8 @@ tc.plot(
     trajectories=["bodycentre"],
     static=["tr", "tl", "bl", "br"],
     lines=[("tr", "tl"), ("tl", "bl"), ("bl", "br"), ("br", "tr")],
+    show=False,
+    savedir=OUT_DIR,
 )
 
 # Create FeaturesCollection object
@@ -153,5 +157,19 @@ bfa_stats = sc_grouped.bfa_stats(bfa_results)
 # Save the BehaviourFlow analysis statistics
 with open(f"{OUT_DIR}/bfa_stats.json", "w") as f:
     json.dump(bfa_stats, f, indent=4)
+
+# Plot a chord diagram
+sc.plot_chord(
+    column="km25_standard_norm",
+    all_states=np.arange(0, 25),
+    save_dir=OUT_DIR,
+    show=False,
+    start=-265,
+    end=95,
+    space=5,
+    r_lim=(93, 100),
+    label_kws=dict(r=94, size=12, color="white"),
+    link_kws=dict(ec="black", lw=0.5),
+)
 
 ```
