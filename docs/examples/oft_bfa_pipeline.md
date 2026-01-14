@@ -27,10 +27,13 @@ except FileNotFoundError:
 
 # 3) Batch preprocessing of tracking files
 # Remove low-confidence detections (method/thresholds depend on your DLC export)
-tc.filter_likelihood(threshold=0.95)
+tc.filter_likelihood(threshold=0.5)
 
-# Smooth all points with mean centre window 3, with exception for environment points
-tc.smooth_all(window=3, method='mean', overrides=[(["tr", "tl", "bl", "br"], "median", 30)])
+# interpolate before smoothing
+tc.interpolate(limit=5)
+
+# Smooth all points with mean centre window 3
+tc.smooth_all(window=3, method='mean', overrides=[(["tr", "tl", "bl", "br"])
 
 # Rescale distance to metres according to corners of the OFT, here named 'tl' and 'br'
 tc.rescale_by_known_distance(point1='tl', point2='br', distance_in_metres=0.64)
@@ -125,6 +128,19 @@ bfa_stats = p3b.SummaryCollection.bfa_stats(bfa_results)
 print(bfa_stats)
 with open(f"{OUT_DIR}/bfa_stats.json", "w") as f:
     json.dump(bfa_stats, f, indent=4)
+
+sc.plot_chord(
+    column="kmeans_25",
+    all_states=np.arange(0, 25),
+    save_dir=OUT_DIR,
+    show=False,
+    start=-265,
+    end=95,
+    space=5,
+    r_lim=(93, 100),
+    label_kws=dict(r=94, size=12, color="white"),
+    link_kws=dict(ec="black", lw=0.5),
+)
 ```
 
 

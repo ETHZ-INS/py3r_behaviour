@@ -22,12 +22,15 @@ try:
 except FileNotFoundError:
     pass
 
-# 3) Batch preprocessing of tracking files
+
 # Remove low-confidence detections (method/thresholds depend on your DLC export)
 tc.filter_likelihood(threshold=0.95)
 
+# interpolate before smoothing
+tc.interpolate(limit=5)
+
 # Smooth all points with mean centre window 3, with exception for environment points
-tc.smooth_all(window=3, method='mean', overrides=[(["tr", "tl", "bl", "br"], "median", 30)])
+tc.smooth_all(window=3, method='mean')
 
 # Rescale distance to metres according to corners of the OFT, here named 'tl' and 'br'
 tc.rescale_by_known_distance(point1='tl', point2='br', distance_in_metres=0.64)
