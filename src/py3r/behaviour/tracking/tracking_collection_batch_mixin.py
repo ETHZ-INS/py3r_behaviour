@@ -191,7 +191,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'interpolate')(method, limit, **kwargs))
         return self._invoke_batch("interpolate", method, limit, **kwargs)
 
-    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, elev=30, azim=45) -> BatchResult:
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, savedir: str | None=None, elev=30, azim=45) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.plot across the collection.
 
@@ -204,13 +204,15 @@ class TrackingCollectionBatchMixin:
             ax: matplotlib axis (optional)
             title: plot title (default: self.handle)
             show: whether to call plt.show()
+            savedir: optional directory path to save the plot image. If provided,
+                     figure is saved as '<handle>_plot.png' inside this directory.
 
         See [`Tracking.plot`][py3r.behaviour.tracking.tracking.Tracking.plot] for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'plot')(trajectories, static, lines, dims, ax, title, show, elev, azim))
-        return self._invoke_batch("plot", trajectories, static, lines, dims, ax, title, show, elev, azim)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'plot')(trajectories, static, lines, dims, ax, title, show, savedir, elev, azim))
+        return self._invoke_batch("plot", trajectories, static, lines, dims, ax, title, show, savedir, elev, azim)
 
     def save_3d_tracking_video_multi_view(self, out_path: str, lines: list[tuple[str, str]]=None, point_size=40, line_width=2, point_color="b", line_color="k", dpi=150, writer="pillow", startframe=None, endframe=None, xlim=None, ylim=None, zlim=None, robust_percentile=1, invert_z=True) -> BatchResult:
         """
