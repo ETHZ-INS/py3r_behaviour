@@ -1082,6 +1082,7 @@ class Tracking:
         ax=None,
         title=None,
         show=True,
+        savedir: str | None = None,
         elev=30,
         azim=45,
     ):
@@ -1095,6 +1096,8 @@ class Tracking:
             ax: matplotlib axis (optional)
             title: plot title (default: self.handle)
             show: whether to call plt.show()
+            savedir: optional directory path to save the plot image. If provided,
+                     figure is saved as '<handle>_plot.png' inside this directory.
         Returns: fig, ax
 
         Examples
@@ -1112,7 +1115,9 @@ class Tracking:
         is3d = len(dims) == 3
         if len(dims) > 3:
             raise ValueError("dims must be a tuple of length 2 or 3")
+        created_fig = False
         if ax is None:
+            created_fig = True
             fig = plt.figure(figsize=(5, 5))
             if is3d:
                 ax = fig.add_subplot(111, projection="3d")
@@ -1196,9 +1201,39 @@ class Tracking:
         if is3d:
             ax.set_zlabel(dims[2])
         ax.set_title(title)
-        ax.legend()
+
+        # place legend to the right of the axes
+        ax.legend(
+            loc="center left",
+            bbox_to_anchor=(1.02, 0.5),
+            borderaxespad=0.0,
+            frameon=False,
+        )
+        try:
+            fig.tight_layout()
+        except Exception:
+            pass
+
+        # Enforce 1:1 aspect ratio for 2D plots
+        if not is3d:
+            try:
+                ax.set_aspect("equal", adjustable="box")
+            except Exception:
+                pass
+        # Optional save to disk, named by handle
+        if savedir is not None:
+            import os
+
+            os.makedirs(savedir, exist_ok=True)
+            out_path = os.path.join(savedir, f"{self.handle}_plot.png")
+            fig.savefig(out_path, dpi=300, bbox_inches="tight", pad_inches=0.02)
         if show:
             plt.show()
+        # Close figure if we created it and we're not showing, to avoid accumulating open figures
+        if created_fig and not show:
+            import matplotlib.pyplot as _plt
+
+            _plt.close(fig)
         return fig, ax
 
     def save_3d_tracking_video_multi_view(
