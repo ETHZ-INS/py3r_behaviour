@@ -1201,7 +1201,25 @@ class Tracking:
         if is3d:
             ax.set_zlabel(dims[2])
         ax.set_title(title)
-        ax.legend()
+
+        # place legend to the right of the axes
+        ax.legend(
+            loc="center left",
+            bbox_to_anchor=(1.02, 0.5),
+            borderaxespad=0.0,
+            frameon=False,
+        )
+        try:
+            fig.tight_layout()
+        except Exception:
+            pass
+
+        # Enforce 1:1 aspect ratio for 2D plots
+        if not is3d:
+            try:
+                ax.set_aspect("equal", adjustable="box")
+            except Exception:
+                pass
         # Optional save to disk, named by handle
         if savedir is not None:
             import os
