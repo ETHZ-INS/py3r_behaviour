@@ -25,6 +25,7 @@ from py3r.behaviour.util.series_utils import (
     apply_normalization_to_df,
     apply_custom_scaling,
 )
+from py3r.behaviour.util.smoothing import smooth_series
 from py3r.behaviour.features.features_result import FeaturesResult
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
@@ -991,8 +992,8 @@ class Features:
         name: str,
         method: str,
         window: int,
-        center: bool = True,
         inplace: bool = False,
+        **method_kwargs,
     ) -> pd.Series:
         """
         smooths specified feature with specified method over rolling window. if inplace=True then feature
@@ -1000,6 +1001,7 @@ class Features:
         method:
             'median' : median of value in window, requires numerical series values
             'mean' : mean of value in window, requires numerical series values
+            'savgol' : Savitzky–Golay filter (requires SciPy). Additional kwargs like polyorder=3, mode='interp'.
             'mode' : mode value in window, works with numerical or non-numerical types
             'block' : removes labels that occur in blocks of less than length window
                       and replaces them with value from previous block unless there is
@@ -1009,17 +1011,16 @@ class Features:
         if "smoothing" in self.meta[name].keys():
             raise Exception("feature already smoothed")
 
-        if method == "median":
-            smoothed = self.data[name].rolling(window=window, center=center).median()
-            if inplace:
-                self.data[name] = smoothed.copy()
-        elif method == "mean":
-            smoothed = self.data[name].rolling(window=window, center=center).mean()
+        # Numeric, DRY path using common smoother
+        if method in {"median", "mean", "savgol"}:
+            smoothed = smooth_series(
+                self.data[name], method=method, window=window, **method_kwargs
+            )
             if inplace:
                 self.data[name] = smoothed.copy()
         elif method == "mode":
             smoothed = series_utils.rolling_apply(
-                self.data[name], window, series_utils.mode, center=center
+                self.data[name], window, series_utils.mode
             )
             if inplace:
                 self.data[name] = smoothed.copy()
@@ -1040,8 +1041,10 @@ class Features:
             newmeta["smoothing"] = {
                 "method": method,
                 "window": window,
-                "center": center,
             }
+            # Record any extra parameters used (e.g. polyorder/mode for savgol)
+            for k, v in method_kwargs.items():
+                newmeta["smoothing"][k] = v
             self.meta[name] = newmeta
 
         return smoothed

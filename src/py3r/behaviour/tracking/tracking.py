@@ -847,6 +847,8 @@ class Tracking:
         inplace: bool = True,
         smoother=None,
         smoother_kwargs: dict | None = None,
+        method_kwargs: dict | None = None,
+        **kwargs,
     ) -> "Tracking | None":
         """
         Smooth all tracked points using a default method/window, with optional override groups.
@@ -901,6 +903,19 @@ class Tracking:
             points=points,
             strict=strict,
         )
+        # Apply global per-method kwargs (e.g., nan_policy for savgol) if provided
+        if method_kwargs:
+            for p in specs:
+                for k, v in method_kwargs.items():
+                    if k not in specs[p]:
+                        specs[p][k] = v
+        # Also merge any free-form kwargs (e.g., polyorder=3) for convenience,
+        # allowing callers (including batch mixins) to pass smoothing params directly.
+        if kwargs:
+            for p in specs:
+                for k, v in kwargs.items():
+                    if k not in specs[p]:
+                        specs[p][k] = v
         df_target = self.data if inplace else self.data.copy()
         df_smoothed = apply_smoothing(
             df_target, specs, dims, smoother=smoother, smoother_kwargs=smoother_kwargs
@@ -924,8 +939,8 @@ class Tracking:
             raise Exception(
                 "data already smoothed. load again to use different smoothing"
             )
-        if method not in {"median", "mean"}:
-            raise ValueError("method must be one of {'median','mean'}")
+        if method not in {"median", "mean", "savgol"}:
+            raise ValueError("method must be one of {'median','mean','savgol'}")
         if not set(dims).issubset({"x", "y", "z"}):
             raise ValueError("dims must be a subset of {'x','y','z'}")
         if overrides:
