@@ -124,6 +124,58 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'get_point_names')())
         return self._invoke_batch("get_point_names")
 
+    def is_valid_point(self, point: str) -> BatchResult:
+        """
+        Batch-mode wrapper for Tracking.is_valid_point across the collection.
+
+        Return viable dimension names associated with a point.
+
+        See [`Tracking.is_valid_point`][py3r.behaviour.tracking.tracking.Tracking.is_valid_point] for examples.
+        """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'is_valid_point')(point))
+        return self._invoke_batch("is_valid_point", point)
+
+    def get_point_dimensions(self, point: str) -> BatchResult:
+        """
+        Batch-mode wrapper for Tracking.get_point_dimensions across the collection.
+
+        Return viable dimension names associated with a point.
+
+        See [`Tracking.get_point_dimensions`][py3r.behaviour.tracking.tracking.Tracking.get_point_dimensions] for examples.
+        """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'get_point_dimensions')(point))
+        return self._invoke_batch("get_point_dimensions", point)
+
+    def get_point_data(self, point: str) -> BatchResult:
+        """
+        Batch-mode wrapper for Tracking.get_point_data across the collection.
+
+        rescale all dims by known distance between two points. Simplifies column names to dimensions
+
+        See [`Tracking.get_point_data`][py3r.behaviour.tracking.tracking.Tracking.get_point_data] for examples.
+        """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'get_point_data')(point))
+        return self._invoke_batch("get_point_data", point)
+
+    def set_point_data(self, df: pd.DataFrame, point: str, target_df: pd.DataFrame=None) -> BatchResult:
+        """
+        Batch-mode wrapper for Tracking.set_point_data across the collection.
+
+        Sets the data of a point to the values of an external df.
+
+        See [`Tracking.set_point_data`][py3r.behaviour.tracking.tracking.Tracking.set_point_data] for examples.
+        """
+        _inplace = locals().get('inplace', True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, 'set_point_data')(df, point, target_df))
+        return self._invoke_batch("set_point_data", df, point, target_df)
+
     def rescale_by_known_distance(self, point1: str, point2: str, distance_in_metres: float, dims=("x", "y"), *, inplace: bool=True) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.rescale_by_known_distance across the collection.
@@ -163,7 +215,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'smooth')(smoothing_params))
         return self._invoke_batch("smooth", smoothing_params)
 
-    def smooth_all(self, window: int | None=3, method: str="mean", overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]]
+    def smooth_all(self, window: int | None=11, method: Literal["mean","median","savgol"]="savgol", overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]]
         | None=None, dims: tuple[str, ...]=("x", "y"), strict: bool=False, inplace: bool=True, smoother=None, smoother_kwargs: dict | None=None, method_kwargs: dict | None=None, **kwargs) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.smooth_all across the collection.
