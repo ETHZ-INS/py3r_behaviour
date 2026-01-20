@@ -524,7 +524,7 @@ class Tracking:
         tags = manifest.get("tags", {})
         return cls(df, meta, handle, tags)
 
-    def strip_column_names(self) -> None:
+    def strip_column_names(self, *, inplace: bool = True) -> "Tracking | None":
         """strips out all column name string apart from last two sections delimited by dots
 
         Examples
@@ -541,6 +541,15 @@ class Tracking:
 
         ```
         """
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.strip_column_names(inplace=True)
+            return new
         stripped_colnames = [".".join(col.split(".")[-2:]) for col in self.data.columns]
         self.data.columns = stripped_colnames
 
@@ -568,7 +577,13 @@ class Tracking:
 
         return (mintime <= totaltime) & (maxtime >= totaltime)
 
-    def trim(self, startframe: int | None = None, endframe: int | None = None) -> None:
+    def trim(
+        self,
+        startframe: int | None = None,
+        endframe: int | None = None,
+        *,
+        inplace: bool = True,
+    ) -> "Tracking | None":
         """
         trims the tracking data object between startframe and endframe
 
@@ -593,12 +608,22 @@ class Tracking:
             if (self.data.index[0] > endframe) or (self.data.index[-1] < endframe):
                 raise Exception("endframe not in data")
 
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.trim(startframe, endframe, inplace=True)
+            return new
         datatrim = self.data.loc[startframe:endframe, :].copy()
         self.data = datatrim
-
         self.meta["trim"] = {"startframe": startframe, "endframe": endframe}
 
-    def filter_likelihood(self, threshold: float) -> None:
+    def filter_likelihood(
+        self, threshold: float, *, inplace: bool = True
+    ) -> "Tracking | None":
         """sets all tracking position values with likelihood less than threshold to np.nan
 
         Examples
@@ -623,6 +648,15 @@ class Tracking:
                 "these data have been smoothed. you should filter likelihood before smoothing"
             )
 
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.filter_likelihood(threshold, inplace=True)
+            return new
         for point in self.get_point_names():
             self.data.loc[
                 (self.data[point + ".likelihood"] <= threshold), point + ".x"
@@ -683,8 +717,14 @@ class Tracking:
         return tracked_points
 
     def rescale_by_known_distance(
-        self, point1: str, point2: str, distance_in_metres: float, dims=("x", "y")
-    ) -> None:
+        self,
+        point1: str,
+        point2: str,
+        distance_in_metres: float,
+        dims=("x", "y"),
+        *,
+        inplace: bool = True,
+    ) -> "Tracking | None":
         """rescale all dims by known distance between two points
 
         Examples
@@ -710,7 +750,36 @@ class Tracking:
                     "distance already rescaled. re-load the raw data to change scaling"
                 )
 
-        tracking_distance = self.distance_between(point1, point2, dims=dims).median()
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.rescale_by_known_distance(
+                point1, point2, distance_in_metres, dims=dims, inplace=True
+            )
+            return new
+        tracking_distance = np.sqrt(
+            sum(
+                [
+                    (
+                        self.data[point1 + "." + dim].median()
+                        - self.data[point2 + "." + dim].median()
+                    )
+                    ** 2
+                    for dim in dims
+                ]
+            )
+        )
+        if tracking_distance == 0:
+            raise Exception(f"observed distance between '{point1}' and '{point2}' is 0")
+        if np.isnan(tracking_distance):
+            raise Exception(
+                f"observed distance between '{point1}' and '{point2}' is NaN"
+            )
+
         rescale_factor = distance_in_metres / tracking_distance
 
         tracked_points = self.get_point_names()
@@ -829,6 +898,8 @@ class Tracking:
         inplace: bool = True,
         smoother=None,
         smoother_kwargs: dict | None = None,
+        method_kwargs: dict | None = None,
+        **kwargs,
     ) -> "Tracking | None":
         """
         Smooth all tracked points using a default method/window, with optional override groups.
@@ -883,6 +954,19 @@ class Tracking:
             points=points,
             strict=strict,
         )
+        # Apply global per-method kwargs (e.g., nan_policy for savgol) if provided
+        if method_kwargs:
+            for p in specs:
+                for k, v in method_kwargs.items():
+                    if k not in specs[p]:
+                        specs[p][k] = v
+        # Also merge any free-form kwargs (e.g., polyorder=3) for convenience,
+        # allowing callers (including batch mixins) to pass smoothing params directly.
+        if kwargs:
+            for p in specs:
+                for k, v in kwargs.items():
+                    if k not in specs[p]:
+                        specs[p][k] = v
         df_target = self.data if inplace else self.data.copy()
         df_smoothed = apply_smoothing(
             df_target, specs, dims, smoother=smoother, smoother_kwargs=smoother_kwargs
@@ -906,8 +990,8 @@ class Tracking:
             raise Exception(
                 "data already smoothed. load again to use different smoothing"
             )
-        if method not in {"median", "mean"}:
-            raise ValueError("method must be one of {'median','mean'}")
+        if method not in {"median", "mean", "savgol"}:
+            raise ValueError("method must be one of {'median','mean','savgol'}")
         if not set(dims).issubset({"x", "y", "z"}):
             raise ValueError("dims must be a subset of {'x','y','z'}")
         if overrides:
@@ -957,7 +1041,9 @@ class Tracking:
     ) -> dict:
         return {"spec": specs, "dims": list(dims)}
 
-    def interpolate(self, method: str = "linear", limit: int = 1, **kwargs) -> None:
+    def interpolate(
+        self, method: str = "linear", limit: int = 1, *, inplace: bool = True, **kwargs
+    ) -> "Tracking | None":
         """
         interpolates missing data in the tracking data, and sets likelihood to np.nan
         uses pandas.DataFrame.interpolate() with kwargs
@@ -981,6 +1067,15 @@ class Tracking:
                 "data already interpolated. re-load the raw data to interpolate again"
             )
 
+        if not inplace:
+            new = self.__class__(
+                self.data.copy(),
+                copy.deepcopy(self.meta),
+                self.handle,
+                copy.deepcopy(self.tags),
+            )
+            new.interpolate(method=method, limit=limit, inplace=True, **kwargs)
+            return new
         # interpolate only the position columns, and set likelihood to np.nan
         position_columns = self.data.columns[
             self.data.columns.str.endswith(".x")
@@ -1064,6 +1159,7 @@ class Tracking:
         ax=None,
         title=None,
         show=True,
+        savedir: str | None = None,
         elev=30,
         azim=45,
     ):
@@ -1077,6 +1173,8 @@ class Tracking:
             ax: matplotlib axis (optional)
             title: plot title (default: self.handle)
             show: whether to call plt.show()
+            savedir: optional directory path to save the plot image. If provided,
+                     figure is saved as '<handle>_plot.png' inside this directory.
         Returns: fig, ax
 
         Examples
@@ -1094,7 +1192,9 @@ class Tracking:
         is3d = len(dims) == 3
         if len(dims) > 3:
             raise ValueError("dims must be a tuple of length 2 or 3")
+        created_fig = False
         if ax is None:
+            created_fig = True
             fig = plt.figure(figsize=(5, 5))
             if is3d:
                 ax = fig.add_subplot(111, projection="3d")
@@ -1141,7 +1241,12 @@ class Tracking:
             for c in cols:
                 if c not in self.data.columns:
                     raise ValueError(f"Column {c} not in data for point {point}")
-            med = [np.nanmedian(self.data[f"{point}.{d}"]) for d in dims]
+            # safe median without warnings on all-NaN slices
+            med = []
+            for d in dims:
+                arr = self.data[f"{point}.{d}"].to_numpy()
+                finite = arr[np.isfinite(arr)]
+                med.append(float(np.median(finite)) if finite.size > 0 else np.nan)
             if is3d:
                 ax.scatter(*med, marker="o", s=60)
             else:
@@ -1173,9 +1278,39 @@ class Tracking:
         if is3d:
             ax.set_zlabel(dims[2])
         ax.set_title(title)
-        ax.legend()
+
+        # place legend to the right of the axes
+        ax.legend(
+            loc="center left",
+            bbox_to_anchor=(1.02, 0.5),
+            borderaxespad=0.0,
+            frameon=False,
+        )
+        try:
+            fig.tight_layout()
+        except Exception:
+            pass
+
+        # Enforce 1:1 aspect ratio for 2D plots
+        if not is3d:
+            try:
+                ax.set_aspect("equal", adjustable="box")
+            except Exception:
+                pass
+        # Optional save to disk, named by handle
+        if savedir is not None:
+            import os
+
+            os.makedirs(savedir, exist_ok=True)
+            out_path = os.path.join(savedir, f"{self.handle}_plot.png")
+            fig.savefig(out_path, dpi=300, bbox_inches="tight", pad_inches=0.02)
         if show:
             plt.show()
+        # Close figure if we created it and we're not showing, to avoid accumulating open figures
+        if created_fig and not show:
+            import matplotlib.pyplot as _plt
+
+            _plt.close(fig)
         return fig, ax
 
     def save_3d_tracking_video_multi_view(

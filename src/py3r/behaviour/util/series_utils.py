@@ -91,7 +91,7 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     replace them with value from previous block
     """
 
-    mask = s1.to_numpy().astype(int)
+    mask = s1.astype("Int64").to_numpy()
     diffs = np.diff(np.concatenate(([0], mask, [0])))
     starts = np.where(diffs == 1)[0]
     ends = np.where(diffs == -1)[0]
@@ -99,9 +99,12 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     for start, end in zip(starts, ends):
         if s2[start:end].to_numpy().any():
             if start > 0:
-                replacement_value = s1[start - 1]
+                replacement_value = s1.iloc[start - 1]
             else:
-                replacement_value = s1[end + 1]
+                try:
+                    replacement_value = s1.iloc[end]
+                except IndexError:
+                    raise IndexError(f"Index {end} out of range for pandas series s1")
             s1[start:end] = replacement_value
 
     # Step 3: Assign back to DataFrame

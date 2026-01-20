@@ -46,7 +46,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'save')(dirpath, data_format=data_format, overwrite=overwrite))
         return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
 
-    def strip_column_names(self) -> BatchResult:
+    def strip_column_names(self, *, inplace: bool=True) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.strip_column_names across the collection.
 
@@ -56,8 +56,8 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'strip_column_names')())
-        return self._invoke_batch("strip_column_names")
+            return self.map_leaves(lambda _obj: getattr(_obj, 'strip_column_names')(inplace=inplace))
+        return self._invoke_batch("strip_column_names", inplace=inplace)
 
     def time_as_expected(self, mintime: float, maxtime: float) -> BatchResult:
         """
@@ -72,7 +72,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'time_as_expected')(mintime, maxtime))
         return self._invoke_batch("time_as_expected", mintime, maxtime)
 
-    def trim(self, startframe: int | None=None, endframe: int | None=None) -> BatchResult:
+    def trim(self, startframe: int | None=None, endframe: int | None=None, *, inplace: bool=True) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.trim across the collection.
 
@@ -82,10 +82,10 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'trim')(startframe, endframe))
-        return self._invoke_batch("trim", startframe, endframe)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'trim')(startframe, endframe, inplace=inplace))
+        return self._invoke_batch("trim", startframe, endframe, inplace=inplace)
 
-    def filter_likelihood(self, threshold: float) -> BatchResult:
+    def filter_likelihood(self, threshold: float, *, inplace: bool=True) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.filter_likelihood across the collection.
 
@@ -95,8 +95,8 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'filter_likelihood')(threshold))
-        return self._invoke_batch("filter_likelihood", threshold)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'filter_likelihood')(threshold, inplace=inplace))
+        return self._invoke_batch("filter_likelihood", threshold, inplace=inplace)
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> BatchResult:
         """
@@ -124,7 +124,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'get_point_names')())
         return self._invoke_batch("get_point_names")
 
-    def rescale_by_known_distance(self, point1: str, point2: str, distance_in_metres: float, dims=("x", "y")) -> BatchResult:
+    def rescale_by_known_distance(self, point1: str, point2: str, distance_in_metres: float, dims=("x", "y"), *, inplace: bool=True) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.rescale_by_known_distance across the collection.
 
@@ -134,8 +134,8 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'rescale_by_known_distance')(point1, point2, distance_in_metres, dims))
-        return self._invoke_batch("rescale_by_known_distance", point1, point2, distance_in_metres, dims)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'rescale_by_known_distance')(point1, point2, distance_in_metres, dims, inplace=inplace))
+        return self._invoke_batch("rescale_by_known_distance", point1, point2, distance_in_metres, dims, inplace=inplace)
 
     def generate_smoothdict(self, pointslists: list, windows: list, smoothtypes: list) -> BatchResult:
         """
@@ -164,7 +164,7 @@ class TrackingCollectionBatchMixin:
         return self._invoke_batch("smooth", smoothing_params)
 
     def smooth_all(self, window: int | None=3, method: str="mean", overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]]
-        | None=None, dims: tuple[str, ...]=("x", "y"), strict: bool=False, inplace: bool=True, smoother=None, smoother_kwargs: dict | None=None) -> BatchResult:
+        | None=None, dims: tuple[str, ...]=("x", "y"), strict: bool=False, inplace: bool=True, smoother=None, smoother_kwargs: dict | None=None, method_kwargs: dict | None=None, **kwargs) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.smooth_all across the collection.
 
@@ -174,10 +174,10 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'smooth_all')(window, method, overrides, dims, strict, inplace, smoother, smoother_kwargs))
-        return self._invoke_batch("smooth_all", window, method, overrides, dims, strict, inplace, smoother, smoother_kwargs)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'smooth_all')(window, method, overrides, dims, strict, inplace, smoother, smoother_kwargs, method_kwargs, **kwargs))
+        return self._invoke_batch("smooth_all", window, method, overrides, dims, strict, inplace, smoother, smoother_kwargs, method_kwargs, **kwargs)
 
-    def interpolate(self, method: str="linear", limit: int=1, **kwargs) -> BatchResult:
+    def interpolate(self, method: str="linear", limit: int=1, *, inplace: bool=True, **kwargs) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.interpolate across the collection.
 
@@ -188,10 +188,10 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'interpolate')(method, limit, **kwargs))
-        return self._invoke_batch("interpolate", method, limit, **kwargs)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'interpolate')(method, limit, inplace=inplace, **kwargs))
+        return self._invoke_batch("interpolate", method, limit, inplace=inplace, **kwargs)
 
-    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, elev=30, azim=45) -> BatchResult:
+    def plot(self, trajectories=None, static=None, lines=None, dims=("x", "y"), ax=None, title=None, show=True, savedir: str | None=None, elev=30, azim=45) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.plot across the collection.
 
@@ -204,13 +204,15 @@ class TrackingCollectionBatchMixin:
             ax: matplotlib axis (optional)
             title: plot title (default: self.handle)
             show: whether to call plt.show()
+            savedir: optional directory path to save the plot image. If provided,
+                     figure is saved as '<handle>_plot.png' inside this directory.
 
         See [`Tracking.plot`][py3r.behaviour.tracking.tracking.Tracking.plot] for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'plot')(trajectories, static, lines, dims, ax, title, show, elev, azim))
-        return self._invoke_batch("plot", trajectories, static, lines, dims, ax, title, show, elev, azim)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'plot')(trajectories, static, lines, dims, ax, title, show, savedir, elev, azim))
+        return self._invoke_batch("plot", trajectories, static, lines, dims, ax, title, show, savedir, elev, azim)
 
     def save_3d_tracking_video_multi_view(self, out_path: str, lines: list[tuple[str, str]]=None, point_size=40, line_width=2, point_color="b", line_color="k", dpi=150, writer="pillow", startframe=None, endframe=None, xlim=None, ylim=None, zlim=None, robust_percentile=1, invert_z=True) -> BatchResult:
         """

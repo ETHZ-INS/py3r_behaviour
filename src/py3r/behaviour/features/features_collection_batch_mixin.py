@@ -323,7 +323,7 @@ class FeaturesCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'classify')(classifier, **kwargs))
         return self._invoke_batch("classify", classifier, **kwargs)
 
-    def smooth(self, name: str, method: str, window: int, center: bool=True, inplace: bool=False) -> BatchResult:
+    def smooth(self, name: str, method: str, window: int, inplace: bool=False, **method_kwargs) -> BatchResult:
         """
         Batch-mode wrapper for Features.smooth across the collection.
 
@@ -332,6 +332,7 @@ class FeaturesCollectionBatchMixin:
         method:
             'median' : median of value in window, requires numerical series values
             'mean' : mean of value in window, requires numerical series values
+            'savgol' : Savitzky–Golay filter (requires SciPy). Additional kwargs like polyorder=3, mode='interp'.
             'mode' : mode value in window, works with numerical or non-numerical types
             'block' : removes labels that occur in blocks of less than length window
                       and replaces them with value from previous block unless there is
@@ -342,8 +343,8 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'smooth')(name, method, window, center, inplace))
-        return self._invoke_batch("smooth", name, method, window, center, inplace)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'smooth')(name, method, window, inplace, **method_kwargs))
+        return self._invoke_batch("smooth", name, method, window, inplace, **method_kwargs)
 
     def embedding_df(self, embedding: dict[str, list[int]]) -> BatchResult:
         """
