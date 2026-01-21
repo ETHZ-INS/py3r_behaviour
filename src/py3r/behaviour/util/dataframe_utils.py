@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from typing import Literal
+from typing import Literal, Tuple
 
 def filter_by_threshold(
     df: pd.DataFrame,
@@ -77,3 +77,106 @@ def filter_by_threshold(
     result.loc[~mask, non_ref_cols] = np.nan
 
     return result
+
+
+def median_euclidean_distance(df: pd.DataFrame,
+                                df2: pd.DataFrame,
+                                dims: Tuple[str]) -> float:
+    """
+    Compute the Euclidean distance between the column-wise medians of two DataFrames.
+
+    For each column name in `dims`, the median is computed in both `df` and `df2`,
+    and the Euclidean distance between the resulting median vectors is returned.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        First DataFrame.
+    df2 : pd.DataFrame
+        Second DataFrame.
+    dims : Tuple[str]
+        Column names over which to compute medians.
+
+    Returns
+    -------
+    float
+        Euclidean distance between the median vectors.
+        
+    Example
+    
+    ```pycon
+    >>> import pandas as pd
+    >>> df1 = pd.DataFrame({'a':[1.,2.,3.],'b':[2.,3.,4.]})
+    >>> df2 = pd.DataFrame({'a':[2.,3.,4.],'b':[3.,4.,5.]})
+    >>> dist = median_euclidean_distance(df1, df2,('a','b')) 
+    >>> dist == np.sqrt(2)
+    np.True_
+    
+    ```
+    """
+    distance = np.sqrt(
+        sum(
+            [
+                (
+                    df[dim].median()
+                    - df2[dim].median()
+                )
+                ** 2
+                for dim in dims
+            ]
+        )
+    )
+    return distance
+
+def scale_columns(df: pd.DataFrame,
+                        factor: float,
+                        cols: Tuple[str]) -> pd.DataFrame:
+    """
+    Multiply selected DataFrame columns by a scalar factor.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Input DataFrame.    
+    factor : float
+        Scalar multiplier.
+    cols : Tuple[str]
+        Columns to scale.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with scaled columns.
+        
+   ```pycon
+    >>> import pandas as pd
+    >>> import pytest
+    >>> df = pd.DataFrame({'a':[1.,2.,3.],'b':[2.,3.,4.],'c':[4.,5.,6.],'d':['x','y','z']})
+    >>> df_scaled = scale_columns(df, 2.0, ('a','b')) 
+    >>> df_scaled['a'].values
+    array([2., 4., 6.])
+    >>> df_scaled['b'].values
+    array([4., 6., 8.])
+    >>> df_scaled['c'].values
+    array([4., 5., 6.])
+    >>> with pytest.raises(TypeError):
+    >>>     df_scaled = scale_columns(df, 2.0, ('a','d'))
+    >>> with pytest.raises(KeyError):
+    >>>     df_scaled = scale_columns(df, 2.0, ('a','x'))
+    
+    ```
+    """
+    out = df.copy()
+
+    for c in cols:
+        if c not in out.columns:
+            raise KeyError(f"Column '{c}' not found in DataFrame")
+        if not pd.api.types.is_numeric_dtype(out[c]):
+            raise TypeError(
+                f"Column '{c}' must be numeric, got dtype {out[c].dtype}"
+            )
+        out[c] *= factor
+
+    return out
+    
+    

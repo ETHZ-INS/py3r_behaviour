@@ -18,7 +18,9 @@ from py3r.behaviour.util.io_utils import (
     write_dataframe,
     read_dataframe,
 )
-from py3r.behaviour.util.dataframe_utils import filter_by_threshold
+from py3r.behaviour.util.dataframe_utils import (filter_by_threshold,
+                                                 median_euclidean_distance,
+                                                 scale_columns)
 
 Self = TypeVar("Self", bound="Tracking")
 
@@ -897,18 +899,9 @@ class Tracking:
                 point1, point2, distance_in_metres, dims=dims, inplace=True
             )
             return new
-        tracking_distance = np.sqrt(
-            sum(
-                [
-                    (
-                        self.data[point1 + "." + dim].median()
-                        - self.data[point2 + "." + dim].median()
-                    )
-                    ** 2
-                    for dim in dims
-                ]
-            )
-        )
+        tracking_distance = median_euclidean_distance(self.get_point_data(point1),
+                                                      self.get_point_data(point2),
+                                                      dims)
         if tracking_distance == 0:
             raise Exception(f"observed distance between '{point1}' and '{point2}' is 0")
         if np.isnan(tracking_distance):
@@ -921,10 +914,11 @@ class Tracking:
         tracked_points = self.get_point_names()
 
         for point in tracked_points:
-            for dim in dims:
-                self.data[point + "." + dim] = (
-                    self.data[point + "." + dim] * rescale_factor
-                )
+            df = self.get_point_data(point)
+            df = scale_columns(df, 
+                               rescale_factor, 
+                               dims)
+            self.set_point_data(df, point)
 
         self.meta["rescale_distance_method"] = "two_point_scalar_uniform"
         self.meta["rescale_factor"] = {dim: rescale_factor for dim in dims}
