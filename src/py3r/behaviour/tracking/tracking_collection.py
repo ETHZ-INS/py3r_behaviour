@@ -433,7 +433,7 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
             
     def copy(self) -> TrackingCollection:
         """
-        Build a collection by scanning a folder for CSVs (or multi-view subfolders).
+        Creates an exact deep copy of a TrackingCollection
 
         Examples
         --------
