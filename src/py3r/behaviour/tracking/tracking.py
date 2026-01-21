@@ -705,7 +705,7 @@ class Tracking:
         >>> from py3r.behaviour.util.docdata import data_path
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> names = sorted(t.get_point_names())
+        >>> names = t.get_point_names()
         >>> set(['p1','p2','p3']).issubset(names)
         True
 
