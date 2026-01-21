@@ -18,6 +18,7 @@ from py3r.behaviour.util.io_utils import (
     write_dataframe,
     read_dataframe,
 )
+from py3r.behaviour.util.dataframe_utils import filter_by_threshold
 
 Self = TypeVar("Self", bound="Tracking")
 
@@ -647,6 +648,10 @@ class Tracking:
         >>> t.filter_likelihood(0.5)
         >>> bool(np.isnan(t.data.filter(like='.x')).any().any())
         True
+        >>> t.data['p1.x'].values
+        'array([ 0.,  1.,  2., nan, nan])'
+        >>> t.data['p1.likelihood'].values
+        'array([1.  , 0.75, 0.5 , 0.25, 0.  ])'
 
         ```
         """
@@ -664,16 +669,14 @@ class Tracking:
             new.filter_likelihood(threshold, inplace=True)
             return new
         for point in self.get_point_names():
-            self.data.loc[
-                (self.data[point + ".likelihood"] <= threshold), point + ".x"
-            ] = np.nan
-            self.data.loc[
-                (self.data[point + ".likelihood"] <= threshold), point + ".y"
-            ] = np.nan
-            if point + ".z" in self.data.columns:
-                self.data.loc[
-                    (self.data[point + ".likelihood"] <= threshold), point + ".z"
-                ] = np.nan
+            df = self.get_point_data(point)
+            df = filter_by_threshold(df = df,
+                                     reference_col = 'likelihood',
+                                     threshold = threshold)
+            self.set_point_data(df, 
+                                point)
+            
+
 
         self.meta["filter_likelihood_threshold"] = threshold
 
