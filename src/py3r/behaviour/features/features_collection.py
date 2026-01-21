@@ -1,10 +1,9 @@
 from __future__ import annotations
 import pandas as pd
 import numpy as np
-from sklearn.cluster import KMeans
 from typing import Literal
 
-from py3r.behaviour.features.features import Features, FeaturesResult
+from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import _Indexer
@@ -12,15 +11,14 @@ from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.series_utils import (
     normalize_df,
     apply_normalization_to_df,
-    apply_custom_scaling,
 )
 from py3r.behaviour.util.collection_utils import BatchResult
 from py3r.behaviour.features.features_collection_batch_mixin import (
     FeaturesCollectionBatchMixin,
 )
-from py3r.behaviour.util.missing_tolerance import (
-    fit_frame_imputer,
-    impute_frame,
+from py3r.behaviour.features.cluster_pipeline import (
+    ClusteringPipeline,
+    ClusteringConfig,
 )
 
 
@@ -323,190 +321,21 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         ```
         """
 
-        # Local helpers (scoped to this method for clarity)
-        def _build_combined_embeddings(
-            *,
-            embedding_dict: dict[str, list[int]],
-            lowmem: bool,
-            decimation_factor: int,
-        ) -> tuple[pd.DataFrame, bool, str]:
-            is_grouped_local = getattr(self, "is_grouped", False)
-            flat_group_key_local = "__flat__"
-            group_iter_local = (
-                self.items() if is_grouped_local else [(flat_group_key_local, self)]
-            )
-            all_embeddings_local: dict[tuple[str, str], pd.DataFrame] = {}
-            for gkey_local, sub_local in group_iter_local:
-                for feat_name_local, features_local in sub_local.features_dict.items():
-                    embed_df_local = features_local.embedding_df(embedding_dict).astype(
-                        np.float32
-                    )
-                    if lowmem:
-                        embed_df_local = embed_df_local.iloc[::decimation_factor]
-                    all_embeddings_local[(gkey_local, feat_name_local)] = embed_df_local
-            combined_local = pd.concat(
-                all_embeddings_local.values(),
-                keys=all_embeddings_local.keys(),
-                names=["group", "feature", "frame"],
-            )
-            return combined_local, is_grouped_local, flat_group_key_local
-
-        def _apply_scaling(
-            *,
-            combined_df: pd.DataFrame,
-            auto_normalize_flag: bool,
-            rescale_factors_dict: dict | None,
-            custom_scaling_dict: dict[str, dict] | None,
-        ) -> tuple[pd.DataFrame, dict | None]:
-            if custom_scaling_dict is not None and (
-                auto_normalize_flag or rescale_factors_dict is not None
-            ):
-                raise ValueError(
-                    "custom_scaling is mutually exclusive with auto_normalize or rescale_factors"
-                )
-            normalization_factors_local = None
-            if auto_normalize_flag:
-                combined_df, normalization_factors_local = normalize_df(combined_df)
-            elif rescale_factors_dict is not None:
-                combined_df = apply_normalization_to_df(
-                    combined_df, rescale_factors_dict
-                )
-            elif custom_scaling_dict is not None:
-                combined_df = apply_custom_scaling(combined_df, custom_scaling_dict)
-            return combined_df, normalization_factors_local
-
-        def _prepare_missing(
-            *, combined_df: pd.DataFrame, policy: Literal["drop", "impute_weight"]
-        ) -> tuple[pd.DataFrame, pd.Series | None, pd.Series | None, pd.Series]:
-            if policy == "impute_weight":
-                medians_local = fit_frame_imputer(combined_df)
-                X_imp_local, sample_w_local = impute_frame(combined_df, medians_local)
-                valid_mask_local = pd.Series(True, index=combined_df.index)
-                return X_imp_local, sample_w_local, medians_local, valid_mask_local
-            else:
-                valid_mask_local = combined_df.notna().all(axis=1)
-                X_local = combined_df[valid_mask_local]
-                return X_local, None, None, valid_mask_local
-
-        def _fit_kmeans(
-            *,
-            X_train_df: pd.DataFrame,
-            columns_like,
-            k: int,
-            seed: int,
-            weights: pd.Series | None,
-        ) -> tuple[KMeans, pd.DataFrame]:
-            model_local = KMeans(n_clusters=k, random_state=seed).fit(
-                X_train_df, sample_weight=None if weights is None else weights.values
-            )
-            centroids_local = pd.DataFrame(
-                model_local.cluster_centers_, columns=columns_like
-            )
-            return model_local, centroids_local
-
-        # 1) Build embeddings map keyed by (group, feature)
-        combined, is_grouped, flat_group_key = _build_combined_embeddings(
-            embedding_dict=embedding_dict,
+        # Delegate to the pluggable pipeline
+        pipeline = ClusteringPipeline()
+        cfg = ClusteringConfig(
+            n_clusters=n_clusters,
+            random_state=random_state,
+            auto_normalize=auto_normalize,
+            rescale_factors=rescale_factors,
             lowmem=lowmem,
             decimation_factor=decimation_factor,
+            custom_scaling=custom_scaling,
+            missing_policy=missing_policy,
         )
-
-        # 2) Optional scaling/normalization
-        combined, normalization_factors = _apply_scaling(
-            combined_df=combined,
-            auto_normalize_flag=auto_normalize,
-            rescale_factors_dict=rescale_factors,
-            custom_scaling_dict=custom_scaling,
+        result_dict, centroids, normalization_factors, _meta = pipeline.run(
+            self, embedding_dict, cfg
         )
-
-        # 3) Cluster with optional missing-data policy
-        X_train, sample_weight, impute_medians, valid_mask = _prepare_missing(
-            combined_df=combined, policy=missing_policy
-        )
-        model, centroids = _fit_kmeans(
-            X_train_df=X_train,
-            columns_like=combined.columns,
-            k=n_clusters,
-            seed=random_state,
-            weights=sample_weight,
-        )
-        if missing_policy == "impute_weight":
-            combined_labels = pd.Series(model.labels_, index=combined.index)
-        else:
-            combined_labels = pd.Series(np.nan, index=combined.index)
-            combined_labels.loc[valid_mask] = model.labels_
-
-        # 4) Assign labels (already created above)
-
-        # 5) Reconstruct results (nested for grouped, flat dict for flat)
-        meta = {
-            "embedding_dict": embedding_dict,
-            "n_clusters": n_clusters,
-            "random_state": random_state,
-            "auto_normalize": auto_normalize,
-            "rescale_factors": rescale_factors,
-            "lowmem": lowmem,
-            "decimation_factor": decimation_factor,
-            "missing_policy": missing_policy,
-        }
-        if impute_medians is not None:
-            # store medians as a plain dict for portability
-            meta["impute_medians"] = impute_medians.to_dict()
-
-        if lowmem:
-            # Assign by nearest centroid, item-by-item (apply same scaling as training)
-            # Determine factors to apply during assignment
-            factors_for_assign = (
-                normalization_factors if auto_normalize else rescale_factors
-            )
-            if is_grouped:
-                result_dict = {}
-                for gkey, sub in self.items():
-                    group_map = {}
-                    for feat_name, feat in sub.features_dict.items():
-                        fr = feat.assign_clusters_by_centroids(
-                            embedding_dict,
-                            centroids,
-                            rescale_factors=factors_for_assign,
-                            custom_scaling=custom_scaling,
-                            impute_medians=impute_medians,
-                        )
-                        group_map[feat_name] = fr
-                    result_dict[gkey] = group_map
-            else:
-                result_dict = {}
-                for feat_name, feat in self.features_dict.items():
-                    fr = feat.assign_clusters_by_centroids(
-                        embedding_dict,
-                        centroids,
-                        rescale_factors=factors_for_assign,
-                        custom_scaling=custom_scaling,
-                        impute_medians=impute_medians,
-                    )
-                    result_dict[feat_name] = fr
-        else:
-            if is_grouped:
-                result_dict = {}
-                for gkey, sub in self.items():
-                    group_map = {}
-                    for feat_name, feat in sub.features_dict.items():
-                        labels = combined_labels.xs(
-                            (gkey, feat_name), level=["group", "feature"]
-                        ).astype("Int64")
-                        group_map[feat_name] = FeaturesResult(
-                            labels, feat, f"kmeans_{n_clusters}", meta
-                        )
-                    result_dict[gkey] = group_map
-            else:
-                result_dict = {}
-                for feat_name, feat in self.features_dict.items():
-                    labels = combined_labels.xs(
-                        (flat_group_key, feat_name), level=["group", "feature"]
-                    ).astype("Int64")
-                    result_dict[feat_name] = FeaturesResult(
-                        labels, feat, f"kmeans_{n_clusters}", meta
-                    )
-
         return BatchResult(result_dict, self), centroids, normalization_factors
 
     def cluster_diagnostics(
