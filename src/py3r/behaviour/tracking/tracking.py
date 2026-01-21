@@ -760,7 +760,9 @@ class Tracking:
         return list(dimensions)
 
     def get_point_data(self, point: str) -> pd.DataFrame:
-        """rescale all dims by known distance between two points. Simplifies column names to dimensions
+        """For a specific point, returns the DataFrame with all dimensions data. 
+        colnames are reformated to drop the pointname (i.e p1.x -> x)
+        
         Examples
         --------
         ```pycon
@@ -785,7 +787,8 @@ class Tracking:
         """Sets the data of a point to the values of an external df.
 
         Args:
-            df (pd.DataFrame): the dataframe containing the point data that should be writen into the trackingobject
+            df (pd.DataFrame):  the dataframe containing the point data that should be writen into the trackingobject
+                                colnames should reflect the dimension name (i.e 'x', 'y' etc.)
             point (str): the name of the point to overwrite
             target_df (pd.DataFrame, Optional): An external copy of the self.data dataframe can be specified. 
                                                 Usefull for operations that are not in place. defaults to None = write into self.data
