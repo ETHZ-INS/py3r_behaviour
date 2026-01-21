@@ -3,7 +3,6 @@ import copy
 import re
 import warnings
 from typing import Dict, Any, Type, TypeVar, Literal
-
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -715,29 +714,32 @@ class Tracking:
             set([".".join(i.split(".")[:-1]) for i in self.data.columns])
         )
         return tracked_points
-    
-    def is_valid_point(self, point: str):
+
+    def _assert_valid_point(self, point: str):
         """Return viable dimension names associated with a point.
-        
+
         Examples
         --------
         ```pycon
+        >>> import pytest
         >>> from py3r.behaviour.util.docdata import data_path
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> t.is_valid_point('p1')
-        True
-        
+        >>> t._assert_valid_point('p1')
+        >>> with pytest.raises(KeyError):
+        >>>     t._assert_valid_point("nonexisting")
+
         ```
         """
         valid_points = self.get_point_names()
         if point not in valid_points:
-            raise KeyError(f"Warning, point {point} does not exist in tracking data. valid points are {valid_points}")
-        return True
-    
+            raise KeyError(
+                f"Warning, point {point} does not exist in tracking data. valid points are {valid_points}"
+            )
+
     def get_point_dimensions(self, point: str) -> list[str]:
         """Return viable dimension names associated with a point.
-        
+
         Examples
         --------
         ```pycon
@@ -746,19 +748,17 @@ class Tracking:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> t.get_point_dimensions('p1')
         ['x', 'y', 'z', 'likelihood']
-        
+
         ```
         """
 
-        self.is_valid_point(point)
+        self._assert_valid_point(point)
         prefix = f"{point}."
-        dimensions = (
-            self.data.columns
-            .str.removeprefix(prefix)
-            [self.data.columns.str.startswith(prefix)]
-        )
+        dimensions = self.data.columns.str.removeprefix(prefix)[
+            self.data.columns.str.startswith(prefix)
+        ]
         return list(dimensions)
-    
+
     def get_point_data(self, point: str) -> pd.DataFrame:
         """rescale all dims by known distance between two points. Simplifies column names to dimensions
         Examples
@@ -770,24 +770,26 @@ class Tracking:
         >>> df = t.get_point_data('p1')
         >>> df['x'].values
         array([0, 1, 2, 3, 4])
-        
+
         ```
         """
-        self.is_valid_point(point)
+        self._assert_valid_point(point)
         prefix = f"{point}."
         df = self.data.loc[:, self.data.columns.str.startswith(prefix)].copy()
         df.columns = df.columns.str.removeprefix(prefix)
         return df
-    
-    def set_point_data(self, df: pd.DataFrame, point: str, target_df: pd.DataFrame = None):
+
+    def set_point_data(
+        self, df: pd.DataFrame, point: str, target_df: pd.DataFrame = None
+    ):
         """Sets the data of a point to the values of an external df.
-        
+
         Args:
             df (pd.DataFrame): the dataframe containing the point data that should be writen into the trackingobject
             point (str): the name of the point to overwrite
             target_df (pd.DataFrame, Optional): an external copy of the self.data dataframe can be specified. Usefull for operations that are not in place. defaults to None = write into self.data
-         
-        
+
+
         Examples
         --------
         ```pycon
@@ -801,20 +803,20 @@ class Tracking:
         >>> t.set_point_data(df,'p1')
         >>> t.data['p1.x'].values
         array([1, 2, 3, 4, 5])
-        
+
         >>> external_df = t.data.copy()
         >>> external_df['p1.x'].values
         array([1, 2, 3, 4, 5])
-        
+
         >>> df['x'] += 1
         >>> t.set_point_data(df = df, point = 'p1', target_df = external_df)
         >>> external_df['p1.x'].values
         array([2, 3, 4, 5, 6])
-        
+
         ```
         """
-        self.is_valid_point(point)
-        
+        self._assert_valid_point(point)
+
         if target_df is None:
             target_df = self.data
 
@@ -823,15 +825,18 @@ class Tracking:
         point_dimensions = self.get_point_dimensions(point)
         original_shape = len(target_df), len(target_cols)
         if df.shape != original_shape:
-            raise ValueError(f"Shape mismatch between input df {df.shape} with dimensions {df.columns} and target point data {original_shape} with dimensions {point_dimensions}")
+            raise ValueError(
+                f"Shape mismatch between input df {df.shape} with dimensions {df.columns} and target point data {original_shape} with dimensions {point_dimensions}"
+            )
         if list(df.columns) != point_dimensions:
-            raise ValueError(f"Dimension names of df {list(df.columns)} do not match point {point} dimensions {point_dimensions}")
+            raise ValueError(
+                f"Dimension names of df {list(df.columns)} do not match point {point} dimensions {point_dimensions}"
+            )
         if not df.index.equals(target_df.index):
             raise ValueError("Index mismatch between input df and target data")
 
         # Assign with guaranteed column order
         target_df.loc[:, target_cols] = df.to_numpy()
-        
 
     def rescale_by_known_distance(
         self,
@@ -1007,7 +1012,7 @@ class Tracking:
     def smooth_all(
         self,
         window: int | None = 11,
-        method: Literal["mean","median","savgol"] = "savgol",
+        method: Literal["mean", "median", "savgol"] = "savgol",
         overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]]
         | None = None,
         dims: tuple[str, ...] = ("x", "y"),
