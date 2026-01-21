@@ -115,7 +115,7 @@ class TrackingCollectionBatchMixin:
         """
         Batch-mode wrapper for Tracking.get_point_names across the collection.
 
-        list of tracked point names
+        list of tracked point names, sorted alphabetically (ascending)
 
         See [`Tracking.get_point_names`][py3r.behaviour.tracking.tracking.Tracking.get_point_names] for examples.
         """
