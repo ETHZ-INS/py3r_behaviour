@@ -317,6 +317,12 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         >>> batch, centroids, norm = fc.cluster_embedding({'counter':[0]}, n_clusters=2, lowmem=True)
         >>> isinstance(centroids, pd.DataFrame)
         True
+        >>> batch, centroids, norm = fc.cluster_embedding({'counter':[0]}, n_clusters=2, lowmem=True, missing_policy='impute_weight')
+        >>> isinstance(centroids, pd.DataFrame)
+        True
+        >>> batch, centroids, norm = fc.cluster_embedding({'counter':[0]}, n_clusters=2, lowmem=True, missing_policy='drop')
+        >>> isinstance(centroids, pd.DataFrame)
+        True
 
         ```
         """
