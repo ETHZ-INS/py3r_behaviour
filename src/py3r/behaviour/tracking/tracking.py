@@ -696,7 +696,7 @@ class Tracking:
         return distance
 
     def get_point_names(self) -> list:
-        """list of tracked point names
+        """list of tracked point names, sorted alphabetically (ascending)
 
         Examples
         --------
@@ -704,7 +704,7 @@ class Tracking:
         >>> from py3r.behaviour.util.docdata import data_path
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> names = sorted(t.get_point_names())
+        >>> names = t.get_point_names()
         >>> set(['p1','p2','p3']).issubset(names)
         True
 
@@ -713,6 +713,7 @@ class Tracking:
         tracked_points = list(
             set([".".join(i.split(".")[:-1]) for i in self.data.columns])
         )
+        tracked_points.sort()
         return tracked_points
 
     def _assert_valid_point(self, point: str):

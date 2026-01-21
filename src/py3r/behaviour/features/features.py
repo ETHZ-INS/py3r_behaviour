@@ -1351,7 +1351,7 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> # Use exactly 4 points to avoid requiring skimage in tests
-        >>> poly = f.define_elliptical_boundary_from_points(['p1','p2','p3','p2'], n_points=20, scaling=1.0)
+        >>> poly = f.define_elliptical_boundary_from_points(['p1','p3','p2','p3'], n_points=20, scaling=1.0)
         >>> isinstance(poly, list) and len(poly) == 20
         True
 
