@@ -429,7 +429,7 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         )
         if len(missing_handles) > 0:
             missing_str = ", ".join(sorted(set(map(str, missing_handles))))
-            print("the following handles were not found in collection: " + missing_str)
+            print("the following handles were not found in collection: " + missing_str)    
 
     def stereo_triangulate(self) -> TrackingCollection:
         """
