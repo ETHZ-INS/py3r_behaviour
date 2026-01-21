@@ -363,6 +363,28 @@ class Tracking:
 
         return cls(data, meta, handle, tags)
 
+    def copy(self) -> Self:
+        """Creates a copy of an existing tracking object
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p:
+        ...     t = Tracking.from_dlcma(str(p), handle='ma', fps=30)
+        >>> t_copy = t.copy()
+        >>> len(t_copy.data), t_copy.meta['fps'], t_copy.handle
+        (4, 30.0, 'ma')
+
+        ```
+        """
+        return type(self)(
+            data=self.data.copy(),
+            meta=copy.deepcopy(self.meta),
+            handle=self.handle,
+            tags=copy.deepcopy(self.tags),
+        )
+
     @staticmethod
     def _apply_aspectratio_correction(
         df: pd.DataFrame, correction: float
@@ -542,12 +564,7 @@ class Tracking:
         ```
         """
         if not inplace:
-            new = self.__class__(
-                self.data.copy(),
-                copy.deepcopy(self.meta),
-                self.handle,
-                copy.deepcopy(self.tags),
-            )
+            new = self.copy()
             new.strip_column_names(inplace=True)
             return new
         stripped_colnames = [".".join(col.split(".")[-2:]) for col in self.data.columns]
@@ -609,12 +626,7 @@ class Tracking:
                 raise Exception("endframe not in data")
 
         if not inplace:
-            new = self.__class__(
-                self.data.copy(),
-                copy.deepcopy(self.meta),
-                self.handle,
-                copy.deepcopy(self.tags),
-            )
+            new = self.copy()
             new.trim(startframe, endframe, inplace=True)
             return new
         datatrim = self.data.loc[startframe:endframe, :].copy()
@@ -649,12 +661,7 @@ class Tracking:
             )
 
         if not inplace:
-            new = self.__class__(
-                self.data.copy(),
-                copy.deepcopy(self.meta),
-                self.handle,
-                copy.deepcopy(self.tags),
-            )
+            new = self.copy()
             new.filter_likelihood(threshold, inplace=True)
             return new
         for point in self.get_point_names():
@@ -751,12 +758,7 @@ class Tracking:
                 )
 
         if not inplace:
-            new = self.__class__(
-                self.data.copy(),
-                copy.deepcopy(self.meta),
-                self.handle,
-                copy.deepcopy(self.tags),
-            )
+            new = self.copy()
             new.rescale_by_known_distance(
                 point1, point2, distance_in_metres, dims=dims, inplace=True
             )
@@ -1068,12 +1070,7 @@ class Tracking:
             )
 
         if not inplace:
-            new = self.__class__(
-                self.data.copy(),
-                copy.deepcopy(self.meta),
-                self.handle,
-                copy.deepcopy(self.tags),
-            )
+            new = self.copy()
             new.interpolate(method=method, limit=limit, inplace=True, **kwargs)
             return new
         # interpolate only the position columns, and set likelihood to np.nan
