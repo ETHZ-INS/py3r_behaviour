@@ -429,42 +429,7 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         )
         if len(missing_handles) > 0:
             missing_str = ", ".join(sorted(set(map(str, missing_handles))))
-            print("the following handles were not found in collection: " + missing_str)
-            
-    def copy(self) -> TrackingCollection:
-        """
-        Creates an exact deep copy of a TrackingCollection
-
-        Examples
-        --------
-        ```pycon
-        >>> import tempfile, shutil
-        >>> from pathlib import Path
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking import Tracking
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv')
-        ...         _ = shutil.copy(p, d / 'B.csv')
-        ...     coll = TrackingCollection.from_folder(str(d), tracking_loader=Tracking.from_dlc, fps=30)
-        >>> coll_copy = coll.copy()
-        >>> sorted(coll_copy.keys())
-        ['A', 'B']
-
-        ```
-        """
-        values = list(self.tracking_dict.values())
-        if values and not all(isinstance(v, Tracking) for v in values):
-            raise NotImplementedError(
-                "TrackingCollection.copy() is only implemented for leaf collections "
-                "containing Tracking objects."
-            )
-
-        return self.__class__(
-            {handle: tracking.copy() for handle, tracking in self.tracking_dict.items()}
-        )
-        
+            print("the following handles were not found in collection: " + missing_str)    
 
     def stereo_triangulate(self) -> TrackingCollection:
         """

@@ -766,6 +766,41 @@ class BaseCollection(MutableMapping):
         new_dict = {handle: fn(obj) for handle, obj in self.items()}
         return self.__class__(new_dict)
 
+    def copy(self):
+        """
+        Creates a copy of the BaseCollection.
+        Raises NotImplementedError if any leaf does not implement copy().
+        
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv')
+        ...         _ = shutil.copy(p, d / 'B.csv')
+        ...     coll = TrackingCollection.from_folder(str(d), tracking_loader=Tracking.from_dlc, fps=30)
+        >>> coll_copy = coll.copy()
+        >>> sorted(coll_copy.keys())
+        ['A', 'B']
+
+        ```
+        """
+        def _copy_leaf(t):
+            try:
+                return t.copy()
+            except AttributeError:
+                raise NotImplementedError(
+                    f"{type(t).__name__} does not implement copy()"
+                ) from None
+
+        return self.map_leaves(_copy_leaf)
+
     # ---- Generic persistence for collections ----
     def save(
         self, dirpath: str, *, overwrite: bool = False, data_format: str = "parquet"
