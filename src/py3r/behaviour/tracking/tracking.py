@@ -787,7 +787,8 @@ class Tracking:
         Args:
             df (pd.DataFrame): the dataframe containing the point data that should be writen into the trackingobject
             point (str): the name of the point to overwrite
-            target_df (pd.DataFrame, Optional): an external copy of the self.data dataframe can be specified. Usefull for operations that are not in place. defaults to None = write into self.data
+            target_df (pd.DataFrame, Optional): An external copy of the self.data dataframe can be specified. 
+                                                Usefull for operations that are not in place. defaults to None = write into self.data
 
 
         Examples
@@ -826,7 +827,8 @@ class Tracking:
         original_shape = len(target_df), len(target_cols)
         if df.shape != original_shape:
             raise ValueError(
-                f"Shape mismatch between input df {df.shape} with dimensions {df.columns} and target point data {original_shape} with dimensions {point_dimensions}"
+                f"Shape mismatch between input df {df.shape} with dimensions {df.columns} " + 
+                f"and target point data {original_shape} with dimensions {point_dimensions}"
             )
         if list(df.columns) != point_dimensions:
             raise ValueError(
