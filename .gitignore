@@ -6,3 +6,5 @@ dev/
 .pytest_cache/
 site/
 .cache/
+output
+development_testing/
