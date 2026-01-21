@@ -697,7 +697,7 @@ class Tracking:
         return distance
 
     def get_point_names(self) -> list:
-        """list of tracked point names
+        """list of tracked point names, sorted alphabetically (ascending)
 
         Examples
         --------
@@ -714,6 +714,7 @@ class Tracking:
         tracked_points = list(
             set([".".join(i.split(".")[:-1]) for i in self.data.columns])
         )
+        tracked_points.sort()
         return tracked_points
 
     def rescale_by_known_distance(
