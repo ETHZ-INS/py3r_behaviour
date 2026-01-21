@@ -25,6 +25,7 @@ from py3r.behaviour.util.series_utils import (
     apply_normalization_to_df,
     apply_custom_scaling,
 )
+from py3r.behaviour.util.missing_tolerance import impute_frame
 from py3r.behaviour.util.smoothing import smooth_series
 from py3r.behaviour.features.features_result import FeaturesResult
 from py3r.behaviour.util.io_utils import (
@@ -1099,6 +1100,7 @@ class Features:
         *,
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
+        impute_medians: pd.Series | None = None,
     ) -> "FeaturesResult":
         """
         new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
@@ -1143,8 +1145,14 @@ class Features:
         if not embed_df.columns.equals(centroids_df.columns):
             raise ValueError("Columns in embedding and centroids do not match")
 
-        mask = embed_df.notna().all(axis=1)
-        embed_values = embed_df[mask].values
+        # Optionally impute using provided medians (from training)
+        if impute_medians is not None:
+            embed_df, _ = impute_frame(embed_df, impute_medians)
+            mask = pd.Series(True, index=embed_df.index)
+            embed_values = embed_df.values
+        else:
+            mask = embed_df.notna().all(axis=1)
+            embed_values = embed_df[mask].values
         centroids_values = centroids_df.values
 
         labels = pd.Series(pd.NA, index=embed_df.index, dtype="Int64")
@@ -1157,6 +1165,9 @@ class Features:
             "embedding": embedding,
             "rescale_factors": rescale_factors,
             "custom_scaling": custom_scaling,
+            "impute_medians": (
+                impute_medians.to_dict() if impute_medians is not None else None
+            ),
         }
         return FeaturesResult(labels, self, name, meta)
 
