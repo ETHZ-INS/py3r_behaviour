@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Literal
 
 import pandas as pd
 
@@ -53,7 +53,7 @@ def apply_smoothing(
 def smooth_series(
     series: pd.Series,
     *,
-    method: str,
+    method: Literal["mean","median","savgol"],
     window: int | None,
     **method_kwargs,
 ) -> pd.Series:
@@ -77,7 +77,7 @@ def _smooth_series_savgol(
     series: pd.Series,
     *,
     window: int = 11,
-    polyorder: int = 3,
+    polyorder: int = 2,
     mode: str = "interp",
     nan_policy: str = "segment",
 ) -> pd.Series:
