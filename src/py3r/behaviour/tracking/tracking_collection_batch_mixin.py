@@ -141,7 +141,7 @@ class TrackingCollectionBatchMixin:
         """
         Batch-mode wrapper for Tracking.get_point_data across the collection.
 
-        For a specific point, returns the DataFrame with all dimensions data. 
+        For a specific point, returns the DataFrame with all dimensions data.
         colnames are reformated to drop the pointname (i.e p1.x -> x)
 
         See [`Tracking.get_point_data`][py3r.behaviour.tracking.tracking.Tracking.get_point_data] for examples.

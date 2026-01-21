@@ -707,6 +707,9 @@ class Tracking:
         >>> names = t.get_point_names()
         >>> set(['p1','p2','p3']).issubset(names)
         True
+        >>> sorted_names = sorted(names)
+        >>> sorted_names == names
+        True
 
         ```
         """
@@ -761,9 +764,9 @@ class Tracking:
         return list(dimensions)
 
     def get_point_data(self, point: str) -> pd.DataFrame:
-        """For a specific point, returns the DataFrame with all dimensions data. 
+        """For a specific point, returns the DataFrame with all dimensions data.
         colnames are reformated to drop the pointname (i.e p1.x -> x)
-        
+
         Examples
         --------
         ```pycon
@@ -791,7 +794,7 @@ class Tracking:
             df (pd.DataFrame):  the dataframe containing the point data that should be writen into the trackingobject
                                 colnames should reflect the dimension name (i.e 'x', 'y' etc.)
             point (str): the name of the point to overwrite
-            target_df (pd.DataFrame, Optional): An external copy of the self.data dataframe can be specified. 
+            target_df (pd.DataFrame, Optional): An external copy of the self.data dataframe can be specified.
                                                 Usefull for operations that are not in place. defaults to None = write into self.data
 
 
@@ -831,8 +834,8 @@ class Tracking:
         original_shape = len(target_df), len(target_cols)
         if df.shape != original_shape:
             raise ValueError(
-                f"Shape mismatch between input df {df.shape} with dimensions {df.columns} " + 
-                f"and target point data {original_shape} with dimensions {point_dimensions}"
+                f"Shape mismatch between input df {df.shape} with dimensions {df.columns} "
+                + f"and target point data {original_shape} with dimensions {point_dimensions}"
             )
         if list(df.columns) != point_dimensions:
             raise ValueError(
