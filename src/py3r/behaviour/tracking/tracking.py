@@ -697,10 +697,11 @@ class Tracking:
 
         ```
         """
-        distance = np.sqrt(
+        p1, p2 = self.get_point_data(point1), self.get_point_data(point2)
+        distance = np.sqrt(            
             sum(
                 [
-                    (self.data[point1 + "." + dim] - self.data[point2 + "." + dim]) ** 2
+                    (p1[dim] - p2[dim]) ** 2
                     for dim in dims
                 ]
             )
