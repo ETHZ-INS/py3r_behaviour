@@ -9,7 +9,7 @@ description = "Behaviour analysis tools for the py3r namespace package"
 authors = [{ name = "Tom Lorimer" }]
 dependencies = [
     "numpy",
-    "pandas",
+    "pandas<3.0.0",
     "matplotlib",
     "seaborn",
     "scikit-learn",
