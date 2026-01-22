@@ -26,9 +26,13 @@ def rolling_apply(
 
 
 def gen_encoder_decoder(s: pd.Series):
-    """generates a numeric encoder/decoder pair for categorical non-numeric data"""
-
-    labels = list(set(s))
+    """generates a numeric encoder/decoder pair for categorical non-numeric data
+    - Robust to missing values (np.nan, pd.NA, None): they are excluded from labels
+    - Preserves first-occurrence order (stable) rather than using set()
+    """
+    # Drop missing and preserve order of first appearance
+    non_missing = s[~s.isna()]
+    labels = list(pd.unique(non_missing))
     encoding = list(np.arange(len(labels)))
     encoder = dict(zip(labels, encoding))
     decoder = dict(zip(encoding, labels))
@@ -43,24 +47,31 @@ def smooth_block(s: pd.Series, window: int) -> pd.Series:
     unless there is no previous block, in which case it fills
     from next block
     """
-
+    # Build encoder on non-missing values; map missing to NaN code
     encoder, decoder = gen_encoder_decoder(s)
 
-    _ = pd.DataFrame()
-    _["s"] = [encoder[i] for i in s]
+    # Numeric codes for known labels, NaN for missing/unseen
+    codes = pd.Series([encoder.get(v, np.nan) for v in s], index=s.index, dtype="float64")
 
-    # count length of blocks of identical values
-    x = (s != s.shift()).cumsum()
-    y = s.groupby(x).count()
-    _["blocklengths"] = [y.loc[i] for i in x]
+    # Compute block ids in an NA-safe way by using a sentinel for NaN
+    sentinel = -1.0  # encoder indices start at 0, so -1 is safe as separator
+    codes_filled = codes.fillna(sentinel)
+    block_ids = (codes_filled != codes_filled.shift()).cumsum()
 
-    # replace blocks
-    _["s"][_["blocklengths"] <= window] = np.nan
-    _["s"].ffill(inplace=True)
-    _["s"].bfill(inplace=True)
-    output = pd.Series([decoder[i] for i in _["s"]])
+    # Count non-missing items per block (ignore NaNs for length)
+    block_lengths = s.groupby(block_ids).transform("count")
 
-    return output
+    # Replace labels in short blocks (<= window) with NaN, then fill from neighbors
+    new_codes = codes.copy()
+    new_codes[block_lengths <= window] = np.nan
+    new_codes.ffill(inplace=True)
+    new_codes.bfill(inplace=True)
+
+    # Decode back to original labels; keep NaN as missing if it remains
+    output_vals = [
+        (decoder[int(v)] if pd.notna(v) else np.nan) for v in new_codes.to_numpy()
+    ]
+    return pd.Series(output_vals, index=s.index, name=s.name)
 
 
 def get_block(s: pd.Series, window: int) -> pd.Series:
@@ -70,18 +81,15 @@ def get_block(s: pd.Series, window: int) -> pd.Series:
     unless there is no previous block, in which case it fills
     from next block
     """
-
-    encoder, decoder = gen_encoder_decoder(s)
-
-    _ = pd.DataFrame()
-    _["s"] = [encoder[i] for i in s]
-
-    # count length of blocks of identical values
-    x = (s != s.shift()).cumsum()
-    y = s.groupby(x).count()
-    _["blocklengths"] = [y.loc[i] for i in x]
-
-    return _["blocklengths"] >= window
+    # Robust computation of block lengths with NA-safe comparison
+    encoder, _ = gen_encoder_decoder(s)
+    codes = pd.Series([encoder.get(v, np.nan) for v in s], index=s.index, dtype="float64")
+    sentinel = -1.0
+    codes_filled = codes.fillna(sentinel)
+    block_ids = (codes_filled != codes_filled.shift()).cumsum()
+    block_lengths = s.groupby(block_ids).transform("count")
+    # Only non-missing elements can be part of a "kept" block
+    return (block_lengths >= window) & (~s.isna())
 
 
 def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
@@ -91,24 +99,28 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     replace them with value from previous block
     """
 
-    mask = s1.astype("Int64").to_numpy()
-    diffs = np.diff(np.concatenate(([0], mask, [0])))
+    # Identify contiguous True regions in s2; treat missing as False
+    s1_out = s1.copy()
+    mask_bool = s2.fillna(False).astype(bool).to_numpy()
+    mask_int = mask_bool.astype(np.int8)
+    diffs = np.diff(np.concatenate(([0], mask_int, [0])))
     starts = np.where(diffs == 1)[0]
     ends = np.where(diffs == -1)[0]
 
     for start, end in zip(starts, ends):
-        if s2[start:end].to_numpy().any():
+        # Only act if the region actually has any True (it always should by construction)
+        if mask_bool[start:end].any():
             if start > 0:
-                replacement_value = s1.iloc[start - 1]
+                replacement_value = s1_out.iloc[start - 1]
             else:
                 try:
-                    replacement_value = s1.iloc[end]
+                    replacement_value = s1_out.iloc[end]
                 except IndexError:
                     raise IndexError(f"Index {end} out of range for pandas series s1")
-            s1[start:end] = replacement_value
+            s1_out.iloc[start:end] = replacement_value
 
     # Step 3: Assign back to DataFrame
-    return s1
+    return s1_out
 
 
 def normalize_df(df: pd.DataFrame, z_score: bool = False) -> tuple[pd.DataFrame, dict]:
