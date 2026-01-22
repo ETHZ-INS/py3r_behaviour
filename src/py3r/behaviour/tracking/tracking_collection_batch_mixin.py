@@ -150,7 +150,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'get_point_dimensions')(point))
         return self._invoke_batch("get_point_dimensions", point)
 
-    def get_point_data(self, point: str, dims: Optional[Tuple[str]]=None) -> BatchResult:
+    def get_point_data(self, point: str, dims: Optional[Iterable[str]]=None) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.get_point_data across the collection.
 

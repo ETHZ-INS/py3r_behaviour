@@ -2,7 +2,7 @@ from __future__ import annotations
 import copy
 import re
 import warnings
-from typing import Dict, Any, Type, TypeVar, Literal, Tuple, Optional
+from typing import Dict, Any, Type, TypeVar, Literal, Iterable, Optional
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -774,7 +774,7 @@ class Tracking:
 
     def get_point_data(self, 
                        point: str,
-                       dims: Optional[Tuple[str]] = None) -> pd.DataFrame:
+                       dims: Optional[Iterable[str]] = None) -> pd.DataFrame:
         """For a specific point, returns the DataFrame with all dimensions data.
         colnames are reformated to drop the pointname (i.e p1.x -> x)
         
