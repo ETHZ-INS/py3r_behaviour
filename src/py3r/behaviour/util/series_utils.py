@@ -51,7 +51,9 @@ def smooth_block(s: pd.Series, window: int) -> pd.Series:
     encoder, decoder = gen_encoder_decoder(s)
 
     # Numeric codes for known labels, NaN for missing/unseen
-    codes = pd.Series([encoder.get(v, np.nan) for v in s], index=s.index, dtype="float64")
+    codes = pd.Series(
+        [encoder.get(v, np.nan) for v in s], index=s.index, dtype="float64"
+    )
 
     # Compute block ids in an NA-safe way by using a sentinel for NaN
     sentinel = -1.0  # encoder indices start at 0, so -1 is safe as separator
@@ -83,7 +85,9 @@ def get_block(s: pd.Series, window: int) -> pd.Series:
     """
     # Robust computation of block lengths with NA-safe comparison
     encoder, _ = gen_encoder_decoder(s)
-    codes = pd.Series([encoder.get(v, np.nan) for v in s], index=s.index, dtype="float64")
+    codes = pd.Series(
+        [encoder.get(v, np.nan) for v in s], index=s.index, dtype="float64"
+    )
     sentinel = -1.0
     codes_filled = codes.fillna(sentinel)
     block_ids = (codes_filled != codes_filled.shift()).cumsum()
