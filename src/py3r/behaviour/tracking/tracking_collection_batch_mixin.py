@@ -150,7 +150,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, 'get_point_dimensions')(point))
         return self._invoke_batch("get_point_dimensions", point)
 
-    def get_point_data(self, point: str) -> BatchResult:
+    def get_point_data(self, point: str, dims: Optional[Tuple[str]]=None) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.get_point_data across the collection.
 
@@ -161,8 +161,8 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'get_point_data')(point))
-        return self._invoke_batch("get_point_data", point)
+            return self.map_leaves(lambda _obj: getattr(_obj, 'get_point_data')(point, dims))
+        return self._invoke_batch("get_point_data", point, dims)
 
     def set_point_data(self, df: pd.DataFrame, point: str, target_df: pd.DataFrame=None) -> BatchResult:
         """
