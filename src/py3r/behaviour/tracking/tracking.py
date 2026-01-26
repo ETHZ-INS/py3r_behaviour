@@ -2,7 +2,7 @@ from __future__ import annotations
 import copy
 import re
 import warnings
-from typing import Dict, Any, Type, TypeVar, Literal
+from typing import Dict, Any, Type, TypeVar, Literal, Iterable, Optional
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,7 +18,9 @@ from py3r.behaviour.util.io_utils import (
     write_dataframe,
     read_dataframe,
 )
-from py3r.behaviour.util.dataframe_utils import filter_by_threshold
+from py3r.behaviour.util.dataframe_utils import (filter_by_threshold,
+                                                 euclidean_distance,
+                                                 scale_columns)
 
 Self = TypeVar("Self", bound="Tracking")
 
@@ -695,15 +697,12 @@ class Tracking:
 
         ```
         """
-        distance = np.sqrt(
-            sum(
-                [
-                    (self.data[point1 + "." + dim] - self.data[point2 + "." + dim]) ** 2
-                    for dim in dims
-                ]
-            )
-        )
+        distance = euclidean_distance(self.get_point_data(point1, dims), 
+                                  self.get_point_data(point2, dims),
+                                  method="element_wise")
+        assert isinstance(distance, pd.Series) #euclidean_distance can return float or pd.Series!
         return distance
+
 
     def get_point_names(self) -> list:
         """list of tracked point names, sorted alphabetically (ascending)
@@ -773,9 +772,15 @@ class Tracking:
         ]
         return list(dimensions)
 
-    def get_point_data(self, point: str) -> pd.DataFrame:
+    def get_point_data(self, 
+                       point: str,
+                       dims: Optional[Iterable[str]] = None) -> pd.DataFrame:
         """For a specific point, returns the DataFrame with all dimensions data.
         colnames are reformated to drop the pointname (i.e p1.x -> x)
+        
+        Args:
+            point (str): name of the point for which data should be exteracted
+            dims (optional(tuple(str))): dimensons which should exclusively be returned
 
         Examples
         --------
@@ -793,6 +798,10 @@ class Tracking:
         prefix = f"{point}."
         df = self.data.loc[:, self.data.columns.str.startswith(prefix)].copy()
         df.columns = df.columns.str.removeprefix(prefix)
+        
+        if dims is not None:
+            return df.loc[:,dims]
+        
         return df
 
     def set_point_data(
@@ -897,18 +906,11 @@ class Tracking:
                 point1, point2, distance_in_metres, dims=dims, inplace=True
             )
             return new
-        tracking_distance = np.sqrt(
-            sum(
-                [
-                    (
-                        self.data[point1 + "." + dim].median()
-                        - self.data[point2 + "." + dim].median()
-                    )
-                    ** 2
-                    for dim in dims
-                ]
-            )
-        )
+
+        tracking_distance = euclidean_distance(self.get_point_data(point1, dims),
+                                               self.get_point_data(point2, dims),
+                                               method="median")
+        assert(isinstance(tracking_distance, float)) #euclidean_distance can return float or pd.Series!
         if tracking_distance == 0:
             raise Exception(f"observed distance between '{point1}' and '{point2}' is 0")
         if np.isnan(tracking_distance):
@@ -921,10 +923,11 @@ class Tracking:
         tracked_points = self.get_point_names()
 
         for point in tracked_points:
-            for dim in dims:
-                self.data[point + "." + dim] = (
-                    self.data[point + "." + dim] * rescale_factor
-                )
+            df = self.get_point_data(point)
+            df = scale_columns(df, 
+                               rescale_factor, 
+                               dims)
+            self.set_point_data(df, point)
 
         self.meta["rescale_distance_method"] = "two_point_scalar_uniform"
         self.meta["rescale_factor"] = {dim: rescale_factor for dim in dims}
