@@ -18,9 +18,11 @@ from py3r.behaviour.util.io_utils import (
     write_dataframe,
     read_dataframe,
 )
-from py3r.behaviour.util.dataframe_utils import (filter_by_threshold,
-                                                 euclidean_distance,
-                                                 scale_columns)
+from py3r.behaviour.util.dataframe_utils import (
+    filter_by_threshold,
+    euclidean_distance,
+    scale_columns,
+)
 
 Self = TypeVar("Self", bound="Tracking")
 
@@ -672,13 +674,10 @@ class Tracking:
             return new
         for point in self.get_point_names():
             df = self.get_point_data(point)
-            df = filter_by_threshold(df = df,
-                                     reference_col = 'likelihood',
-                                     threshold = threshold)
-            self.set_point_data(df, 
-                                point)
-            
-
+            df = filter_by_threshold(
+                df=df, reference_col="likelihood", threshold=threshold
+            )
+            self.set_point_data(df, point)
 
         self.meta["filter_likelihood_threshold"] = threshold
 
@@ -697,12 +696,15 @@ class Tracking:
 
         ```
         """
-        distance = euclidean_distance(self.get_point_data(point1, dims), 
-                                  self.get_point_data(point2, dims),
-                                  method="element_wise")
-        assert isinstance(distance, pd.Series) #euclidean_distance can return float or pd.Series!
+        distance = euclidean_distance(
+            self.get_point_data(point1, dims),
+            self.get_point_data(point2, dims),
+            method="element_wise",
+        )
+        assert isinstance(
+            distance, pd.Series
+        )  # euclidean_distance can return float or pd.Series!
         return distance
-
 
     def get_point_names(self) -> list:
         """list of tracked point names, sorted alphabetically (ascending)
@@ -772,12 +774,12 @@ class Tracking:
         ]
         return list(dimensions)
 
-    def get_point_data(self, 
-                       point: str,
-                       dims: Optional[Iterable[str]] = None) -> pd.DataFrame:
+    def get_point_data(
+        self, point: str, dims: Optional[Iterable[str]] = None
+    ) -> pd.DataFrame:
         """For a specific point, returns the DataFrame with all dimensions data.
         colnames are reformated to drop the pointname (i.e p1.x -> x)
-        
+
         Args:
             point (str): name of the point for which data should be exteracted
             dims (optional(tuple(str))): dimensons which should exclusively be returned
@@ -798,10 +800,10 @@ class Tracking:
         prefix = f"{point}."
         df = self.data.loc[:, self.data.columns.str.startswith(prefix)].copy()
         df.columns = df.columns.str.removeprefix(prefix)
-        
+
         if dims is not None:
-            return df.loc[:,dims]
-        
+            return df.loc[:, dims]
+
         return df
 
     def set_point_data(
@@ -907,10 +909,14 @@ class Tracking:
             )
             return new
 
-        tracking_distance = euclidean_distance(self.get_point_data(point1, dims),
-                                               self.get_point_data(point2, dims),
-                                               method="median")
-        assert(isinstance(tracking_distance, float)) #euclidean_distance can return float or pd.Series!
+        tracking_distance = euclidean_distance(
+            self.get_point_data(point1, dims),
+            self.get_point_data(point2, dims),
+            method="median",
+        )
+        assert isinstance(
+            tracking_distance, float
+        )  # euclidean_distance can return float or pd.Series!
         if tracking_distance == 0:
             raise Exception(f"observed distance between '{point1}' and '{point2}' is 0")
         if np.isnan(tracking_distance):
@@ -924,9 +930,7 @@ class Tracking:
 
         for point in tracked_points:
             df = self.get_point_data(point)
-            df = scale_columns(df, 
-                               rescale_factor, 
-                               dims)
+            df = scale_columns(df, rescale_factor, dims)
             self.set_point_data(df, point)
 
         self.meta["rescale_distance_method"] = "two_point_scalar_uniform"

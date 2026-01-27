@@ -20,6 +20,12 @@ dependencies = [
     "pyarrow>=20.0,<21.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "ruff==0.14.14",
+  "pre-commit==3.8.0",  # optional but strongly recommended
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["py3r.*"] 
@@ -29,3 +35,18 @@ addopts = "-q"
 testpaths = ["src", "tests"]
 doctest_optionflags = ["ELLIPSIS", "IGNORE_EXCEPTION_DETAIL", "NORMALIZE_WHITESPACE"]
 filterwarnings = ["ignore::UserWarning"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = ["build", "dist", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+# E/F  = pycodestyle + pyflakes
+# I    = import sorting (replaces isort)
+# B    = bugbear (common footguns)
+# UP   = pyupgrade (modern syntax)
+
+[tool.ruff.format]
+# defaults intentionally left alone
