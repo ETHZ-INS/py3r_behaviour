@@ -1,9 +1,10 @@
-import os
 import json
-import pandas as pd
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.decomposition import PCA
+import os
+
 import numpy as np
+import pandas as pd
+from sklearn.decomposition import PCA
+from sklearn.neighbors import KNeighborsRegressor
 
 try:
     import joblib
@@ -93,7 +94,7 @@ class BasePredictor:
         if (
             input_columns is None
             and hasattr(self, "_train_X")
-            and getattr(self, "_train_X") is not None
+            and self._train_X is not None
         ):
             try:
                 input_columns = list(self._train_X.columns)
@@ -102,7 +103,7 @@ class BasePredictor:
         if (
             output_columns is None
             and hasattr(self, "_output_columns")
-            and getattr(self, "_output_columns") is not None
+            and self._output_columns is not None
         ):
             try:
                 output_columns = list(self._output_columns)
@@ -129,7 +130,7 @@ class BasePredictor:
 
     @staticmethod
     def _read_manifest(dir_path: str) -> dict:
-        with open(os.path.join(dir_path, "manifest.json"), "r") as f:
+        with open(os.path.join(dir_path, "manifest.json")) as f:
             return json.load(f)
 
     @classmethod

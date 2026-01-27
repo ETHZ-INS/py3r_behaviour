@@ -1,46 +1,48 @@
 from __future__ import annotations
+
 import copy
 import logging
+import os
 import sys
 import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
-from shapely.geometry import Point, Polygon
 from shapely.errors import GEOSException
+from shapely.geometry import Point, Polygon
 from sklearn.neighbors import KNeighborsRegressor
-import os
 
+from py3r.behaviour.features.features_result import FeaturesResult
 from py3r.behaviour.tracking.tracking import Tracking
 from py3r.behaviour.util import series_utils
 from py3r.behaviour.util.bmicro_utils import (
-    train_knn_from_embeddings,
     predict_knn_on_embedding,
+    train_knn_from_embeddings,
 )
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
-from py3r.behaviour.util.series_utils import (
-    normalize_df,
-    apply_normalization_to_df,
-    apply_custom_scaling,
-)
-from py3r.behaviour.util.missing_tolerance import impute_frame
-from py3r.behaviour.util.smoothing import smooth_series
-from py3r.behaviour.features.features_result import FeaturesResult
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
     begin_save,
-    write_manifest,
+    read_dataframe,
     read_manifest,
     write_dataframe,
-    read_dataframe,
+    write_manifest,
 )
+from py3r.behaviour.util.missing_tolerance import impute_frame
+from py3r.behaviour.util.series_utils import (
+    apply_custom_scaling,
+    apply_normalization_to_df,
+    normalize_df,
+)
+from py3r.behaviour.util.smoothing import smooth_series
 
 if TYPE_CHECKING:
-    from py3r.behaviour.classifier import BaseClassifier
     import pandas as pd
     from sklearn.neighbors import KNeighborsRegressor
+
+    from py3r.behaviour.classifier import BaseClassifier
 
 logger = logging.getLogger(__name__)
 logformat = "%(funcName)s(): %(message)s"
@@ -123,7 +125,7 @@ class Features:
         write_manifest(target, manifest)
 
     @classmethod
-    def load(cls, dirpath: str) -> "Features":
+    def load(cls, dirpath: str) -> Features:
         """
         Load a Features object previously saved with save().
 
@@ -1101,7 +1103,7 @@ class Features:
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
         impute_medians: pd.Series | None = None,
-    ) -> "FeaturesResult":
+    ) -> FeaturesResult:
         """
         new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
         centroids_df: (n_clusters, n_features) DataFrame of cluster centers
@@ -1368,11 +1370,12 @@ class Features:
 
         ```
         """
+        import numpy as np
+
         from py3r.behaviour.util.ellipse_utils import (
             ellipse_points,
             fit_ellipse_least_squares,
         )
-        import numpy as np
 
         if not isinstance(points, list) or len(points) < 4:
             raise ValueError(

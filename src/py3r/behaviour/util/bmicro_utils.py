@@ -1,15 +1,15 @@
+
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import KNeighborsRegressor
-from typing import List, Tuple
 
 
 def train_knn_from_embeddings(
-    train_list: List[pd.DataFrame],
-    target_list: List[pd.DataFrame],
+    train_list: list[pd.DataFrame],
+    target_list: list[pd.DataFrame],
     n_neighbors: int = 5,
     **kwargs,
-) -> Tuple[KNeighborsRegressor, pd.Index, pd.Index]:
+) -> tuple[KNeighborsRegressor, pd.Index, pd.Index]:
     """
     Trains a KNN regressor from lists of input and target embedding DataFrames.
     Concatenates all train and target, drops rows with any NaNs, and fits the model.

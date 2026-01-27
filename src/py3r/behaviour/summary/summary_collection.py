@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import pandas as pd
 
-from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.features.features_collection import FeaturesCollection
-from py3r.behaviour.summary.summary_result import SummaryResult
-from py3r.behaviour.util.base_collection import BaseCollection
+from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.summary.summary_collection_batch_mixin import (
     SummaryCollectionBatchMixin,
 )
+from py3r.behaviour.summary.summary_result import SummaryResult
+from py3r.behaviour.util.base_collection import BaseCollection
 
 
 class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
@@ -535,8 +535,9 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         ```
         """
-        import matplotlib.pyplot as plt
         import os
+
+        import matplotlib.pyplot as plt
 
         def _sanitize(name: str) -> str:
             return "".join(
@@ -685,8 +686,9 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         ```
         """
         import os
-        import numpy as np
+
         import matplotlib.pyplot as plt
+        import numpy as np
         from sklearn.preprocessing import StandardScaler
 
         try:
@@ -978,6 +980,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         ```
         """
         import os
+
         import matplotlib.pyplot as plt
 
         try:

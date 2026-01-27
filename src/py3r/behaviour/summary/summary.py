@@ -1,8 +1,9 @@
 from __future__ import annotations
+
+import os
 import warnings
 from copy import deepcopy
-import os
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -12,10 +13,10 @@ from py3r.behaviour.summary.summary_result import SummaryResult
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
     begin_save,
-    write_manifest,
+    read_dataframe,
     read_manifest,
     write_dataframe,
-    read_dataframe,
+    write_manifest,
 )
 
 
@@ -113,7 +114,7 @@ class Summary:
         write_manifest(target, manifest)
 
     @classmethod
-    def load(cls, dirpath: str) -> "Summary":
+    def load(cls, dirpath: str) -> Summary:
         """
         Load a Summary previously saved with save().
 
@@ -487,7 +488,7 @@ class Summary:
             self.data[name] = summarystat
         self.meta[name] = meta
 
-    def make_bin(self, startframe: int, endframe: int) -> "Summary":
+    def make_bin(self, startframe: int, endframe: int) -> Summary:
         """
         creates a copy of the Summary object with the dataframes
         restricted from startframe to endframe, inclusive
@@ -525,7 +526,7 @@ class Summary:
 
         return bin_out
 
-    def make_bins(self, numbins: int) -> List[Summary]:
+    def make_bins(self, numbins: int) -> list[Summary]:
         """
         creates a list of Summary objects, with frames restricted into
         numbins even intervals.

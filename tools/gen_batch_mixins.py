@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Tuple, List, Optional
 
 """
 Generate grouped-aware batch mixins for collection classes.
@@ -30,7 +30,7 @@ class MethodInfo:
         self.doc = doc
 
 
-def _expr_src(src: str, node: Optional[ast.AST]) -> Optional[str]:
+def _expr_src(src: str, node: ast.AST | None) -> str | None:
     if node is None:
         return None
     try:
@@ -39,10 +39,10 @@ def _expr_src(src: str, node: Optional[ast.AST]) -> Optional[str]:
         return None
 
 
-def _build_params_and_calls(src: str, f: ast.FunctionDef) -> Tuple[str, str]:
+def _build_params_and_calls(src: str, f: ast.FunctionDef) -> tuple[str, str]:
     args = f.args
-    parts: List[str] = []
-    call_parts: List[str] = []
+    parts: list[str] = []
+    call_parts: list[str] = []
 
     # Positional-only (py3.8+)
     posonly = getattr(args, "posonlyargs", [])
@@ -131,14 +131,14 @@ def _iter_public_instance_methods_from_ast(
 ) -> Iterable[MethodInfo]:
     src = file_path.read_text()
     mod = ast.parse(src)
-    leaf_cls: Optional[ast.ClassDef] = None
+    leaf_cls: ast.ClassDef | None = None
     for node in mod.body:
         if isinstance(node, ast.ClassDef) and node.name == leaf_class_name:
             leaf_cls = node
             break
     if leaf_cls is None:
         return []
-    results: List[MethodInfo] = []
+    results: list[MethodInfo] = []
     for node in leaf_cls.body:
         if isinstance(node, ast.FunctionDef):
             name = node.name
@@ -181,7 +181,7 @@ def _extract_summary_paragraph(doc: str) -> str:
     if not doc:
         return ""
     lines = doc.splitlines()
-    out: List[str] = []
+    out: list[str] = []
     for ln in lines:
         s = ln.strip()
         if not s:
@@ -207,7 +207,7 @@ def _transform_leaf_doc_for_mixin(doc: str) -> str:
       to avoid xdoctest execution.
     """
     lines = doc.splitlines()
-    out: List[str] = []
+    out: list[str] = []
     for ln in lines:
         stripped = ln.strip()
         if stripped.startswith("```pycon"):
@@ -223,10 +223,10 @@ def _transform_leaf_doc_for_mixin(doc: str) -> str:
     return "\n".join(out)
 
 
-def _extract_type_checking_imports(src: str) -> List[str]:
+def _extract_type_checking_imports(src: str) -> list[str]:
     """Capture import lines inside an 'if TYPE_CHECKING:' block in the leaf module."""
     mod = ast.parse(src)
-    lines: List[str] = []
+    lines: list[str] = []
     for node in mod.body:
         if (
             isinstance(node, ast.If)

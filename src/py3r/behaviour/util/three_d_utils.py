@@ -1,8 +1,9 @@
-import cv2
-import numpy as np
-import os
 import glob
 import json
+import os
+
+import cv2
+import numpy as np
 
 
 def find_chessboard_corners(image_paths, chessboard_size):

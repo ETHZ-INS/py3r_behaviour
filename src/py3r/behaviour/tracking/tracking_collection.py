@@ -1,6 +1,9 @@
 from __future__ import annotations
+
 import os
+
 import pandas as pd
+
 from py3r.behaviour.tracking.tracking import Tracking
 from py3r.behaviour.tracking.tracking_collection_batch_mixin import (
     TrackingCollectionBatchMixin,

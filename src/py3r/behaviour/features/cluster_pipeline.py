@@ -1,26 +1,26 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, Literal, NamedTuple, Dict, Tuple
+from typing import Literal, NamedTuple, Protocol
 
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 
-from py3r.behaviour.util.series_utils import (
-    normalize_df,
-    apply_normalization_to_df,
-    apply_custom_scaling,
-)
-from py3r.behaviour.util.missing_tolerance import fit_frame_imputer, impute_frame
 from py3r.behaviour.features.features import Features, FeaturesResult
+from py3r.behaviour.util.missing_tolerance import fit_frame_imputer, impute_frame
+from py3r.behaviour.util.series_utils import (
+    apply_custom_scaling,
+    apply_normalization_to_df,
+    normalize_df,
+)
 
 
 class BuildResult(NamedTuple):
     combined: pd.DataFrame
     is_grouped: bool
     flat_group_key: str
-    key_to_feature: Dict[Tuple[str, str], Features]
+    key_to_feature: dict[tuple[str, str], Features]
 
 
 class Preprocessor(Protocol):
@@ -107,7 +107,7 @@ class DefaultPreprocessor:
         flat_group_key = "__flat__"
         group_iter = fc.items() if is_grouped else [(flat_group_key, fc)]
         all_embeddings: dict[tuple[str, str], pd.DataFrame] = {}
-        key_to_feature: Dict[tuple[str, str], Features] = {}
+        key_to_feature: dict[tuple[str, str], Features] = {}
         for gkey, sub in group_iter:
             for feat_name, features in sub.features_dict.items():
                 embed_df = features.embedding_df(embedding_dict).astype(np.float32)

@@ -4,9 +4,8 @@ import json
 import os
 from typing import Literal
 
-import pandas as pd
 import numpy as np
-
+import pandas as pd
 
 SchemaVersion = 1
 
@@ -67,7 +66,7 @@ def write_manifest(dirpath: str, manifest: dict) -> None:
 
 def read_manifest(dirpath: str) -> dict:
     path = os.path.join(dirpath, "manifest.json")
-    with open(path, "r") as f:
+    with open(path) as f:
         return json.load(f)
 
 

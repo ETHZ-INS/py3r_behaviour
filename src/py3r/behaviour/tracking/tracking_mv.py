@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 from py3r.behaviour.tracking.tracking import Tracking
 
@@ -70,13 +71,13 @@ class TrackingMV:
         tracking_loader,
         fps: float,
         aspectratio_correction: float = 1.0,
-    ) -> "TrackingMV":
+    ) -> TrackingMV:
         """
         Build a TrackingMV from a folder containing view CSVs and calibration.json.
         """
-        from pathlib import Path as _Path
-        import os
         import json
+        import os
+        from pathlib import Path as _Path
 
         folder = _Path(folder_path)
         if not folder.is_dir():
@@ -218,7 +219,7 @@ class TrackingMV:
             aspectratio_correction=aspectratio_correction,
         )
 
-    def stereo_triangulate(self, invert_z: bool = True) -> "Tracking":
+    def stereo_triangulate(self, invert_z: bool = True) -> Tracking:
         import cv2
         import numpy as np
 
@@ -425,7 +426,7 @@ class TrackingMV:
         self,
         keypoints: list[str],
         views: list[str] | None = None,
-    ) -> "TrackingMV":
+    ) -> TrackingMV:
         import numpy as np
         from scipy.optimize import linear_sum_assignment
 

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from typing import Tuple, Dict, Literal
+from typing import Literal
 
 import pandas as pd
 
 
 def apply_smoothing(
     df: pd.DataFrame,
-    specs: Dict[str, Dict],
-    dims: Tuple[str, ...],
+    specs: dict[str, dict],
+    dims: tuple[str, ...],
     *,
     smoother=None,
     smoother_kwargs: dict | None = None,

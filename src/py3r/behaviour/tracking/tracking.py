@@ -1,28 +1,31 @@
 from __future__ import annotations
+
 import copy
 import re
 import warnings
-from typing import Dict, Any, Type, TypeVar, Literal, Iterable, Optional
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any, Literal, TypeVar
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from py3r.behaviour.util.collection_utils import _Indexer
-from py3r.behaviour.util.smoothing import apply_smoothing
+from py3r.behaviour.util.dataframe_utils import (
+    euclidean_distance,
+    filter_by_threshold,
+    scale_columns,
+)
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
     begin_save,
-    write_manifest,
+    read_dataframe,
     read_manifest,
     write_dataframe,
-    read_dataframe,
+    write_manifest,
 )
-from py3r.behaviour.util.dataframe_utils import (
-    filter_by_threshold,
-    euclidean_distance,
-    scale_columns,
-)
+from py3r.behaviour.util.smoothing import apply_smoothing
 
 Self = TypeVar("Self", bound="Tracking")
 
@@ -195,7 +198,7 @@ class Tracking:
 
     @classmethod
     def from_dlc(
-        cls: Type[Self],
+        cls: type[Self],
         filepath: str | Path,
         *,
         handle: str,
@@ -250,7 +253,7 @@ class Tracking:
 
     @classmethod
     def from_dlcma(
-        cls: Type[Self],
+        cls: type[Self],
         filepath: str | Path,
         *,
         handle: str,
@@ -306,7 +309,7 @@ class Tracking:
 
     @classmethod
     def from_yolo3r(
-        cls: Type[Self],
+        cls: type[Self],
         filepath: str | Path,
         *,
         handle: str,
@@ -409,7 +412,7 @@ class Tracking:
     def __init__(
         self,
         data: pd.DataFrame,
-        meta: Dict[str, Any],
+        meta: dict[str, Any],
         handle: str,
         tags: dict[str, str] = None,
     ) -> None:
@@ -524,7 +527,7 @@ class Tracking:
         write_manifest(target, manifest)
 
     @classmethod
-    def load(cls: Type[Self], dirpath: str) -> Self:
+    def load(cls: type[Self], dirpath: str) -> Self:
         """
         Load a Tracking (or subclass) previously saved with save().
 
@@ -550,7 +553,7 @@ class Tracking:
         tags = manifest.get("tags", {})
         return cls(df, meta, handle, tags)
 
-    def strip_column_names(self, *, inplace: bool = True) -> "Tracking | None":
+    def strip_column_names(self, *, inplace: bool = True) -> Tracking | None:
         """strips out all column name string apart from last two sections delimited by dots
 
         Examples
@@ -604,7 +607,7 @@ class Tracking:
         endframe: int | None = None,
         *,
         inplace: bool = True,
-    ) -> "Tracking | None":
+    ) -> Tracking | None:
         """
         trims the tracking data object between startframe and endframe
 
@@ -639,7 +642,7 @@ class Tracking:
 
     def filter_likelihood(
         self, threshold: float, *, inplace: bool = True
-    ) -> "Tracking | None":
+    ) -> Tracking | None:
         """sets all tracking position values with likelihood less than threshold to np.nan
 
         Examples
@@ -775,7 +778,7 @@ class Tracking:
         return list(dimensions)
 
     def get_point_data(
-        self, point: str, dims: Optional[Iterable[str]] = None
+        self, point: str, dims: Iterable[str] | None = None
     ) -> pd.DataFrame:
         """For a specific point, returns the DataFrame with all dimensions data.
         colnames are reformated to drop the pointname (i.e p1.x -> x)
@@ -876,7 +879,7 @@ class Tracking:
         dims=("x", "y"),
         *,
         inplace: bool = True,
-    ) -> "Tracking | None":
+    ) -> Tracking | None:
         """rescale all dims by known distance between two points
 
         Examples
@@ -1043,7 +1046,7 @@ class Tracking:
         smoother_kwargs: dict | None = None,
         method_kwargs: dict | None = None,
         **kwargs,
-    ) -> "Tracking | None":
+    ) -> Tracking | None:
         """
         Smooth all tracked points using a default method/window, with optional override groups.
 
@@ -1186,7 +1189,7 @@ class Tracking:
 
     def interpolate(
         self, method: str = "linear", limit: int = 1, *, inplace: bool = True, **kwargs
-    ) -> "Tracking | None":
+    ) -> Tracking | None:
         """
         interpolates missing data in the tracking data, and sets likelihood to np.nan
         uses pandas.DataFrame.interpolate() with kwargs
@@ -1478,10 +1481,10 @@ class Tracking:
         Optionally, set axis limits manually or use robust percentiles to ignore outliers.
         Enforces equal aspect ratio for all axes.
         """
-        import numpy as np
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-        from matplotlib import animation
         import matplotlib.pyplot as plt
+        import numpy as np
+        from matplotlib import animation
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
         def get_robust_limits(data, lower=1, upper=99):
             return float(np.percentile(data, lower)), float(np.percentile(data, upper))

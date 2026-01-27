@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import MutableMapping
 import os
 import warnings
+from collections.abc import MutableMapping
+
 import pandas as pd
 
 from py3r.behaviour.exceptions import BatchProcessError
@@ -12,8 +13,8 @@ from py3r.behaviour.util.collection_utils import BatchResult
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
     begin_save,
-    write_manifest,
     read_manifest,
+    write_manifest,
 )
 
 
@@ -901,7 +902,7 @@ class BaseCollection(MutableMapping):
         is_grouped = manifest.get("is_grouped", False)
         index = manifest.get("elements_index", {})
         try:
-            element_cls = getattr(cls, "_element_type")
+            element_cls = cls._element_type
         except AttributeError:
             raise TypeError(
                 f"{cls.__name__} must define _element_type to load() collections"

@@ -1,6 +1,7 @@
-from math import floor, ceil
-import pandas as pd
+from math import ceil, floor
+
 import numpy as np
+import pandas as pd
 
 
 def mode(series: pd.Series):

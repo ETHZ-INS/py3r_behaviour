@@ -1,24 +1,25 @@
 from __future__ import annotations
-import pandas as pd
-import numpy as np
+
 from typing import Literal
 
-from py3r.behaviour.features.features import Features
-from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-from py3r.behaviour.util.base_collection import BaseCollection
-from py3r.behaviour.util.collection_utils import _Indexer
-from py3r.behaviour.util.dev_utils import dev_mode
-from py3r.behaviour.util.series_utils import (
-    normalize_df,
-    apply_normalization_to_df,
+import numpy as np
+import pandas as pd
+
+from py3r.behaviour.features.cluster_pipeline import (
+    ClusteringConfig,
+    ClusteringPipeline,
 )
-from py3r.behaviour.util.collection_utils import BatchResult
+from py3r.behaviour.features.features import Features
 from py3r.behaviour.features.features_collection_batch_mixin import (
     FeaturesCollectionBatchMixin,
 )
-from py3r.behaviour.features.cluster_pipeline import (
-    ClusteringPipeline,
-    ClusteringConfig,
+from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+from py3r.behaviour.util.base_collection import BaseCollection
+from py3r.behaviour.util.collection_utils import BatchResult, _Indexer
+from py3r.behaviour.util.dev_utils import dev_mode
+from py3r.behaviour.util.series_utils import (
+    apply_normalization_to_df,
+    normalize_df,
 )
 
 
@@ -752,8 +753,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         """
         Dev mode only: not available in public release yet.
         """
-        import numpy as np
         import matplotlib.pyplot as plt
+        import numpy as np
 
         # Keys
         between_key = f"from{from_group}_to_{to_group}"
@@ -814,8 +815,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         """
         Dev mode only: not available in public release yet.
         """
-        import pandas as pd
         import matplotlib.pyplot as plt
+        import pandas as pd
         import seaborn as sns
 
         records = []
@@ -890,8 +891,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         """
         Dev mode only: not available in public release yet.
         """
-        import pandas as pd
         import matplotlib.pyplot as plt
+        import pandas as pd
 
         features = sorted(
             set(

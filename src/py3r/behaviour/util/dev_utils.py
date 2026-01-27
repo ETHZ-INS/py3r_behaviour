@@ -1,5 +1,6 @@
-from py3r.behaviour.config import DEV_MODE, USE_DISCONTINUED_METHODS
 import functools
+
+from py3r.behaviour.config import DEV_MODE, USE_DISCONTINUED_METHODS
 
 
 def dev_mode(func):

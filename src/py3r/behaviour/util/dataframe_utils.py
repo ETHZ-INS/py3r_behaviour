@@ -1,6 +1,8 @@
-import pandas as pd
+from collections.abc import Iterable
+from typing import Literal
+
 import numpy as np
-from typing import Literal, Optional, Iterable, Union
+import pandas as pd
 
 
 def filter_by_threshold(
@@ -84,8 +86,8 @@ def euclidean_distance(
     df1: pd.DataFrame,
     df2: pd.DataFrame,
     method: Literal["median", "element_wise"] = "element_wise",
-    dims: Optional[Iterable[str]] = None,
-) -> Union[float, pd.Series]:
+    dims: Iterable[str] | None = None,
+) -> float | pd.Series:
     """
      Compute Euclidean distance between two DataFrames in N-dimensional space.
 
