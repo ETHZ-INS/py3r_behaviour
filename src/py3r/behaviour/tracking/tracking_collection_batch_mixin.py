@@ -3,12 +3,10 @@
 # Regenerate with: PYTHONPATH=src python -m tools.gen_batch_mixins
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Literal
-
-import pandas as pd
-
 from py3r.behaviour.util.collection_utils import BatchResult
+from typing import Literal
+from collections.abc import Iterable
+import pandas as pd
 
 
 class TrackingCollectionBatchMixin:
@@ -22,7 +20,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.copy())
+            return self.map_leaves(lambda _obj: getattr(_obj, "copy")())
         return self._invoke_batch("copy")
 
     def add_usermeta(self, usermeta: dict, overwrite: bool = False) -> BatchResult:
@@ -35,7 +33,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.add_usermeta(usermeta, overwrite))
+            return self.map_leaves(lambda _obj: getattr(_obj, "add_usermeta")(usermeta, overwrite))
         return self._invoke_batch("add_usermeta", usermeta, overwrite)
 
     def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> BatchResult:
@@ -48,7 +46,9 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.add_tag(tagname, tagvalue, overwrite))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "add_tag")(tagname, tagvalue, overwrite)
+            )
         return self._invoke_batch("add_tag", tagname, tagvalue, overwrite)
 
     def save(
@@ -64,7 +64,9 @@ class TrackingCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.save(dirpath, data_format=data_format, overwrite=overwrite)
+                lambda _obj: getattr(_obj, "save")(
+                    dirpath, data_format=data_format, overwrite=overwrite
+                )
             )
         return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
 
@@ -72,34 +74,32 @@ class TrackingCollectionBatchMixin:
         """
         Batch-mode wrapper for Tracking.strip_column_names across the collection.
 
-        strips out all column name string apart from last two sections delimited by dots
+        strip column names to the last two dot-delimited sections
 
         See leaf method ``Tracking.strip_column_names`` for examples.
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.strip_column_names(inplace=inplace))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "strip_column_names")(inplace=inplace)
+            )
         return self._invoke_batch("strip_column_names", inplace=inplace)
 
     def time_as_expected(self, mintime: float, maxtime: float) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.time_as_expected across the collection.
 
-        checks that the total length of the tracking data is between mintime seconds and maxtime seconds
+        check that total tracking duration (seconds) is between mintime and maxtime.
 
         See leaf method ``Tracking.time_as_expected`` for examples.
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.time_as_expected(mintime, maxtime))
+            return self.map_leaves(lambda _obj: getattr(_obj, "time_as_expected")(mintime, maxtime))
         return self._invoke_batch("time_as_expected", mintime, maxtime)
 
     def trim(
-        self,
-        startframe: int | None = None,
-        endframe: int | None = None,
-        *,
-        inplace: bool = True,
+        self, startframe: int | None = None, endframe: int | None = None, *, inplace: bool = True
     ) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.trim across the collection.
@@ -110,20 +110,24 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.trim(startframe, endframe, inplace=inplace))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "trim")(startframe, endframe, inplace=inplace)
+            )
         return self._invoke_batch("trim", startframe, endframe, inplace=inplace)
 
     def filter_likelihood(self, threshold: float, *, inplace: bool = True) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.filter_likelihood across the collection.
 
-        sets all tracking position values with likelihood less than threshold to np.nan
+        set position values with likelihood below threshold to np.nan.
 
         See leaf method ``Tracking.filter_likelihood`` for examples.
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.filter_likelihood(threshold, inplace=inplace))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "filter_likelihood")(threshold, inplace=inplace)
+            )
         return self._invoke_batch("filter_likelihood", threshold, inplace=inplace)
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> BatchResult:
@@ -136,7 +140,9 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.distance_between(point1, point2, dims))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "distance_between")(point1, point2, dims)
+            )
         return self._invoke_batch("distance_between", point1, point2, dims)
 
     def get_point_names(self) -> BatchResult:
@@ -149,7 +155,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.get_point_names())
+            return self.map_leaves(lambda _obj: getattr(_obj, "get_point_names")())
         return self._invoke_batch("get_point_names")
 
     def get_point_dimensions(self, point: str) -> BatchResult:
@@ -162,7 +168,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.get_point_dimensions(point))
+            return self.map_leaves(lambda _obj: getattr(_obj, "get_point_dimensions")(point))
         return self._invoke_batch("get_point_dimensions", point)
 
     def get_point_data(self, point: str, dims: Iterable[str] | None = None) -> BatchResult:
@@ -176,7 +182,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.get_point_data(point, dims))
+            return self.map_leaves(lambda _obj: getattr(_obj, "get_point_data")(point, dims))
         return self._invoke_batch("get_point_data", point, dims)
 
     def set_point_data(
@@ -191,7 +197,9 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.set_point_data(df, point, target_df))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "set_point_data")(df, point, target_df)
+            )
         return self._invoke_batch("set_point_data", df, point, target_df)
 
     def rescale_by_known_distance(
@@ -213,17 +221,12 @@ class TrackingCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.rescale_by_known_distance(
+                lambda _obj: getattr(_obj, "rescale_by_known_distance")(
                     point1, point2, distance_in_metres, dims, inplace=inplace
                 )
             )
         return self._invoke_batch(
-            "rescale_by_known_distance",
-            point1,
-            point2,
-            distance_in_metres,
-            dims,
-            inplace=inplace,
+            "rescale_by_known_distance", point1, point2, distance_in_metres, dims, inplace=inplace
         )
 
     def generate_smoothdict(
@@ -239,7 +242,7 @@ class TrackingCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.generate_smoothdict(pointslists, windows, smoothtypes)
+                lambda _obj: getattr(_obj, "generate_smoothdict")(pointslists, windows, smoothtypes)
             )
         return self._invoke_batch("generate_smoothdict", pointslists, windows, smoothtypes)
 
@@ -253,7 +256,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: _obj.smooth(smoothing_params))
+            return self.map_leaves(lambda _obj: getattr(_obj, "smooth")(smoothing_params))
         return self._invoke_batch("smooth", smoothing_params)
 
     def smooth_all(
@@ -272,14 +275,15 @@ class TrackingCollectionBatchMixin:
         """
         Batch-mode wrapper for Tracking.smooth_all across the collection.
 
-        Smooth all tracked points using a default method/window, with optional override groups.
+        Smooth all tracked points using a default method/window, with optional
+        override groups.
 
         See leaf method ``Tracking.smooth_all`` for examples.
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.smooth_all(
+                lambda _obj: getattr(_obj, "smooth_all")(
                     window,
                     method,
                     overrides,
@@ -320,7 +324,7 @@ class TrackingCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.interpolate(method, limit, inplace=inplace, **kwargs)
+                lambda _obj: getattr(_obj, "interpolate")(method, limit, inplace=inplace, **kwargs)
             )
         return self._invoke_batch("interpolate", method, limit, inplace=inplace, **kwargs)
 
@@ -357,31 +361,12 @@ class TrackingCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.plot(
-                    trajectories,
-                    static,
-                    lines,
-                    dims,
-                    ax,
-                    title,
-                    show,
-                    savedir,
-                    elev,
-                    azim,
+                lambda _obj: getattr(_obj, "plot")(
+                    trajectories, static, lines, dims, ax, title, show, savedir, elev, azim
                 )
             )
         return self._invoke_batch(
-            "plot",
-            trajectories,
-            static,
-            lines,
-            dims,
-            ax,
-            title,
-            show,
-            savedir,
-            elev,
-            azim,
+            "plot", trajectories, static, lines, dims, ax, title, show, savedir, elev, azim
         )
 
     def save_3d_tracking_video_multi_view(
@@ -406,20 +391,21 @@ class TrackingCollectionBatchMixin:
         Batch-mode wrapper for Tracking.save_3d_tracking_video_multi_view
         across the collection.
 
-        Save a 3D animation of tracked points to a video file, with 4 subplots per frame:
+        Save a 3D animation of tracked points to a video file, with 4 subplots
+        per frame:
         - azim=0, elev=0, ortho
         - azim=90, elev=0, ortho
         - azim=0, elev=90, ortho
         - azim=45, elev=30, persp
-        Optionally, set axis limits manually or use robust percentiles to ignore outliers.
-        Enforces equal aspect ratio for all axes.
+        Optionally, set axis limits manually or use robust percentiles to
+        ignore outliers. Enforces equal aspect ratio for all axes.
 
         See leaf method ``Tracking.save_3d_tracking_video_multi_view`` for examples.
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.save_3d_tracking_video_multi_view(
+                lambda _obj: getattr(_obj, "save_3d_tracking_video_multi_view")(
                     out_path,
                     lines,
                     point_size,

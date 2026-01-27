@@ -48,11 +48,14 @@ select = ["E", "F", "I", "B", "UP"]
 # B    = bugbear (common footguns)
 # UP   = pyupgrade (modern syntax)
 
-# Generated batch mixins: docstrings mirror leaf methods and can exceed line-length
+# Generated batch mixins:
+# - E501: docstrings mirror leaf methods and can exceed line-length
+# - B009: generator emits getattr(_obj, "method_name")(...) by design
+# - I001: import order is fixed by the generator
 [tool.ruff.lint.extend-per-file-ignores]
-"src/py3r/behaviour/tracking/tracking_collection_batch_mixin.py" = ["E501"]
-"src/py3r/behaviour/features/features_collection_batch_mixin.py" = ["E501"]
-"src/py3r/behaviour/summary/summary_collection_batch_mixin.py" = ["E501"]
+"src/py3r/behaviour/tracking/tracking_collection_batch_mixin.py" = ["E501", "B009", "I001"]
+"src/py3r/behaviour/features/features_collection_batch_mixin.py" = ["E501", "B009", "I001"]
+"src/py3r/behaviour/summary/summary_collection_batch_mixin.py" = ["E501", "B009", "I001"]
 
 [tool.ruff.format]
 # defaults intentionally left alone
