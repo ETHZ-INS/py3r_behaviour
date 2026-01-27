@@ -350,7 +350,7 @@ class BaseCollection(MutableMapping):
             # Empty collection: nothing to expose dynamically
             raise AttributeError(
                 f"{self.__class__.__name__!s} has no attribute {name!r}"
-            )
+            ) from None
 
         leaf_attr = getattr(example_leaf, name, None)
         if not callable(leaf_attr):
@@ -904,7 +904,7 @@ class BaseCollection(MutableMapping):
         except AttributeError:
             raise TypeError(
                 f"{cls.__name__} must define _element_type to load() collections"
-            )
+            ) from None
         if not hasattr(element_cls, "load"):
             raise TypeError(f"{element_cls} must implement classmethod load(dirpath)")
         if is_grouped:

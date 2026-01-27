@@ -126,7 +126,7 @@ def _smooth_series_savgol(
     # Identify contiguous finite segments
     # Use a group id that increments when mask changes or at NaN boundaries
     group_ids = (mask != mask.shift(fill_value=False)).cumsum()
-    for gid, is_finite in mask.groupby(group_ids):
+    for _gid, is_finite in mask.groupby(group_ids):
         if not is_finite.iloc[0]:
             continue  # this group is NaNs
         idx = is_finite[is_finite].index

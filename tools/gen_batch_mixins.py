@@ -100,7 +100,8 @@ def _build_params_and_calls(src: str, f: ast.FunctionDef) -> Tuple[str, str]:
             parts.append("*")
 
     # Keyword-only
-    for a, d in zip(args.kwonlyargs, args.kw_defaults or [None] * len(args.kwonlyargs)):
+    kw_defaults = args.kw_defaults or [None] * len(args.kwonlyargs)
+    for a, d in zip(args.kwonlyargs, kw_defaults, strict=True):
         name = a.arg
         ann = _expr_src(src, a.annotation)
         if d is None:
@@ -202,7 +203,8 @@ def _transform_leaf_doc_for_mixin(doc: str) -> str:
     """
     Adapt a leaf method docstring for a batch-mixin context:
     - Keep the content for IDE/autocomplete help
-    - Convert runnable fenced blocks (```pycon/python/py) into ```text to avoid xdoctest execution
+    - Convert runnable fenced blocks (```pycon/python/py) into ```text
+      to avoid xdoctest execution.
     """
     lines = doc.splitlines()
     out: List[str] = []
@@ -244,6 +246,7 @@ def _extract_type_checking_imports(src: str) -> List[str]:
 def _generate_collection_mixin(leaf_py: Path, leaf_class: str, mixin_class: str) -> str:
     methods = list(_iter_public_instance_methods_from_ast(leaf_py, leaf_class))
     needs_any = any("Any" in m.params_src for m in methods)
+    needs_literal = any("Literal" in m.params_src for m in methods)
     leaf_src = leaf_py.read_text()
     type_checking_imports = _extract_type_checking_imports(leaf_src)
     # Derive fully qualified module path for the leaf class, e.g.
@@ -266,6 +269,8 @@ def _generate_collection_mixin(leaf_py: Path, leaf_class: str, mixin_class: str)
     ]
     if needs_any:
         lines.append("from typing import Any")
+    if needs_literal:
+        lines.append("from typing import Literal")
     # Re-emit TYPE_CHECKING imports from leaf for annotation names
     if type_checking_imports:
         lines.append("from typing import TYPE_CHECKING")
@@ -290,13 +295,16 @@ def _generate_collection_mixin(leaf_py: Path, leaf_class: str, mixin_class: str)
             for dl in summary.splitlines():
                 lines.append(f"        {dl}")
         lines.append("")
-        full_ref = f"{module_name}.{leaf_class}.{mi.name}"
-        lines.append(
-            f"        See [`{leaf_class}.{mi.name}`][{full_ref}] for examples."
-        )
+        # Keep under 88 chars: use inline code ref instead of markdown link
+        see_line = f"        See leaf method ``{leaf_class}.{mi.name}`` for examples."
+        if len(see_line) <= 88:
+            lines.append(see_line)
+        else:
+            lines.append(f"        See leaf method ``{leaf_class}.{mi.name}``")
+            lines.append("        for examples.")
         lines.append('        """')
         suffix = f", {mi.call_args}" if mi.call_args else ""
-        # inplace-aware: if caller passes inplace=False, return a new collection via map_leaves
+        # inplace=False → return new collection via map_leaves
         lines.append("        _inplace = locals().get('inplace', True)")
         lines.append("        if _inplace is False:")
         call_for_map = mi.call_args if mi.call_args else ""

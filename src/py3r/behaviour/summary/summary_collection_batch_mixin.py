@@ -14,7 +14,7 @@ class SummaryCollectionBatchMixin:
 
         Save this Summary (including nested Features/Tracking) to a directory.
 
-        See [`Summary.save`][py3r.behaviour.summary.summary.Summary.save] for examples.
+        See leaf method ``Summary.save`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -28,7 +28,7 @@ class SummaryCollectionBatchMixin:
         counts number of times boolean series in the given column changes from False to True, ignoring nan values
         if first non nan value in series is true, this counts as an onset
 
-        See [`Summary.count_onset`][py3r.behaviour.summary.summary.Summary.count_onset] for examples.
+        See leaf method ``Summary.count_onset`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -39,7 +39,7 @@ class SummaryCollectionBatchMixin:
         """
         Batch-mode wrapper for Summary.time_true across the collection.
 
-        See [`Summary.time_true`][py3r.behaviour.summary.summary.Summary.time_true] for examples.
+        See leaf method ``Summary.time_true`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -50,7 +50,7 @@ class SummaryCollectionBatchMixin:
         """
         Batch-mode wrapper for Summary.time_false across the collection.
 
-        See [`Summary.time_false`][py3r.behaviour.summary.summary.Summary.time_false] for examples.
+        See leaf method ``Summary.time_false`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -61,7 +61,7 @@ class SummaryCollectionBatchMixin:
         """
         Batch-mode wrapper for Summary.total_distance across the collection.
 
-        See [`Summary.total_distance`][py3r.behaviour.summary.summary.Summary.total_distance] for examples.
+        See leaf method ``Summary.total_distance`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -74,7 +74,7 @@ class SummaryCollectionBatchMixin:
 
         Sum all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.sum_column`][py3r.behaviour.summary.summary.Summary.sum_column] for examples.
+        See leaf method ``Summary.sum_column`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -87,7 +87,7 @@ class SummaryCollectionBatchMixin:
 
         Mean of all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.mean_column`][py3r.behaviour.summary.summary.Summary.mean_column] for examples.
+        See leaf method ``Summary.mean_column`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -100,7 +100,7 @@ class SummaryCollectionBatchMixin:
 
         Median of all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.median_column`][py3r.behaviour.summary.summary.Summary.median_column] for examples.
+        See leaf method ``Summary.median_column`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -113,7 +113,7 @@ class SummaryCollectionBatchMixin:
 
         Max of all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.max_column`][py3r.behaviour.summary.summary.Summary.max_column] for examples.
+        See leaf method ``Summary.max_column`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -126,7 +126,7 @@ class SummaryCollectionBatchMixin:
 
         Min of all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.min_column`][py3r.behaviour.summary.summary.Summary.min_column] for examples.
+        See leaf method ``Summary.min_column`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -139,7 +139,7 @@ class SummaryCollectionBatchMixin:
 
         stores a summary statistic and optional metadata, with optional overwrite protection
 
-        See [`Summary.store`][py3r.behaviour.summary.summary.Summary.store] for examples.
+        See leaf method ``Summary.store`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -153,7 +153,7 @@ class SummaryCollectionBatchMixin:
         creates a copy of the Summary object with the dataframes
         restricted from startframe to endframe, inclusive
 
-        See [`Summary.make_bin`][py3r.behaviour.summary.summary.Summary.make_bin] for examples.
+        See leaf method ``Summary.make_bin`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -169,7 +169,7 @@ class SummaryCollectionBatchMixin:
         start/endpoints are duplicated between intervals to ensure no loss
         in e.g. distance calculations
 
-        See [`Summary.make_bins`][py3r.behaviour.summary.summary.Summary.make_bins] for examples.
+        See leaf method ``Summary.make_bins`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -180,7 +180,7 @@ class SummaryCollectionBatchMixin:
         """
         Batch-mode wrapper for Summary.transition_matrix across the collection.
 
-        See [`Summary.transition_matrix`][py3r.behaviour.summary.summary.Summary.transition_matrix] for examples.
+        See leaf method ``Summary.transition_matrix`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -193,7 +193,7 @@ class SummaryCollectionBatchMixin:
 
         counts the number of times a state is entered in a given column
 
-        See [`Summary.count_state_onsets`][py3r.behaviour.summary.summary.Summary.count_state_onsets] for examples.
+        See leaf method ``Summary.count_state_onsets`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -204,7 +204,7 @@ class SummaryCollectionBatchMixin:
         """
         Batch-mode wrapper for Summary.time_in_state across the collection.
 
-        See [`Summary.time_in_state`][py3r.behaviour.summary.summary.Summary.time_in_state] for examples.
+        See leaf method ``Summary.time_in_state`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -217,7 +217,7 @@ class SummaryCollectionBatchMixin:
 
         Plot a simple chord diagram of state transitions for this recording.
 
-        See [`Summary.plot_chord`][py3r.behaviour.summary.summary.Summary.plot_chord] for examples.
+        See leaf method ``Summary.plot_chord`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:

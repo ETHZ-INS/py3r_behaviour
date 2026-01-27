@@ -30,8 +30,8 @@ def gen_encoder_decoder(s: pd.Series):
 
     labels = list(set(s))
     encoding = list(np.arange(len(labels)))
-    encoder = dict(zip(labels, encoding))
-    decoder = dict(zip(encoding, labels))
+    encoder = dict(zip(labels, encoding, strict=True))
+    decoder = dict(zip(encoding, labels, strict=True))
 
     return encoder, decoder
 
@@ -96,15 +96,17 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     starts = np.where(diffs == 1)[0]
     ends = np.where(diffs == -1)[0]
 
-    for start, end in zip(starts, ends):
+    for start, end in zip(starts, ends, strict=True):
         if s2[start:end].to_numpy().any():
             if start > 0:
                 replacement_value = s1.iloc[start - 1]
             else:
                 try:
                     replacement_value = s1.iloc[end]
-                except IndexError:
-                    raise IndexError(f"Index {end} out of range for pandas series s1")
+                except IndexError as e:
+                    raise IndexError(
+                        f"Index {end} out of range for pandas series s1"
+                    ) from e
             s1[start:end] = replacement_value
 
     # Step 3: Assign back to DataFrame

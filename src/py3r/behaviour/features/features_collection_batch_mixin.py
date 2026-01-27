@@ -18,7 +18,7 @@ class FeaturesCollectionBatchMixin:
 
         Save this Features object (and its nested Tracking) to a self-describing directory.
 
-        See [`Features.save`][py3r.behaviour.features.features.Features.save] for examples.
+        See leaf method ``Features.save`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -29,7 +29,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.distance_between across the collection.
 
-        See [`Features.distance_between`][py3r.behaviour.features.features.Features.distance_between] for examples.
+        See leaf method ``Features.distance_between`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -40,7 +40,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.within_distance across the collection.
 
-        See [`Features.within_distance`][py3r.behaviour.features.features.Features.within_distance] for examples.
+        See leaf method ``Features.within_distance`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -53,7 +53,7 @@ class FeaturesCollectionBatchMixin:
 
         Return the per-dimension median coordinate for a tracked point.
 
-        See [`Features.get_point_median`][py3r.behaviour.features.features.Features.get_point_median] for examples.
+        See leaf method ``Features.get_point_median`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -70,7 +70,7 @@ class FeaturesCollectionBatchMixin:
         'scaling' is the factor by which to scale the boundary points, and 'scaling_y' is the factor by which to scale the y-axis
         if 'scaling_y' is not provided, 'scaling' will be applied to both axes
 
-        See [`Features.define_boundary`][py3r.behaviour.features.features.Features.define_boundary] for examples.
+        See leaf method ``Features.define_boundary`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -84,7 +84,7 @@ class FeaturesCollectionBatchMixin:
         checks whether point is inside polygon defined by ordered list of boundary points
         boundary points must be specified as a list of numerical tuples
 
-        See [`Features.within_boundary_static`][py3r.behaviour.features.features.Features.within_boundary_static] for examples.
+        See leaf method ``Features.within_boundary_static`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -98,7 +98,7 @@ class FeaturesCollectionBatchMixin:
         checks whether point is inside polygon defined by ordered list of boundary points
         boundary points must be specified as a list of names of tracked points
 
-        See [`Features.within_boundary_dynamic`][py3r.behaviour.features.features.Features.within_boundary_dynamic] for examples.
+        See leaf method ``Features.within_boundary_dynamic`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -115,7 +115,7 @@ class FeaturesCollectionBatchMixin:
         or as a list of names of tracked points.
         Optionally, pass boundary_name for a custom short name in the feature name/meta.
 
-        See [`Features.within_boundary`][py3r.behaviour.features.features.Features.within_boundary] for examples.
+        See leaf method ``Features.within_boundary`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -128,7 +128,7 @@ class FeaturesCollectionBatchMixin:
 
         Deprecated: use distance_to_boundary_static or distance_to_boundary_dynamic instead
 
-        See [`Features.distance_to_boundary`][py3r.behaviour.features.features.Features.distance_to_boundary] for examples.
+        See leaf method ``Features.distance_to_boundary`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -139,7 +139,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.distance_to_boundary_static across the collection.
 
-        See [`Features.distance_to_boundary_static`][py3r.behaviour.features.features.Features.distance_to_boundary_static] for examples.
+        See leaf method ``Features.distance_to_boundary_static`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -150,7 +150,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.distance_to_boundary_dynamic across the collection.
 
-        See [`Features.distance_to_boundary_dynamic`][py3r.behaviour.features.features.Features.distance_to_boundary_dynamic] for examples.
+        See leaf method ``Features.distance_to_boundary_dynamic`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -161,7 +161,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.area_of_boundary across the collection.
 
-        See [`Features.area_of_boundary`][py3r.behaviour.features.features.Features.area_of_boundary] for examples.
+        See leaf method ``Features.area_of_boundary`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -172,7 +172,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.acceleration across the collection.
 
-        See [`Features.acceleration`][py3r.behaviour.features.features.Features.acceleration] for examples.
+        See leaf method ``Features.acceleration`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -183,7 +183,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.azimuth across the collection.
 
-        See [`Features.azimuth`][py3r.behaviour.features.features.Features.azimuth] for examples.
+        See leaf method ``Features.azimuth`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -197,7 +197,7 @@ class FeaturesCollectionBatchMixin:
         Compute the signed angular deviation (radians) between two directions
         from a common basepoint for each frame.
 
-        See [`Features.azimuth_deviation`][py3r.behaviour.features.features.Features.azimuth_deviation] for examples.
+        See leaf method ``Features.azimuth_deviation`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -212,7 +212,7 @@ class FeaturesCollectionBatchMixin:
         from basepoint is <= deviation (radians).
         NA is propagated where inputs are missing (pd.NA).
 
-        See [`Features.within_azimuth_deviation`][py3r.behaviour.features.features.Features.within_azimuth_deviation] for examples.
+        See leaf method ``Features.within_azimuth_deviation`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -223,7 +223,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.speed across the collection.
 
-        See [`Features.speed`][py3r.behaviour.features.features.Features.speed] for examples.
+        See leaf method ``Features.speed`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -237,7 +237,7 @@ class FeaturesCollectionBatchMixin:
         Return True for frames where the point's speed is >= threshold.
         NA is propagated where inputs are missing (pd.NA).
 
-        See [`Features.above_speed`][py3r.behaviour.features.features.Features.above_speed] for examples.
+        See leaf method ``Features.above_speed`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -251,7 +251,7 @@ class FeaturesCollectionBatchMixin:
         Return True for frames where all listed points are moving at least at the threshold speed.
         NA is propagated: if any input is NA at a frame, result is NA.
 
-        See [`Features.all_above_speed`][py3r.behaviour.features.features.Features.all_above_speed] for examples.
+        See leaf method ``Features.all_above_speed`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -265,7 +265,7 @@ class FeaturesCollectionBatchMixin:
         Return True for frames where the point's speed is < threshold.
         NA is propagated where inputs are missing (pd.NA).
 
-        See [`Features.below_speed`][py3r.behaviour.features.features.Features.below_speed] for examples.
+        See leaf method ``Features.below_speed`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -279,7 +279,7 @@ class FeaturesCollectionBatchMixin:
         Return True for frames where all listed points are moving slower than the threshold speed.
         NA is propagated: if any input is NA at a frame, result is NA.
 
-        See [`Features.all_below_speed`][py3r.behaviour.features.features.Features.all_below_speed] for examples.
+        See leaf method ``Features.all_below_speed`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -290,7 +290,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.distance_change across the collection.
 
-        See [`Features.distance_change`][py3r.behaviour.features.features.Features.distance_change] for examples.
+        See leaf method ``Features.distance_change`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -303,7 +303,7 @@ class FeaturesCollectionBatchMixin:
 
         stores calculated feature with name and associated freeform metadata object
 
-        See [`Features.store`][py3r.behaviour.features.features.Features.store] for examples.
+        See leaf method ``Features.store`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -316,7 +316,7 @@ class FeaturesCollectionBatchMixin:
 
         classify behaviour using a classifier with inputs from this Features object
 
-        See [`Features.classify`][py3r.behaviour.features.features.Features.classify] for examples.
+        See leaf method ``Features.classify`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -339,7 +339,7 @@ class FeaturesCollectionBatchMixin:
                       no previous block, in which case replaced from next block after smoothing
                       note: all nan values will be filled using this method (dangerous!)
 
-        See [`Features.smooth`][py3r.behaviour.features.features.Features.smooth] for examples.
+        See leaf method ``Features.smooth`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -355,7 +355,7 @@ class FeaturesCollectionBatchMixin:
         positive shift: value from the future (t+n)
         negative shift: value from the past (t-n)
 
-        See [`Features.embedding_df`][py3r.behaviour.features.features.Features.embedding_df] for examples.
+        See leaf method ``Features.embedding_df`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -369,7 +369,7 @@ class FeaturesCollectionBatchMixin:
         new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
         centroids_df: (n_clusters, n_features) DataFrame of cluster centers
 
-        See [`Features.assign_clusters_by_centroids`][py3r.behaviour.features.features.Features.assign_clusters_by_centroids] for examples.
+        See leaf method ``Features.assign_clusters_by_centroids`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -382,7 +382,7 @@ class FeaturesCollectionBatchMixin:
 
         Developer mode: not available in public release yet.
 
-        See [`Features.train_knn_regressor`][py3r.behaviour.features.features.Features.train_knn_regressor] for examples.
+        See leaf method ``Features.train_knn_regressor`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -395,7 +395,7 @@ class FeaturesCollectionBatchMixin:
 
         Developer mode: not available in public release yet.
 
-        See [`Features.predict_knn`][py3r.behaviour.features.features.Features.predict_knn] for examples.
+        See leaf method ``Features.predict_knn`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -411,7 +411,8 @@ class FeaturesCollectionBatchMixin:
         `centre` can be a single point name or a list of point names.
         if `centre` is a list, the boundary will be centred on the mean of the median coordinates of the points.
 
-        See [`Features.define_elliptical_boundary_from_params`][py3r.behaviour.features.features.Features.define_elliptical_boundary_from_params] for examples.
+        See leaf method ``Features.define_elliptical_boundary_from_params``
+        for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -425,7 +426,8 @@ class FeaturesCollectionBatchMixin:
         Fit an ellipse to the median coordinates of the given tracked points (at least 4)
         and return a polygonal approximation. After fitting, the ellipse is scaled by `scaling`.
 
-        See [`Features.define_elliptical_boundary_from_points`][py3r.behaviour.features.features.Features.define_elliptical_boundary_from_points] for examples.
+        See leaf method ``Features.define_elliptical_boundary_from_points``
+        for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:

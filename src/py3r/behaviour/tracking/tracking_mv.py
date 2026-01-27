@@ -397,15 +397,15 @@ class TrackingMV:
 
         n_frames = len(frames)
         new_data_dict = {}
-        for ai, animal1 in enumerate(animals1):
-            for ki, kp in enumerate(keypoints):
+        for _ai, animal1 in enumerate(animals1):
+            for _ki, kp in enumerate(keypoints):
                 for coord in ["x", "y", "likelihood"]:
                     colname = f"{animal1}.{kp}.{coord}"
                     new_data_dict[colname] = np.full(n_frames, np.nan, dtype=np.float32)
         for fi, frame in enumerate(frames):
             for ai, animal1 in enumerate(animals1):
                 aj = aligned_indices[fi, ai]
-                for ki, kp in enumerate(keypoints):
+                for _ki, kp in enumerate(keypoints):
                     for coord in ["x", "y", "likelihood"]:
                         src_col = f"{animals2[aj]}.{kp}.{coord}"
                         dst_col = f"{animal1}.{kp}.{coord}"

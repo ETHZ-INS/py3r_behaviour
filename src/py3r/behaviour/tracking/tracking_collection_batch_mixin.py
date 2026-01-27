@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from py3r.behaviour.util.collection_utils import BatchResult
+from typing import Literal
 
 class TrackingCollectionBatchMixin:
 
@@ -13,7 +14,7 @@ class TrackingCollectionBatchMixin:
 
         Creates a copy of an existing tracking object
 
-        See [`Tracking.copy`][py3r.behaviour.tracking.tracking.Tracking.copy] for examples.
+        See leaf method ``Tracking.copy`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -26,7 +27,7 @@ class TrackingCollectionBatchMixin:
 
         adds or updates user-defined metadata
 
-        See [`Tracking.add_usermeta`][py3r.behaviour.tracking.tracking.Tracking.add_usermeta] for examples.
+        See leaf method ``Tracking.add_usermeta`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -39,7 +40,7 @@ class TrackingCollectionBatchMixin:
 
         adds or updates a tag
 
-        See [`Tracking.add_tag`][py3r.behaviour.tracking.tracking.Tracking.add_tag] for examples.
+        See leaf method ``Tracking.add_tag`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -52,7 +53,7 @@ class TrackingCollectionBatchMixin:
 
         Save this Tracking into a self-describing directory for exact round-trip.
 
-        See [`Tracking.save`][py3r.behaviour.tracking.tracking.Tracking.save] for examples.
+        See leaf method ``Tracking.save`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -65,7 +66,7 @@ class TrackingCollectionBatchMixin:
 
         strips out all column name string apart from last two sections delimited by dots
 
-        See [`Tracking.strip_column_names`][py3r.behaviour.tracking.tracking.Tracking.strip_column_names] for examples.
+        See leaf method ``Tracking.strip_column_names`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -78,7 +79,7 @@ class TrackingCollectionBatchMixin:
 
         checks that the total length of the tracking data is between mintime seconds and maxtime seconds
 
-        See [`Tracking.time_as_expected`][py3r.behaviour.tracking.tracking.Tracking.time_as_expected] for examples.
+        See leaf method ``Tracking.time_as_expected`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -91,7 +92,7 @@ class TrackingCollectionBatchMixin:
 
         trims the tracking data object between startframe and endframe
 
-        See [`Tracking.trim`][py3r.behaviour.tracking.tracking.Tracking.trim] for examples.
+        See leaf method ``Tracking.trim`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -104,7 +105,7 @@ class TrackingCollectionBatchMixin:
 
         sets all tracking position values with likelihood less than threshold to np.nan
 
-        See [`Tracking.filter_likelihood`][py3r.behaviour.tracking.tracking.Tracking.filter_likelihood] for examples.
+        See leaf method ``Tracking.filter_likelihood`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -117,7 +118,7 @@ class TrackingCollectionBatchMixin:
 
         framewise distance between two points
 
-        See [`Tracking.distance_between`][py3r.behaviour.tracking.tracking.Tracking.distance_between] for examples.
+        See leaf method ``Tracking.distance_between`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -130,7 +131,7 @@ class TrackingCollectionBatchMixin:
 
         list of tracked point names, sorted alphabetically (ascending)
 
-        See [`Tracking.get_point_names`][py3r.behaviour.tracking.tracking.Tracking.get_point_names] for examples.
+        See leaf method ``Tracking.get_point_names`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -143,7 +144,7 @@ class TrackingCollectionBatchMixin:
 
         Return viable dimension names associated with a point.
 
-        See [`Tracking.get_point_dimensions`][py3r.behaviour.tracking.tracking.Tracking.get_point_dimensions] for examples.
+        See leaf method ``Tracking.get_point_dimensions`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -157,7 +158,7 @@ class TrackingCollectionBatchMixin:
         For a specific point, returns the DataFrame with all dimensions data.
         colnames are reformated to drop the pointname (i.e p1.x -> x)
 
-        See [`Tracking.get_point_data`][py3r.behaviour.tracking.tracking.Tracking.get_point_data] for examples.
+        See leaf method ``Tracking.get_point_data`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -170,7 +171,7 @@ class TrackingCollectionBatchMixin:
 
         Sets the data of a point to the values of an external df.
 
-        See [`Tracking.set_point_data`][py3r.behaviour.tracking.tracking.Tracking.set_point_data] for examples.
+        See leaf method ``Tracking.set_point_data`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -183,7 +184,7 @@ class TrackingCollectionBatchMixin:
 
         rescale all dims by known distance between two points
 
-        See [`Tracking.rescale_by_known_distance`][py3r.behaviour.tracking.tracking.Tracking.rescale_by_known_distance] for examples.
+        See leaf method ``Tracking.rescale_by_known_distance`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -196,7 +197,7 @@ class TrackingCollectionBatchMixin:
 
         deprecated, use smooth_all instead
 
-        See [`Tracking.generate_smoothdict`][py3r.behaviour.tracking.tracking.Tracking.generate_smoothdict] for examples.
+        See leaf method ``Tracking.generate_smoothdict`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -209,7 +210,7 @@ class TrackingCollectionBatchMixin:
 
         deprecated, use smooth_all instead
 
-        See [`Tracking.smooth`][py3r.behaviour.tracking.tracking.Tracking.smooth] for examples.
+        See leaf method ``Tracking.smooth`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -223,7 +224,7 @@ class TrackingCollectionBatchMixin:
 
         Smooth all tracked points using a default method/window, with optional override groups.
 
-        See [`Tracking.smooth_all`][py3r.behaviour.tracking.tracking.Tracking.smooth_all] for examples.
+        See leaf method ``Tracking.smooth_all`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -237,7 +238,7 @@ class TrackingCollectionBatchMixin:
         interpolates missing data in the tracking data, and sets likelihood to np.nan
         uses pandas.DataFrame.interpolate() with kwargs
 
-        See [`Tracking.interpolate`][py3r.behaviour.tracking.tracking.Tracking.interpolate] for examples.
+        See leaf method ``Tracking.interpolate`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -260,7 +261,7 @@ class TrackingCollectionBatchMixin:
             savedir: optional directory path to save the plot image. If provided,
                      figure is saved as '<handle>_plot.png' inside this directory.
 
-        See [`Tracking.plot`][py3r.behaviour.tracking.tracking.Tracking.plot] for examples.
+        See leaf method ``Tracking.plot`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
@@ -279,7 +280,7 @@ class TrackingCollectionBatchMixin:
         Optionally, set axis limits manually or use robust percentiles to ignore outliers.
         Enforces equal aspect ratio for all axes.
 
-        See [`Tracking.save_3d_tracking_video_multi_view`][py3r.behaviour.tracking.tracking.Tracking.save_3d_tracking_video_multi_view] for examples.
+        See leaf method ``Tracking.save_3d_tracking_video_multi_view`` for examples.
         """
         _inplace = locals().get('inplace', True)
         if _inplace is False:
