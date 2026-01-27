@@ -6,9 +6,11 @@ from __future__ import annotations
 from py3r.behaviour.util.collection_utils import BatchResult
 from typing import Any
 
-class SummaryCollectionBatchMixin:
 
-    def save(self, dirpath: str, *, data_format: str="parquet", overwrite: bool=False) -> BatchResult:
+class SummaryCollectionBatchMixin:
+    def save(
+        self, dirpath: str, *, data_format: str = "parquet", overwrite: bool = False
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Summary.save across the collection.
 
@@ -16,12 +18,16 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.save`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, 'save')(dirpath, data_format=data_format, overwrite=overwrite)
+                lambda _obj: getattr(_obj, "save")(
+                    dirpath, data_format=data_format, overwrite=overwrite
+                )
             )
-        return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
+        return self._invoke_batch(
+            "save", dirpath, data_format=data_format, overwrite=overwrite
+        )
 
     def count_onset(self, column: str) -> BatchResult:
         """
@@ -32,9 +38,9 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.count_onset`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'count_onset')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "count_onset")(column))
         return self._invoke_batch("count_onset", column)
 
     def time_true(self, column: str) -> BatchResult:
@@ -43,9 +49,9 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.time_true`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'time_true')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "time_true")(column))
         return self._invoke_batch("time_true", column)
 
     def time_false(self, column: str) -> BatchResult:
@@ -54,21 +60,25 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.time_false`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'time_false')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "time_false")(column))
         return self._invoke_batch("time_false", column)
 
-    def total_distance(self, point: str, startframe: int | None=None, endframe: int | None=None) -> BatchResult:
+    def total_distance(
+        self, point: str, startframe: int | None = None, endframe: int | None = None
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Summary.total_distance across the collection.
 
         See leaf method ``Summary.total_distance`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, 'total_distance')(point, startframe, endframe)
+                lambda _obj: getattr(_obj, "total_distance")(
+                    point, startframe, endframe
+                )
             )
         return self._invoke_batch("total_distance", point, startframe, endframe)
 
@@ -80,9 +90,9 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.sum_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'sum_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "sum_column")(column))
         return self._invoke_batch("sum_column", column)
 
     def mean_column(self, column: str) -> BatchResult:
@@ -93,9 +103,9 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.mean_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'mean_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "mean_column")(column))
         return self._invoke_batch("mean_column", column)
 
     def median_column(self, column: str) -> BatchResult:
@@ -106,9 +116,9 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.median_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'median_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "median_column")(column))
         return self._invoke_batch("median_column", column)
 
     def max_column(self, column: str) -> BatchResult:
@@ -119,9 +129,9 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.max_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'max_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "max_column")(column))
         return self._invoke_batch("max_column", column)
 
     def min_column(self, column: str) -> BatchResult:
@@ -132,12 +142,14 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.min_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'min_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "min_column")(column))
         return self._invoke_batch("min_column", column)
 
-    def store(self, summarystat: Any, name: str, overwrite: bool=False, meta: Any=None) -> BatchResult:
+    def store(
+        self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Summary.store across the collection.
 
@@ -145,10 +157,10 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.store`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, 'store')(summarystat, name, overwrite, meta)
+                lambda _obj: getattr(_obj, "store")(summarystat, name, overwrite, meta)
             )
         return self._invoke_batch("store", summarystat, name, overwrite, meta)
 
@@ -161,10 +173,10 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.make_bin`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, 'make_bin')(startframe, endframe)
+                lambda _obj: getattr(_obj, "make_bin")(startframe, endframe)
             )
         return self._invoke_batch("make_bin", startframe, endframe)
 
@@ -179,9 +191,9 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.make_bins`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'make_bins')(numbins))
+            return self.map_leaves(lambda _obj: getattr(_obj, "make_bins")(numbins))
         return self._invoke_batch("make_bins", numbins)
 
     def transition_matrix(self, column: str, all_states=None) -> BatchResult:
@@ -190,10 +202,10 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.transition_matrix`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, 'transition_matrix')(column, all_states)
+                lambda _obj: getattr(_obj, "transition_matrix")(column, all_states)
             )
         return self._invoke_batch("transition_matrix", column, all_states)
 
@@ -205,10 +217,10 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.count_state_onsets`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, 'count_state_onsets')(column)
+                lambda _obj: getattr(_obj, "count_state_onsets")(column)
             )
         return self._invoke_batch("count_state_onsets", column)
 
@@ -218,12 +230,21 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.time_in_state`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'time_in_state')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "time_in_state")(column))
         return self._invoke_batch("time_in_state", column)
 
-    def plot_chord(self, column: str, all_states: list[str | int], *, cmap: str | list | None=None, show: bool=True, save_dir: str | None=None, **kwargs) -> BatchResult:
+    def plot_chord(
+        self,
+        column: str,
+        all_states: list[str | int],
+        *,
+        cmap: str | list | None = None,
+        show: bool = True,
+        save_dir: str | None = None,
+        **kwargs,
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Summary.plot_chord across the collection.
 
@@ -231,10 +252,24 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.plot_chord`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, 'plot_chord')(column, all_states, cmap=cmap, show=show, save_dir=save_dir, **kwargs)
+                lambda _obj: getattr(_obj, "plot_chord")(
+                    column,
+                    all_states,
+                    cmap=cmap,
+                    show=show,
+                    save_dir=save_dir,
+                    **kwargs,
+                )
             )
-        return self._invoke_batch("plot_chord", column, all_states, cmap=cmap, show=show, save_dir=save_dir, **kwargs)
-
+        return self._invoke_batch(
+            "plot_chord",
+            column,
+            all_states,
+            cmap=cmap,
+            show=show,
+            save_dir=save_dir,
+            **kwargs,
+        )
