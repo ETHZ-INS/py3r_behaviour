@@ -131,9 +131,7 @@ class DefaultPreprocessor:
         rescale_factors: dict | None,
         custom_scaling: dict[str, dict] | None,
     ) -> tuple[pd.DataFrame, dict | None]:
-        if custom_scaling is not None and (
-            auto_normalize or rescale_factors is not None
-        ):
+        if custom_scaling is not None and (auto_normalize or rescale_factors is not None):
             raise ValueError(
                 "custom_scaling is mutually exclusive with auto_normalize or rescale_factors"
             )
@@ -265,9 +263,7 @@ class ClusteringPipeline:
             rescale_factors=cfg.rescale_factors,
             custom_scaling=cfg.custom_scaling,
         )
-        X, w, impute_medians, valid_mask = self.missing.prepare(
-            combined, cfg.missing_policy
-        )
+        X, w, impute_medians, valid_mask = self.missing.prepare(combined, cfg.missing_policy)
         model, centroids = self.clusterer.fit(
             X, sample_weight=w, n_clusters=cfg.n_clusters, random_state=cfg.random_state
         )
@@ -281,9 +277,7 @@ class ClusteringPipeline:
             "lowmem": cfg.lowmem,
             "decimation_factor": cfg.decimation_factor,
             "missing_policy": cfg.missing_policy,
-            "impute_medians": None
-            if impute_medians is None
-            else impute_medians.to_dict(),
+            "impute_medians": None if impute_medians is None else impute_medians.to_dict(),
         }
 
         if cfg.lowmem:
@@ -305,9 +299,9 @@ class ClusteringPipeline:
         if build.is_grouped:
             result_dict = {}
             for (gkey, feat_name), feat in build.key_to_feature.items():
-                labels = combined_labels.xs(
-                    (gkey, feat_name), level=["group", "feature"]
-                ).astype("Int64")
+                labels = combined_labels.xs((gkey, feat_name), level=["group", "feature"]).astype(
+                    "Int64"
+                )
                 result_dict.setdefault(gkey, {})[feat_name] = FeaturesResult(
                     labels, feat, f"kmeans_{cfg.n_clusters}", meta
                 )
@@ -315,9 +309,9 @@ class ClusteringPipeline:
             result_dict = {}
             flat = build.flat_group_key
             for (_, feat_name), feat in build.key_to_feature.items():
-                labels = combined_labels.xs(
-                    (flat, feat_name), level=["group", "feature"]
-                ).astype("Int64")
+                labels = combined_labels.xs((flat, feat_name), level=["group", "feature"]).astype(
+                    "Int64"
+                )
                 result_dict[feat_name] = FeaturesResult(
                     labels, feat, f"kmeans_{cfg.n_clusters}", meta
                 )

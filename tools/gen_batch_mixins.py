@@ -286,10 +286,7 @@ def _generate_collection_mixin(leaf_py: Path, leaf_class: str, mixin_class: str)
         # Minimal batch-aware docstring for mixin methods (no executable examples)
         summary = _extract_summary_paragraph(mi.doc or "")
         lines.append('        """')
-        wrap_msg = (
-            f"        Batch-mode wrapper for {leaf_class}.{mi.name} "
-            "across the collection."
-        )
+        wrap_msg = f"        Batch-mode wrapper for {leaf_class}.{mi.name} across the collection."
         if len(wrap_msg) <= 88:
             lines.append(wrap_msg)
         else:

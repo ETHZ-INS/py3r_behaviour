@@ -108,7 +108,9 @@ class Tracking:
     >>> bool(np.isnan(t2.data['p1.x']).any())
     True
     >>> _ = t2.interpolate(method='nearest', limit=1)
-    >>> t2.data.columns.str.endswith('.likelihood').any() and t2.meta['interpolation']['method'] == 'nearest'
+    >>> has_lik = t2.data.columns.str.endswith('.likelihood').any()
+    >>> interp_ok = t2.meta['interpolation']['method'] == 'nearest'
+    >>> has_lik and interp_ok
     True
 
     ```
@@ -230,6 +232,7 @@ class Tracking:
             for i in zip(
                 list(header.iloc[1, 1:].astype(str)),
                 list(header.iloc[2, 1:].astype(str)),
+                strict=True,
             )
         ]
         scorer = header.iloc[0, 1]
@@ -285,6 +288,7 @@ class Tracking:
                 list(header.iloc[1, 1:].astype(str)),
                 list(header.iloc[2, 1:].astype(str)),
                 list(header.iloc[3, 1:].astype(str)),
+                strict=True,
             )
         ]
         scorer = header.iloc[0, 1]
@@ -339,25 +343,20 @@ class Tracking:
         newcols = [re.sub(".conf$", ".likelihood", col) for col in data.columns]
         data.columns = newcols
 
-        # drop only bounding-box corner coordinates
-        # keep everything else; only remove columns ending with .x1, .y1, .x2, .y2
-        # and also drop their corresponding '.likelihood' columns sharing the same prefix
+        # drop only bounding-box corner coordinates; keep everything else.
+        # remove columns ending with .x1, .y1, .x2, .y2 and their .likelihood pairs
         drop_column_suffixes = (".x1", ".y1", ".x2", ".y2")
         bbox_cols = [col for col in data.columns if col.endswith(drop_column_suffixes)]
         if bbox_cols:
             bbox_bases = {col.rsplit(".", 1)[0] for col in bbox_cols}
             likelihood_to_drop = [
-                f"{base}.likelihood"
-                for base in bbox_bases
-                if f"{base}.likelihood" in data.columns
+                f"{base}.likelihood" for base in bbox_bases if f"{base}.likelihood" in data.columns
             ]
             to_drop = list(set(bbox_cols).union(likelihood_to_drop))
             data.drop(columns=to_drop, inplace=True)
 
         # drop max_dim columns
-        max_dim_cols = [
-            col for col in data.columns if col == "max_dim.x" or col == "max_dim.y"
-        ]
+        max_dim_cols = [col for col in data.columns if col == "max_dim.x" or col == "max_dim.y"]
         data.drop(columns=max_dim_cols, inplace=True)
 
         meta = {
@@ -393,9 +392,7 @@ class Tracking:
         )
 
     @staticmethod
-    def _apply_aspectratio_correction(
-        df: pd.DataFrame, correction: float
-    ) -> pd.DataFrame:
+    def _apply_aspectratio_correction(df: pd.DataFrame, correction: float) -> pd.DataFrame:
         """
         rescales all x values within tracking object by aspectratio correction factor
         """
@@ -444,18 +441,14 @@ class Tracking:
         ```
         """
         if not isinstance(usermeta, dict):
-            raise TypeError(
-                f"usermeta must be a dictionary, got {type(usermeta).__name__}"
-            )
+            raise TypeError(f"usermeta must be a dictionary, got {type(usermeta).__name__}")
 
         if "usermeta" in self.meta and not overwrite:
-            raise Exception(
-                "user defined metadata already stored, set overwrite=True to overwrite"
-            )
+            raise Exception("user defined metadata already stored, set overwrite=True to overwrite")
 
         self.meta["usermeta"] = usermeta
         if overwrite:
-            warnings.warn("usermeta may be overwritten")
+            warnings.warn("usermeta may be overwritten", stacklevel=2)
 
     def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> None:
         """
@@ -476,9 +469,7 @@ class Tracking:
         if not isinstance(tagname, str):
             raise TypeError(f"tagname must be a string, got {type(tagname).__name__}")
         if tagname in self.tags and not overwrite:
-            raise Exception(
-                f"tag {tagname} already exists, set overwrite=True to overwrite"
-            )
+            raise Exception(f"tag {tagname} already exists, set overwrite=True to overwrite")
         self.tags[tagname] = tagvalue
 
     # New round-trip save/load that preserves full state in a directory
@@ -554,7 +545,7 @@ class Tracking:
         return cls(df, meta, handle, tags)
 
     def strip_column_names(self, *, inplace: bool = True) -> Tracking | None:
-        """strips out all column name string apart from last two sections delimited by dots
+        """strip column names to the last two dot-delimited sections
 
         Examples
         --------
@@ -579,7 +570,7 @@ class Tracking:
 
     def time_as_expected(self, mintime: float, maxtime: float) -> bool:
         """
-        checks that the total length of the tracking data is between mintime seconds and maxtime seconds
+        check that total tracking duration (seconds) is between mintime and maxtime.
 
         Examples
         --------
@@ -595,7 +586,7 @@ class Tracking:
         ```
         """
         if "trim" in self.meta.keys():
-            warnings.warn("tracking data have been trimmed")
+            warnings.warn("tracking data have been trimmed", stacklevel=2)
         totalframes = self.data.index[-1] - self.data.index[0]
         totaltime = totalframes / self.meta["fps"]
 
@@ -640,10 +631,8 @@ class Tracking:
         self.data = datatrim
         self.meta["trim"] = {"startframe": startframe, "endframe": endframe}
 
-    def filter_likelihood(
-        self, threshold: float, *, inplace: bool = True
-    ) -> Tracking | None:
-        """sets all tracking position values with likelihood less than threshold to np.nan
+    def filter_likelihood(self, threshold: float, *, inplace: bool = True) -> Tracking | None:
+        """set position values with likelihood below threshold to np.nan.
 
         Examples
         --------
@@ -663,12 +652,11 @@ class Tracking:
         ```
         """
         if "filter_likelihood_threshold" in self.meta.keys():
-            raise Exception(
-                "likelihood already filtered. re-load the raw data to change filter."
-            )
+            raise Exception("likelihood already filtered. re-load the raw data to change filter.")
         if "smoothing" in self.meta.keys():
             warnings.warn(
-                "these data have been smoothed. you should filter likelihood before smoothing"
+                "these data have been smoothed. you should filter likelihood before smoothing",
+                stacklevel=2,
             )
 
         if not inplace:
@@ -677,9 +665,7 @@ class Tracking:
             return new
         for point in self.get_point_names():
             df = self.get_point_data(point)
-            df = filter_by_threshold(
-                df=df, reference_col="likelihood", threshold=threshold
-            )
+            df = filter_by_threshold(df=df, reference_col="likelihood", threshold=threshold)
             self.set_point_data(df, point)
 
         self.meta["filter_likelihood_threshold"] = threshold
@@ -704,9 +690,7 @@ class Tracking:
             self.get_point_data(point2, dims),
             method="element_wise",
         )
-        assert isinstance(
-            distance, pd.Series
-        )  # euclidean_distance can return float or pd.Series!
+        assert isinstance(distance, pd.Series)  # euclidean_distance can return float or pd.Series!
         return distance
 
     def get_point_names(self) -> list:
@@ -727,9 +711,7 @@ class Tracking:
 
         ```
         """
-        tracked_points = list(
-            set([".".join(i.split(".")[:-1]) for i in self.data.columns])
-        )
+        tracked_points = list(set([".".join(i.split(".")[:-1]) for i in self.data.columns]))
         tracked_points.sort()
         return tracked_points
 
@@ -751,9 +733,7 @@ class Tracking:
         """
         valid_points = self.get_point_names()
         if point not in valid_points:
-            raise KeyError(
-                f"Warning, point {point} does not exist in tracking data. valid points are {valid_points}"
-            )
+            raise KeyError(f"point {point} not in tracking data; valid: {valid_points}")
 
     def get_point_dimensions(self, point: str) -> list[str]:
         """Return viable dimension names associated with a point.
@@ -777,9 +757,7 @@ class Tracking:
         ]
         return list(dimensions)
 
-    def get_point_data(
-        self, point: str, dims: Iterable[str] | None = None
-    ) -> pd.DataFrame:
+    def get_point_data(self, point: str, dims: Iterable[str] | None = None) -> pd.DataFrame:
         """For a specific point, returns the DataFrame with all dimensions data.
         colnames are reformated to drop the pointname (i.e p1.x -> x)
 
@@ -809,9 +787,7 @@ class Tracking:
 
         return df
 
-    def set_point_data(
-        self, df: pd.DataFrame, point: str, target_df: pd.DataFrame = None
-    ):
+    def set_point_data(self, df: pd.DataFrame, point: str, target_df: pd.DataFrame = None):
         """Sets the data of a point to the values of an external df.
 
         Args:
@@ -906,9 +882,7 @@ class Tracking:
                         "data to change scaling"
                     )
             else:
-                raise Exception(
-                    "distance already rescaled. re-load the raw data to change scaling"
-                )
+                raise Exception("distance already rescaled. re-load the raw data to change scaling")
 
         if not inplace:
             new = self.copy()
@@ -928,9 +902,7 @@ class Tracking:
         if tracking_distance == 0:
             raise Exception(f"observed distance between '{point1}' and '{point2}' is 0")
         if np.isnan(tracking_distance):
-            raise Exception(
-                f"observed distance between '{point1}' and '{point2}' is NaN"
-            )
+            raise Exception(f"observed distance between '{point1}' and '{point2}' is NaN")
 
         rescale_factor = distance_in_metres / tracking_distance
 
@@ -945,18 +917,14 @@ class Tracking:
         self.meta["rescale_factor"] = {dim: rescale_factor for dim in dims}
         self.meta["distance_units"] = "m"
 
-    def _generate_partial_smoothdict(
-        self, points: list, window: int, smoothtype: str
-    ) -> dict:
+    def _generate_partial_smoothdict(self, points: list, window: int, smoothtype: str) -> dict:
         """make partial smoothdict for points"""
         smoothdict = dict()
         for key in points:
             smoothdict[key] = {"window": window, "type": smoothtype}
         return smoothdict
 
-    def generate_smoothdict(
-        self, pointslists: list, windows: list, smoothtypes: list
-    ) -> dict:
+    def generate_smoothdict(self, pointslists: list, windows: list, smoothtypes: list) -> dict:
         """
         deprecated, use smooth_all instead
         """
@@ -971,9 +939,7 @@ class Tracking:
 
         smoothdict = dict()
         for i in range(len(pointslists)):
-            partial = self._generate_partial_smoothdict(
-                pointslists[i], windows[i], smoothtypes[i]
-            )
+            partial = self._generate_partial_smoothdict(pointslists[i], windows[i], smoothtypes[i])
             if len(set(smoothdict.keys()).intersection(set(partial.keys()))) > 0:
                 raise Exception("duplicate points detected")
             smoothdict = {**smoothdict, **partial}
@@ -991,9 +957,7 @@ class Tracking:
         )
 
         if "smoothing" in self.meta.keys():
-            raise Exception(
-                "data already smoothed. load again to use different smoothing"
-            )
+            raise Exception("data already smoothed. load again to use different smoothing")
 
         all_points = self.get_point_names()
 
@@ -1003,14 +967,10 @@ class Tracking:
         for point in smoothing_params.keys():
             if smoothing_params[point]["type"] == "mean":
                 self.data[point + ".x"] = (
-                    self.data[point + ".x"]
-                    .rolling(window=smoothing_params[point]["window"])
-                    .mean()
+                    self.data[point + ".x"].rolling(window=smoothing_params[point]["window"]).mean()
                 )
                 self.data[point + ".y"] = (
-                    self.data[point + ".y"]
-                    .rolling(window=smoothing_params[point]["window"])
-                    .mean()
+                    self.data[point + ".y"].rolling(window=smoothing_params[point]["window"]).mean()
                 )
                 if point + ".z" in self.data.columns:
                     self.data[point + ".z"] = (
@@ -1042,8 +1002,7 @@ class Tracking:
         self,
         window: int | None = 11,
         method: Literal["mean", "median", "savgol"] = "savgol",
-        overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]]
-        | None = None,
+        overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]] | None = None,
         dims: tuple[str, ...] = ("x", "y"),
         strict: bool = False,
         inplace: bool = True,
@@ -1082,18 +1041,14 @@ class Tracking:
         if overrides:
             for grp in overrides:
                 if not (isinstance(grp, tuple) and len(grp) == 3):
-                    raise ValueError(
-                        "each override must be a tuple: (points, method, window)"
-                    )
+                    raise ValueError("each override must be a tuple: (points, method, window)")
                 pts, m, w = grp
                 if isinstance(pts, str):
                     pts_list = [pts]
                 elif isinstance(pts, (list, tuple)):
                     pts_list = list(pts)
                 else:
-                    raise ValueError(
-                        "points must be a list/tuple of names or a single str"
-                    )
+                    raise ValueError("points must be a list/tuple of names or a single str")
                 for p in pts_list:
                     overrides_dict[p] = {"method": m, "window": w}
 
@@ -1139,9 +1094,7 @@ class Tracking:
         overrides: dict | None,
     ) -> None:
         if "smoothing" in self.meta.keys():
-            raise Exception(
-                "data already smoothed. load again to use different smoothing"
-            )
+            raise Exception("data already smoothed. load again to use different smoothing")
         if method not in {"median", "mean", "savgol"}:
             raise ValueError("method must be one of {'median','mean','savgol'}")
         if not set(dims).issubset({"x", "y", "z"}):
@@ -1183,15 +1136,11 @@ class Tracking:
                     f"'method'/'window', got {type(spec)}"
                 )
             if strict and (w is None or w <= 0):
-                raise ValueError(
-                    f"No valid window resolved for point '{p}' with strict=True"
-                )
+                raise ValueError(f"No valid window resolved for point '{p}' with strict=True")
             specs[p] = {"method": m, "window": None if not w or w <= 0 else int(w)}
         return specs
 
-    def _build_smoothing_meta(
-        self, specs: dict[str, dict], dims: tuple[str, ...]
-    ) -> dict:
+    def _build_smoothing_meta(self, specs: dict[str, dict], dims: tuple[str, ...]) -> dict:
         return {"spec": specs, "dims": list(dims)}
 
     def interpolate(
@@ -1216,9 +1165,7 @@ class Tracking:
         ```
         """
         if "interpolation" in self.meta.keys():
-            raise Exception(
-                "data already interpolated. re-load the raw data to interpolate again"
-            )
+            raise Exception("data already interpolated. re-load the raw data to interpolate again")
 
         if not inplace:
             new = self.copy()
@@ -1230,9 +1177,9 @@ class Tracking:
             | self.data.columns.str.endswith(".y")
             | self.data.columns.str.endswith(".z")
         ]
-        self.data.loc[:, position_columns] = self.data.loc[
-            :, position_columns
-        ].interpolate(method=method, limit=limit, **kwargs)
+        self.data.loc[:, position_columns] = self.data.loc[:, position_columns].interpolate(
+            method=method, limit=limit, **kwargs
+        )
         self.data.loc[:, self.data.columns.str.endswith(".likelihood")] = np.nan
 
         self.meta["interpolation"] = {
@@ -1372,9 +1319,7 @@ class Tracking:
             arrs = [self.data[f"{point}.{d}"].values for d in dims]
             mask = np.all([np.isfinite(a) for a in arrs], axis=0)
             arrs = [a[mask] for a in arrs]
-            if isinstance(trajectories, dict) and isinstance(
-                trajectories[point], pd.Series
-            ):
+            if isinstance(trajectories, dict) and isinstance(trajectories[point], pd.Series):
                 cvals = trajectories[point].values[mask]
                 sc = ax.scatter(*arrs, c=cvals, cmap="viridis", label=point, s=8)
                 plt.colorbar(sc, ax=ax, label=f"{point} color")
@@ -1540,9 +1485,7 @@ class Tracking:
         except ImportError:
             use_tqdm = False
         if use_tqdm:
-            frame_iter = tqdm(
-                selected_frames, desc="Precomputing 3D coordinates", unit="frame"
-            )
+            frame_iter = tqdm(selected_frames, desc="Precomputing 3D coordinates", unit="frame")
         else:
             frame_iter = selected_frames
             print("Precomputing 3D coordinates...")
@@ -1558,11 +1501,7 @@ class Tracking:
                 except KeyError:
                     continue
             coords_per_frame.append(coords)
-            if (
-                not use_tqdm
-                and total_frames > 0
-                and idx % max(1, total_frames // 10) == 0
-            ):
+            if not use_tqdm and total_frames > 0 and idx % max(1, total_frames // 10) == 0:
                 print(f"  {idx + 1}/{total_frames} frames processed...")
         if not use_tqdm:
             print("Precompute done.")
@@ -1610,10 +1549,7 @@ class Tracking:
             ax.set_zlabel("Z")
             scatters.append(ax.scatter([], [], [], s=point_size, c=point_color))
             line_objs.append(
-                [
-                    ax.plot([], [], [], color=line_color, linewidth=line_width)[0]
-                    for _ in lines
-                ]
+                [ax.plot([], [], [], color=line_color, linewidth=line_width)[0] for _ in lines]
             )
 
         # Set axis limits based on all data (robust to outliers)

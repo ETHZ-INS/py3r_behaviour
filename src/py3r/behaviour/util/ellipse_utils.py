@@ -39,9 +39,7 @@ def fit_ellipse_least_squares(points, smallness_weight=0.1):
     init = [np.mean(points[:, 0]), np.mean(points[:, 1]), 2, 1, 0]
 
     # Minimize the residuals
-    result = minimize(
-        ellipse_residual, init, args=(points, smallness_weight), method="Powell"
-    )
+    result = minimize(ellipse_residual, init, args=(points, smallness_weight), method="Powell")
 
     if result.success:
         return result.x

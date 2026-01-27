@@ -22,13 +22,9 @@ class SummaryCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.save(
-                    dirpath, data_format=data_format, overwrite=overwrite
-                )
+                lambda _obj: _obj.save(dirpath, data_format=data_format, overwrite=overwrite)
             )
-        return self._invoke_batch(
-            "save", dirpath, data_format=data_format, overwrite=overwrite
-        )
+        return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
 
     def count_onset(self, column: str) -> BatchResult:
         """
@@ -76,9 +72,7 @@ class SummaryCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.total_distance(point, startframe, endframe)
-            )
+            return self.map_leaves(lambda _obj: _obj.total_distance(point, startframe, endframe))
         return self._invoke_batch("total_distance", point, startframe, endframe)
 
     def sum_column(self, column: str) -> BatchResult:
@@ -158,9 +152,7 @@ class SummaryCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.store(summarystat, name, overwrite, meta)
-            )
+            return self.map_leaves(lambda _obj: _obj.store(summarystat, name, overwrite, meta))
         return self._invoke_batch("store", summarystat, name, overwrite, meta)
 
     def make_bin(self, startframe: int, endframe: int) -> BatchResult:
@@ -201,9 +193,7 @@ class SummaryCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.transition_matrix(column, all_states)
-            )
+            return self.map_leaves(lambda _obj: _obj.transition_matrix(column, all_states))
         return self._invoke_batch("transition_matrix", column, all_states)
 
     def count_state_onsets(self, column: str) -> BatchResult:

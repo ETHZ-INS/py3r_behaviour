@@ -97,9 +97,7 @@ def _smooth_series_savgol(
     try:
         from scipy.signal import savgol_filter
     except ImportError as e:
-        raise ImportError(
-            "Savitzky–Golay requires SciPy. Install with: pip install scipy"
-        ) from e
+        raise ImportError("Savitzky–Golay requires SciPy. Install with: pip install scipy") from e
     # Basic validation
     w = int(window)
     if w % 2 == 0:
@@ -109,9 +107,7 @@ def _smooth_series_savgol(
     has_nan = series.isna().any()
     if not has_nan:
         vals = series.to_numpy(dtype=float)
-        smoothed = savgol_filter(
-            vals, window_length=w, polyorder=int(polyorder), mode=mode
-        )
+        smoothed = savgol_filter(vals, window_length=w, polyorder=int(polyorder), mode=mode)
         return pd.Series(smoothed, index=series.index)
     # NaN handling
     if nan_policy == "error":
@@ -138,8 +134,6 @@ def _smooth_series_savgol(
             # too short for this window; leave as original (finite)
             continue
         vals = seg.to_numpy(dtype=float)
-        seg_sm = savgol_filter(
-            vals, window_length=w, polyorder=int(polyorder), mode=mode
-        )
+        seg_sm = savgol_filter(vals, window_length=w, polyorder=int(polyorder), mode=mode)
         out.loc[idx] = seg_sm
     return out

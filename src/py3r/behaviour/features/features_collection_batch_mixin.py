@@ -30,17 +30,11 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.save(
-                    dirpath, data_format=data_format, overwrite=overwrite
-                )
+                lambda _obj: _obj.save(dirpath, data_format=data_format, overwrite=overwrite)
             )
-        return self._invoke_batch(
-            "save", dirpath, data_format=data_format, overwrite=overwrite
-        )
+        return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
 
-    def distance_between(
-        self, point1: str, point2: str, dims=("x", "y")
-    ) -> BatchResult:
+    def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> BatchResult:
         """
         Batch-mode wrapper for Features.distance_between across the collection.
 
@@ -48,9 +42,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.distance_between(point1, point2, dims)
-            )
+            return self.map_leaves(lambda _obj: _obj.distance_between(point1, point2, dims))
         return self._invoke_batch("distance_between", point1, point2, dims)
 
     def within_distance(
@@ -122,9 +114,7 @@ class FeaturesCollectionBatchMixin:
             return self.map_leaves(
                 lambda _obj: _obj.within_boundary_static(point, boundary, boundary_name)
             )
-        return self._invoke_batch(
-            "within_boundary_static", point, boundary, boundary_name
-        )
+        return self._invoke_batch("within_boundary_static", point, boundary, boundary_name)
 
     def within_boundary_dynamic(
         self, point: str, boundary: list[str], boundary_name: str = None
@@ -140,13 +130,9 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.within_boundary_dynamic(
-                    point, boundary, boundary_name
-                )
+                lambda _obj: _obj.within_boundary_dynamic(point, boundary, boundary_name)
             )
-        return self._invoke_batch(
-            "within_boundary_dynamic", point, boundary, boundary_name
-        )
+        return self._invoke_batch("within_boundary_dynamic", point, boundary, boundary_name)
 
     def within_boundary(
         self, point: str, boundary: list, median: bool = True, boundary_name: str = None
@@ -165,13 +151,9 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.within_boundary(
-                    point, boundary, median, boundary_name
-                )
+                lambda _obj: _obj.within_boundary(point, boundary, median, boundary_name)
             )
-        return self._invoke_batch(
-            "within_boundary", point, boundary, median, boundary_name
-        )
+        return self._invoke_batch("within_boundary", point, boundary, median, boundary_name)
 
     def distance_to_boundary(
         self,
@@ -190,13 +172,9 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.distance_to_boundary(
-                    point, boundary, median, boundary_name
-                )
+                lambda _obj: _obj.distance_to_boundary(point, boundary, median, boundary_name)
             )
-        return self._invoke_batch(
-            "distance_to_boundary", point, boundary, median, boundary_name
-        )
+        return self._invoke_batch("distance_to_boundary", point, boundary, median, boundary_name)
 
     def distance_to_boundary_static(
         self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
@@ -210,13 +188,9 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.distance_to_boundary_static(
-                    point, boundary, boundary_name
-                )
+                lambda _obj: _obj.distance_to_boundary_static(point, boundary, boundary_name)
             )
-        return self._invoke_batch(
-            "distance_to_boundary_static", point, boundary, boundary_name
-        )
+        return self._invoke_batch("distance_to_boundary_static", point, boundary, boundary_name)
 
     def distance_to_boundary_dynamic(
         self, point: str, boundary: list[str], boundary_name: str | None = None
@@ -230,13 +204,9 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.distance_to_boundary_dynamic(
-                    point, boundary, boundary_name
-                )
+                lambda _obj: _obj.distance_to_boundary_dynamic(point, boundary, boundary_name)
             )
-        return self._invoke_batch(
-            "distance_to_boundary_dynamic", point, boundary, boundary_name
-        )
+        return self._invoke_batch("distance_to_boundary_dynamic", point, boundary, boundary_name)
 
     def area_of_boundary(self, boundary: list[str], median: bool = True) -> BatchResult:
         """
@@ -285,13 +255,9 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.azimuth_deviation(
-                    basepoint, pointdirection1, pointdirection2
-                )
+                lambda _obj: _obj.azimuth_deviation(basepoint, pointdirection1, pointdirection2)
             )
-        return self._invoke_batch(
-            "azimuth_deviation", basepoint, pointdirection1, pointdirection2
-        )
+        return self._invoke_batch("azimuth_deviation", basepoint, pointdirection1, pointdirection2)
 
     def within_azimuth_deviation(
         self,
@@ -349,9 +315,7 @@ class FeaturesCollectionBatchMixin:
             return self.map_leaves(lambda _obj: _obj.above_speed(point, speed, dims))
         return self._invoke_batch("above_speed", point, speed, dims)
 
-    def all_above_speed(
-        self, points: list, speed: float, dims=("x", "y")
-    ) -> BatchResult:
+    def all_above_speed(self, points: list, speed: float, dims=("x", "y")) -> BatchResult:
         """
         Batch-mode wrapper for Features.all_above_speed across the collection.
 
@@ -362,9 +326,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.all_above_speed(points, speed, dims)
-            )
+            return self.map_leaves(lambda _obj: _obj.all_above_speed(points, speed, dims))
         return self._invoke_batch("all_above_speed", points, speed, dims)
 
     def below_speed(self, point: str, speed: float, dims=("x", "y")) -> BatchResult:
@@ -381,9 +343,7 @@ class FeaturesCollectionBatchMixin:
             return self.map_leaves(lambda _obj: _obj.below_speed(point, speed, dims))
         return self._invoke_batch("below_speed", point, speed, dims)
 
-    def all_below_speed(
-        self, points: list, speed: float, dims=("x", "y")
-    ) -> BatchResult:
+    def all_below_speed(self, points: list, speed: float, dims=("x", "y")) -> BatchResult:
         """
         Batch-mode wrapper for Features.all_below_speed across the collection.
 
@@ -394,9 +354,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.all_below_speed(points, speed, dims)
-            )
+            return self.map_leaves(lambda _obj: _obj.all_below_speed(points, speed, dims))
         return self._invoke_batch("all_below_speed", points, speed, dims)
 
     def distance_change(self, point: str, dims=("x", "y")) -> BatchResult:
@@ -415,7 +373,7 @@ class FeaturesCollectionBatchMixin:
         feature: pd.Series,
         name: str,
         overwrite: bool = False,
-        meta: dict = dict(),
+        meta: dict | None = None,
     ) -> BatchResult:
         """
         Batch-mode wrapper for Features.store across the collection.
@@ -426,9 +384,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.store(feature, name, overwrite, meta)
-            )
+            return self.map_leaves(lambda _obj: _obj.store(feature, name, overwrite, meta))
         return self._invoke_batch("store", feature, name, overwrite, meta)
 
     def classify(self, classifier: BaseClassifier, **kwargs) -> BatchResult:
@@ -474,9 +430,7 @@ class FeaturesCollectionBatchMixin:
             return self.map_leaves(
                 lambda _obj: _obj.smooth(name, method, window, inplace, **method_kwargs)
             )
-        return self._invoke_batch(
-            "smooth", name, method, window, inplace, **method_kwargs
-        )
+        return self._invoke_batch("smooth", name, method, window, inplace, **method_kwargs)
 
     def embedding_df(self, embedding: dict[str, list[int]]) -> BatchResult:
         """

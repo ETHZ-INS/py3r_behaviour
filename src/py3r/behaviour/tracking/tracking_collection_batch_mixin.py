@@ -38,9 +38,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: _obj.add_usermeta(usermeta, overwrite))
         return self._invoke_batch("add_usermeta", usermeta, overwrite)
 
-    def add_tag(
-        self, tagname: str, tagvalue: str, overwrite: bool = False
-    ) -> BatchResult:
+    def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.add_tag across the collection.
 
@@ -50,9 +48,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.add_tag(tagname, tagvalue, overwrite)
-            )
+            return self.map_leaves(lambda _obj: _obj.add_tag(tagname, tagvalue, overwrite))
         return self._invoke_batch("add_tag", tagname, tagvalue, overwrite)
 
     def save(
@@ -68,13 +64,9 @@ class TrackingCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: _obj.save(
-                    dirpath, data_format=data_format, overwrite=overwrite
-                )
+                lambda _obj: _obj.save(dirpath, data_format=data_format, overwrite=overwrite)
             )
-        return self._invoke_batch(
-            "save", dirpath, data_format=data_format, overwrite=overwrite
-        )
+        return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
 
     def strip_column_names(self, *, inplace: bool = True) -> BatchResult:
         """
@@ -86,9 +78,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.strip_column_names(inplace=inplace)
-            )
+            return self.map_leaves(lambda _obj: _obj.strip_column_names(inplace=inplace))
         return self._invoke_batch("strip_column_names", inplace=inplace)
 
     def time_as_expected(self, mintime: float, maxtime: float) -> BatchResult:
@@ -120,14 +110,10 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.trim(startframe, endframe, inplace=inplace)
-            )
+            return self.map_leaves(lambda _obj: _obj.trim(startframe, endframe, inplace=inplace))
         return self._invoke_batch("trim", startframe, endframe, inplace=inplace)
 
-    def filter_likelihood(
-        self, threshold: float, *, inplace: bool = True
-    ) -> BatchResult:
+    def filter_likelihood(self, threshold: float, *, inplace: bool = True) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.filter_likelihood across the collection.
 
@@ -137,14 +123,10 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.filter_likelihood(threshold, inplace=inplace)
-            )
+            return self.map_leaves(lambda _obj: _obj.filter_likelihood(threshold, inplace=inplace))
         return self._invoke_batch("filter_likelihood", threshold, inplace=inplace)
 
-    def distance_between(
-        self, point1: str, point2: str, dims=("x", "y")
-    ) -> BatchResult:
+    def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.distance_between across the collection.
 
@@ -154,9 +136,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.distance_between(point1, point2, dims)
-            )
+            return self.map_leaves(lambda _obj: _obj.distance_between(point1, point2, dims))
         return self._invoke_batch("distance_between", point1, point2, dims)
 
     def get_point_names(self) -> BatchResult:
@@ -185,9 +165,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(lambda _obj: _obj.get_point_dimensions(point))
         return self._invoke_batch("get_point_dimensions", point)
 
-    def get_point_data(
-        self, point: str, dims: Iterable[str] | None = None
-    ) -> BatchResult:
+    def get_point_data(self, point: str, dims: Iterable[str] | None = None) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.get_point_data across the collection.
 
@@ -213,9 +191,7 @@ class TrackingCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: _obj.set_point_data(df, point, target_df)
-            )
+            return self.map_leaves(lambda _obj: _obj.set_point_data(df, point, target_df))
         return self._invoke_batch("set_point_data", df, point, target_df)
 
     def rescale_by_known_distance(
@@ -265,9 +241,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(
                 lambda _obj: _obj.generate_smoothdict(pointslists, windows, smoothtypes)
             )
-        return self._invoke_batch(
-            "generate_smoothdict", pointslists, windows, smoothtypes
-        )
+        return self._invoke_batch("generate_smoothdict", pointslists, windows, smoothtypes)
 
     def smooth(self, smoothing_params: dict) -> BatchResult:
         """
@@ -286,8 +260,7 @@ class TrackingCollectionBatchMixin:
         self,
         window: int | None = 11,
         method: Literal["mean", "median", "savgol"] = "savgol",
-        overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]]
-        | None = None,
+        overrides: list[tuple[list[str] | tuple[str, ...] | str, str, int | None]] | None = None,
         dims: tuple[str, ...] = ("x", "y"),
         strict: bool = False,
         inplace: bool = True,
@@ -349,9 +322,7 @@ class TrackingCollectionBatchMixin:
             return self.map_leaves(
                 lambda _obj: _obj.interpolate(method, limit, inplace=inplace, **kwargs)
             )
-        return self._invoke_batch(
-            "interpolate", method, limit, inplace=inplace, **kwargs
-        )
+        return self._invoke_batch("interpolate", method, limit, inplace=inplace, **kwargs)
 
     def plot(
         self,

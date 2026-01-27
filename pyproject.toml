@@ -37,7 +37,7 @@ doctest_optionflags = ["ELLIPSIS", "IGNORE_EXCEPTION_DETAIL", "NORMALIZE_WHITESP
 filterwarnings = ["ignore::UserWarning"]
 
 [tool.ruff]
-line-length = 88
+line-length = 100
 target-version = "py312"
 extend-exclude = ["build", "dist", ".venv"]
 
@@ -47,6 +47,12 @@ select = ["E", "F", "I", "B", "UP"]
 # I    = import sorting (replaces isort)
 # B    = bugbear (common footguns)
 # UP   = pyupgrade (modern syntax)
+
+# Generated batch mixins: docstrings mirror leaf methods and can exceed line-length
+[tool.ruff.lint.extend-per-file-ignores]
+"src/py3r/behaviour/tracking/tracking_collection_batch_mixin.py" = ["E501"]
+"src/py3r/behaviour/features/features_collection_batch_mixin.py" = ["E501"]
+"src/py3r/behaviour/summary/summary_collection_batch_mixin.py" = ["E501"]
 
 [tool.ruff.format]
 # defaults intentionally left alone

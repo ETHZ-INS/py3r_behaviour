@@ -82,9 +82,7 @@ class Summary:
                 spec = write_dataframe(
                     data_dir,
                     value,
-                    filename=f"{name}.parquet"
-                    if data_format == "parquet"
-                    else f"{name}.csv",
+                    filename=f"{name}.parquet" if data_format == "parquet" else f"{name}.csv",
                     format=data_format,
                 )
                 frames[name] = {"type": "dataframe", **spec, "subdir": "data"}
@@ -92,9 +90,7 @@ class Summary:
                 spec = write_dataframe(
                     data_dir,
                     value,
-                    filename=f"{name}.parquet"
-                    if data_format == "parquet"
-                    else f"{name}.csv",
+                    filename=f"{name}.parquet" if data_format == "parquet" else f"{name}.csv",
                     format=data_format,
                 )
                 frames[name] = {"type": "series", **spec, "subdir": "data"}
@@ -162,8 +158,9 @@ class Summary:
 
     def count_onset(self, column: str) -> SummaryResult:
         """
-        counts number of times boolean series in the given column changes from False to True, ignoring nan values
-        if first non nan value in series is true, this counts as an onset
+        Count times boolean series changes False->True, ignoring nans.
+        If first non-nan value is True, that counts as an onset.
+
         Examples
         --------
         ```pycon
@@ -224,8 +221,8 @@ class Summary:
         # Accept pandas nullable boolean and treat NaN as False
         try:
             bool_series = pd.Series(series, copy=False).astype("boolean")
-        except Exception:
-            raise Exception("time_true requires boolean-convertible series as input")
+        except Exception as err:
+            raise Exception("time_true requires boolean-convertible series as input") from err
         time = bool_series.fillna(False).sum() / self.features.tracking.meta["fps"]
         meta = {"function": "time_true", "column": column}
         return SummaryResult(time, self, f"time_true_{column}", meta)
@@ -260,8 +257,8 @@ class Summary:
         # Accept pandas nullable boolean and treat NaN as True (i.e., not counted as False time)
         try:
             bool_series = pd.Series(series, copy=False).astype("boolean")
-        except Exception:
-            raise Exception("time_false requires boolean-convertible series as input")
+        except Exception as err:
+            raise Exception("time_false requires boolean-convertible series as input") from err
         time = (~bool_series.fillna(True)).sum() / self.features.tracking.meta["fps"]
         meta = {"function": "time_false", "column": column}
         return SummaryResult(time, self, f"time_false_{column}", meta)
@@ -454,9 +451,7 @@ class Summary:
         """
         return self._apply_column(column, pd.Series.min, skipna=True)
 
-    def store(
-        self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None
-    ) -> None:
+    def store(self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None) -> None:
         """
         stores a summary statistic and optional metadata, with optional overwrite protection
         Examples
@@ -479,7 +474,7 @@ class Summary:
         if name in self.data:
             if overwrite:
                 self.data[name] = summarystat
-                warnings.warn(f"summarystat {name} overwritten")
+                warnings.warn(f"summarystat {name} overwritten", stacklevel=2)
             else:
                 raise Exception(
                     f"summarystat with name {name} already stored. set overwrite=True to overwrite"
@@ -513,9 +508,7 @@ class Summary:
         bin_out = deepcopy(self)
 
         # trim the tracking dataframe
-        bin_out.features.tracking.data = self.features.tracking.data.loc[
-            startframe:endframe
-        ].copy()
+        bin_out.features.tracking.data = self.features.tracking.data.loc[startframe:endframe].copy()
 
         # trim the features dataframe
         bin_out.features.data = self.features.data.loc[startframe:endframe].copy()
@@ -554,10 +547,7 @@ class Summary:
 
         binboundaries = np.linspace(startframe, endframe, numbins + 1).astype(int)
 
-        out = [
-            self.make_bin(binboundaries[i], binboundaries[i + 1])
-            for i in range(numbins)
-        ]
+        out = [self.make_bin(binboundaries[i], binboundaries[i + 1]) for i in range(numbins)]
 
         return out
 
@@ -591,9 +581,7 @@ class Summary:
         transitions = states != states.shift()
         prev_states = states.shift()[transitions]
         curr_states = states[transitions]
-        trans_df = pd.DataFrame(
-            {"previous": prev_states, "current": curr_states}
-        ).dropna()
+        trans_df = pd.DataFrame({"previous": prev_states, "current": curr_states}).dropna()
         if all_states is None:
             all_states = pd.unique(states.dropna())
         transition_matrix = pd.crosstab(
@@ -604,9 +592,7 @@ class Summary:
             "column": column,
             "all_states": all_states,
         }
-        return SummaryResult(
-            transition_matrix, self, f"transition_matrix_{column}", meta
-        )
+        return SummaryResult(transition_matrix, self, f"transition_matrix_{column}", meta)
 
     def count_state_onsets(self, column: str) -> SummaryResult:
         """
@@ -728,10 +714,10 @@ class Summary:
         """
         try:
             from pycirclize import Circos
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
-                "pycirclize is required for chord diagram plotting. Please install: 'pip install pycirclize'."
-            )
+                "pycirclize is required for chord diagrams. Install: pip install pycirclize"
+            ) from err
         import matplotlib.pyplot as plt
 
         tm_res = self.transition_matrix(column, all_states=all_states)
@@ -789,17 +775,14 @@ class Summary:
         else:
             base_colors = _base_colors_for_n(len(all_states))
         label_to_color = {
-            str(lbl): base_colors[i % len(base_colors)]
-            for i, lbl in enumerate(all_states)
+            str(lbl): base_colors[i % len(base_colors)] for i, lbl in enumerate(all_states)
         }
 
         # Drop zero-only states and enforce global order
         row_sums = df.sum(axis=1)
         col_sums = df.sum(axis=0)
         keep = (row_sums + col_sums) > 0
-        present = [
-            lbl for lbl in all_states if lbl in df.index and keep.get(lbl, False)
-        ]
+        present = [lbl for lbl in all_states if lbl in df.index and keep.get(lbl, False)]
         if len(present) == 0:
             fig, ax = plt.subplots(figsize=(4, 3))
             ax.axis("off")

@@ -168,15 +168,9 @@ def euclidean_distance(
 
     if method == "element_wise":
         if not df1.index.equals(df2.index):
-            raise ValueError(
-                "DataFrames must have identical indices for element-wise distance."
-            )
-        diff = df1.loc[:, dims].to_numpy(dtype=float) - df2.loc[:, dims].to_numpy(
-            dtype=float
-        )
-        return pd.Series(
-            np.linalg.norm(diff, axis=1), index=df1.index, name="euclidean_distance"
-        )
+            raise ValueError("DataFrames must have identical indices for element-wise distance.")
+        diff = df1.loc[:, dims].to_numpy(dtype=float) - df2.loc[:, dims].to_numpy(dtype=float)
+        return pd.Series(np.linalg.norm(diff, axis=1), index=df1.index, name="euclidean_distance")
 
     raise ValueError(f"Unknown method: {method}")
 

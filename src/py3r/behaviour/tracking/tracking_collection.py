@@ -30,9 +30,7 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         if values and all(isinstance(v, Tracking) for v in values):
             for key, obj in tracking_dict.items():
                 if obj.handle != key:
-                    raise ValueError(
-                        f"Key '{key}' does not match object's handle '{obj.handle}'"
-                    )
+                    raise ValueError(f"Key '{key}' does not match object's handle '{obj.handle}'")
         super().__init__(tracking_dict)
 
     @property
@@ -65,16 +63,15 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         ...         f1 = d / 'a.csv'; f2 = d / 'b.csv'
         ...         _ = shutil.copy(p, f1); _ = shutil.copy(p, f2)
         ...     mapping = {'A': str(f1), 'B': str(f2)}
-        ...     coll = TrackingCollection.from_mapping(mapping, tracking_loader=Tracking.from_dlc, fps=30)
+        ...     coll = TrackingCollection.from_mapping(
+        ...         mapping, tracking_loader=Tracking.from_dlc, fps=30)
         >>> sorted(coll.keys())
         ['A', 'B']
 
         ```
         """
         if not issubclass(tracking_cls, Tracking):
-            raise TypeError(
-                f"tracking_cls must be Tracking or a subclass, got {tracking_cls}"
-            )
+            raise TypeError(f"tracking_cls must be Tracking or a subclass, got {tracking_cls}")
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
             trackings[handle] = tracking_loader(fp, handle=handle, **loader_kwargs)
@@ -240,7 +237,8 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...         _ = shutil.copy(p, d / 'A.csv')
         ...         _ = shutil.copy(p, d / 'B.csv')
-        ...     coll = TrackingCollection.from_folder(str(d), tracking_loader=Tracking.from_dlc, fps=30)
+        ...     coll = TrackingCollection.from_folder(
+        ...         str(d), tracking_loader=Tracking.from_dlc, fps=30)
         >>> sorted(coll.keys())
         ['A', 'B']
 
@@ -253,18 +251,14 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
                 recording_path = os.path.join(folder_path, recording)
                 if not os.path.isdir(recording_path):
                     continue
-                tracking_obj = tracking_loader(
-                    recording_path, handle=recording, **loader_kwargs
-                )
+                tracking_obj = tracking_loader(recording_path, handle=recording, **loader_kwargs)
                 tracking_dict[recording] = tracking_obj
         else:
             for fname in os.listdir(folder_path):
                 if fname.endswith(".csv") and not fname.startswith("."):
                     handle = os.path.splitext(fname)[0]
                     fpath = os.path.join(folder_path, fname)
-                    tracking_obj = tracking_loader(
-                        fpath, handle=handle, **loader_kwargs
-                    )
+                    tracking_obj = tracking_loader(fpath, handle=handle, **loader_kwargs)
                     tracking_dict[handle] = tracking_obj
         return cls(tracking_dict)
 
@@ -400,7 +394,8 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         ...     coll = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
         ...     # tags csv
         ...     tagcsv = d / 'tags.csv'
-        ...     pd.DataFrame([{'handle':'A','group':'G1'},{'handle':'B','group':'G2'}]).to_csv(tagcsv, index=False)
+        ...     tagdf = pd.DataFrame([{'handle':'A','group':'G1'},{'handle':'B','group':'G2'}])
+        ...     tagdf.to_csv(tagcsv, index=False)
         ...     coll.add_tags_from_csv(str(tagcsv))
         >>> coll['A'].tags
         {'group': 'G1'}
@@ -427,9 +422,7 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
                 num_tags_added += 1
                 handles_updated.add(handle)
 
-        print(
-            f"added {num_tags_added} tags to {len(handles_updated)} elements in collection."
-        )
+        print(f"added {num_tags_added} tags to {len(handles_updated)} elements in collection.")
         if len(missing_handles) > 0:
             missing_str = ", ".join(sorted(set(map(str, missing_handles))))
             print("the following handles were not found in collection: " + missing_str)
@@ -470,7 +463,8 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         ...     (d / 'calibration.json').write_text(json.dumps(calib))
         ...     # Build collection by scanning the parent folder with TrackingMV
         ...     parent = str(d.parent)
-        ...     coll_mv = TrackingCollection.from_dlc_folder(parent, tracking_cls=TrackingMV, fps=30)
+        ...     coll_mv = TrackingCollection.from_dlc_folder(
+        ...         parent, tracking_cls=TrackingMV, fps=30)
         ...     coll_3d = coll_mv.stereo_triangulate()
         >>> from py3r.behaviour.tracking.tracking import Tracking
         >>> isinstance(next(iter(coll_3d.values())), Tracking)

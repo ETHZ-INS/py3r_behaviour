@@ -79,9 +79,7 @@ class BaseCollection(MutableMapping):
                 group_results = {}
                 for obj_key, obj in subcoll.items():
                     try:
-                        group_results[obj_key] = getattr(obj, _method_name)(
-                            *args, **kwargs
-                        )
+                        group_results[obj_key] = getattr(obj, _method_name)(*args, **kwargs)
                     except Exception as e:
                         raise BatchProcessError(
                             collection_name=group_key,
@@ -143,9 +141,7 @@ class BaseCollection(MutableMapping):
                 for obj_key, obj in subcoll.items():
                     try:
                         leaf_args = tuple(select(a, group_key, obj_key) for a in args)
-                        leaf_kwargs = {
-                            k: select(v, group_key, obj_key) for k, v in kwargs.items()
-                        }
+                        leaf_kwargs = {k: select(v, group_key, obj_key) for k, v in kwargs.items()}
                         group_results[obj_key] = getattr(obj, _method_name)(
                             *leaf_args, **leaf_kwargs
                         )
@@ -161,12 +157,8 @@ class BaseCollection(MutableMapping):
             for obj_key, obj in self.items():
                 try:
                     leaf_args = tuple(select(a, None, obj_key) for a in args)
-                    leaf_kwargs = {
-                        k: select(v, None, obj_key) for k, v in kwargs.items()
-                    }
-                    results[obj_key] = getattr(obj, _method_name)(
-                        *leaf_args, **leaf_kwargs
-                    )
+                    leaf_kwargs = {k: select(v, None, obj_key) for k, v in kwargs.items()}
+                    results[obj_key] = getattr(obj, _method_name)(*leaf_args, **leaf_kwargs)
                 except Exception as e:
                     raise BatchProcessError(
                         collection_name=None,
@@ -214,13 +206,10 @@ class BaseCollection(MutableMapping):
     def __setitem__(self, key, value):
         element_cls = type(self[0])
         if not isinstance(value, element_cls):
-            raise TypeError(
-                f"Value must be a {element_cls.__name__}, got {type(value).__name__}"
-            )
+            raise TypeError(f"Value must be a {element_cls.__name__}, got {type(value).__name__}")
         cn = self.__class__.__name__
         warnings.warn(
-            f"Direct assignment to {cn} is deprecated and may be removed "
-            "in a future version.",
+            f"Direct assignment to {cn} is deprecated and may be removed in a future version.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -341,9 +330,7 @@ class BaseCollection(MutableMapping):
         """
         if name.startswith("_"):
             # Preserve normal AttributeError semantics for private/dunder
-            raise AttributeError(
-                f"{self.__class__.__name__!s} has no attribute {name!r}"
-            )
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
 
         # Find a representative leaf to introspect available methods,
         # even when this collection is grouped.
@@ -352,15 +339,11 @@ class BaseCollection(MutableMapping):
             example_leaf = next(iter(flat_self.values()))
         except StopIteration:
             # Empty collection: nothing to expose dynamically
-            raise AttributeError(
-                f"{self.__class__.__name__!s} has no attribute {name!r}"
-            ) from None
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}") from None
 
         leaf_attr = getattr(example_leaf, name, None)
         if not callable(leaf_attr):
-            raise AttributeError(
-                f"{self.__class__.__name__!s} has no attribute {name!r}"
-            )
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
 
         # Build a thin wrapper that routes to the batch dispatcher.
         def _batch_wrapper(*args, **kwargs):
@@ -449,13 +432,9 @@ class BaseCollection(MutableMapping):
             groups.setdefault(key, []).append(obj)
         if missing:
             missing_str = "\n".join(f"{handle}: {tag}" for handle, tag in missing)
-            raise ValueError(
-                f"The following elements are missing required tags:\n{missing_str}"
-            )
+            raise ValueError(f"The following elements are missing required tags:\n{missing_str}")
 
-        group_collections = {
-            key: self.__class__.from_list(objs) for key, objs in groups.items()
-        }
+        group_collections = {key: self.__class__.from_list(objs) for key, objs in groups.items()}
         grouped = self.__class__(group_collections)
         grouped._is_grouped = True
         grouped._groupby_tags = tags
@@ -711,9 +690,7 @@ class BaseCollection(MutableMapping):
                 if include_value_counts:
                     # preserve simple dict for readability
                     vc = pd.Series(vals, dtype="object").value_counts(dropna=False)
-                    rec["value_counts"] = {
-                        str(idx): int(cnt) for idx, cnt in vc.items()
-                    }
+                    rec["value_counts"] = {str(idx): int(cnt) for idx, cnt in vc.items()}
                 records.append(rec)
             if not records:
                 # No tags present anywhere; return empty frame with expected columns
@@ -804,16 +781,12 @@ class BaseCollection(MutableMapping):
             try:
                 return t.copy()
             except AttributeError:
-                raise NotImplementedError(
-                    f"{type(t).__name__} does not implement copy()"
-                ) from None
+                raise NotImplementedError(f"{type(t).__name__} does not implement copy()") from None
 
         return self.map_leaves(_copy_leaf)
 
     # ---- Generic persistence for collections ----
-    def save(
-        self, dirpath: str, *, overwrite: bool = False, data_format: str = "parquet"
-    ) -> None:
+    def save(self, dirpath: str, *, overwrite: bool = False, data_format: str = "parquet") -> None:
         """
         Save this collection to a directory. Preserves grouping and delegates to
         leaf objects' save(dirpath, data_format, overwrite=True).

@@ -66,7 +66,9 @@ class Features:
 
         if "rescale_distance_method" not in self.tracking.meta.keys():
             warnings.warn(
-                "distance has not been calibrated on these tracking data. some methods will be unavailable"
+                "distance has not been calibrated on these tracking data. "
+                "some methods will be unavailable",
+                stacklevel=2,
             )
 
     # Full round-trip persistence
@@ -159,9 +161,7 @@ class Features:
         obj.tags = manifest.get("tags", obj.tags)
         return obj
 
-    def distance_between(
-        self, point1: str, point2: str, dims=("x", "y")
-    ) -> FeaturesResult:
+    def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> FeaturesResult:
         """
         returns distance from point1 to point2
 
@@ -182,9 +182,9 @@ class Features:
         ```
         """
         if "rescale_distance_method" not in self.tracking.meta.keys():
-            warnings.warn("distance has not been calibrated")
+            warnings.warn("distance has not been calibrated", stacklevel=2)
         if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
+            warnings.warn("tracking data have not been smoothed", stacklevel=2)
 
         obs_distance = self.tracking.distance_between(point1, point2, dims=dims)
         name = f"distance_between_{point1}_and_{point2}_in_{''.join(dims)}"
@@ -271,11 +271,9 @@ class Features:
         centre: str | list[str] = None,
     ) -> list[tuple[float, float]]:
         """
-        takes a list of defined points, and creates a static rescaled list of point coordinates based on median location of those points
-        'centre' (point about which to scale) can be a string or list of strings, in which case the median of the points will be used as the centre
-        if 'centre' is None, the median of all the boundary points will be used as the centre
-        'scaling' is the factor by which to scale the boundary points, and 'scaling_y' is the factor by which to scale the y-axis
-        if 'scaling_y' is not provided, 'scaling' will be applied to both axes
+        Static rescaled boundary from point medians.
+        'centre' can be str or list[str]; median of those points or of boundary if None.
+        'scaling' scales boundary; 'scaling_y' scales y-axis (default: same as scaling).
         """
 
         # get point medians
@@ -290,9 +288,7 @@ class Features:
                 ycoords = np.array([point[1] for point in centrepointmedians])
                 boundarycentre = (xcoords.mean(), ycoords.mean())
             else:
-                raise ValueError(
-                    f"centre must be a string or list of strings, not {type(centre)}"
-                )
+                raise ValueError(f"centre must be a string or list of strings, not {type(centre)}")
         else:
             xcoords = np.array([point[0] for point in pointmedians])
             ycoords = np.array([point[1] for point in pointmedians])
@@ -373,9 +369,7 @@ class Features:
             local_poly = Polygon(boundary)
             return local_poly.contains(local_point)
 
-        result = self.tracking.data.apply(local_contains_static, axis=1).astype(
-            "boolean"
-        )
+        result = self.tracking.data.apply(local_contains_static, axis=1).astype("boolean")
         return FeaturesResult(result, self, name, meta)
 
     def within_boundary_dynamic(
@@ -424,9 +418,7 @@ class Features:
             local_poly = Polygon(bdry_pts)
             return local_poly.contains(local_point)
 
-        result = self.tracking.data.apply(local_contains_dynamic, axis=1).astype(
-            "boolean"
-        )
+        result = self.tracking.data.apply(local_contains_dynamic, axis=1).astype("boolean")
         return FeaturesResult(result, self, name, meta)
 
     def within_boundary(
@@ -449,9 +441,7 @@ class Features:
                 return self.within_boundary_dynamic(point, boundary, boundary_name)
             if median:
                 static_boundary = self.define_boundary(boundary, 1.0)
-                return self.within_boundary_static(
-                    point, static_boundary, boundary_name
-                )
+                return self.within_boundary_static(point, static_boundary, boundary_name)
         else:
             return self.within_boundary_static(point, boundary, boundary_name)
 
@@ -468,15 +458,14 @@ class Features:
         Optionally, pass boundary_name for a custom short name in the feature name/meta.
         """
         warnings.warn(
-            "distance_to_boundary is deprecated, use distance_to_boundary_static or distance_to_boundary_dynamic",
+            "distance_to_boundary is deprecated; use "
+            "distance_to_boundary_static or distance_to_boundary_dynamic",
             DeprecationWarning,
             stacklevel=2,
         )
         if median:
             static_boundary = self.define_boundary(boundary, 1.0)
-            return self.distance_to_boundary_static(
-                point, static_boundary, boundary_name
-            )
+            return self.distance_to_boundary_static(point, static_boundary, boundary_name)
         else:
             return self.distance_to_boundary_dynamic(point, boundary, boundary_name)
 
@@ -545,9 +534,7 @@ class Features:
         result = self.tracking.data.apply(row_distance, axis=1)
         return FeaturesResult(result, self, name, meta)
 
-    def area_of_boundary(
-        self, boundary: list[str], median: bool = True
-    ) -> FeaturesResult:
+    def area_of_boundary(self, boundary: list[str], median: bool = True) -> FeaturesResult:
         """
         returns area of boundary as a FeaturesResult (constant for static, per-frame for dynamic)
 
@@ -567,17 +554,18 @@ class Features:
 
         ```
         """
-        name = f"area_of_boundary_{self._short_boundary_id(boundary)}_{'static' if median else 'dynamic'}"
+        kind = "static" if median else "dynamic"
+        name = f"area_of_boundary_{self._short_boundary_id(boundary)}_{kind}"
         meta = {"function": "area_of_boundary", "boundary": boundary, "median": median}
         if median:
-            warnings.warn("using median (static) boundary")
+            warnings.warn("using median (static) boundary", stacklevel=2)
             static_boundary = [self.get_point_median(i) for i in boundary]
             local_poly = Polygon(static_boundary)
             area = local_poly.area
             # Create a constant Series with the same index as self.tracking.data
             result = pd.Series(area, index=self.tracking.data.index)
         else:
-            warnings.warn("using fully dynamic boundary")
+            warnings.warn("using fully dynamic boundary", stacklevel=2)
 
             def row_area(x):
                 try:
@@ -610,7 +598,7 @@ class Features:
         ```
         """
         if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
+            warnings.warn("tracking data have not been smoothed", stacklevel=2)
         _speed = self.speed(point, dims=dims)
         _acceleration = _speed.diff() * self.tracking.meta["fps"]
         name = f"acceleration_of_{point}_in_{''.join(dims)}"
@@ -639,7 +627,7 @@ class Features:
         ```
         """
         if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
+            warnings.warn("tracking data have not been smoothed", stacklevel=2)
 
         _1x = self.tracking.data[point1 + ".x"]
         _1y = self.tracking.data[point1 + ".y"]
@@ -677,9 +665,7 @@ class Features:
         a1 = self.azimuth(basepoint, pointdirection1)
         a2 = self.azimuth(basepoint, pointdirection2)
         deviation = (a1 - a2 + np.pi) % (2 * np.pi) - np.pi
-        name = (
-            f"azimuth_deviation_{basepoint}_to_{pointdirection1}_and_{pointdirection2}"
-        )
+        name = f"azimuth_deviation_{basepoint}_to_{pointdirection1}_and_{pointdirection2}"
         meta = {
             "function": "azimuth_deviation",
             "basepoint": basepoint,
@@ -716,14 +702,15 @@ class Features:
 
         ```
         """
-        obs_deviation = self.azimuth_deviation(
-            basepoint, pointdirection1, pointdirection2
-        )
+        obs_deviation = self.azimuth_deviation(basepoint, pointdirection1, pointdirection2)
         # Propagate NA: comparisons with missing deviations should yield pd.NA
         mask = obs_deviation.notna()
         result = pd.Series(pd.NA, index=obs_deviation.index, dtype="boolean")
         result[mask] = (obs_deviation[mask] <= deviation).astype("boolean")
-        name = f"within_azimuth_deviation_{basepoint}_to_{pointdirection1}_and_{pointdirection2}_leq_{deviation}"
+        name = (
+            f"within_azimuth_deviation_{basepoint}_to_{pointdirection1}_"
+            f"and_{pointdirection2}_leq_{deviation}"
+        )
         meta = {
             "function": "within_angle_deviation",
             "basepoint": basepoint,
@@ -754,9 +741,9 @@ class Features:
         ```
         """
         if "rescale_distance_method" not in self.tracking.meta.keys():
-            warnings.warn("distance has not been calibrated")
+            warnings.warn("distance has not been calibrated", stacklevel=2)
         if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
+            warnings.warn("tracking data have not been smoothed", stacklevel=2)
 
         result = self.distance_change(point, dims=dims) * self.tracking.meta["fps"]
         name = f"speed_of_{point}_in_{''.join(dims)}"
@@ -792,9 +779,7 @@ class Features:
         meta = {"function": "above_speed", "point": point, "speed": speed, "dims": dims}
         return FeaturesResult(result, self, name, meta)
 
-    def all_above_speed(
-        self, points: list, speed: float, dims=("x", "y")
-    ) -> FeaturesResult:
+    def all_above_speed(self, points: list, speed: float, dims=("x", "y")) -> FeaturesResult:
         """
         Return True for frames where all listed points are moving at least at the threshold speed.
         NA is propagated: if any input is NA at a frame, result is NA.
@@ -815,9 +800,9 @@ class Features:
 
         ```
         """
-        df = pd.DataFrame(
-            [self.above_speed(point, speed, dims=dims) for point in points]
-        ).astype("boolean")
+        df = pd.DataFrame([self.above_speed(point, speed, dims=dims) for point in points]).astype(
+            "boolean"
+        )
         # Manual NA-propagating "all" across points per frame to avoid ambiguous NA reductions
         has_false = (~df.fillna(True)).any(axis=0)
         has_na = df.isna().any(axis=0)
@@ -863,9 +848,7 @@ class Features:
         meta = {"function": "below_speed", "point": point, "speed": speed, "dims": dims}
         return FeaturesResult(result, self, name, meta)
 
-    def all_below_speed(
-        self, points: list, speed: float, dims=("x", "y")
-    ) -> FeaturesResult:
+    def all_below_speed(self, points: list, speed: float, dims=("x", "y")) -> FeaturesResult:
         """
         Return True for frames where all listed points are moving slower than the threshold speed.
         NA is propagated: if any input is NA at a frame, result is NA.
@@ -886,9 +869,9 @@ class Features:
 
         ```
         """
-        df = pd.DataFrame(
-            [self.below_speed(point, speed, dims=dims) for point in points]
-        ).astype("boolean")
+        df = pd.DataFrame([self.below_speed(point, speed, dims=dims) for point in points]).astype(
+            "boolean"
+        )
         # Manual NA-propagating "all" across points per frame to avoid ambiguous NA reductions
         has_false = (~df.fillna(True)).any(axis=0)
         has_na = df.isna().any(axis=0)
@@ -907,7 +890,7 @@ class Features:
 
     def distance_change(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns unsigned distance moved by point from previous frame to current frame, for each frame
+        Return unsigned distance moved by point from previous to current frame, per frame.
 
         Examples
         --------
@@ -926,13 +909,11 @@ class Features:
         ```
         """
         if "rescale_distance_method" not in self.tracking.meta.keys():
-            warnings.warn("distance has not been calibrated")
+            warnings.warn("distance has not been calibrated", stacklevel=2)
         if "smoothing" not in self.tracking.meta.keys():
-            warnings.warn("tracking data have not been smoothed")
+            warnings.warn("tracking data have not been smoothed", stacklevel=2)
 
-        result = np.sqrt(
-            sum([(self.tracking.data[point + "." + dim].diff()) ** 2 for dim in dims])
-        )
+        result = np.sqrt(sum([(self.tracking.data[point + "." + dim].diff()) ** 2 for dim in dims]))
         name = f"distance_change_{point}_in_{''.join(dims)}"
         meta = {"function": "distance_change", "point": point, "dims": dims}
         return FeaturesResult(result, self, name, meta)
@@ -942,10 +923,10 @@ class Features:
         feature: pd.Series,
         name: str,
         overwrite: bool = False,
-        meta: dict = dict(),
+        meta: dict | None = None,
     ) -> None:
         """
-        stores calculated feature with name and associated freeform metadata object
+        Store calculated feature with name and associated freeform metadata.
 
         Examples
         --------
@@ -964,10 +945,12 @@ class Features:
 
         ```
         """
+        if meta is None:
+            meta = {}
         if name in self.data.columns:
             if overwrite:
                 self.data[name] = feature
-                warnings.warn("feature '" + name + "' overwritten")
+                warnings.warn("feature '" + name + "' overwritten", stacklevel=2)
             else:
                 raise Exception(
                     "feature with name '"
@@ -981,9 +964,8 @@ class Features:
 
     def classify(self, classifier: BaseClassifier, **kwargs):
         """
-        classify behaviour using a classifier with inputs from this Features object
-        returns a FeaturesResult object with the classification result
-        this means that the output of the classifier should be a pd.Series with the same index as this Features object
+        Classify behaviour using a classifier with inputs from this Features object.
+        Returns a FeaturesResult. Classifier output must be a pd.Series with same index.
         """
         result = classifier.predict(self, **kwargs)
         name = f"classified_{classifier.__class__.__name__}"
@@ -999,13 +981,13 @@ class Features:
         **method_kwargs,
     ) -> pd.Series:
         """
-        smooths specified feature with specified method over rolling window. if inplace=True then feature
-        will be directly edited and metadata updated
+        Smooth feature with method over rolling window. If inplace=True, feature and
+        metadata are updated in place.
         method:
-            'median' : median of value in window, requires numerical series values
-            'mean' : mean of value in window, requires numerical series values
-            'savgol' : Savitzky–Golay filter (requires SciPy). Additional kwargs like polyorder=3, mode='interp'.
-            'mode' : mode value in window, works with numerical or non-numerical types
+            'median' : median in window (numerical)
+            'mean' : mean in window (numerical)
+            'savgol' : Savitzky–Golay (SciPy). Kwargs e.g. polyorder=3, mode='interp'.
+            'mode' : mode in window (numerical or non-numerical)
             'block' : removes labels that occur in blocks of less than length window
                       and replaces them with value from previous block unless there is
                       no previous block, in which case replaced from next block after smoothing
@@ -1016,15 +998,11 @@ class Features:
 
         # Numeric, DRY path using common smoother
         if method in {"median", "mean", "savgol"}:
-            smoothed = smooth_series(
-                self.data[name], method=method, window=window, **method_kwargs
-            )
+            smoothed = smooth_series(self.data[name], method=method, window=window, **method_kwargs)
             if inplace:
                 self.data[name] = smoothed.copy()
         elif method == "mode":
-            smoothed = series_utils.rolling_apply(
-                self.data[name], window, series_utils.mode
-            )
+            smoothed = series_utils.rolling_apply(self.data[name], window, series_utils.mode)
             if inplace:
                 self.data[name] = smoothed.copy()
         elif method == "block":
@@ -1080,9 +1058,7 @@ class Features:
         """
         missing = [col for col in embedding if col not in self.data.columns]
         if len(missing) > 0:
-            raise ValueError(
-                f"The following columns are not present in self.data: {missing}"
-            )
+            raise ValueError(f"The following columns are not present in self.data: {missing}")
         data = {}
         for col, shifts in embedding.items():
             base_series = self.data[col]
@@ -1136,9 +1112,7 @@ class Features:
         embed_df = self.embedding_df(embedding)
         # Apply the same scaling/normalization used during centroid fitting, if provided
         if rescale_factors is not None and custom_scaling is not None:
-            raise ValueError(
-                "rescale_factors and custom_scaling are mutually exclusive"
-            )
+            raise ValueError("rescale_factors and custom_scaling are mutually exclusive")
         if rescale_factors is not None:
             embed_df = apply_normalization_to_df(embed_df, rescale_factors)
         elif custom_scaling is not None:
@@ -1167,9 +1141,7 @@ class Features:
             "embedding": embedding,
             "rescale_factors": rescale_factors,
             "custom_scaling": custom_scaling,
-            "impute_medians": (
-                impute_medians.to_dict() if impute_medians is not None else None
-            ),
+            "impute_medians": (impute_medians.to_dict() if impute_medians is not None else None),
         }
         return FeaturesResult(labels, self, name, meta)
 
@@ -1186,9 +1158,9 @@ class Features:
         """
         Developer mode: not available in public release yet.
 
-        Train a KNN regressor to predict a target embedding from a feature embedding on this Features object.
-        If normalize_source is True, normalize the source embedding before training and return the rescale factors.
-        Returns the trained model, input columns, target columns, and (optionally) the rescale factors.
+        Train a KNN regressor to predict target from source embedding on this object.
+        If normalize_source is True, normalize source and return rescale factors.
+        Returns (model, input_cols, target_cols[, rescale_factors]).
         """
         train_embed = self.embedding_df(source_embedding)
         target_embed = self.embedding_df(target_embedding)
@@ -1235,14 +1207,14 @@ class Features:
         """
         Developer mode: not available in public release yet.
 
-        Compute the root mean squared error (RMS) for each row between two embedding DataFrames.
-        If rescale is a dict, normalize both DataFrames using this dict before computing the error.
-        If rescale == 'auto', compute normalization factors from ground_truth and apply to both DataFrames.
-        Returns a Series indexed like the input DataFrames, with NaN for rows where either input has NaNs.
+        Compute RMS for each row between two embedding DataFrames.
+        If rescale is a dict, normalize both with it before computing error.
+        If rescale == 'auto', compute factors from ground_truth and apply to both.
+        Returns Series indexed like inputs; NaN where either input has NaNs.
         """
-        if not ground_truth.columns.equals(
-            prediction.columns
-        ) or not ground_truth.index.equals(prediction.index):
+        if not ground_truth.columns.equals(prediction.columns) or not ground_truth.index.equals(
+            prediction.index
+        ):
             raise ValueError("Input DataFrames must have the same columns and index")
         if rescale is not None:
             if rescale == "auto":
@@ -1307,8 +1279,7 @@ class Features:
         """
         Generate a polygonal approximation of an ellipse as a list of (x, y) tuples,
         around `centre` using explicit parameters.
-        `centre` can be a single point name or a list of point names.
-        if `centre` is a list, the boundary will be centred on the mean of the median coordinates of the points.
+        `centre` can be a point name or list of point names (then centre = mean of medians).
 
         Examples
         --------
@@ -1319,7 +1290,9 @@ class Features:
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
-        >>> poly = f.define_elliptical_boundary_from_params('p1', major_axis_length=10, minor_axis_length=6, angle_in_radians=0.0, n_points=32)
+        >>> poly = f.define_elliptical_boundary_from_params(
+        ...     'p1', major_axis_length=10, minor_axis_length=6,
+        ...     angle_in_radians=0.0, n_points=32)
         >>> isinstance(poly, list) and len(poly) == 32
         True
 
@@ -1364,7 +1337,8 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> # Use exactly 4 points to avoid requiring skimage in tests
-        >>> poly = f.define_elliptical_boundary_from_points(['p1','p3','p2','p3'], n_points=20, scaling=1.0)
+        >>> poly = f.define_elliptical_boundary_from_points(
+        ...     ['p1','p3','p2','p3'], n_points=20, scaling=1.0)
         >>> isinstance(poly, list) and len(poly) == 20
         True
 
@@ -1378,13 +1352,12 @@ class Features:
         )
 
         if not isinstance(points, list) or len(points) < 4:
-            raise ValueError(
-                "'points' must be a list of at least 4 tracked point names."
-            )
+            raise ValueError("'points' must be a list of at least 4 tracked point names.")
         coords = np.array([self.get_point_median(p) for p in points])
         if len(points) == 4:
             warnings.warn(
-                "fitting ellipse to only 4 points, using size constraint to fit ellipse"
+                "fitting ellipse to only 4 points, using size constraint to fit ellipse",
+                stacklevel=2,
             )
             cx, cy, a_len, b_len, theta = fit_ellipse_least_squares(
                 coords, smallness_weight=smallness_weight
