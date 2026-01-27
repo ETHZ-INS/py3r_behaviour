@@ -53,7 +53,7 @@ def apply_smoothing(
 def smooth_series(
     series: pd.Series,
     *,
-    method: Literal["mean","median","savgol"],
+    method: Literal["mean", "median", "savgol"],
     window: int | None,
     **method_kwargs,
 ) -> pd.Series:

@@ -770,7 +770,7 @@ class BaseCollection(MutableMapping):
         """
         Creates a copy of the BaseCollection.
         Raises NotImplementedError if any leaf does not implement copy().
-        
+
         Examples
         --------
         ```pycon
@@ -791,6 +791,7 @@ class BaseCollection(MutableMapping):
 
         ```
         """
+
         def _copy_leaf(t):
             try:
                 return t.copy()

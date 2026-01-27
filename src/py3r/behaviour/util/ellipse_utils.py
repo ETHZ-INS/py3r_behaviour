@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.optimize import minimize
 
+
 def ellipse_points(cx, cy, a, b, theta, n_points):
     """
     Generate n_points along the ellipse centered at (cx, cy) with axes a, b and rotation theta (radians).
@@ -14,6 +15,7 @@ def ellipse_points(cx, cy, a, b, theta, n_points):
     pts = np.stack([x, y], axis=0)
     rot = R @ pts
     return [(cx + rot[0, i], cy + rot[1, i]) for i in range(n_points)]
+
 
 def ellipse_residual(params, points, smallness_weight):
     xc, yc, a, b, theta = params
@@ -31,13 +33,15 @@ def ellipse_residual(params, points, smallness_weight):
     size_penalty = smallness_weight * (a * b)
     return fit_error + size_penalty
 
-def fit_ellipse_least_squares(points, smallness_weight=0.1):
 
+def fit_ellipse_least_squares(points, smallness_weight=0.1):
     # Initial guess (center, axes, rotation)
-    init = [np.mean(points[:,0]), np.mean(points[:,1]), 2, 1, 0]
+    init = [np.mean(points[:, 0]), np.mean(points[:, 1]), 2, 1, 0]
 
     # Minimize the residuals
-    result = minimize(ellipse_residual, init, args=(points, smallness_weight), method='Powell')
+    result = minimize(
+        ellipse_residual, init, args=(points, smallness_weight), method="Powell"
+    )
 
     if result.success:
         return result.x

@@ -8,7 +8,7 @@ def train_knn_from_embeddings(
     train_list: List[pd.DataFrame],
     target_list: List[pd.DataFrame],
     n_neighbors: int = 5,
-    **kwargs
+    **kwargs,
 ) -> Tuple[KNeighborsRegressor, pd.Index, pd.Index]:
     """
     Trains a KNN regressor from lists of input and target embedding DataFrames.
@@ -36,9 +36,7 @@ def train_knn_from_embeddings(
 
 
 def predict_knn_on_embedding(
-    model: KNeighborsRegressor,
-    test: pd.DataFrame,
-    target_columns: pd.Index
+    model: KNeighborsRegressor, test: pd.DataFrame, target_columns: pd.Index
 ) -> pd.DataFrame:
     """
     Predicts using a trained KNN regressor on a new embedding DataFrame.
@@ -54,7 +52,9 @@ def predict_knn_on_embedding(
     return preds
 
 
-def rms_error_between_embeddings(df1: pd.DataFrame, df2: pd.DataFrame, rescale_factors: dict = None) -> pd.Series:
+def rms_error_between_embeddings(
+    df1: pd.DataFrame, df2: pd.DataFrame, rescale_factors: dict = None
+) -> pd.Series:
     """
     Compute the root mean squared error (RMS) for each row between two embedding DataFrames.
     If rescale_factors is provided, normalize both DataFrames using this dict before computing the error.
@@ -72,7 +72,7 @@ def rms_error_between_embeddings(df1: pd.DataFrame, df2: pd.DataFrame, rescale_f
             df2[col] = df2[col] / rescale_factors[col]
     diff = df1 - df2
     # Compute RMS error for each row, ignoring rows with any NaNs
-    rms = np.sqrt((diff ** 2).mean(axis=1))
+    rms = np.sqrt((diff**2).mean(axis=1))
     # Set to NaN if either input row has any NaNs
     mask = df1.notna().all(axis=1) & df2.notna().all(axis=1)
     rms[~mask] = np.nan

@@ -23,6 +23,7 @@ def _ensure_dir(dirpath: str, overwrite: bool = False) -> None:
 
 def write_manifest(dirpath: str, manifest: dict) -> None:
     path = os.path.join(dirpath, "manifest.json")
+
     def _json_safe(obj):
         # Recursively cast numpy/pandas scalars to builtin types and replace pd.NA with None
         if isinstance(obj, dict):
@@ -47,6 +48,7 @@ def write_manifest(dirpath: str, manifest: dict) -> None:
         try:
             # pandas NA sentinel
             import pandas as pd  # local import in case pandas not needed elsewhere
+
             if obj is pd.NA:
                 return None
             # pandas Timestamp/Timedelta
@@ -58,6 +60,7 @@ def write_manifest(dirpath: str, manifest: dict) -> None:
         except Exception:
             pass
         return obj
+
     with open(path, "w") as f:
         json.dump(_json_safe(manifest), f, indent=2, allow_nan=False)
 

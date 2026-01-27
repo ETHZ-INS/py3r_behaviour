@@ -6,4 +6,4 @@ class BatchProcessError(Exception):
         self.original_exception = original_exception
         super().__init__(
             f"Error in collection '{collection_name}', object '{object_name}', method '{method}': {original_exception}"
-        ) 
+        )
