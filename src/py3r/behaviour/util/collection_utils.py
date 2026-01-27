@@ -21,8 +21,9 @@ class BatchResult(dict):
     # ----- Convenience: functional transforms and simple arithmetic on results -----
     def _apply_to_leaves(self, fn):
         """
-        Apply a function to the leaf values recursively (handles grouped nested BatchResult).
-        Returns a new BatchResult preserving structure and parent collection refs.
+        Apply a function to the leaf values recursively (handles grouped
+        nested BatchResult). Returns a new BatchResult preserving
+        structure and parent collection refs.
         """
         out = {}
         for k, v in self.items():
@@ -34,7 +35,8 @@ class BatchResult(dict):
 
     def map(self, fn):
         """
-        Apply fn to each leaf value; fn receives the leaf value (e.g., Series/FeaturesResult) and returns a new value.
+        Apply fn to each leaf value; fn receives the leaf value
+        (e.g., Series/FeaturesResult) and returns a new value.
         """
         return self._apply_to_leaves(fn)
 
@@ -76,7 +78,7 @@ class BatchResult(dict):
                 return BatchResult(out, a._parent_collection)
             # a is a leaf (Series/FeaturesResult)
             if isinstance(b, Mapping):
-                # expect leaf value under exact key path; this case should have been handled above
+                # expect leaf value under exact key path; handled above
                 raise KeyError("Unexpected mapping at leaf in binary operation")
             return op(a, b)
 

@@ -815,11 +815,13 @@ class Tracking:
         """Sets the data of a point to the values of an external df.
 
         Args:
-            df (pd.DataFrame):  the dataframe containing the point data that should be writen into the trackingobject
-                                colnames should reflect the dimension name (i.e 'x', 'y' etc.)
+            df (pd.DataFrame):  the dataframe containing the point data that should be
+                writen into the trackingobject. colnames should reflect the dimension
+                name (i.e 'x', 'y' etc.)
             point (str): the name of the point to overwrite
-            target_df (pd.DataFrame, Optional): An external copy of the self.data dataframe can be specified.
-                                                Usefull for operations that are not in place. defaults to None = write into self.data
+            target_df (pd.DataFrame, Optional): An external copy of the self.data
+                dataframe can be specified. Usefull for operations that are not in
+                place. defaults to None = write into self.data
 
 
         Examples
@@ -858,12 +860,14 @@ class Tracking:
         original_shape = len(target_df), len(target_cols)
         if df.shape != original_shape:
             raise ValueError(
-                f"Shape mismatch between input df {df.shape} with dimensions {df.columns} "
-                + f"and target point data {original_shape} with dimensions {point_dimensions}"
+                f"Shape mismatch between input df {df.shape} with dimensions "
+                f"{df.columns} and target point data {original_shape} with "
+                f"dimensions {point_dimensions}"
             )
         if list(df.columns) != point_dimensions:
             raise ValueError(
-                f"Dimension names of df {list(df.columns)} do not match point {point} dimensions {point_dimensions}"
+                f"Dimension names of df {list(df.columns)} do not match point "
+                f"{point} dimensions {point_dimensions}"
             )
         if not df.index.equals(target_df.index):
             raise ValueError("Index mismatch between input df and target data")
@@ -898,7 +902,8 @@ class Tracking:
             if self.meta["rescale_distance_method"] == "two_point_scalar_uniform":
                 if any(d in self.meta["rescale_factor"].keys() for d in dims):
                     raise Exception(
-                        "distance already rescaled in this dim. re-load the raw data to change scaling"
+                        "distance already rescaled in this dim. re-load the raw "
+                        "data to change scaling"
                     )
             else:
                 raise Exception(
@@ -1048,7 +1053,8 @@ class Tracking:
         **kwargs,
     ) -> Tracking | None:
         """
-        Smooth all tracked points using a default method/window, with optional override groups.
+        Smooth all tracked points using a default method/window, with optional
+        override groups.
 
         - window/method: default applied to any point without override
         - overrides: optional list of (points, method, window) tuples, where
@@ -1173,7 +1179,8 @@ class Tracking:
                     w = int(spec["window"]) if spec["window"] is not None else None
             else:
                 raise ValueError(
-                    f"Invalid override for {p}: expected dict with keys 'method'/'window', got {type(spec)}"
+                    f"Invalid override for {p}: expected dict with keys "
+                    f"'method'/'window', got {type(spec)}"
                 )
             if strict and (w is None or w <= 0):
                 raise ValueError(
@@ -1447,7 +1454,8 @@ class Tracking:
             fig.savefig(out_path, dpi=300, bbox_inches="tight", pad_inches=0.02)
         if show:
             plt.show()
-        # Close figure if we created it and we're not showing, to avoid accumulating open figures
+        # Close figure if we created it and we're not showing,
+        # to avoid accumulating open figures
         if created_fig and not show:
             import matplotlib.pyplot as _plt
 
@@ -1473,13 +1481,14 @@ class Tracking:
         invert_z=True,
     ):
         """
-        Save a 3D animation of tracked points to a video file, with 4 subplots per frame:
+        Save a 3D animation of tracked points to a video file, with 4 subplots
+        per frame:
         - azim=0, elev=0, ortho
         - azim=90, elev=0, ortho
         - azim=0, elev=90, ortho
         - azim=45, elev=30, persp
-        Optionally, set axis limits manually or use robust percentiles to ignore outliers.
-        Enforces equal aspect ratio for all axes.
+        Optionally, set axis limits manually or use robust percentiles to
+        ignore outliers. Enforces equal aspect ratio for all axes.
         """
         import matplotlib.pyplot as plt
         import numpy as np
@@ -1592,7 +1601,7 @@ class Tracking:
         # Set up plot elements (scatter and lines) for each axis
         scatters = []
         line_objs = []
-        for ax, (elev, azim, proj_type), title in zip(axs, views, titles):
+        for ax, (elev, azim, proj_type), title in zip(axs, views, titles, strict=True):
             ax.view_init(elev=elev, azim=azim)
             ax.set_proj_type(proj_type)
             ax.set_title(title)
@@ -1647,7 +1656,7 @@ class Tracking:
 
         def update(frame_idx):
             coords = coords_per_frame[frame_idx]
-            xs, ys, zs = zip(*coords.values()) if coords else ([], [], [])
+            xs, ys, zs = zip(*coords.values(), strict=True) if coords else ([], [], [])
             for i, ax in enumerate(axs):
                 scatters[i]._offsets3d = (xs, ys, zs)
                 # Update lines
@@ -1696,4 +1705,6 @@ class Tracking:
         print(f"Saved 3D tracking video to {out_path}")
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} with {len(self.data)} rows, fps={self.meta.get('fps', 'unknown')}>"
+        cn = self.__class__.__name__
+        fps = self.meta.get("fps", "unknown")
+        return f"<{cn} with {len(self.data)} rows, fps={fps}>"

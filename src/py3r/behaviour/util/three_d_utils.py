@@ -7,7 +7,8 @@ import numpy as np
 
 
 def find_chessboard_corners(image_paths, chessboard_size):
-    """Find chessboard corners in a list of images. Returns (objpoints, imgpoints, valid_indices)."""
+    """Find chessboard corners in a list of images.
+    Returns (objpoints, imgpoints, valid_indices)."""
     objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
     objp[:, :2] = np.indices(chessboard_size).T.reshape(-1, 2)
     objpoints = []

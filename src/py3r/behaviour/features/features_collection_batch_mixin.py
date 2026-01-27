@@ -3,13 +3,16 @@
 # Regenerate with: PYTHONPATH=src python -m tools.gen_batch_mixins
 from __future__ import annotations
 
-from py3r.behaviour.util.collection_utils import BatchResult
-import pandas as pd
 from typing import TYPE_CHECKING
+
+import pandas as pd
+
+from py3r.behaviour.util.collection_utils import BatchResult
 
 if TYPE_CHECKING:
     import pandas as pd
     from sklearn.neighbors import KNeighborsRegressor
+
     from py3r.behaviour.classifier import BaseClassifier
 
 
@@ -27,7 +30,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "save")(
+                lambda _obj: _obj.save(
                     dirpath, data_format=data_format, overwrite=overwrite
                 )
             )
@@ -46,7 +49,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "distance_between")(point1, point2, dims)
+                lambda _obj: _obj.distance_between(point1, point2, dims)
             )
         return self._invoke_batch("distance_between", point1, point2, dims)
 
@@ -61,9 +64,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "within_distance")(
-                    point1, point2, distance, dims
-                )
+                lambda _obj: _obj.within_distance(point1, point2, distance, dims)
             )
         return self._invoke_batch("within_distance", point1, point2, distance, dims)
 
@@ -77,9 +78,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "get_point_median")(point, dims)
-            )
+            return self.map_leaves(lambda _obj: _obj.get_point_median(point, dims))
         return self._invoke_batch("get_point_median", point, dims)
 
     def define_boundary(
@@ -103,9 +102,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "define_boundary")(
-                    points, scaling, scaling_y, centre
-                )
+                lambda _obj: _obj.define_boundary(points, scaling, scaling_y, centre)
             )
         return self._invoke_batch("define_boundary", points, scaling, scaling_y, centre)
 
@@ -123,9 +120,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "within_boundary_static")(
-                    point, boundary, boundary_name
-                )
+                lambda _obj: _obj.within_boundary_static(point, boundary, boundary_name)
             )
         return self._invoke_batch(
             "within_boundary_static", point, boundary, boundary_name
@@ -145,7 +140,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "within_boundary_dynamic")(
+                lambda _obj: _obj.within_boundary_dynamic(
                     point, boundary, boundary_name
                 )
             )
@@ -170,7 +165,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "within_boundary")(
+                lambda _obj: _obj.within_boundary(
                     point, boundary, median, boundary_name
                 )
             )
@@ -195,7 +190,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "distance_to_boundary")(
+                lambda _obj: _obj.distance_to_boundary(
                     point, boundary, median, boundary_name
                 )
             )
@@ -215,7 +210,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "distance_to_boundary_static")(
+                lambda _obj: _obj.distance_to_boundary_static(
                     point, boundary, boundary_name
                 )
             )
@@ -235,7 +230,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "distance_to_boundary_dynamic")(
+                lambda _obj: _obj.distance_to_boundary_dynamic(
                     point, boundary, boundary_name
                 )
             )
@@ -251,9 +246,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "area_of_boundary")(boundary, median)
-            )
+            return self.map_leaves(lambda _obj: _obj.area_of_boundary(boundary, median))
         return self._invoke_batch("area_of_boundary", boundary, median)
 
     def acceleration(self, point: str, dims=("x", "y")) -> BatchResult:
@@ -264,9 +257,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "acceleration")(point, dims)
-            )
+            return self.map_leaves(lambda _obj: _obj.acceleration(point, dims))
         return self._invoke_batch("acceleration", point, dims)
 
     def azimuth(self, point1: str, point2: str) -> BatchResult:
@@ -277,9 +268,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "azimuth")(point1, point2)
-            )
+            return self.map_leaves(lambda _obj: _obj.azimuth(point1, point2))
         return self._invoke_batch("azimuth", point1, point2)
 
     def azimuth_deviation(
@@ -296,7 +285,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "azimuth_deviation")(
+                lambda _obj: _obj.azimuth_deviation(
                     basepoint, pointdirection1, pointdirection2
                 )
             )
@@ -323,7 +312,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "within_azimuth_deviation")(
+                lambda _obj: _obj.within_azimuth_deviation(
                     basepoint, pointdirection1, pointdirection2, deviation
                 )
             )
@@ -343,7 +332,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, "speed")(point, dims))
+            return self.map_leaves(lambda _obj: _obj.speed(point, dims))
         return self._invoke_batch("speed", point, dims)
 
     def above_speed(self, point: str, speed: float, dims=("x", "y")) -> BatchResult:
@@ -357,9 +346,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "above_speed")(point, speed, dims)
-            )
+            return self.map_leaves(lambda _obj: _obj.above_speed(point, speed, dims))
         return self._invoke_batch("above_speed", point, speed, dims)
 
     def all_above_speed(
@@ -376,7 +363,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "all_above_speed")(points, speed, dims)
+                lambda _obj: _obj.all_above_speed(points, speed, dims)
             )
         return self._invoke_batch("all_above_speed", points, speed, dims)
 
@@ -391,9 +378,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "below_speed")(point, speed, dims)
-            )
+            return self.map_leaves(lambda _obj: _obj.below_speed(point, speed, dims))
         return self._invoke_batch("below_speed", point, speed, dims)
 
     def all_below_speed(
@@ -410,7 +395,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "all_below_speed")(points, speed, dims)
+                lambda _obj: _obj.all_below_speed(points, speed, dims)
             )
         return self._invoke_batch("all_below_speed", points, speed, dims)
 
@@ -422,9 +407,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "distance_change")(point, dims)
-            )
+            return self.map_leaves(lambda _obj: _obj.distance_change(point, dims))
         return self._invoke_batch("distance_change", point, dims)
 
     def store(
@@ -444,7 +427,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "store")(feature, name, overwrite, meta)
+                lambda _obj: _obj.store(feature, name, overwrite, meta)
             )
         return self._invoke_batch("store", feature, name, overwrite, meta)
 
@@ -458,9 +441,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "classify")(classifier, **kwargs)
-            )
+            return self.map_leaves(lambda _obj: _obj.classify(classifier, **kwargs))
         return self._invoke_batch("classify", classifier, **kwargs)
 
     def smooth(
@@ -491,9 +472,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "smooth")(
-                    name, method, window, inplace, **method_kwargs
-                )
+                lambda _obj: _obj.smooth(name, method, window, inplace, **method_kwargs)
             )
         return self._invoke_batch(
             "smooth", name, method, window, inplace, **method_kwargs
@@ -512,9 +491,7 @@ class FeaturesCollectionBatchMixin:
         """
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "embedding_df")(embedding)
-            )
+            return self.map_leaves(lambda _obj: _obj.embedding_df(embedding))
         return self._invoke_batch("embedding_df", embedding)
 
     def assign_clusters_by_centroids(
@@ -538,7 +515,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "assign_clusters_by_centroids")(
+                lambda _obj: _obj.assign_clusters_by_centroids(
                     embedding,
                     centroids_df,
                     rescale_factors=rescale_factors,
@@ -574,7 +551,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "train_knn_regressor")(
+                lambda _obj: _obj.train_knn_regressor(
                     source_embedding=source_embedding,
                     target_embedding=target_embedding,
                     n_neighbors=n_neighbors,
@@ -608,7 +585,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "predict_knn")(
+                lambda _obj: _obj.predict_knn(
                     model, source_embedding, target_embedding, rescale_factors
                 )
             )
@@ -639,7 +616,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "define_elliptical_boundary_from_params")(
+                lambda _obj: _obj.define_elliptical_boundary_from_params(
                     centre,
                     major_axis_length,
                     minor_axis_length,
@@ -676,7 +653,7 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "define_elliptical_boundary_from_points")(
+                lambda _obj: _obj.define_elliptical_boundary_from_points(
                     points, n_points, scaling, smallness_weight
                 )
             )

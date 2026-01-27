@@ -39,7 +39,8 @@ def predict_knn_on_embedding(
 ) -> pd.DataFrame:
     """
     Predicts using a trained KNN regressor on a new embedding DataFrame.
-    Returns a DataFrame of predictions indexed like test, with columns matching target_columns.
+    Returns a DataFrame of predictions indexed like test, with columns
+    matching target_columns.
     """
     valid_mask = test.notna().all(axis=1)
     preds = pd.DataFrame(np.nan, index=test.index, columns=target_columns)
@@ -55,9 +56,11 @@ def rms_error_between_embeddings(
     df1: pd.DataFrame, df2: pd.DataFrame, rescale_factors: dict = None
 ) -> pd.Series:
     """
-    Compute the root mean squared error (RMS) for each row between two embedding DataFrames.
-    If rescale_factors is provided, normalize both DataFrames using this dict before computing the error.
-    Returns a Series indexed like the input DataFrames, with NaN for rows where either input has NaNs.
+    Compute the root mean squared error (RMS) for each row between two
+    embedding DataFrames. If rescale_factors is provided, normalize both
+    DataFrames using this dict before computing the error. Returns a
+    Series indexed like the input DataFrames, with NaN for rows where
+    either input has NaNs.
     """
     if not df1.columns.equals(df2.columns) or not df1.index.equals(df2.index):
         raise ValueError("Input DataFrames must have the same columns and index")

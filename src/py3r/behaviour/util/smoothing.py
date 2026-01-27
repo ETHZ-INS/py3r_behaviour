@@ -19,7 +19,8 @@ def apply_smoothing(
     - df: DataFrame with columns like "point.x", "point.y", "point.z"
     - specs: mapping point -> {"method": 'median'|'mean', "window": int|None}
     - dims: which coordinate dims to smooth
-    - smoother: optional callable(series, point, dim, window, method, df, **kwargs) -> Series
+    - smoother: optional callable(series, point, dim, window, method, df,
+      **kwargs) -> Series
     - smoother_kwargs: optional dict passed to smoother
     """
     smoother_kwargs = smoother_kwargs or {}
@@ -90,7 +91,8 @@ def _smooth_series_savgol(
       - NaN handling controlled by nan_policy:
           'error'   -> raise if NaNs present (optional, conservative)
           'segment' -> smooth each contiguous finite segment independently,
-                       leave short segments (< window) as-is; preserve NaNs elsewhere (default)
+                       leave short segments (< window) as-is; preserve NaNs
+                       elsewhere (default)
     """
     try:
         from scipy.signal import savgol_filter
@@ -114,7 +116,8 @@ def _smooth_series_savgol(
     # NaN handling
     if nan_policy == "error":
         raise ValueError(
-            "Savitzky–Golay cannot handle NaNs with nan_policy='error'. Interpolate first or use nan_policy='segment'."
+            "Savitzky–Golay cannot handle NaNs with nan_policy='error'. "
+            "Interpolate first or use nan_policy='segment'."
         )
     if nan_policy != "segment":
         raise ValueError("nan_policy must be one of {'error','segment'}")

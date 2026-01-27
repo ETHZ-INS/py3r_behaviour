@@ -4,8 +4,8 @@ from scipy.optimize import minimize
 
 def ellipse_points(cx, cy, a, b, theta, n_points):
     """
-    Generate n_points along the ellipse centered at (cx, cy) with axes a, b and rotation theta (radians).
-    Returns a list of (x, y) tuples.
+    Generate n_points along the ellipse centered at (cx, cy) with axes a, b
+    and rotation theta (radians). Returns a list of (x, y) tuples.
     """
     t = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
     x = a * np.cos(t)

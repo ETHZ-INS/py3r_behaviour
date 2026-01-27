@@ -111,16 +111,17 @@ class BaseCollection(MutableMapping):
         kwargs: dict | None = None,
     ) -> BatchResult:
         """
-        Strict batch dispatcher (fail-fast) that accepts positional and keyword arguments
-        where any argument may be either:
+        Strict batch dispatcher (fail-fast) that accepts positional and
+        keyword arguments where any argument may be either:
           - a scalar (applied uniformly), or
           - a mapping whose keys exactly mirror the collection's structure:
             - flat: {handle: value}
             - grouped: {group_key: {handle: value}}
 
-        The mapping shape must exactly match the collection; missing keys raise KeyError.
-        If any leaf raises, a BatchProcessError is raised immediately. On complete
-        success, returns a BatchResult of leaf return values (or nested results).
+        The mapping shape must exactly match the collection; missing keys
+        raise KeyError. If any leaf raises, a BatchProcessError is raised
+        immediately. On complete success, returns a BatchResult of leaf
+        return values (or nested results).
         """
         if kwargs is None:
             kwargs = {}
@@ -216,8 +217,10 @@ class BaseCollection(MutableMapping):
             raise TypeError(
                 f"Value must be a {element_cls.__name__}, got {type(value).__name__}"
             )
+        cn = self.__class__.__name__
         warnings.warn(
-            f"Direct assignment to {self.__class__.__name__} is deprecated and may be removed in a future version.",
+            f"Direct assignment to {cn} is deprecated and may be removed "
+            "in a future version.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -396,7 +399,8 @@ class BaseCollection(MutableMapping):
             obj_dict = {obj.handle: obj for obj in objs}
         except AttributeError as e:
             raise TypeError(
-                f"All items must have a .handle attribute to use {cls.__name__}.from_list(). "
+                f"All items must have a .handle attribute to use "
+                f"{cls.__name__}.from_list(). "
                 "This method is only for flat collections of individual items."
             ) from e
         return cls(obj_dict)
@@ -510,9 +514,10 @@ class BaseCollection(MutableMapping):
         return flat
 
     def __repr__(self):
+        cn = self.__class__.__name__
         if getattr(self, "_is_grouped", False):
-            return f"<{self.__class__.__name__} grouped by {self._groupby_tags} with {len(self)} groups>"
-        return f"<{self.__class__.__name__} with {len(self)} {self._element_type.__name__} objects>"
+            return f"<{cn} grouped by {self._groupby_tags} with {len(self)} groups>"
+        return f"<{cn} with {len(self)} {self._element_type.__name__} objects>"
 
     # ---- Grouped view helpers ----
     @property
@@ -785,7 +790,9 @@ class BaseCollection(MutableMapping):
         ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...         _ = shutil.copy(p, d / 'A.csv')
         ...         _ = shutil.copy(p, d / 'B.csv')
-        ...     coll = TrackingCollection.from_folder(str(d), tracking_loader=Tracking.from_dlc, fps=30)
+        ...     coll = TrackingCollection.from_folder(
+        ...         str(d), tracking_loader=Tracking.from_dlc, fps=30
+        ...     )
         >>> coll_copy = coll.copy()
         >>> sorted(coll_copy.keys())
         ['A', 'B']
@@ -829,7 +836,8 @@ class BaseCollection(MutableMapping):
         ...     # collection-level manifest at top-level
         ...     assert os.path.exists(os.path.join(str(out), 'manifest.json'))
         ...     # element-level manifests under elements/<handle>/
-        ...     assert os.path.exists(os.path.join(str(out), 'elements', 'A', 'manifest.json'))
+        ...     el_manifest = os.path.join(str(out), 'elements', 'A', 'manifest.json')
+        ...     assert os.path.exists(el_manifest)
 
         ```
         """

@@ -24,7 +24,8 @@ def write_manifest(dirpath: str, manifest: dict) -> None:
     path = os.path.join(dirpath, "manifest.json")
 
     def _json_safe(obj):
-        # Recursively cast numpy/pandas scalars to builtin types and replace pd.NA with None
+        # Recursively cast numpy/pandas scalars to builtin types,
+        # replace pd.NA with None
         if isinstance(obj, dict):
             return {k: _json_safe(v) for k, v in obj.items()}
         if isinstance(obj, (list, tuple)):
@@ -39,7 +40,7 @@ def write_manifest(dirpath: str, manifest: dict) -> None:
             return int(obj)
         if isinstance(obj, (np.floating,)):
             val = float(obj)
-            # Replace non-finite floats (NaN/Inf) with None to satisfy JSON allow_nan=False
+            # Replace non-finite floats (NaN/Inf) with None for JSON allow_nan=False
             return val if np.isfinite(val) else None
         # native Python floats
         if isinstance(obj, float):
