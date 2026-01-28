@@ -32,7 +32,6 @@ dev = [
     "mkdocs-autorefs>=1,<2.0.0",
     "mkdocstrings[python]>=0.25,<1.0.0",
     "mike>=2,<3.0.0",
-    "mkdocs-jupyter>=0.25,<1.0.0",
     # notebooks workflow and diffs
     "nbdime>=3,<4.0.0",
     "nbstripout>=0.7,<1.0.0",
