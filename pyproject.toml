@@ -20,6 +20,25 @@ dependencies = [
     "pyarrow>=20.0,<21.0.0",
 ]
 
+[project.optional-dependencies]
+# Developer tooling: testing, notebooks-as-tests, and documentation build
+dev = [
+    # testing
+    "pytest>=8,<9.0.0",
+    "xdoctest>=1,<2.0.0",
+    "nbmake>=1,<2.0.0",
+    # docs
+    "mkdocs-material>=9,<10.0.0",
+    "mkdocs-autorefs>=1,<2.0.0",
+    "mkdocstrings[python]>=0.25,<1.0.0",
+    "mike>=2,<3.0.0",
+    "mkdocs-jupyter>=0.25,<1.0.0",
+    # notebooks workflow and diffs
+    "nbdime>=3,<4.0.0",
+    "nbstripout>=0.7,<1.0.0",
+    "jupytext>=1,<2.0.0",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["py3r.*"] 
