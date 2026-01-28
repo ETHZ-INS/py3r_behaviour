@@ -201,7 +201,7 @@ class Summary:
         integration_window=1,
     ):
         """
-        Compute the latency of the N-th onset event in a feature column.
+        Compute the latency (in seconds) of the N-th onset event in a feature column.
 
         This method extracts a column from `features.data`,
         passes it on to `latencies_from_series`, and returns the index
@@ -255,14 +255,14 @@ class Summary:
         >>> from py3r.behaviour.features.features import Features
         >>> from py3r.behaviour.summary.summary import Summary
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=1)
         >>> f = Features(t)
         >>> mask = pd.Series([False, True, False, True, False], dtype = bool)
         >>> f.store(mask, 'mask', meta={})
         >>> s = Summary(f)
         >>> res = s.calculate_latency_nth_onset('mask')
         >>> res.value
-        1
+        1.0
 
         >>> print(res._func_name)
         latency_mask_eq_True_int1_n0
@@ -274,7 +274,7 @@ class Summary:
         ```pycon
         >>> res = s.calculate_latency_nth_onset('mask', nth_event=1)
         >>> res.value
-        3
+        3.0
 
         ```
 
@@ -294,7 +294,7 @@ class Summary:
         >>> f.store(speed, 'speed', meta={})
         >>> res = s.calculate_latency_nth_onset('speed', target_value=0.5, threshold_op='gt')
         >>> res.value
-        2
+        2.0
 
         ```
 
@@ -304,8 +304,8 @@ class Summary:
         >>> id = pd.Series([2, 1, 3, 2, 1], dtype = int)
         >>> f.store(id, 'id', meta={})
         >>> res = s.calculate_latency_nth_onset('id', target_value=2, threshold_op='lt')
-        >>> int(res.value)
-        1
+        >>> res.value
+        1.0
 
         ```
 
@@ -316,7 +316,7 @@ class Summary:
         >>> f.store(cluster, 'cluster', meta={})
         >>> res = s.calculate_latency_nth_onset('cluster', target_value='B')
         >>> res.value
-        2
+        2.0
 
         ```
         """
@@ -345,7 +345,8 @@ class Summary:
             "nth_event": nth_event,
         }
         col = f"latency_{column}_{threshold_op}_{target_value}_int{integration_window}_n{nth_event}"
-        return SummaryResult(latency, self, col, meta)
+        latency_s = latency / self.features.tracking.meta["fps"]
+        return SummaryResult(latency_s, self, col, meta)
 
     def time_true(self, column: str) -> SummaryResult:
         """

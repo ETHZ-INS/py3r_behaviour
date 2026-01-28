@@ -54,7 +54,7 @@ class SummaryCollectionBatchMixin:
         Batch-mode wrapper for Summary.calculate_latency_nth_onset
         across the collection.
 
-        Compute the latency of the N-th onset event in a feature column.
+        Compute the latency (in seconds) of the N-th onset event in a feature column.
 
         See leaf method ``Summary.calculate_latency_nth_onset`` for examples.
         """
