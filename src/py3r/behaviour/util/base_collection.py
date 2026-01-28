@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import MutableMapping
 import os
 import warnings
+from collections.abc import MutableMapping
+
 import pandas as pd
 
 from py3r.behaviour.exceptions import BatchProcessError
@@ -12,8 +13,8 @@ from py3r.behaviour.util.collection_utils import BatchResult
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
     begin_save,
-    write_manifest,
     read_manifest,
+    write_manifest,
 )
 
 
@@ -78,9 +79,7 @@ class BaseCollection(MutableMapping):
                 group_results = {}
                 for obj_key, obj in subcoll.items():
                     try:
-                        group_results[obj_key] = getattr(obj, _method_name)(
-                            *args, **kwargs
-                        )
+                        group_results[obj_key] = getattr(obj, _method_name)(*args, **kwargs)
                     except Exception as e:
                         raise BatchProcessError(
                             collection_name=group_key,
@@ -110,16 +109,17 @@ class BaseCollection(MutableMapping):
         kwargs: dict | None = None,
     ) -> BatchResult:
         """
-        Strict batch dispatcher (fail-fast) that accepts positional and keyword arguments
-        where any argument may be either:
+        Strict batch dispatcher (fail-fast) that accepts positional and
+        keyword arguments where any argument may be either:
           - a scalar (applied uniformly), or
           - a mapping whose keys exactly mirror the collection's structure:
             - flat: {handle: value}
             - grouped: {group_key: {handle: value}}
 
-        The mapping shape must exactly match the collection; missing keys raise KeyError.
-        If any leaf raises, a BatchProcessError is raised immediately. On complete
-        success, returns a BatchResult of leaf return values (or nested results).
+        The mapping shape must exactly match the collection; missing keys
+        raise KeyError. If any leaf raises, a BatchProcessError is raised
+        immediately. On complete success, returns a BatchResult of leaf
+        return values (or nested results).
         """
         if kwargs is None:
             kwargs = {}
@@ -141,9 +141,7 @@ class BaseCollection(MutableMapping):
                 for obj_key, obj in subcoll.items():
                     try:
                         leaf_args = tuple(select(a, group_key, obj_key) for a in args)
-                        leaf_kwargs = {
-                            k: select(v, group_key, obj_key) for k, v in kwargs.items()
-                        }
+                        leaf_kwargs = {k: select(v, group_key, obj_key) for k, v in kwargs.items()}
                         group_results[obj_key] = getattr(obj, _method_name)(
                             *leaf_args, **leaf_kwargs
                         )
@@ -159,12 +157,8 @@ class BaseCollection(MutableMapping):
             for obj_key, obj in self.items():
                 try:
                     leaf_args = tuple(select(a, None, obj_key) for a in args)
-                    leaf_kwargs = {
-                        k: select(v, None, obj_key) for k, v in kwargs.items()
-                    }
-                    results[obj_key] = getattr(obj, _method_name)(
-                        *leaf_args, **leaf_kwargs
-                    )
+                    leaf_kwargs = {k: select(v, None, obj_key) for k, v in kwargs.items()}
+                    results[obj_key] = getattr(obj, _method_name)(*leaf_args, **leaf_kwargs)
                 except Exception as e:
                     raise BatchProcessError(
                         collection_name=None,
@@ -212,11 +206,10 @@ class BaseCollection(MutableMapping):
     def __setitem__(self, key, value):
         element_cls = type(self[0])
         if not isinstance(value, element_cls):
-            raise TypeError(
-                f"Value must be a {element_cls.__name__}, got {type(value).__name__}"
-            )
+            raise TypeError(f"Value must be a {element_cls.__name__}, got {type(value).__name__}")
+        cn = self.__class__.__name__
         warnings.warn(
-            f"Direct assignment to {self.__class__.__name__} is deprecated and may be removed in a future version.",
+            f"Direct assignment to {cn} is deprecated and may be removed in a future version.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -337,9 +330,7 @@ class BaseCollection(MutableMapping):
         """
         if name.startswith("_"):
             # Preserve normal AttributeError semantics for private/dunder
-            raise AttributeError(
-                f"{self.__class__.__name__!s} has no attribute {name!r}"
-            )
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
 
         # Find a representative leaf to introspect available methods,
         # even when this collection is grouped.
@@ -348,15 +339,11 @@ class BaseCollection(MutableMapping):
             example_leaf = next(iter(flat_self.values()))
         except StopIteration:
             # Empty collection: nothing to expose dynamically
-            raise AttributeError(
-                f"{self.__class__.__name__!s} has no attribute {name!r}"
-            )
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}") from None
 
         leaf_attr = getattr(example_leaf, name, None)
         if not callable(leaf_attr):
-            raise AttributeError(
-                f"{self.__class__.__name__!s} has no attribute {name!r}"
-            )
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
 
         # Build a thin wrapper that routes to the batch dispatcher.
         def _batch_wrapper(*args, **kwargs):
@@ -395,7 +382,8 @@ class BaseCollection(MutableMapping):
             obj_dict = {obj.handle: obj for obj in objs}
         except AttributeError as e:
             raise TypeError(
-                f"All items must have a .handle attribute to use {cls.__name__}.from_list(). "
+                f"All items must have a .handle attribute to use "
+                f"{cls.__name__}.from_list(). "
                 "This method is only for flat collections of individual items."
             ) from e
         return cls(obj_dict)
@@ -444,13 +432,9 @@ class BaseCollection(MutableMapping):
             groups.setdefault(key, []).append(obj)
         if missing:
             missing_str = "\n".join(f"{handle}: {tag}" for handle, tag in missing)
-            raise ValueError(
-                f"The following elements are missing required tags:\n{missing_str}"
-            )
+            raise ValueError(f"The following elements are missing required tags:\n{missing_str}")
 
-        group_collections = {
-            key: self.__class__.from_list(objs) for key, objs in groups.items()
-        }
+        group_collections = {key: self.__class__.from_list(objs) for key, objs in groups.items()}
         grouped = self.__class__(group_collections)
         grouped._is_grouped = True
         grouped._groupby_tags = tags
@@ -509,9 +493,10 @@ class BaseCollection(MutableMapping):
         return flat
 
     def __repr__(self):
+        cn = self.__class__.__name__
         if getattr(self, "_is_grouped", False):
-            return f"<{self.__class__.__name__} grouped by {self._groupby_tags} with {len(self)} groups>"
-        return f"<{self.__class__.__name__} with {len(self)} {self._element_type.__name__} objects>"
+            return f"<{cn} grouped by {self._groupby_tags} with {len(self)} groups>"
+        return f"<{cn} with {len(self)} {self._element_type.__name__} objects>"
 
     # ---- Grouped view helpers ----
     @property
@@ -705,9 +690,7 @@ class BaseCollection(MutableMapping):
                 if include_value_counts:
                     # preserve simple dict for readability
                     vc = pd.Series(vals, dtype="object").value_counts(dropna=False)
-                    rec["value_counts"] = {
-                        str(idx): int(cnt) for idx, cnt in vc.items()
-                    }
+                    rec["value_counts"] = {str(idx): int(cnt) for idx, cnt in vc.items()}
                 records.append(rec)
             if not records:
                 # No tags present anywhere; return empty frame with expected columns
@@ -770,7 +753,7 @@ class BaseCollection(MutableMapping):
         """
         Creates a copy of the BaseCollection.
         Raises NotImplementedError if any leaf does not implement copy().
-        
+
         Examples
         --------
         ```pycon
@@ -784,27 +767,26 @@ class BaseCollection(MutableMapping):
         ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...         _ = shutil.copy(p, d / 'A.csv')
         ...         _ = shutil.copy(p, d / 'B.csv')
-        ...     coll = TrackingCollection.from_folder(str(d), tracking_loader=Tracking.from_dlc, fps=30)
+        ...     coll = TrackingCollection.from_folder(
+        ...         str(d), tracking_loader=Tracking.from_dlc, fps=30
+        ...     )
         >>> coll_copy = coll.copy()
         >>> sorted(coll_copy.keys())
         ['A', 'B']
 
         ```
         """
+
         def _copy_leaf(t):
             try:
                 return t.copy()
             except AttributeError:
-                raise NotImplementedError(
-                    f"{type(t).__name__} does not implement copy()"
-                ) from None
+                raise NotImplementedError(f"{type(t).__name__} does not implement copy()") from None
 
         return self.map_leaves(_copy_leaf)
 
     # ---- Generic persistence for collections ----
-    def save(
-        self, dirpath: str, *, overwrite: bool = False, data_format: str = "parquet"
-    ) -> None:
+    def save(self, dirpath: str, *, overwrite: bool = False, data_format: str = "parquet") -> None:
         """
         Save this collection to a directory. Preserves grouping and delegates to
         leaf objects' save(dirpath, data_format, overwrite=True).
@@ -827,7 +809,8 @@ class BaseCollection(MutableMapping):
         ...     # collection-level manifest at top-level
         ...     assert os.path.exists(os.path.join(str(out), 'manifest.json'))
         ...     # element-level manifests under elements/<handle>/
-        ...     assert os.path.exists(os.path.join(str(out), 'elements', 'A', 'manifest.json'))
+        ...     el_manifest = os.path.join(str(out), 'elements', 'A', 'manifest.json')
+        ...     assert os.path.exists(el_manifest)
 
         ```
         """
@@ -900,11 +883,11 @@ class BaseCollection(MutableMapping):
         is_grouped = manifest.get("is_grouped", False)
         index = manifest.get("elements_index", {})
         try:
-            element_cls = getattr(cls, "_element_type")
+            element_cls = cls._element_type
         except AttributeError:
             raise TypeError(
                 f"{cls.__name__} must define _element_type to load() collections"
-            )
+            ) from None
         if not hasattr(element_cls, "load"):
             raise TypeError(f"{element_cls} must implement classmethod load(dirpath)")
         if is_grouped:

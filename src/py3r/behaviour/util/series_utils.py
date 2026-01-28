@@ -1,26 +1,21 @@
-from math import floor, ceil
-import pandas as pd
+from math import ceil, floor
+
 import numpy as np
+import pandas as pd
 
 
 def mode(series: pd.Series):
     return series.value_counts().index[0]
 
 
-def rolling_apply(
-    frame: pd.Series, window: int, func, center: bool = True
-) -> pd.Series:
+def rolling_apply(frame: pd.Series, window: int, func, center: bool = True) -> pd.Series:
     """a custom rolling_apply that accepts non-numeric input"""
     if center:
         index = frame.index[ceil(window / 2) - 1 : -floor(window / 2)]
-        values = [
-            func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)
-        ]
+        values = [func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)]
     else:
         index = frame.index[window - 1 :]
-        values = [
-            func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)
-        ]
+        values = [func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)]
 
     return pd.Series(data=values, index=index).reindex(frame.index)
 
@@ -30,8 +25,8 @@ def gen_encoder_decoder(s: pd.Series):
 
     labels = list(set(s))
     encoding = list(np.arange(len(labels)))
-    encoder = dict(zip(labels, encoding))
-    decoder = dict(zip(encoding, labels))
+    encoder = dict(zip(labels, encoding, strict=True))
+    decoder = dict(zip(encoding, labels, strict=True))
 
     return encoder, decoder
 
@@ -96,15 +91,15 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     starts = np.where(diffs == 1)[0]
     ends = np.where(diffs == -1)[0]
 
-    for start, end in zip(starts, ends):
+    for start, end in zip(starts, ends, strict=True):
         if s2[start:end].to_numpy().any():
             if start > 0:
                 replacement_value = s1.iloc[start - 1]
             else:
                 try:
                     replacement_value = s1.iloc[end]
-                except IndexError:
-                    raise IndexError(f"Index {end} out of range for pandas series s1")
+                except IndexError as e:
+                    raise IndexError(f"Index {end} out of range for pandas series s1") from e
             s1[start:end] = replacement_value
 
     # Step 3: Assign back to DataFrame
@@ -123,9 +118,7 @@ def normalize_df(df: pd.DataFrame, z_score: bool = False) -> tuple[pd.DataFrame,
         means = df.mean(axis=0)
         stds = df.std(axis=0, ddof=0)
         normalized = (df - means) / stds
-        rescale_factors = {
-            col: {"mean": means[col], "std": stds[col]} for col in df.columns
-        }
+        rescale_factors = {col: {"mean": means[col], "std": stds[col]} for col in df.columns}
     else:
         stds = df.std(axis=0, ddof=0)
         normalized = df / stds
@@ -156,10 +149,12 @@ def apply_custom_scaling(df: pd.DataFrame, scaling: dict[str, dict]) -> pd.DataF
 
     Rules:
     - Each key in `scaling` is matched against column names by substring containment.
-    - For a matched column, apply (optional) normalization dividing by its std, then multiplying by `scale`.
+    - For a matched column, apply (optional) normalization dividing by
+      its std, then multiplying by `scale`.
     - If a column matches more than one key, raise ValueError.
 
-    Example: apply_custom_scaling(df, {"accel": {"normalize": False, "scale": 3.0}, "dist": {"normalize": True, "scale": 1.0}})
+    Example: apply_custom_scaling(df, {"accel": {"normalize": False,
+      "scale": 3.0}, "dist": {"normalize": True, "scale": 1.0}})
 
     The input is not mutated; a scaled copy is returned.
     """

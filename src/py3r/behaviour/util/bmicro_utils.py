@@ -1,15 +1,14 @@
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import KNeighborsRegressor
-from typing import List, Tuple
 
 
 def train_knn_from_embeddings(
-    train_list: List[pd.DataFrame],
-    target_list: List[pd.DataFrame],
+    train_list: list[pd.DataFrame],
+    target_list: list[pd.DataFrame],
     n_neighbors: int = 5,
-    **kwargs
-) -> Tuple[KNeighborsRegressor, pd.Index, pd.Index]:
+    **kwargs,
+) -> tuple[KNeighborsRegressor, pd.Index, pd.Index]:
     """
     Trains a KNN regressor from lists of input and target embedding DataFrames.
     Concatenates all train and target, drops rows with any NaNs, and fits the model.
@@ -36,13 +35,12 @@ def train_knn_from_embeddings(
 
 
 def predict_knn_on_embedding(
-    model: KNeighborsRegressor,
-    test: pd.DataFrame,
-    target_columns: pd.Index
+    model: KNeighborsRegressor, test: pd.DataFrame, target_columns: pd.Index
 ) -> pd.DataFrame:
     """
     Predicts using a trained KNN regressor on a new embedding DataFrame.
-    Returns a DataFrame of predictions indexed like test, with columns matching target_columns.
+    Returns a DataFrame of predictions indexed like test, with columns
+    matching target_columns.
     """
     valid_mask = test.notna().all(axis=1)
     preds = pd.DataFrame(np.nan, index=test.index, columns=target_columns)
@@ -54,11 +52,15 @@ def predict_knn_on_embedding(
     return preds
 
 
-def rms_error_between_embeddings(df1: pd.DataFrame, df2: pd.DataFrame, rescale_factors: dict = None) -> pd.Series:
+def rms_error_between_embeddings(
+    df1: pd.DataFrame, df2: pd.DataFrame, rescale_factors: dict = None
+) -> pd.Series:
     """
-    Compute the root mean squared error (RMS) for each row between two embedding DataFrames.
-    If rescale_factors is provided, normalize both DataFrames using this dict before computing the error.
-    Returns a Series indexed like the input DataFrames, with NaN for rows where either input has NaNs.
+    Compute the root mean squared error (RMS) for each row between two
+    embedding DataFrames. If rescale_factors is provided, normalize both
+    DataFrames using this dict before computing the error. Returns a
+    Series indexed like the input DataFrames, with NaN for rows where
+    either input has NaNs.
     """
     if not df1.columns.equals(df2.columns) or not df1.index.equals(df2.index):
         raise ValueError("Input DataFrames must have the same columns and index")
@@ -72,7 +74,7 @@ def rms_error_between_embeddings(df1: pd.DataFrame, df2: pd.DataFrame, rescale_f
             df2[col] = df2[col] / rescale_factors[col]
     diff = df1 - df2
     # Compute RMS error for each row, ignoring rows with any NaNs
-    rms = np.sqrt((diff ** 2).mean(axis=1))
+    rms = np.sqrt((diff**2).mean(axis=1))
     # Set to NaN if either input row has any NaNs
     mask = df1.notna().all(axis=1) & df2.notna().all(axis=1)
     rms[~mask] = np.nan

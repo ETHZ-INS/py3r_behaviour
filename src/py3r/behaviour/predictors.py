@@ -1,9 +1,10 @@
-import os
 import json
-import pandas as pd
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.decomposition import PCA
+import os
+
 import numpy as np
+import pandas as pd
+from sklearn.decomposition import PCA
+from sklearn.neighbors import KNeighborsRegressor
 
 try:
     import joblib
@@ -21,9 +22,7 @@ class BasePredictor:
     Abstract base class for predictors.
     """
 
-    def fit(
-        self, train_X: pd.DataFrame, train_y: pd.DataFrame, **kwargs
-    ) -> "BasePredictor":
+    def fit(self, train_X: pd.DataFrame, train_y: pd.DataFrame, **kwargs) -> "BasePredictor":
         raise NotImplementedError
 
     def predict(self, test_X: pd.DataFrame, **kwargs) -> pd.DataFrame:
@@ -90,11 +89,7 @@ class BasePredictor:
         os.makedirs(dir_path, exist_ok=True)
 
         # Try to infer columns if not explicitly provided
-        if (
-            input_columns is None
-            and hasattr(self, "_train_X")
-            and getattr(self, "_train_X") is not None
-        ):
+        if input_columns is None and hasattr(self, "_train_X") and self._train_X is not None:
             try:
                 input_columns = list(self._train_X.columns)
             except Exception:
@@ -102,7 +97,7 @@ class BasePredictor:
         if (
             output_columns is None
             and hasattr(self, "_output_columns")
-            and getattr(self, "_output_columns") is not None
+            and self._output_columns is not None
         ):
             try:
                 output_columns = list(self._output_columns)
@@ -129,7 +124,7 @@ class BasePredictor:
 
     @staticmethod
     def _read_manifest(dir_path: str) -> dict:
-        with open(os.path.join(dir_path, "manifest.json"), "r") as f:
+        with open(os.path.join(dir_path, "manifest.json")) as f:
             return json.load(f)
 
     @classmethod
@@ -159,7 +154,8 @@ class KNNPredictor(BasePredictor):
     Notes
     -----
     - During fit, rows with any NaNs in train_X or train_y are dropped.
-    - During predict, only rows with no NaNs in test_X are predicted; others are filled with NaN in the output.
+    - During predict, only rows with no NaNs in test_X are predicted;
+      others are filled with NaN in the output.
     """
 
     def __init__(self, n_neighbors: int = 5, **kwargs):
@@ -167,16 +163,12 @@ class KNNPredictor(BasePredictor):
         self.model = None
         self.model_kwargs = kwargs
 
-    def fit(
-        self, train_X: pd.DataFrame, train_y: pd.DataFrame, **kwargs
-    ) -> "KNNPredictor":
+    def fit(self, train_X: pd.DataFrame, train_y: pd.DataFrame, **kwargs) -> "KNNPredictor":
         # Drop rows with NaNs in either train_X or train_y
         valid_mask = train_X.notna().all(axis=1) & train_y.notna().all(axis=1)
         train_X_valid = train_X[valid_mask]
         train_y_valid = train_y[valid_mask]
-        self.model = KNeighborsRegressor(
-            n_neighbors=self.n_neighbors, **self.model_kwargs
-        )
+        self.model = KNeighborsRegressor(n_neighbors=self.n_neighbors, **self.model_kwargs)
         self.model.fit(train_X_valid, train_y_valid)
         # Store columns for output
         self._output_columns = train_y.columns if hasattr(train_y, "columns") else None
@@ -221,7 +213,8 @@ class KNNPredictorPCA(BasePredictor):
     Notes
     -----
     - During fit, rows with any NaNs in train_X or train_y are dropped.
-    - During predict, only rows with no NaNs in test_X are predicted; others are filled with NaN in the output.
+    - During predict, only rows with no NaNs in test_X are predicted;
+      others are filled with NaN in the output.
     """
 
     def __init__(self, n_neighbors: int = 5, n_components: int = 10, **kwargs):
@@ -236,39 +229,29 @@ class KNNPredictorPCA(BasePredictor):
             if k.startswith("knn__"):
                 param = k[5:]
                 if param == "n_neighbors":
-                    raise ValueError(
-                        "Pass 'n_neighbors' only as a top-level argument, not as 'knn__n_neighbors'."
-                    )
+                    raise ValueError("Pass 'n_neighbors' as top-level arg, not 'knn__n_neighbors'.")
                 self.knn_kwargs[param] = v
             elif k.startswith("pca__"):
                 param = k[5:]
                 if param == "n_components":
                     raise ValueError(
-                        "Pass 'n_components' only as a top-level argument, not as 'pca__n_components'."
+                        "Pass 'n_components' as top-level arg, not 'pca__n_components'."
                     )
                 self.pca_kwargs[param] = v
         # Defensive: check for direct collision in kwargs
         if "n_neighbors" in self.knn_kwargs:
-            raise ValueError(
-                "Pass 'n_neighbors' only as a top-level argument, not as 'knn__n_neighbors'."
-            )
+            raise ValueError("Pass 'n_neighbors' as top-level arg, not 'knn__n_neighbors'.")
         if "n_components" in self.pca_kwargs:
-            raise ValueError(
-                "Pass 'n_components' only as a top-level argument, not as 'pca__n_components'."
-            )
+            raise ValueError("Pass 'n_components' as top-level arg, not 'pca__n_components'.")
 
-    def fit(
-        self, train_X: pd.DataFrame, train_y: pd.DataFrame, **kwargs
-    ) -> "KNNPredictorPCA":
+    def fit(self, train_X: pd.DataFrame, train_y: pd.DataFrame, **kwargs) -> "KNNPredictorPCA":
         # Drop rows with NaNs in either train_X or train_y
         valid_mask = train_X.notna().all(axis=1) & train_y.notna().all(axis=1)
         train_X_valid = train_X[valid_mask]
         train_y_valid = train_y[valid_mask]
         self.pca_model = PCA(n_components=self.n_components, **self.pca_kwargs)
         train_X_pca = self.pca_model.fit_transform(train_X_valid)
-        self.knn_model = KNeighborsRegressor(
-            n_neighbors=self.n_neighbors, **self.knn_kwargs
-        )
+        self.knn_model = KNeighborsRegressor(n_neighbors=self.n_neighbors, **self.knn_kwargs)
         self.knn_model.fit(train_X_pca, train_y_valid)
         # Store columns for output
         self._output_columns = train_y.columns if hasattr(train_y, "columns") else None
@@ -317,7 +300,8 @@ class KNNPredictorPCAnnoy(BasePredictor):
     n_trees : int, default=10
         Number of trees to build in Annoy index.
     search_k : int or None, default=None
-        Number of nodes to inspect during search (higher = more accurate, slower). If None, Annoy default is used.
+        Nodes to inspect during search (higher = more accurate, slower).
+        If None, Annoy default is used.
     metric : str, default='euclidean'
         Distance metric for Annoy ('euclidean', 'manhattan', etc.).
     **kwargs :
@@ -326,7 +310,8 @@ class KNNPredictorPCAnnoy(BasePredictor):
     Notes
     -----
     - During fit, rows with any NaNs in train_X or train_y are dropped.
-    - During predict, only rows with no NaNs in test_X are predicted; others are filled with NaN in the output.
+    - During predict, only rows with no NaNs in test_X are predicted;
+      others are filled with NaN in the output.
     - Requires the `annoy` package: pip install annoy
     """
 
@@ -340,9 +325,7 @@ class KNNPredictorPCAnnoy(BasePredictor):
         **kwargs,
     ):
         if AnnoyIndex is None:
-            raise ImportError(
-                "KNNPredictorPCAnnoy requires the 'annoy' package. Install with 'pip install annoy'."
-            )
+            raise ImportError("KNNPredictorPCAnnoy requires 'annoy'. Install: pip install annoy")
         self.n_neighbors = n_neighbors
         self.n_components = n_components
         self.n_trees = n_trees
@@ -354,9 +337,7 @@ class KNNPredictorPCAnnoy(BasePredictor):
         self._train_y = None
         self._output_columns = None
 
-    def fit(
-        self, train_X: pd.DataFrame, train_y: pd.DataFrame, **kwargs
-    ) -> "KNNPredictorPCAnnoy":
+    def fit(self, train_X: pd.DataFrame, train_y: pd.DataFrame, **kwargs) -> "KNNPredictorPCAnnoy":
         # Drop rows with NaNs in either train_X or train_y
         valid_mask = train_X.notna().all(axis=1) & train_y.notna().all(axis=1)
         train_X_valid = train_X[valid_mask]
@@ -396,7 +377,7 @@ class KNNPredictorPCAnnoy(BasePredictor):
             else:
                 test_X_vecs = test_X_valid.values
             # For each query, get neighbors and average their train_y
-            for idx, (i, v) in enumerate(zip(test_X_valid.index, test_X_vecs)):
+            for _idx, (i, v) in enumerate(zip(test_X_valid.index, test_X_vecs, strict=True)):
                 if self.search_k is not None:
                     nn_idx = self.annoy_index.get_nns_by_vector(
                         v, self.n_neighbors, search_k=self.search_k
@@ -486,9 +467,7 @@ class KNNPredictorPCAnnoy(BasePredictor):
             else (len(input_columns) if input_columns is not None else None)
         )
         if dim is None:
-            raise ValueError(
-                "Cannot determine Annoy index dimensionality from manifest/state."
-            )
+            raise ValueError("Cannot determine Annoy index dimensionality from manifest/state.")
         if AnnoyIndex is None:
             raise ImportError("annoy package is required to load Annoy index.")
         self.annoy_index = AnnoyIndex(dim, self.metric)
