@@ -225,10 +225,15 @@ def latencies_from_bool(ser: pd.Series) -> list[int]:
      >>> latencies
      [0, 5, 9]
 
+     >>> series_NAs = pd.Series([1,1,0,0,pd.NA,1,1,0,0,1,1], dtype = 'boolean')
+     >>> latencies = latencies_from_bool(series_NAs)
+     >>> latencies
+     [0, 5, 9]
+
      ```
 
     """
-    if ser.dtype != bool:
+    if not pd.api.types.is_bool_dtype(ser):
         raise TypeError("Series must be of boolean dtype")
 
     # Treat NaNs as False to avoid spurious onsets
@@ -261,7 +266,7 @@ def smooth_bool_series(ser: pd.Series, window: int = 1) -> pd.Series:
 
      ```
     """
-    if ser.dtype != bool:
+    if not pd.api.types.is_bool_dtype(ser):
         raise TypeError("Series must be of boolean dtype")
 
     s = ser.fillna(False)
@@ -321,6 +326,10 @@ def latencies_from_series(
      >>> latencies = latencies_from_series(series_bool)
      >>> latencies
      [0, 5, 8]
+     >>> series_NA = pd.Series([1, 1, 1, 0, pd.NA, 1, 0, 0, 1, 1, 1], dtype = 'boolean')
+     >>> latencies = latencies_from_series(series_NA)
+     >>> latencies
+     [0, 5, 8]
      >>> latencies = latencies_from_series(series_bool, integration_window = 3)
      >>> latencies
      [0, 8]
@@ -357,7 +366,7 @@ def latencies_from_series(
         raise ValueError(f"Invalid threshold_op: {threshold_op}")
 
     # If already boolean, ignore target_value and op
-    if series.dtype == bool:
+    if pd.api.types.is_bool_dtype(series):
         bool_series = series.copy()
     else:
         if target_dtype is None:
