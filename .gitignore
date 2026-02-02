@@ -9,3 +9,4 @@ site/
 .cache/
 output
 development_testing/
+**/_artifacts/
