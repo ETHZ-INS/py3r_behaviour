@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import warnings
 from copy import deepcopy
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -18,6 +18,7 @@ from py3r.behaviour.util.io_utils import (
     write_dataframe,
     write_manifest,
 )
+from py3r.behaviour.util.series_utils import latencies_from_series
 
 
 class Summary:
@@ -190,6 +191,162 @@ class Summary:
         count = (nonan & (nonan != nonan.shift(-1))).sum()
         meta = {"function": "count_onset", "column": column}
         return SummaryResult(count, self, f"count_onset_{column}", meta)
+
+    def calculate_latency_nth_onset(
+        self,
+        column: str,
+        target_value: str | float | int = None,
+        threshold_op: Literal["gt", "lt", "eq", "ne"] = "eq",
+        nth_event: int = 0,
+        integration_window=1,
+    ):
+        """
+        Compute the latency (in seconds) of the N-th onset event in a feature column.
+
+        This method extracts a column from `features.data`,
+        passes it on to `latencies_from_series`, and returns the index
+        of the N-th False → True transition. If fewer than `nth_event + 1`
+        events are present, NaN is returned.
+
+        The column may already be boolean or may be thresholded against
+        `target_value` using `threshold_op`. Optional temporal integration
+        (boolean smoothing) can be applied prior to onset detection.
+
+        Parameters
+        ----------
+        column : str
+            Name of the column in `features.data` to analyze.
+        target_value : str | float | int | None, optional
+            Value to compare against for non-boolean columns.
+            Required unless the column is already boolean.
+        threshold_op : {"gt", "lt", "eq", "ne"}, default "eq"
+            - "gt": greater than (>)
+            - "lt": less than (<)
+            - "eq": equal to (==)
+            - "ne": not equal (!=)
+            Comparison operator used to generate the boolean condition.
+            Only "eq" and "ne" are valid for string-valued columns.
+        nth_event : int, default 0
+            Index of the onset event to return (0-based).
+        integration_window : int, default 1 = no smoothing
+            Window size for boolean integration/smoothing prior to latency
+            extraction.
+
+        Returns
+        -------
+        SummaryResult
+            A SummaryResult whose value is the index of the selected onset
+            event, or NaN if the event does not exist.
+
+        Raises
+        ------
+        ValueError
+            If `column` is not found in `features.data`.
+        ValueError
+            Propagated from `latencies_from_series` if thresholding arguments
+            are invalid.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=1)
+        >>> f = Features(t)
+        >>> mask = pd.Series([False, True, False, True, False], dtype = bool)
+        >>> f.store(mask, 'mask', meta={})
+        >>> s = Summary(f)
+        >>> res = s.calculate_latency_nth_onset('mask')
+        >>> res.value
+        1.0
+
+        >>> print(res._func_name)
+        latency_mask_eq_True_int1_n0
+
+        ```
+
+        Selecting a later onset:
+
+        ```pycon
+        >>> res = s.calculate_latency_nth_onset('mask', nth_event=1)
+        >>> res.value
+        3.0
+
+        ```
+
+        Selecting a later onset (i.e non existing) creates nan:
+
+        ```pycon
+        >>> res = s.calculate_latency_nth_onset('mask', nth_event=3)
+        >>> res.value
+        nan
+
+        ```
+
+        Using thresholding on numeric data:
+
+        ```pycon
+        >>> speed = pd.Series([0.1, 0.2, 0.8, 0.9, 0.1], dtype = float)
+        >>> f.store(speed, 'speed', meta={})
+        >>> res = s.calculate_latency_nth_onset('speed', target_value=0.5, threshold_op='gt')
+        >>> res.value
+        2.0
+
+        ```
+
+        Using thresholding on int data:
+
+        ```pycon
+        >>> id = pd.Series([2, 1, 3, 2, 1], dtype = int)
+        >>> f.store(id, 'id', meta={})
+        >>> res = s.calculate_latency_nth_onset('id', target_value=2, threshold_op='lt')
+        >>> res.value
+        1.0
+
+        ```
+
+        Using thresholding on string value:
+
+        ```pycon
+        >>> cluster = pd.Series(['A', 'A', 'B', 'A', 'A'], dtype = str)
+        >>> f.store(cluster, 'cluster', meta={})
+        >>> res = s.calculate_latency_nth_onset('cluster', target_value='B')
+        >>> res.value
+        2.0
+
+        ```
+        """
+
+        if column not in self.features.data.columns:
+            raise ValueError(f"Column '{column}' not found in features.data")
+
+        series = self.features.data[column]
+
+        latencies = latencies_from_series(
+            series=series,
+            target_value=target_value,
+            threshold_op=threshold_op,
+            integration_window=integration_window,
+        )
+
+        target_value = True if target_value is None else target_value  # for reporting True if bool
+        latency = latencies[nth_event] if len(latencies) >= nth_event else np.nan
+
+        meta = {
+            "function": "latencies_from_series",
+            "column": column,
+            "target_value": target_value,
+            "threshold_op": threshold_op,
+            "integration_window": integration_window,
+            "nth_event": nth_event,
+        }
+        col = f"latency_{column}_{threshold_op}_{target_value}_int{integration_window}_n{nth_event}"
+        latency_s = latency / self.features.tracking.meta["fps"]
+        return SummaryResult(latency_s, self, col, meta)
 
     def time_true(self, column: str) -> SummaryResult:
         """

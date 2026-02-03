@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from py3r.behaviour.util.collection_utils import BatchResult
 from typing import Any
+from typing import Literal
 
 
 class SummaryCollectionBatchMixin:
@@ -40,6 +41,38 @@ class SummaryCollectionBatchMixin:
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "count_onset")(column))
         return self._invoke_batch("count_onset", column)
+
+    def calculate_latency_nth_onset(
+        self,
+        column: str,
+        target_value: str | float | int = None,
+        threshold_op: Literal["gt", "lt", "eq", "ne"] = "eq",
+        nth_event: int = 0,
+        integration_window=1,
+    ) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.calculate_latency_nth_onset
+        across the collection.
+
+        Compute the latency (in seconds) of the N-th onset event in a feature column.
+
+        See leaf method ``Summary.calculate_latency_nth_onset`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "calculate_latency_nth_onset")(
+                    column, target_value, threshold_op, nth_event, integration_window
+                )
+            )
+        return self._invoke_batch(
+            "calculate_latency_nth_onset",
+            column,
+            target_value,
+            threshold_op,
+            nth_event,
+            integration_window,
+        )
 
     def time_true(self, column: str) -> BatchResult:
         """
