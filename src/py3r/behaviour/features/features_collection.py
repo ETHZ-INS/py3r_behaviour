@@ -1,24 +1,25 @@
 from __future__ import annotations
-import pandas as pd
-import numpy as np
+
 from typing import Literal
 
-from py3r.behaviour.features.features import Features
-from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-from py3r.behaviour.util.base_collection import BaseCollection
-from py3r.behaviour.util.collection_utils import _Indexer
-from py3r.behaviour.util.dev_utils import dev_mode
-from py3r.behaviour.util.series_utils import (
-    normalize_df,
-    apply_normalization_to_df,
+import numpy as np
+import pandas as pd
+
+from py3r.behaviour.features.cluster_pipeline import (
+    ClusteringConfig,
+    ClusteringPipeline,
 )
-from py3r.behaviour.util.collection_utils import BatchResult
+from py3r.behaviour.features.features import Features
 from py3r.behaviour.features.features_collection_batch_mixin import (
     FeaturesCollectionBatchMixin,
 )
-from py3r.behaviour.features.cluster_pipeline import (
-    ClusteringPipeline,
-    ClusteringConfig,
+from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+from py3r.behaviour.util.base_collection import BaseCollection
+from py3r.behaviour.util.collection_utils import BatchResult, _Indexer
+from py3r.behaviour.util.dev_utils import dev_mode
+from py3r.behaviour.util.series_utils import (
+    apply_normalization_to_df,
+    normalize_df,
 )
 
 
@@ -82,9 +83,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         ```
         """
         if not issubclass(feature_cls, Features):
-            raise TypeError(
-                f"feature_cls must be Features or a subclass, got {feature_cls}"
-            )
+            raise TypeError(f"feature_cls must be Features or a subclass, got {feature_cls}")
         # If grouped, build a grouped FeaturesCollection preserving grouping
         if getattr(tracking_collection, "is_grouped", False):
             grouped_dict = {}
@@ -100,22 +99,13 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 )
             grouped_fc = cls(grouped_dict)
             grouped_fc._is_grouped = True
-            grouped_fc._groupby_tags = getattr(
-                tracking_collection, "groupby_tags", None
-            )
+            grouped_fc._groupby_tags = getattr(tracking_collection, "groupby_tags", None)
             return grouped_fc
         # Flat case
         for handle, t in tracking_collection._obj_dict.items():
             if handle != t.handle:
-                raise ValueError(
-                    f"Key '{handle}' does not match object's handle '{t.handle}'"
-                )
-        return cls(
-            {
-                handle: feature_cls(t)
-                for handle, t in tracking_collection._obj_dict.items()
-            }
-        )
+                raise ValueError(f"Key '{handle}' does not match object's handle '{t.handle}'")
+        return cls({handle: feature_cls(t) for handle, t in tracking_collection._obj_dict.items()})
 
     def within_boundary_static(
         self,
@@ -173,9 +163,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         """
         # Case 1: one boundary applied to all leaves -> use standard batch path
         if isinstance(boundary, list):
-            return self._invoke_batch(
-                "within_boundary_static", point, boundary, boundary_name
-            )
+            return self._invoke_batch("within_boundary_static", point, boundary, boundary_name)
 
         # Case 2: mapping or BatchResult providing per-handle boundaries
         return self._invoke_batch_mapped(
@@ -238,9 +226,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         ```
         """
         if isinstance(boundary, list):
-            return self._invoke_batch(
-                "distance_to_boundary_static", point, boundary, boundary_name
-            )
+            return self._invoke_batch("distance_to_boundary_static", point, boundary, boundary_name)
 
         return self._invoke_batch_mapped(
             "distance_to_boundary_static",
@@ -314,13 +300,18 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         >>> for f in fc.values():
         ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
         ...     f.store(s, 'counter')
-        >>> batch, centroids, norm = fc.cluster_embedding({'counter':[0]}, n_clusters=2, lowmem=True)
+        >>> batch, centroids, norm = fc.cluster_embedding(
+        ...     {'counter':[0]}, n_clusters=2, lowmem=True)
         >>> isinstance(centroids, pd.DataFrame)
         True
-        >>> batch, centroids, norm = fc.cluster_embedding({'counter':[0]}, n_clusters=2, lowmem=True, missing_policy='impute_weight')
+        >>> batch, centroids, norm = fc.cluster_embedding(
+        ...     {'counter':[0]}, n_clusters=2, lowmem=True,
+        ...     missing_policy='impute_weight')
         >>> isinstance(centroids, pd.DataFrame)
         True
-        >>> batch, centroids, norm = fc.cluster_embedding({'counter':[0]}, n_clusters=2, lowmem=True, missing_policy='drop')
+        >>> batch, centroids, norm = fc.cluster_embedding(
+        ...     {'counter':[0]}, n_clusters=2, lowmem=True,
+        ...     missing_policy='drop')
         >>> isinstance(centroids, pd.DataFrame)
         True
 
@@ -372,7 +363,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         -------
         dict with:
             - 'global': {'cluster_prevalence': {label: frac, ...}, 'percent_nan': frac}
-            - 'per_recording': pandas.DataFrame with rows per recording and columns: ['percent_nan', 'num_missing', 'num_low', 'num_high']
+            - 'per_recording': DataFrame, rows per recording, cols
+              ['percent_nan', 'num_missing', 'num_low', 'num_high']
             - 'summary': min/median/max for the per_recording columns
             - if grouped: 'per_group': {group_key: {'per_recording': df, 'summary': {...}}}
         """
@@ -443,14 +435,10 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
             # per recording prevalence using total frames (incl NaN)
             missing = sum(1 for c in cluster_labels if counts.get(c, 0) == 0)
             low_cnt = sum(
-                1
-                for c in cluster_labels
-                if (counts.get(c, 0) / max(1, count_total)) < low
+                1 for c in cluster_labels if (counts.get(c, 0) / max(1, count_total)) < low
             )
             high_cnt = sum(
-                1
-                for c in cluster_labels
-                if (counts.get(c, 0) / max(1, count_total)) > high
+                1 for c in cluster_labels if (counts.get(c, 0) / max(1, count_total)) > high
             )
             rec = {
                 "id": key,
@@ -565,11 +553,10 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
             starts = np.cumsum([0] + lengths[:-1])
             train_X = [
                 train_X_concat.iloc[start : start + length].values
-                for start, length in zip(starts, lengths)
+                for start, length in zip(starts, lengths, strict=True)
             ]
             test_X = [
-                apply_normalization_to_df(pd.DataFrame(x), rescale_factors).values
-                for x in test_X
+                apply_normalization_to_df(pd.DataFrame(x), rescale_factors).values for x in test_X
             ]
         else:
             rescale_factors = None
@@ -586,14 +573,12 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
         # Predict for each test handle and compute RMS
         rms_list = []
-        for x, y, h in zip(test_X, test_y, test_handles):
+        for x, y, h in zip(test_X, test_y, test_handles, strict=True):
             x_df = pd.DataFrame(x, columns=get_source_columns(h))
             y_df = pd.DataFrame(y, columns=get_target_columns(h))
             preds = predictor.predict(x_df)
             preds = preds.reindex(index=y_df.index, columns=y_df.columns)
-            rms = Features.rms_error_between_embeddings(
-                y_df, preds, rescale=normalize_pred
-            )
+            rms = Features.rms_error_between_embeddings(y_df, preds, rescale=normalize_pred)
             rms_list.append(rms)
         return rms_list
 
@@ -715,12 +700,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 for g2 in set2:
                     if g1 == g2:
                         continue
-                    source_handles = [
-                        (g1, h) for h in self._obj_dict[g1].features_dict.keys()
-                    ]
-                    target_handles = [
-                        (g2, h) for h in self._obj_dict[g2].features_dict.keys()
-                    ]
+                    source_handles = [(g1, h) for h in self._obj_dict[g1].features_dict.keys()]
+                    target_handles = [(g2, h) for h in self._obj_dict[g2].features_dict.keys()]
                     rms_list = self._train_and_predict_rms(
                         train_handles=source_handles,
                         test_handles=target_handles,
@@ -738,7 +719,9 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                     rms_dict = {
                         name: rms
                         for name, rms in zip(
-                            self._obj_dict[g2].features_dict.keys(), rms_list
+                            self._obj_dict[g2].features_dict.keys(),
+                            rms_list,
+                            strict=True,
                         )
                     }
                     key = f"from{g1}_to_{g2}"
@@ -752,8 +735,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         """
         Dev mode only: not available in public release yet.
         """
-        import numpy as np
         import matplotlib.pyplot as plt
+        import numpy as np
 
         # Keys
         between_key = f"from{from_group}_to_{to_group}"
@@ -762,12 +745,10 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         within_dict = results["within"].get(within_key, {})
         handles = sorted(set(between_dict.keys()) & set(within_dict.keys()))
         if not handles:
-            raise ValueError(
-                f"No overlapping handles between {between_key} and {within_key}"
-            )
+            raise ValueError(f"No overlapping handles between {between_key} and {within_key}")
         between_means = [between_dict[h].mean(skipna=True) for h in handles]
         within_means = [within_dict[h].mean(skipna=True) for h in handles]
-        diff_means = [b - w for b, w in zip(between_means, within_means)]
+        diff_means = [b - w for b, w in zip(between_means, within_means, strict=True)]
         x = np.arange(len(handles))
         width = 0.3
         fig, ax = plt.subplots(figsize=(max(8, len(handles) * 0.7), 5))
@@ -814,8 +795,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         """
         Dev mode only: not available in public release yet.
         """
-        import pandas as pd
         import matplotlib.pyplot as plt
+        import pandas as pd
         import seaborn as sns
 
         records = []
@@ -824,9 +805,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 for feat, series in results["within"].get(coll, {}).items():
                     arr = series.dropna().values
                     for v in arr:
-                        records.append(
-                            {"Category": f"within_{coll}", "Feature": feat, "RMS": v}
-                        )
+                        records.append({"Category": f"within_{coll}", "Feature": feat, "RMS": v})
         if between_keys is not None:
             for comp in between_keys:
                 for feat, series in results["between"].get(comp, {}).items():
@@ -856,9 +835,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 sharex=True,
                 gridspec_kw={"height_ratios": [2, 1]},
             )
-            sns.pointplot(
-                data=means, x="Feature", y="RMS", hue="Category", dodge=True, ax=ax1
-            )
+            sns.pointplot(data=means, x="Feature", y="RMS", hue="Category", dodge=True, ax=ax1)
             ax1.set_ylabel("mean RMS error")
             ax1.set_title("Cross-predict summary")
             ax1.tick_params(axis="x", rotation=90)
@@ -884,14 +861,12 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
     @dev_mode
     @staticmethod
-    def dumbbell_plot_cross_predict(
-        results, within_key, between_key, figsize=(3, 3), show=True
-    ):
+    def dumbbell_plot_cross_predict(results, within_key, between_key, figsize=(3, 3), show=True):
         """
         Dev mode only: not available in public release yet.
         """
-        import pandas as pd
         import matplotlib.pyplot as plt
+        import pandas as pd
 
         features = sorted(
             set(
@@ -902,28 +877,18 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         data = []
         for feat in features:
             mean_within = (
-                results["within"]
-                .get(within_key, {})
-                .get(feat, pd.Series(dtype=float))
-                .mean()
+                results["within"].get(within_key, {}).get(feat, pd.Series(dtype=float)).mean()
             )
             mean_between = (
-                results["between"]
-                .get(between_key, {})
-                .get(feat, pd.Series(dtype=float))
-                .mean()
+                results["between"].get(between_key, {}).get(feat, pd.Series(dtype=float)).mean()
             )
-            data.append(
-                {"Feature": feat, "Within": mean_within, "Between": mean_between}
-            )
+            data.append({"Feature": feat, "Within": mean_within, "Between": mean_between})
         df = pd.DataFrame(data)
         x = [0, 1]
         plt.figure(figsize=figsize)
         for _, row in df.iterrows():
             plt.plot(x, [row["Within"], row["Between"]], color="gray", lw=2, zorder=1)
-            plt.scatter(
-                x, [row["Within"], row["Between"]], s=60, color="black", zorder=2
-            )
+            plt.scatter(x, [row["Within"], row["Between"]], s=60, color="black", zorder=2)
         plt.xticks(x, ["Within", "Between"])
         plt.ylabel("Mean RMS")
         plt.title(f"Dumbbell Plot: {within_key} vs {between_key}")
@@ -981,9 +946,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         target_embed = self.embedding_df(target_embedding)
         preds = model.predict(test_embed)
         # Ensure the output DataFrame has the same index and columns as target_embed
-        preds = pd.DataFrame(
-            preds, index=target_embed.index, columns=target_embed.columns
-        )
+        preds = pd.DataFrame(preds, index=target_embed.index, columns=target_embed.columns)
         return preds
 
     def plot(self, arg=None, figsize=(8, 2), show: bool = True, title: str = None):
@@ -999,16 +962,12 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         if getattr(self, "is_grouped", False):
             figs_axes = {}
             for gkey, sub in self.items():
-                figs_axes[gkey] = sub.plot(
-                    arg, figsize=figsize, show=show, title=str(gkey)
-                )
+                figs_axes[gkey] = sub.plot(arg, figsize=figsize, show=show, title=str(gkey))
             return figs_axes
 
         if arg is None:
             # Plot all columns for each Features object
-            features_dict = {
-                handle: obj.data for handle, obj in self.features_dict.items()
-            }
+            features_dict = {handle: obj.data for handle, obj in self.features_dict.items()}
             plot_type = "all"
         elif isinstance(arg, (str, list)):
             # Plot specified column(s) for each Features object
@@ -1035,12 +994,10 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         n = len(features_dict)
         if n == 0:
             raise ValueError("No features to plot.")
-        fig, axes = plt.subplots(
-            n, 1, figsize=(figsize[0], figsize[1] * n), sharex=True
-        )
+        fig, axes = plt.subplots(n, 1, figsize=(figsize[0], figsize[1] * n), sharex=True)
         if n == 1:
             axes = [axes]
-        for ax, (handle, data) in zip(axes, features_dict.items()):
+        for ax, (handle, data) in zip(axes, features_dict.items(), strict=True):
             if plot_type == "batch":
                 # FeaturesResult: plot as a single series
                 ax.plot(data.index, data.values, label=getattr(data, "name", "value"))
@@ -1116,9 +1073,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 v.store(name=name, meta=meta, overwrite=overwrite)
             else:
                 if isinstance(v, pd.Series):
-                    self.features_dict[handle].store(
-                        v, name, overwrite=overwrite, meta=meta or {}
-                    )
+                    self.features_dict[handle].store(v, name, overwrite=overwrite, meta=meta or {})
                 else:
                     raise ValueError(f"{v} is not a FeaturesResult or Series")
 

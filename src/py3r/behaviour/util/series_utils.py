@@ -1,26 +1,22 @@
-from math import floor, ceil
-import pandas as pd
+from math import ceil, floor
+from typing import Literal
+
 import numpy as np
+import pandas as pd
 
 
 def mode(series: pd.Series):
     return series.value_counts().index[0]
 
 
-def rolling_apply(
-    frame: pd.Series, window: int, func, center: bool = True
-) -> pd.Series:
+def rolling_apply(frame: pd.Series, window: int, func, center: bool = True) -> pd.Series:
     """a custom rolling_apply that accepts non-numeric input"""
     if center:
         index = frame.index[ceil(window / 2) - 1 : -floor(window / 2)]
-        values = [
-            func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)
-        ]
+        values = [func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)]
     else:
         index = frame.index[window - 1 :]
-        values = [
-            func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)
-        ]
+        values = [func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)]
 
     return pd.Series(data=values, index=index).reindex(frame.index)
 
@@ -30,8 +26,8 @@ def gen_encoder_decoder(s: pd.Series):
 
     labels = list(set(s))
     encoding = list(np.arange(len(labels)))
-    encoder = dict(zip(labels, encoding))
-    decoder = dict(zip(encoding, labels))
+    encoder = dict(zip(labels, encoding, strict=True))
+    decoder = dict(zip(encoding, labels, strict=True))
 
     return encoder, decoder
 
@@ -96,15 +92,15 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     starts = np.where(diffs == 1)[0]
     ends = np.where(diffs == -1)[0]
 
-    for start, end in zip(starts, ends):
+    for start, end in zip(starts, ends, strict=True):
         if s2[start:end].to_numpy().any():
             if start > 0:
                 replacement_value = s1.iloc[start - 1]
             else:
                 try:
                     replacement_value = s1.iloc[end]
-                except IndexError:
-                    raise IndexError(f"Index {end} out of range for pandas series s1")
+                except IndexError as e:
+                    raise IndexError(f"Index {end} out of range for pandas series s1") from e
             s1[start:end] = replacement_value
 
     # Step 3: Assign back to DataFrame
@@ -123,9 +119,7 @@ def normalize_df(df: pd.DataFrame, z_score: bool = False) -> tuple[pd.DataFrame,
         means = df.mean(axis=0)
         stds = df.std(axis=0, ddof=0)
         normalized = (df - means) / stds
-        rescale_factors = {
-            col: {"mean": means[col], "std": stds[col]} for col in df.columns
-        }
+        rescale_factors = {col: {"mean": means[col], "std": stds[col]} for col in df.columns}
     else:
         stds = df.std(axis=0, ddof=0)
         normalized = df / stds
@@ -156,10 +150,12 @@ def apply_custom_scaling(df: pd.DataFrame, scaling: dict[str, dict]) -> pd.DataF
 
     Rules:
     - Each key in `scaling` is matched against column names by substring containment.
-    - For a matched column, apply (optional) normalization dividing by its std, then multiplying by `scale`.
+    - For a matched column, apply (optional) normalization dividing by
+      its std, then multiplying by `scale`.
     - If a column matches more than one key, raise ValueError.
 
-    Example: apply_custom_scaling(df, {"accel": {"normalize": False, "scale": 3.0}, "dist": {"normalize": True, "scale": 1.0}})
+    Example: apply_custom_scaling(df, {"accel": {"normalize": False,
+      "scale": 3.0}, "dist": {"normalize": True, "scale": 1.0}})
 
     The input is not mutated; a scaled copy is returned.
     """
@@ -207,3 +203,189 @@ def apply_custom_scaling(df: pd.DataFrame, scaling: dict[str, dict]) -> pd.DataF
         df_scaled[col] = s
 
     return df_scaled
+
+
+def latencies_from_bool(ser: pd.Series) -> list[int]:
+    """
+    Takes a boolean series and calculates any onsets where
+    n = False -> n+1 = True.
+
+    Args:
+        ser (pd.Series): a series of boolean type
+
+    Returns:
+        list[int]: a list of onset positions (integer indices)
+
+    Examples:
+    ```pycon
+     >>> import pandas as pd
+     >>> import pytest
+     >>> series = pd.Series([1,1,0,0,0,1,1,0,0,1,1], dtype = bool)
+     >>> latencies = latencies_from_bool(series)
+     >>> latencies
+     [0, 5, 9]
+
+     >>> series_NAs = pd.Series([1,1,0,0,pd.NA,1,1,0,0,1,1], dtype = 'boolean')
+     >>> latencies = latencies_from_bool(series_NAs)
+     >>> latencies
+     [0, 5, 9]
+
+     ```
+
+    """
+    if not pd.api.types.is_bool_dtype(ser):
+        raise TypeError("Series must be of boolean dtype")
+
+    # Treat NaNs as False to avoid spurious onsets
+    s = ser.fillna(False)
+
+    onsets = ~s.shift(1, fill_value=False) & s
+    return onsets[onsets].index.to_list()
+
+
+def smooth_bool_series(ser: pd.Series, window: int = 1) -> pd.Series:
+    """
+    Smooth a boolean series using majority voting over a rolling window.
+    Removes single-sample spikes and dropouts.
+
+    Args:
+        ser (pd.Series): boolean time series
+
+    Returns:
+        pd.Series: smoothed boolean series
+
+    Examples:
+    ```pycon
+     >>> import pandas as pd
+     >>> import pytest
+     >>> series = pd.Series([1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1], dtype = bool)
+     >>> smoothed = smooth_bool_series(series, window = 3)
+     >>> smoothed = [int(s) for s in smoothed]
+     >>> smoothed
+     [1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1]
+
+     ```
+    """
+    if not pd.api.types.is_bool_dtype(ser):
+        raise TypeError("Series must be of boolean dtype")
+
+    s = ser.fillna(False)
+    smoothed = s.rolling(window=window, center=True, min_periods=1).mean() >= 0.5
+    return smoothed.astype(bool)
+
+
+def latencies_from_series(
+    series: pd.Series,
+    target_value: str | float | int | None = None,
+    threshold_op: Literal["gt", "lt", "eq", "ne"] = "eq",
+    integration_window: int = 1,
+) -> list[int]:
+    """
+    Compute onset latencies from a pandas Series.
+
+    The input series is converted to a boolean condition either directly
+    (if already boolean) or by applying a comparison against `target_value`
+    using `threshold_op`. Optionally, the boolean series is temporally
+    smoothed via an integration window. Latencies are defined as indices
+    where the signal transitions from False to True.
+
+    Parameters
+    ----------
+    series : pd.Series
+        Input time series.
+    target_value : str | float | int | None, optional
+        Value to compare against for non-boolean series. Required unless
+        `series` is already boolean.
+    threshold_op : {"gt", "lt", "eq", "ne"}, default "eq"
+        Comparison operator used to generate the boolean condition.
+        Only "eq" and "ne" are valid for string comparisons.
+        - "gt": greater than (>)
+        - "lt": less than (<)
+        - "eq": equal to (==)
+        - "ne": not equal (!=)
+    integration_window : int, default 1
+        Window size for boolean integration/smoothing. Values > 1 apply
+        temporal smoothing before latency extraction.
+
+    Returns
+    -------
+    list[int]
+        Indices of False → True transitions in the resulting boolean series.
+
+    Raises
+    ------
+    ValueError
+        If `threshold_op` is invalid, `target_value` is missing for a
+        non-boolean series, or an invalid operator is used for string data.
+
+    Examples:
+    ```pycon
+     >>> import pandas as pd
+     >>> import pytest
+     >>> series_bool = pd.Series([1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1], dtype = bool)
+     >>> latencies = latencies_from_series(series_bool)
+     >>> latencies
+     [0, 5, 8]
+     >>> series_NA = pd.Series([1, 1, 1, 0, pd.NA, 1, 0, 0, 1, 1, 1], dtype = 'boolean')
+     >>> latencies = latencies_from_series(series_NA)
+     >>> latencies
+     [0, 5, 8]
+     >>> latencies = latencies_from_series(series_bool, integration_window = 3)
+     >>> latencies
+     [0, 8]
+     >>> series_float = pd.Series([1., 2., 3., 4., 1., 1., 2., 3., 3., 4., 5.], dtype = float)
+     >>> latencies = latencies_from_series(series_float, target_value = 2., threshold_op = "gt" )
+     >>> latencies
+     [2, 7]
+     >>> series_int = pd.Series([1, 2, 3, 4, 1, 1, 2, 3, 3, 4, 5], dtype = int)
+     >>> latencies = latencies_from_series(series_int, target_value = 2, threshold_op = "lt" )
+     >>> latencies
+     [0, 4]
+     >>> series_str = pd.Series(['A', 'A', 'B', 'A', 'A', 'C', 'C', 'A', 'A'], dtype = str)
+     >>> latencies = latencies_from_series(series_str, target_value = 'A')
+     >>> latencies
+     [0, 3, 7]
+     >>> latencies = latencies_from_series(series_str, target_value = 'A', threshold_op = "ne")
+     >>> latencies
+     [2, 5]
+
+     ```
+    """
+
+    ops = {
+        "gt": lambda s: s > target_value,
+        "lt": lambda s: s < target_value,
+        "eq": lambda s: s == target_value,
+        "ne": lambda s: s != target_value,
+    }
+    valid_str_ops = {"eq", "ne"}
+    series_dtype = series.dtype
+    target_dtype = pd.Series([target_value]).dtype
+
+    if threshold_op not in ops:
+        raise ValueError(f"Invalid threshold_op: {threshold_op}")
+
+    # If already boolean, ignore target_value and op
+    if pd.api.types.is_bool_dtype(series):
+        bool_series = series.copy()
+    else:
+        if target_dtype is None:
+            raise ValueError("target_value must be provided for non-boolean series")
+
+        if not np.issubdtype(series_dtype, target_dtype.type) and not np.issubdtype(
+            target_dtype, series_dtype.type
+        ):
+            raise TypeError(
+                f"Dtype mismatch: series dtype={series_dtype}, target_value dtype={target_dtype}"
+            )
+
+        if isinstance(target_value, str) and threshold_op not in valid_str_ops:
+            raise ValueError(
+                f"Operator '{threshold_op}' not valid for string comparisons {valid_str_ops}"
+            )
+        bool_series = ops[threshold_op](series)
+
+    if integration_window > 1:
+        bool_series = smooth_bool_series(bool_series, integration_window)
+
+    return latencies_from_bool(bool_series)

@@ -1,6 +1,6 @@
 from .features import Features
-from .features_result import FeaturesResult
 from .features_collection import FeaturesCollection
+from .features_result import FeaturesResult
 
 __all__ = [
     "Features",

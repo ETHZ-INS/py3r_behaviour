@@ -12,9 +12,7 @@ def fit_frame_imputer(df: pd.DataFrame) -> pd.Series:
     return df.median(numeric_only=True)
 
 
-def impute_frame(
-    df: pd.DataFrame, medians: pd.Series
-) -> tuple[pd.DataFrame, pd.Series]:
+def impute_frame(df: pd.DataFrame, medians: pd.Series) -> tuple[pd.DataFrame, pd.Series]:
     """
     Impute NaNs using precomputed per-column medians.
 

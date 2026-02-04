@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from typing import Tuple, Dict, Literal
+from typing import Literal
 
 import pandas as pd
 
 
 def apply_smoothing(
     df: pd.DataFrame,
-    specs: Dict[str, Dict],
-    dims: Tuple[str, ...],
+    specs: dict[str, dict],
+    dims: tuple[str, ...],
     *,
     smoother=None,
     smoother_kwargs: dict | None = None,
@@ -19,7 +19,8 @@ def apply_smoothing(
     - df: DataFrame with columns like "point.x", "point.y", "point.z"
     - specs: mapping point -> {"method": 'median'|'mean', "window": int|None}
     - dims: which coordinate dims to smooth
-    - smoother: optional callable(series, point, dim, window, method, df, **kwargs) -> Series
+    - smoother: optional callable(series, point, dim, window, method, df,
+      **kwargs) -> Series
     - smoother_kwargs: optional dict passed to smoother
     """
     smoother_kwargs = smoother_kwargs or {}
@@ -53,7 +54,7 @@ def apply_smoothing(
 def smooth_series(
     series: pd.Series,
     *,
-    method: Literal["mean","median","savgol"],
+    method: Literal["mean", "median", "savgol"],
     window: int | None,
     **method_kwargs,
 ) -> pd.Series:
@@ -90,14 +91,13 @@ def _smooth_series_savgol(
       - NaN handling controlled by nan_policy:
           'error'   -> raise if NaNs present (optional, conservative)
           'segment' -> smooth each contiguous finite segment independently,
-                       leave short segments (< window) as-is; preserve NaNs elsewhere (default)
+                       leave short segments (< window) as-is; preserve NaNs
+                       elsewhere (default)
     """
     try:
         from scipy.signal import savgol_filter
     except ImportError as e:
-        raise ImportError(
-            "Savitzky–Golay requires SciPy. Install with: pip install scipy"
-        ) from e
+        raise ImportError("Savitzky–Golay requires SciPy. Install with: pip install scipy") from e
     # Basic validation
     w = int(window)
     if w % 2 == 0:
@@ -107,14 +107,13 @@ def _smooth_series_savgol(
     has_nan = series.isna().any()
     if not has_nan:
         vals = series.to_numpy(dtype=float)
-        smoothed = savgol_filter(
-            vals, window_length=w, polyorder=int(polyorder), mode=mode
-        )
+        smoothed = savgol_filter(vals, window_length=w, polyorder=int(polyorder), mode=mode)
         return pd.Series(smoothed, index=series.index)
     # NaN handling
     if nan_policy == "error":
         raise ValueError(
-            "Savitzky–Golay cannot handle NaNs with nan_policy='error'. Interpolate first or use nan_policy='segment'."
+            "Savitzky–Golay cannot handle NaNs with nan_policy='error'. "
+            "Interpolate first or use nan_policy='segment'."
         )
     if nan_policy != "segment":
         raise ValueError("nan_policy must be one of {'error','segment'}")
@@ -126,7 +125,7 @@ def _smooth_series_savgol(
     # Identify contiguous finite segments
     # Use a group id that increments when mask changes or at NaN boundaries
     group_ids = (mask != mask.shift(fill_value=False)).cumsum()
-    for gid, is_finite in mask.groupby(group_ids):
+    for _gid, is_finite in mask.groupby(group_ids):
         if not is_finite.iloc[0]:
             continue  # this group is NaNs
         idx = is_finite[is_finite].index
@@ -135,8 +134,6 @@ def _smooth_series_savgol(
             # too short for this window; leave as original (finite)
             continue
         vals = seg.to_numpy(dtype=float)
-        seg_sm = savgol_filter(
-            vals, window_length=w, polyorder=int(polyorder), mode=mode
-        )
+        seg_sm = savgol_filter(vals, window_length=w, polyorder=int(polyorder), mode=mode)
         out.loc[idx] = seg_sm
     return out

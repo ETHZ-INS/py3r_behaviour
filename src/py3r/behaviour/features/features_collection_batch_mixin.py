@@ -4,47 +4,61 @@
 from __future__ import annotations
 
 from py3r.behaviour.util.collection_utils import BatchResult
+import pandas as pd
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
-    from py3r.behaviour.classifier import BaseClassifier
     import pandas as pd
     from sklearn.neighbors import KNeighborsRegressor
+    from py3r.behaviour.classifier import BaseClassifier
+
 
 class FeaturesCollectionBatchMixin:
-
-    def save(self, dirpath: str, *, data_format: str="parquet", overwrite: bool=False) -> BatchResult:
+    def save(
+        self, dirpath: str, *, data_format: str = "parquet", overwrite: bool = False
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.save across the collection.
 
         Save this Features object (and its nested Tracking) to a self-describing directory.
 
-        See [`Features.save`][py3r.behaviour.features.features.Features.save] for examples.
+        See leaf method ``Features.save`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'save')(dirpath, data_format=data_format, overwrite=overwrite))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "save")(
+                    dirpath, data_format=data_format, overwrite=overwrite
+                )
+            )
         return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> BatchResult:
         """
         Batch-mode wrapper for Features.distance_between across the collection.
 
-        See [`Features.distance_between`][py3r.behaviour.features.features.Features.distance_between] for examples.
+        See leaf method ``Features.distance_between`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'distance_between')(point1, point2, dims))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "distance_between")(point1, point2, dims)
+            )
         return self._invoke_batch("distance_between", point1, point2, dims)
 
-    def within_distance(self, point1: str, point2: str, distance: float, dims=("x", "y")) -> BatchResult:
+    def within_distance(
+        self, point1: str, point2: str, distance: float, dims=("x", "y")
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.within_distance across the collection.
 
-        See [`Features.within_distance`][py3r.behaviour.features.features.Features.within_distance] for examples.
+        See leaf method ``Features.within_distance`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'within_distance')(point1, point2, distance, dims))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "within_distance")(point1, point2, distance, dims)
+            )
         return self._invoke_batch("within_distance", point1, point2, distance, dims)
 
     def get_point_median(self, point: str, dims=("x", "y")) -> BatchResult:
@@ -53,59 +67,77 @@ class FeaturesCollectionBatchMixin:
 
         Return the per-dimension median coordinate for a tracked point.
 
-        See [`Features.get_point_median`][py3r.behaviour.features.features.Features.get_point_median] for examples.
+        See leaf method ``Features.get_point_median`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'get_point_median')(point, dims))
+            return self.map_leaves(lambda _obj: getattr(_obj, "get_point_median")(point, dims))
         return self._invoke_batch("get_point_median", point, dims)
 
-    def define_boundary(self, points: list[str], scaling: float, scaling_y: float=None, centre: str | list[str]=None) -> BatchResult:
+    def define_boundary(
+        self,
+        points: list[str],
+        scaling: float,
+        scaling_y: float = None,
+        centre: str | list[str] = None,
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.define_boundary across the collection.
 
-        takes a list of defined points, and creates a static rescaled list of point coordinates based on median location of those points
-        'centre' (point about which to scale) can be a string or list of strings, in which case the median of the points will be used as the centre
-        if 'centre' is None, the median of all the boundary points will be used as the centre
-        'scaling' is the factor by which to scale the boundary points, and 'scaling_y' is the factor by which to scale the y-axis
-        if 'scaling_y' is not provided, 'scaling' will be applied to both axes
+        Static rescaled boundary from point medians.
+        'centre' can be str or list[str]; median of those points or of boundary if None.
+        'scaling' scales boundary; 'scaling_y' scales y-axis (default: same as scaling).
 
-        See [`Features.define_boundary`][py3r.behaviour.features.features.Features.define_boundary] for examples.
+        See leaf method ``Features.define_boundary`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'define_boundary')(points, scaling, scaling_y, centre))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "define_boundary")(points, scaling, scaling_y, centre)
+            )
         return self._invoke_batch("define_boundary", points, scaling, scaling_y, centre)
 
-    def within_boundary_static(self, point: str, boundary: list[tuple[float, float]], boundary_name: str=None) -> BatchResult:
+    def within_boundary_static(
+        self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.within_boundary_static across the collection.
 
         checks whether point is inside polygon defined by ordered list of boundary points
         boundary points must be specified as a list of numerical tuples
 
-        See [`Features.within_boundary_static`][py3r.behaviour.features.features.Features.within_boundary_static] for examples.
+        See leaf method ``Features.within_boundary_static`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'within_boundary_static')(point, boundary, boundary_name))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "within_boundary_static")(point, boundary, boundary_name)
+            )
         return self._invoke_batch("within_boundary_static", point, boundary, boundary_name)
 
-    def within_boundary_dynamic(self, point: str, boundary: list[str], boundary_name: str=None) -> BatchResult:
+    def within_boundary_dynamic(
+        self, point: str, boundary: list[str], boundary_name: str = None
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.within_boundary_dynamic across the collection.
 
         checks whether point is inside polygon defined by ordered list of boundary points
         boundary points must be specified as a list of names of tracked points
 
-        See [`Features.within_boundary_dynamic`][py3r.behaviour.features.features.Features.within_boundary_dynamic] for examples.
+        See leaf method ``Features.within_boundary_dynamic`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'within_boundary_dynamic')(point, boundary, boundary_name))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "within_boundary_dynamic")(
+                    point, boundary, boundary_name
+                )
+            )
         return self._invoke_batch("within_boundary_dynamic", point, boundary, boundary_name)
 
-    def within_boundary(self, point: str, boundary: list, median: bool=True, boundary_name: str=None) -> BatchResult:
+    def within_boundary(
+        self, point: str, boundary: list, median: bool = True, boundary_name: str = None
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.within_boundary across the collection.
 
@@ -115,96 +147,128 @@ class FeaturesCollectionBatchMixin:
         or as a list of names of tracked points.
         Optionally, pass boundary_name for a custom short name in the feature name/meta.
 
-        See [`Features.within_boundary`][py3r.behaviour.features.features.Features.within_boundary] for examples.
+        See leaf method ``Features.within_boundary`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'within_boundary')(point, boundary, median, boundary_name))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "within_boundary")(
+                    point, boundary, median, boundary_name
+                )
+            )
         return self._invoke_batch("within_boundary", point, boundary, median, boundary_name)
 
-    def distance_to_boundary(self, point: str, boundary: list[str], median: bool=True, boundary_name: str=None) -> BatchResult:
+    def distance_to_boundary(
+        self, point: str, boundary: list[str], median: bool = True, boundary_name: str = None
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.distance_to_boundary across the collection.
 
         Deprecated: use distance_to_boundary_static or distance_to_boundary_dynamic instead
 
-        See [`Features.distance_to_boundary`][py3r.behaviour.features.features.Features.distance_to_boundary] for examples.
+        See leaf method ``Features.distance_to_boundary`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'distance_to_boundary')(point, boundary, median, boundary_name))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "distance_to_boundary")(
+                    point, boundary, median, boundary_name
+                )
+            )
         return self._invoke_batch("distance_to_boundary", point, boundary, median, boundary_name)
 
-    def distance_to_boundary_static(self, point: str, boundary: list[tuple[float, float]], boundary_name: str=None) -> BatchResult:
+    def distance_to_boundary_static(
+        self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
+    ) -> BatchResult:
         """
-        Batch-mode wrapper for Features.distance_to_boundary_static across the collection.
+        Batch-mode wrapper for Features.distance_to_boundary_static
+        across the collection.
 
-        See [`Features.distance_to_boundary_static`][py3r.behaviour.features.features.Features.distance_to_boundary_static] for examples.
+        See leaf method ``Features.distance_to_boundary_static`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'distance_to_boundary_static')(point, boundary, boundary_name))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "distance_to_boundary_static")(
+                    point, boundary, boundary_name
+                )
+            )
         return self._invoke_batch("distance_to_boundary_static", point, boundary, boundary_name)
 
-    def distance_to_boundary_dynamic(self, point: str, boundary: list[str], boundary_name: str | None=None) -> BatchResult:
+    def distance_to_boundary_dynamic(
+        self, point: str, boundary: list[str], boundary_name: str | None = None
+    ) -> BatchResult:
         """
-        Batch-mode wrapper for Features.distance_to_boundary_dynamic across the collection.
+        Batch-mode wrapper for Features.distance_to_boundary_dynamic
+        across the collection.
 
-        See [`Features.distance_to_boundary_dynamic`][py3r.behaviour.features.features.Features.distance_to_boundary_dynamic] for examples.
+        See leaf method ``Features.distance_to_boundary_dynamic`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'distance_to_boundary_dynamic')(point, boundary, boundary_name))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "distance_to_boundary_dynamic")(
+                    point, boundary, boundary_name
+                )
+            )
         return self._invoke_batch("distance_to_boundary_dynamic", point, boundary, boundary_name)
 
-    def area_of_boundary(self, boundary: list[str], median: bool=True) -> BatchResult:
+    def area_of_boundary(self, boundary: list[str], median: bool = True) -> BatchResult:
         """
         Batch-mode wrapper for Features.area_of_boundary across the collection.
 
-        See [`Features.area_of_boundary`][py3r.behaviour.features.features.Features.area_of_boundary] for examples.
+        See leaf method ``Features.area_of_boundary`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'area_of_boundary')(boundary, median))
+            return self.map_leaves(lambda _obj: getattr(_obj, "area_of_boundary")(boundary, median))
         return self._invoke_batch("area_of_boundary", boundary, median)
 
     def acceleration(self, point: str, dims=("x", "y")) -> BatchResult:
         """
         Batch-mode wrapper for Features.acceleration across the collection.
 
-        See [`Features.acceleration`][py3r.behaviour.features.features.Features.acceleration] for examples.
+        See leaf method ``Features.acceleration`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'acceleration')(point, dims))
+            return self.map_leaves(lambda _obj: getattr(_obj, "acceleration")(point, dims))
         return self._invoke_batch("acceleration", point, dims)
 
     def azimuth(self, point1: str, point2: str) -> BatchResult:
         """
         Batch-mode wrapper for Features.azimuth across the collection.
 
-        See [`Features.azimuth`][py3r.behaviour.features.features.Features.azimuth] for examples.
+        See leaf method ``Features.azimuth`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'azimuth')(point1, point2))
+            return self.map_leaves(lambda _obj: getattr(_obj, "azimuth")(point1, point2))
         return self._invoke_batch("azimuth", point1, point2)
 
-    def azimuth_deviation(self, basepoint: str, pointdirection1: str, pointdirection2: str) -> BatchResult:
+    def azimuth_deviation(
+        self, basepoint: str, pointdirection1: str, pointdirection2: str
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.azimuth_deviation across the collection.
 
         Compute the signed angular deviation (radians) between two directions
         from a common basepoint for each frame.
 
-        See [`Features.azimuth_deviation`][py3r.behaviour.features.features.Features.azimuth_deviation] for examples.
+        See leaf method ``Features.azimuth_deviation`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'azimuth_deviation')(basepoint, pointdirection1, pointdirection2))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "azimuth_deviation")(
+                    basepoint, pointdirection1, pointdirection2
+                )
+            )
         return self._invoke_batch("azimuth_deviation", basepoint, pointdirection1, pointdirection2)
 
-    def within_azimuth_deviation(self, basepoint: str, pointdirection1: str, pointdirection2: str, deviation: float) -> BatchResult:
+    def within_azimuth_deviation(
+        self, basepoint: str, pointdirection1: str, pointdirection2: str, deviation: float
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.within_azimuth_deviation across the collection.
 
@@ -212,22 +276,28 @@ class FeaturesCollectionBatchMixin:
         from basepoint is <= deviation (radians).
         NA is propagated where inputs are missing (pd.NA).
 
-        See [`Features.within_azimuth_deviation`][py3r.behaviour.features.features.Features.within_azimuth_deviation] for examples.
+        See leaf method ``Features.within_azimuth_deviation`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'within_azimuth_deviation')(basepoint, pointdirection1, pointdirection2, deviation))
-        return self._invoke_batch("within_azimuth_deviation", basepoint, pointdirection1, pointdirection2, deviation)
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "within_azimuth_deviation")(
+                    basepoint, pointdirection1, pointdirection2, deviation
+                )
+            )
+        return self._invoke_batch(
+            "within_azimuth_deviation", basepoint, pointdirection1, pointdirection2, deviation
+        )
 
     def speed(self, point: str, dims=("x", "y")) -> BatchResult:
         """
         Batch-mode wrapper for Features.speed across the collection.
 
-        See [`Features.speed`][py3r.behaviour.features.features.Features.speed] for examples.
+        See leaf method ``Features.speed`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'speed')(point, dims))
+            return self.map_leaves(lambda _obj: getattr(_obj, "speed")(point, dims))
         return self._invoke_batch("speed", point, dims)
 
     def above_speed(self, point: str, speed: float, dims=("x", "y")) -> BatchResult:
@@ -237,11 +307,11 @@ class FeaturesCollectionBatchMixin:
         Return True for frames where the point's speed is >= threshold.
         NA is propagated where inputs are missing (pd.NA).
 
-        See [`Features.above_speed`][py3r.behaviour.features.features.Features.above_speed] for examples.
+        See leaf method ``Features.above_speed`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'above_speed')(point, speed, dims))
+            return self.map_leaves(lambda _obj: getattr(_obj, "above_speed")(point, speed, dims))
         return self._invoke_batch("above_speed", point, speed, dims)
 
     def all_above_speed(self, points: list, speed: float, dims=("x", "y")) -> BatchResult:
@@ -251,11 +321,13 @@ class FeaturesCollectionBatchMixin:
         Return True for frames where all listed points are moving at least at the threshold speed.
         NA is propagated: if any input is NA at a frame, result is NA.
 
-        See [`Features.all_above_speed`][py3r.behaviour.features.features.Features.all_above_speed] for examples.
+        See leaf method ``Features.all_above_speed`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'all_above_speed')(points, speed, dims))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "all_above_speed")(points, speed, dims)
+            )
         return self._invoke_batch("all_above_speed", points, speed, dims)
 
     def below_speed(self, point: str, speed: float, dims=("x", "y")) -> BatchResult:
@@ -265,11 +337,11 @@ class FeaturesCollectionBatchMixin:
         Return True for frames where the point's speed is < threshold.
         NA is propagated where inputs are missing (pd.NA).
 
-        See [`Features.below_speed`][py3r.behaviour.features.features.Features.below_speed] for examples.
+        See leaf method ``Features.below_speed`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'below_speed')(point, speed, dims))
+            return self.map_leaves(lambda _obj: getattr(_obj, "below_speed")(point, speed, dims))
         return self._invoke_batch("below_speed", point, speed, dims)
 
     def all_below_speed(self, points: list, speed: float, dims=("x", "y")) -> BatchResult:
@@ -279,71 +351,83 @@ class FeaturesCollectionBatchMixin:
         Return True for frames where all listed points are moving slower than the threshold speed.
         NA is propagated: if any input is NA at a frame, result is NA.
 
-        See [`Features.all_below_speed`][py3r.behaviour.features.features.Features.all_below_speed] for examples.
+        See leaf method ``Features.all_below_speed`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'all_below_speed')(points, speed, dims))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "all_below_speed")(points, speed, dims)
+            )
         return self._invoke_batch("all_below_speed", points, speed, dims)
 
     def distance_change(self, point: str, dims=("x", "y")) -> BatchResult:
         """
         Batch-mode wrapper for Features.distance_change across the collection.
 
-        See [`Features.distance_change`][py3r.behaviour.features.features.Features.distance_change] for examples.
+        Return unsigned distance moved by point from previous to current frame, per frame.
+
+        See leaf method ``Features.distance_change`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'distance_change')(point, dims))
+            return self.map_leaves(lambda _obj: getattr(_obj, "distance_change")(point, dims))
         return self._invoke_batch("distance_change", point, dims)
 
-    def store(self, feature: pd.Series, name: str, overwrite: bool=False, meta: dict=dict()) -> BatchResult:
+    def store(
+        self, feature: pd.Series, name: str, overwrite: bool = False, meta: dict | None = None
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.store across the collection.
 
-        stores calculated feature with name and associated freeform metadata object
+        Store calculated feature with name and associated freeform metadata.
 
-        See [`Features.store`][py3r.behaviour.features.features.Features.store] for examples.
+        See leaf method ``Features.store`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'store')(feature, name, overwrite, meta))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "store")(feature, name, overwrite, meta)
+            )
         return self._invoke_batch("store", feature, name, overwrite, meta)
 
     def classify(self, classifier: BaseClassifier, **kwargs) -> BatchResult:
         """
         Batch-mode wrapper for Features.classify across the collection.
 
-        classify behaviour using a classifier with inputs from this Features object
+        Classify behaviour using a classifier with inputs from this Features object.
 
-        See [`Features.classify`][py3r.behaviour.features.features.Features.classify] for examples.
+        See leaf method ``Features.classify`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'classify')(classifier, **kwargs))
+            return self.map_leaves(lambda _obj: getattr(_obj, "classify")(classifier, **kwargs))
         return self._invoke_batch("classify", classifier, **kwargs)
 
-    def smooth(self, name: str, method: str, window: int, inplace: bool=False, **method_kwargs) -> BatchResult:
+    def smooth(
+        self, name: str, method: str, window: int, inplace: bool = False, **method_kwargs
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.smooth across the collection.
 
-        smooths specified feature with specified method over rolling window. if inplace=True then feature
-        will be directly edited and metadata updated
+        Smooth feature with method over rolling window. If inplace=True, feature and
+        metadata are updated in place.
         method:
-            'median' : median of value in window, requires numerical series values
-            'mean' : mean of value in window, requires numerical series values
-            'savgol' : Savitzky–Golay filter (requires SciPy). Additional kwargs like polyorder=3, mode='interp'.
-            'mode' : mode value in window, works with numerical or non-numerical types
+            'median' : median in window (numerical)
+            'mean' : mean in window (numerical)
+            'savgol' : Savitzky–Golay (SciPy). Kwargs e.g. polyorder=3, mode='interp'.
+            'mode' : mode in window (numerical or non-numerical)
             'block' : removes labels that occur in blocks of less than length window
                       and replaces them with value from previous block unless there is
                       no previous block, in which case replaced from next block after smoothing
                       note: all nan values will be filled using this method (dangerous!)
 
-        See [`Features.smooth`][py3r.behaviour.features.features.Features.smooth] for examples.
+        See leaf method ``Features.smooth`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'smooth')(name, method, window, inplace, **method_kwargs))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "smooth")(name, method, window, inplace, **method_kwargs)
+            )
         return self._invoke_batch("smooth", name, method, window, inplace, **method_kwargs)
 
     def embedding_df(self, embedding: dict[str, list[int]]) -> BatchResult:
@@ -355,80 +439,171 @@ class FeaturesCollectionBatchMixin:
         positive shift: value from the future (t+n)
         negative shift: value from the past (t-n)
 
-        See [`Features.embedding_df`][py3r.behaviour.features.features.Features.embedding_df] for examples.
+        See leaf method ``Features.embedding_df`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'embedding_df')(embedding))
+            return self.map_leaves(lambda _obj: getattr(_obj, "embedding_df")(embedding))
         return self._invoke_batch("embedding_df", embedding)
 
-    def assign_clusters_by_centroids(self, embedding: dict[str, list[int]], centroids_df: pd.DataFrame, *, rescale_factors: dict | None=None, custom_scaling: dict[str, dict] | None=None, impute_medians: pd.Series | None=None) -> BatchResult:
+    def assign_clusters_by_centroids(
+        self,
+        embedding: dict[str, list[int]],
+        centroids_df: pd.DataFrame,
+        *,
+        rescale_factors: dict | None = None,
+        custom_scaling: dict[str, dict] | None = None,
+        impute_medians: pd.Series | None = None,
+    ) -> BatchResult:
         """
-        Batch-mode wrapper for Features.assign_clusters_by_centroids across the collection.
+        Batch-mode wrapper for Features.assign_clusters_by_centroids
+        across the collection.
 
         new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
         centroids_df: (n_clusters, n_features) DataFrame of cluster centers
 
-        See [`Features.assign_clusters_by_centroids`][py3r.behaviour.features.features.Features.assign_clusters_by_centroids] for examples.
+        See leaf method ``Features.assign_clusters_by_centroids`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'assign_clusters_by_centroids')(embedding, centroids_df, rescale_factors=rescale_factors, custom_scaling=custom_scaling, impute_medians=impute_medians))
-        return self._invoke_batch("assign_clusters_by_centroids", embedding, centroids_df, rescale_factors=rescale_factors, custom_scaling=custom_scaling, impute_medians=impute_medians)
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "assign_clusters_by_centroids")(
+                    embedding,
+                    centroids_df,
+                    rescale_factors=rescale_factors,
+                    custom_scaling=custom_scaling,
+                    impute_medians=impute_medians,
+                )
+            )
+        return self._invoke_batch(
+            "assign_clusters_by_centroids",
+            embedding,
+            centroids_df,
+            rescale_factors=rescale_factors,
+            custom_scaling=custom_scaling,
+            impute_medians=impute_medians,
+        )
 
-    def train_knn_regressor(self, *, source_embedding: dict[str, list[int]], target_embedding: dict[str, list[int]], n_neighbors: int=5, normalize_source: bool=False, **kwargs) -> BatchResult:
+    def train_knn_regressor(
+        self,
+        *,
+        source_embedding: dict[str, list[int]],
+        target_embedding: dict[str, list[int]],
+        n_neighbors: int = 5,
+        normalize_source: bool = False,
+        **kwargs,
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.train_knn_regressor across the collection.
 
         Developer mode: not available in public release yet.
 
-        See [`Features.train_knn_regressor`][py3r.behaviour.features.features.Features.train_knn_regressor] for examples.
+        See leaf method ``Features.train_knn_regressor`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'train_knn_regressor')(source_embedding=source_embedding, target_embedding=target_embedding, n_neighbors=n_neighbors, normalize_source=normalize_source, **kwargs))
-        return self._invoke_batch("train_knn_regressor", source_embedding=source_embedding, target_embedding=target_embedding, n_neighbors=n_neighbors, normalize_source=normalize_source, **kwargs)
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "train_knn_regressor")(
+                    source_embedding=source_embedding,
+                    target_embedding=target_embedding,
+                    n_neighbors=n_neighbors,
+                    normalize_source=normalize_source,
+                    **kwargs,
+                )
+            )
+        return self._invoke_batch(
+            "train_knn_regressor",
+            source_embedding=source_embedding,
+            target_embedding=target_embedding,
+            n_neighbors=n_neighbors,
+            normalize_source=normalize_source,
+            **kwargs,
+        )
 
-    def predict_knn(self, model: KNeighborsRegressor, source_embedding: dict[str, list[int]], target_embedding: dict[str, list[int]], rescale_factors: dict=None) -> BatchResult:
+    def predict_knn(
+        self,
+        model: KNeighborsRegressor,
+        source_embedding: dict[str, list[int]],
+        target_embedding: dict[str, list[int]],
+        rescale_factors: dict = None,
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.predict_knn across the collection.
 
         Developer mode: not available in public release yet.
 
-        See [`Features.predict_knn`][py3r.behaviour.features.features.Features.predict_knn] for examples.
+        See leaf method ``Features.predict_knn`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'predict_knn')(model, source_embedding, target_embedding, rescale_factors))
-        return self._invoke_batch("predict_knn", model, source_embedding, target_embedding, rescale_factors)
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "predict_knn")(
+                    model, source_embedding, target_embedding, rescale_factors
+                )
+            )
+        return self._invoke_batch(
+            "predict_knn", model, source_embedding, target_embedding, rescale_factors
+        )
 
-    def define_elliptical_boundary_from_params(self, centre: str | list[str], major_axis_length: float, minor_axis_length: float, angle_in_radians: float=0.0, n_points: int=100) -> BatchResult:
+    def define_elliptical_boundary_from_params(
+        self,
+        centre: str | list[str],
+        major_axis_length: float,
+        minor_axis_length: float,
+        angle_in_radians: float = 0.0,
+        n_points: int = 100,
+    ) -> BatchResult:
         """
-        Batch-mode wrapper for Features.define_elliptical_boundary_from_params across the collection.
+        Batch-mode wrapper for Features.define_elliptical_boundary_from_params
+        across the collection.
 
         Generate a polygonal approximation of an ellipse as a list of (x, y) tuples,
         around `centre` using explicit parameters.
-        `centre` can be a single point name or a list of point names.
-        if `centre` is a list, the boundary will be centred on the mean of the median coordinates of the points.
+        `centre` can be a point name or list of point names (then centre = mean of medians).
 
-        See [`Features.define_elliptical_boundary_from_params`][py3r.behaviour.features.features.Features.define_elliptical_boundary_from_params] for examples.
+        See leaf method ``Features.define_elliptical_boundary_from_params``
+        for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'define_elliptical_boundary_from_params')(centre, major_axis_length, minor_axis_length, angle_in_radians, n_points))
-        return self._invoke_batch("define_elliptical_boundary_from_params", centre, major_axis_length, minor_axis_length, angle_in_radians, n_points)
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "define_elliptical_boundary_from_params")(
+                    centre, major_axis_length, minor_axis_length, angle_in_radians, n_points
+                )
+            )
+        return self._invoke_batch(
+            "define_elliptical_boundary_from_params",
+            centre,
+            major_axis_length,
+            minor_axis_length,
+            angle_in_radians,
+            n_points,
+        )
 
-    def define_elliptical_boundary_from_points(self, points: list[str], n_points: int=100, scaling: float=1.0, smallness_weight: float=0.1) -> BatchResult:
+    def define_elliptical_boundary_from_points(
+        self,
+        points: list[str],
+        n_points: int = 100,
+        scaling: float = 1.0,
+        smallness_weight: float = 0.1,
+    ) -> BatchResult:
         """
-        Batch-mode wrapper for Features.define_elliptical_boundary_from_points across the collection.
+        Batch-mode wrapper for Features.define_elliptical_boundary_from_points
+        across the collection.
 
         Fit an ellipse to the median coordinates of the given tracked points (at least 4)
         and return a polygonal approximation. After fitting, the ellipse is scaled by `scaling`.
 
-        See [`Features.define_elliptical_boundary_from_points`][py3r.behaviour.features.features.Features.define_elliptical_boundary_from_points] for examples.
+        See leaf method ``Features.define_elliptical_boundary_from_points``
+        for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'define_elliptical_boundary_from_points')(points, n_points, scaling, smallness_weight))
-        return self._invoke_batch("define_elliptical_boundary_from_points", points, n_points, scaling, smallness_weight)
-
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "define_elliptical_boundary_from_points")(
+                    points, n_points, scaling, smallness_weight
+                )
+            )
+        return self._invoke_batch(
+            "define_elliptical_boundary_from_points", points, n_points, scaling, smallness_weight
+        )

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,9 +24,9 @@ class KerasClassifierExample(BaseClassifier):
     """
 
     def __init__(self, model, embedding_dict):
-        try:
-            import keras
-        except ImportError:
+        import importlib.util
+
+        if importlib.util.find_spec("keras") is None:
             raise ImportError(
                 "KerasClassifierExample requires keras and an appropriate backend. "
                 "See https://keras.io/getting_started/"
@@ -40,11 +41,11 @@ class KerasClassifierExample(BaseClassifier):
     def from_file(cls, filepath, embedding_dict):
         try:
             from keras.models import load_model
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
                 "KerasClassifier requires keras and an appropriate backend. "
                 "See https://keras.io/getting_started/"
-            )
+            ) from err
         model = load_model(filepath)
         return cls(model, embedding_dict)
 

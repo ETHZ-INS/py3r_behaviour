@@ -52,12 +52,25 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install -U pip
-          pip install -e .[dev] \
+          pip install -e ".[dev]" \
             'mkdocstrings[python]' mkdocs-material mike mkdocs-autorefs \
             xdoctest pytest umap-learn
 
+      - name: Ruff (format & lint)
+        run: |
+          python -m ruff --version
+          python -m ruff format --check .
+          python -m ruff check .
+
       - name: Generate batch mixins
         run: python -m tools.gen_batch_mixins
+
+      - name: Format generated mixins
+        run: |
+          python -m ruff format \
+            src/py3r/behaviour/tracking/tracking_collection_batch_mixin.py \
+            src/py3r/behaviour/features/features_collection_batch_mixin.py \
+            src/py3r/behaviour/summary/summary_collection_batch_mixin.py
 
       - name: Enforce generated files committed
         run: |

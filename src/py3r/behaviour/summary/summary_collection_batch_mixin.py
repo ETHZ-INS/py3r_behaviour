@@ -5,67 +5,110 @@ from __future__ import annotations
 
 from py3r.behaviour.util.collection_utils import BatchResult
 from typing import Any
+from typing import Literal
+
 
 class SummaryCollectionBatchMixin:
-
-    def save(self, dirpath: str, *, data_format: str="parquet", overwrite: bool=False) -> BatchResult:
+    def save(
+        self, dirpath: str, *, data_format: str = "parquet", overwrite: bool = False
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Summary.save across the collection.
 
         Save this Summary (including nested Features/Tracking) to a directory.
 
-        See [`Summary.save`][py3r.behaviour.summary.summary.Summary.save] for examples.
+        See leaf method ``Summary.save`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'save')(dirpath, data_format=data_format, overwrite=overwrite))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "save")(
+                    dirpath, data_format=data_format, overwrite=overwrite
+                )
+            )
         return self._invoke_batch("save", dirpath, data_format=data_format, overwrite=overwrite)
 
     def count_onset(self, column: str) -> BatchResult:
         """
         Batch-mode wrapper for Summary.count_onset across the collection.
 
-        counts number of times boolean series in the given column changes from False to True, ignoring nan values
-        if first non nan value in series is true, this counts as an onset
+        Count times boolean series changes False->True, ignoring nans.
+        If first non-nan value is True, that counts as an onset.
 
-        See [`Summary.count_onset`][py3r.behaviour.summary.summary.Summary.count_onset] for examples.
+        See leaf method ``Summary.count_onset`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'count_onset')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "count_onset")(column))
         return self._invoke_batch("count_onset", column)
+
+    def calculate_latency_nth_onset(
+        self,
+        column: str,
+        target_value: str | float | int = None,
+        threshold_op: Literal["gt", "lt", "eq", "ne"] = "eq",
+        nth_event: int = 0,
+        integration_window=1,
+    ) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.calculate_latency_nth_onset
+        across the collection.
+
+        Compute the latency (in seconds) of the N-th onset event in a feature column.
+
+        See leaf method ``Summary.calculate_latency_nth_onset`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "calculate_latency_nth_onset")(
+                    column, target_value, threshold_op, nth_event, integration_window
+                )
+            )
+        return self._invoke_batch(
+            "calculate_latency_nth_onset",
+            column,
+            target_value,
+            threshold_op,
+            nth_event,
+            integration_window,
+        )
 
     def time_true(self, column: str) -> BatchResult:
         """
         Batch-mode wrapper for Summary.time_true across the collection.
 
-        See [`Summary.time_true`][py3r.behaviour.summary.summary.Summary.time_true] for examples.
+        See leaf method ``Summary.time_true`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'time_true')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "time_true")(column))
         return self._invoke_batch("time_true", column)
 
     def time_false(self, column: str) -> BatchResult:
         """
         Batch-mode wrapper for Summary.time_false across the collection.
 
-        See [`Summary.time_false`][py3r.behaviour.summary.summary.Summary.time_false] for examples.
+        See leaf method ``Summary.time_false`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'time_false')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "time_false")(column))
         return self._invoke_batch("time_false", column)
 
-    def total_distance(self, point: str, startframe: int | None=None, endframe: int | None=None) -> BatchResult:
+    def total_distance(
+        self, point: str, startframe: int | None = None, endframe: int | None = None
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Summary.total_distance across the collection.
 
-        See [`Summary.total_distance`][py3r.behaviour.summary.summary.Summary.total_distance] for examples.
+        See leaf method ``Summary.total_distance`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'total_distance')(point, startframe, endframe))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "total_distance")(point, startframe, endframe)
+            )
         return self._invoke_batch("total_distance", point, startframe, endframe)
 
     def sum_column(self, column: str) -> BatchResult:
@@ -74,11 +117,11 @@ class SummaryCollectionBatchMixin:
 
         Sum all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.sum_column`][py3r.behaviour.summary.summary.Summary.sum_column] for examples.
+        See leaf method ``Summary.sum_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'sum_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "sum_column")(column))
         return self._invoke_batch("sum_column", column)
 
     def mean_column(self, column: str) -> BatchResult:
@@ -87,11 +130,11 @@ class SummaryCollectionBatchMixin:
 
         Mean of all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.mean_column`][py3r.behaviour.summary.summary.Summary.mean_column] for examples.
+        See leaf method ``Summary.mean_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'mean_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "mean_column")(column))
         return self._invoke_batch("mean_column", column)
 
     def median_column(self, column: str) -> BatchResult:
@@ -100,11 +143,11 @@ class SummaryCollectionBatchMixin:
 
         Median of all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.median_column`][py3r.behaviour.summary.summary.Summary.median_column] for examples.
+        See leaf method ``Summary.median_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'median_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "median_column")(column))
         return self._invoke_batch("median_column", column)
 
     def max_column(self, column: str) -> BatchResult:
@@ -113,11 +156,11 @@ class SummaryCollectionBatchMixin:
 
         Max of all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.max_column`][py3r.behaviour.summary.summary.Summary.max_column] for examples.
+        See leaf method ``Summary.max_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'max_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "max_column")(column))
         return self._invoke_batch("max_column", column)
 
     def min_column(self, column: str) -> BatchResult:
@@ -126,24 +169,28 @@ class SummaryCollectionBatchMixin:
 
         Min of all non-NaN values in a `features.data` column and return as a SummaryResult.
 
-        See [`Summary.min_column`][py3r.behaviour.summary.summary.Summary.min_column] for examples.
+        See leaf method ``Summary.min_column`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'min_column')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "min_column")(column))
         return self._invoke_batch("min_column", column)
 
-    def store(self, summarystat: Any, name: str, overwrite: bool=False, meta: Any=None) -> BatchResult:
+    def store(
+        self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Summary.store across the collection.
 
         stores a summary statistic and optional metadata, with optional overwrite protection
 
-        See [`Summary.store`][py3r.behaviour.summary.summary.Summary.store] for examples.
+        See leaf method ``Summary.store`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'store')(summarystat, name, overwrite, meta))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "store")(summarystat, name, overwrite, meta)
+            )
         return self._invoke_batch("store", summarystat, name, overwrite, meta)
 
     def make_bin(self, startframe: int, endframe: int) -> BatchResult:
@@ -153,11 +200,11 @@ class SummaryCollectionBatchMixin:
         creates a copy of the Summary object with the dataframes
         restricted from startframe to endframe, inclusive
 
-        See [`Summary.make_bin`][py3r.behaviour.summary.summary.Summary.make_bin] for examples.
+        See leaf method ``Summary.make_bin`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'make_bin')(startframe, endframe))
+            return self.map_leaves(lambda _obj: getattr(_obj, "make_bin")(startframe, endframe))
         return self._invoke_batch("make_bin", startframe, endframe)
 
     def make_bins(self, numbins: int) -> BatchResult:
@@ -169,22 +216,24 @@ class SummaryCollectionBatchMixin:
         start/endpoints are duplicated between intervals to ensure no loss
         in e.g. distance calculations
 
-        See [`Summary.make_bins`][py3r.behaviour.summary.summary.Summary.make_bins] for examples.
+        See leaf method ``Summary.make_bins`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'make_bins')(numbins))
+            return self.map_leaves(lambda _obj: getattr(_obj, "make_bins")(numbins))
         return self._invoke_batch("make_bins", numbins)
 
     def transition_matrix(self, column: str, all_states=None) -> BatchResult:
         """
         Batch-mode wrapper for Summary.transition_matrix across the collection.
 
-        See [`Summary.transition_matrix`][py3r.behaviour.summary.summary.Summary.transition_matrix] for examples.
+        See leaf method ``Summary.transition_matrix`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'transition_matrix')(column, all_states))
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "transition_matrix")(column, all_states)
+            )
         return self._invoke_batch("transition_matrix", column, all_states)
 
     def count_state_onsets(self, column: str) -> BatchResult:
@@ -193,34 +242,48 @@ class SummaryCollectionBatchMixin:
 
         counts the number of times a state is entered in a given column
 
-        See [`Summary.count_state_onsets`][py3r.behaviour.summary.summary.Summary.count_state_onsets] for examples.
+        See leaf method ``Summary.count_state_onsets`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'count_state_onsets')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "count_state_onsets")(column))
         return self._invoke_batch("count_state_onsets", column)
 
     def time_in_state(self, column: str) -> BatchResult:
         """
         Batch-mode wrapper for Summary.time_in_state across the collection.
 
-        See [`Summary.time_in_state`][py3r.behaviour.summary.summary.Summary.time_in_state] for examples.
+        See leaf method ``Summary.time_in_state`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'time_in_state')(column))
+            return self.map_leaves(lambda _obj: getattr(_obj, "time_in_state")(column))
         return self._invoke_batch("time_in_state", column)
 
-    def plot_chord(self, column: str, all_states: list[str | int], *, cmap: str | list | None=None, show: bool=True, save_dir: str | None=None, **kwargs) -> BatchResult:
+    def plot_chord(
+        self,
+        column: str,
+        all_states: list[str | int],
+        *,
+        cmap: str | list | None = None,
+        show: bool = True,
+        save_dir: str | None = None,
+        **kwargs,
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Summary.plot_chord across the collection.
 
         Plot a simple chord diagram of state transitions for this recording.
 
-        See [`Summary.plot_chord`][py3r.behaviour.summary.summary.Summary.plot_chord] for examples.
+        See leaf method ``Summary.plot_chord`` for examples.
         """
-        _inplace = locals().get('inplace', True)
+        _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, 'plot_chord')(column, all_states, cmap=cmap, show=show, save_dir=save_dir, **kwargs))
-        return self._invoke_batch("plot_chord", column, all_states, cmap=cmap, show=show, save_dir=save_dir, **kwargs)
-
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "plot_chord")(
+                    column, all_states, cmap=cmap, show=show, save_dir=save_dir, **kwargs
+                )
+            )
+        return self._invoke_batch(
+            "plot_chord", column, all_states, cmap=cmap, show=show, save_dir=save_dir, **kwargs
+        )
