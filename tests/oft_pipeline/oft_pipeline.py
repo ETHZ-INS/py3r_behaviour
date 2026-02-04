@@ -8,9 +8,10 @@ TEST_MODE = True
 # set (local) paths
 
 # %%
-from pathlib import Path  # noqa: E402
-import os  # noqa: E402
 import json  # noqa: E402
+import os  # noqa: E402
+from pathlib import Path  # noqa: E402
+
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
@@ -81,7 +82,8 @@ if TEST_MODE:
 # Add tags from a CSV for grouping/analysis.
 #
 # CSV must contain a 'handle' column matching filenames (without extension)
-# other column names are the tag names, and those column values are the tag values. See example file `tags.csv`
+# other column names are the tag names, and those column values are the tag values.
+# See example file `tags.csv`
 
 # %%
 tc.add_tags_from_csv(csv_path=TAGS_CSV)
@@ -146,9 +148,7 @@ if TEST_MODE:
 
         # coordinates present and finite (at least some should be valid after preprocessing)
         df = t.data
-        coord_cols = [
-            c for c in df.columns if str(c).endswith(".x") or str(c).endswith(".y")
-        ]
+        coord_cols = [c for c in df.columns if str(c).endswith(".x") or str(c).endswith(".y")]
         assert len(coord_cols) >= 2, f"no coordinate columns found for {handle}"
 
     # Golden checks for preprocessed coordinate values
@@ -203,8 +203,7 @@ tc[0].plot(trajectories=trajectories, static=static, lines=lines, show=True)
 if TEST_MODE:
     # Plots saved by the earlier tc.plot call should exist in OUT_DIR
     has_plot = any(
-        p.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg"}
-        for p in Path(OUT_DIR).glob("*")
+        p.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg"} for p in Path(OUT_DIR).glob("*")
     )
     assert has_plot, f"No plot artifacts found in {OUT_DIR}"
 
@@ -245,7 +244,8 @@ if TEST_MODE:
 # compute basic OFT features (time in center)
 
 # %%
-# Define boundary of center area and check if mouse (defined by 'bodycentre') is inside defined boundary
+# Define boundary of center area and check if mouse
+# (defined by 'bodycentre') is inside defined boundary
 center_boundary = fc.define_boundary(["tl", "tr", "bl", "br"], scaling=0.5)
 in_center = fc.within_boundary_static(
     point="bodycentre", boundary=center_boundary, boundary_name="center"
@@ -272,9 +272,7 @@ if TEST_MODE:
     assert set(in_center.keys()) == set(fc.keys())
     n_frames = len(tc[list(tc.keys())[0]].data)
     for handle in fc.keys():
-        assert len(in_center[handle]) == n_frames, (
-            f"{handle}: in_center length mismatch"
-        )
+        assert len(in_center[handle]) == n_frames, f"{handle}: in_center length mismatch"
 
     # Golden checks for center boundary feature
     HANDLE_1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
@@ -392,9 +390,7 @@ if TEST_MODE:
 
     # Check area columns exist (naming may vary)
     area_cols = [c for c in cols if "area_of_boundary" in c]
-    assert len(area_cols) >= 4, (
-        f"Expected at least 4 area columns, got {len(area_cols)}"
-    )
+    assert len(area_cols) >= 4, f"Expected at least 4 area columns, got {len(area_cols)}"
 
     # Golden checks for specific feature values
     HANDLE_1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
@@ -445,7 +441,7 @@ if TEST_MODE:
     manifest_path = features_dir / "manifest.json"
     assert manifest_path.exists(), f"manifest.json not found in {features_dir}"
 
-    with open(manifest_path, "r") as f:
+    with open(manifest_path) as f:
         manifest = json.load(f)
 
     assert "elements_index" in manifest, "manifest.json missing 'elements_index'"
@@ -462,9 +458,7 @@ if TEST_MODE:
     for handle in fc.keys():
         handle_dir = elements_dir / handle
         assert handle_dir.exists(), f"Missing element folder for handle: {handle}"
-        assert (handle_dir / "data.csv").exists(), (
-            f"Missing data.csv for handle: {handle}"
-        )
+        assert (handle_dir / "data.csv").exists(), f"Missing data.csv for handle: {handle}"
 
     print("Feature saving tests passed.")
 
@@ -499,9 +493,7 @@ if TEST_MODE:
         valid_labels = labels.dropna()
         if len(valid_labels) > 0:
             assert valid_labels.min() >= 0, f"{handle}: negative cluster label"
-            assert valid_labels.max() < N_CLUSTERS, (
-                f"{handle}: cluster label >= N_CLUSTERS"
-            )
+            assert valid_labels.max() < N_CLUSTERS, f"{handle}: cluster label >= N_CLUSTERS"
 
     # Check centroids shape
     assert centroids.shape[0] == N_CLUSTERS, (
@@ -564,12 +556,10 @@ if TEST_MODE:
     for handle in sc.keys():
         s = sc[handle].data
         assert s["time_in_center"] >= 0, f"{handle}: time_in_center < 0"
-        assert s["distance_moved_in_center"] >= 0 or np.isnan(
-            s["distance_moved_in_center"]
-        ), f"{handle}: distance_moved_in_center < 0"
-        assert s["total_distance_bodycentre"] >= 0, (
-            f"{handle}: total_distance_bodycentre < 0"
+        assert s["distance_moved_in_center"] >= 0 or np.isnan(s["distance_moved_in_center"]), (
+            f"{handle}: distance_moved_in_center < 0"
         )
+        assert s["total_distance_bodycentre"] >= 0, f"{handle}: total_distance_bodycentre < 0"
 
     # Golden checks for summary values
     HANDLE_1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
@@ -661,7 +651,7 @@ if TEST_MODE:
     assert bfa_json_path.exists(), f"BFA results JSON not saved at {bfa_json_path}"
 
     # Load and verify JSON
-    with open(bfa_json_path, "r") as f:
+    with open(bfa_json_path) as f:
         loaded_bfa = json.load(f)
     assert isinstance(loaded_bfa, dict), "Loaded BFA results should be a dict"
 
@@ -710,17 +700,13 @@ sc_grouped.plot_chord(
 # %%
 if TEST_MODE:
     # Check that chord plots were saved
-    chord_plots = list(Path(OUT_DIR).glob("*chord*")) + list(
-        Path(OUT_DIR).glob("*bfa*")
-    )
+    chord_plots = list(Path(OUT_DIR).glob("*chord*")) + list(Path(OUT_DIR).glob("*bfa*"))
     # The plot may have different naming conventions, so just check output dir has more files
     has_new_plots = any(
         p.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg", ".pdf"}
         for p in Path(OUT_DIR).glob("*")
     )
-    assert has_new_plots, (
-        f"No plot artifacts found in {OUT_DIR} after BFA chord plotting"
-    )
+    assert has_new_plots, f"No plot artifacts found in {OUT_DIR} after BFA chord plotting"
 
     print("BFA chord plot tests passed.")
 

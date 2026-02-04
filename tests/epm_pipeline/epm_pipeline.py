@@ -8,8 +8,9 @@ TEST_MODE = True
 # set (local) paths
 
 # %%
-from pathlib import Path  # noqa: E402
 import os  # noqa: E402
+from pathlib import Path  # noqa: E402
+
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
@@ -71,7 +72,8 @@ if TEST_MODE:
 # Add tags from a CSV for grouping/analysis.
 #
 # CSV must contain a 'handle' column matching filenames (without extension)
-# other column names are the tag names, and those column values are the tag values. See example file `tags.csv`
+# other column names are the tag names, and those column values are the tag values.
+# See example file `tags.csv`
 #
 
 # %%
@@ -132,9 +134,7 @@ if TEST_MODE:
 
         # coordinates present and finite
         df = t.data
-        coord_cols = [
-            c for c in df.columns if str(c).endswith(".x") or str(c).endswith(".y")
-        ]
+        coord_cols = [c for c in df.columns if str(c).endswith(".x") or str(c).endswith(".y")]
         assert len(coord_cols) >= 2, f"no coordinate columns found for {handle}"
 
         # golden checks
@@ -145,9 +145,7 @@ if TEST_MODE:
         for h, expected in EXPECTED_TENTH_X.items():
             if h in tc and expected is not None:
                 # choose the first available .x column consistently
-                xcol = next(
-                    (c for c in tc[h].data.columns if str(c).endswith(".x")), None
-                )
+                xcol = next((c for c in tc[h].data.columns if str(c).endswith(".x")), None)
                 assert xcol is not None, f"no .x column for {h}"
                 got = float(tc[h].data[xcol].iloc[9])
                 assert np.isclose(got, float(expected), atol=1e-6), (
@@ -192,8 +190,7 @@ tc[0].plot(trajectories=trajectories, static=static, lines=lines, show=True)
 if TEST_MODE:
     # Plots saved by the earlier tc.plot call should exist in OUT_DIR
     has_plot = any(
-        p.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg"}
-        for p in Path(OUT_DIR).glob("*")
+        p.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg"} for p in Path(OUT_DIR).glob("*")
     )
     assert has_plot, f"No plot artifacts found in {OUT_DIR}"
 
@@ -234,13 +231,9 @@ if TEST_MODE:
 # mouse (defined by 'bodycentre') is inside defined boundary
 # Adjust boundaries so they match orientation of your EPM.
 # Open arms
-_oa_boundary = fc.define_boundary(
-    ["tl", "tr", "ctr", "ctl"], scaling=1.1, centre=["ctr", "ctl"]
-)
+_oa_boundary = fc.define_boundary(["tl", "tr", "ctr", "ctl"], scaling=1.1, centre=["ctr", "ctl"])
 on_oa1 = fc.within_boundary_static(point="bodycentre", boundary=_oa_boundary)
-_oa_boundary = fc.define_boundary(
-    ["cbl", "cbr", "br", "bl"], scaling=1.1, centre=["cbr", "cbl"]
-)
+_oa_boundary = fc.define_boundary(["cbl", "cbr", "br", "bl"], scaling=1.1, centre=["cbr", "cbl"])
 on_oa2 = fc.within_boundary_static(point="bodycentre", boundary=_oa_boundary)
 on_oa = on_oa1 | on_oa2
 on_oa.store(name="bodycentre_on_open_arms")
@@ -249,13 +242,9 @@ dist_change_on_oa = on_oa.astype("Int64") * fc.distance_change("bodycentre")
 dist_change_on_oa.store(name="dist_change_bodycentre_on_oa")
 
 # Closed arms
-_ca_boundary = fc.define_boundary(
-    ["ctr", "rt", "rb", "cbr"], scaling=1.1, centre=["ctr", "cbr"]
-)
+_ca_boundary = fc.define_boundary(["ctr", "rt", "rb", "cbr"], scaling=1.1, centre=["ctr", "cbr"])
 on_ca1 = fc.within_boundary_static(point="bodycentre", boundary=_ca_boundary)
-_ca_boundary = fc.define_boundary(
-    ["lt", "ctl", "cbl", "lb"], scaling=1.1, centre=["ctl", "cbl"]
-)
+_ca_boundary = fc.define_boundary(["lt", "ctl", "cbl", "lb"], scaling=1.1, centre=["ctl", "cbl"])
 on_ca2 = fc.within_boundary_static(point="bodycentre", boundary=_ca_boundary)
 # you can apply binary operators to BatchResult objects
 on_ca = on_ca1 | on_ca2
@@ -377,12 +366,12 @@ if TEST_MODE:
 
     # 5) Sanity: distance-on-arms is non-negative; open+closed frames <= n_frames
     for handle in fc.keys():
-        assert (dist_change_on_oa[handle] >= 0).all() | (
-            dist_change_on_oa[handle].isna().all()
-        ), f"{handle}: negative dist_change_on_oa"
-        assert (dist_change_on_ca[handle] >= 0).all() | (
-            dist_change_on_ca[handle].isna().all()
-        ), f"{handle}: negative dist_change_on_ca"
+        assert (dist_change_on_oa[handle] >= 0).all() | (dist_change_on_oa[handle].isna().all()), (
+            f"{handle}: negative dist_change_on_oa"
+        )
+        assert (dist_change_on_ca[handle] >= 0).all() | (dist_change_on_ca[handle].isna().all()), (
+            f"{handle}: negative dist_change_on_ca"
+        )
         # Open and closed can both be False (centre); so sum of frames can be < n_frames
         assert on_oa[handle].sum() + on_ca[handle].sum() <= n_frames + 1, (
             f"{handle}: open+closed frame count sanity"
@@ -408,9 +397,7 @@ sc.sum_column("dist_change_bodycentre_on_oa").store(name="distance_moved_on_open
 sc.time_true("bodycentre_on_closed_arms").store("time_on_closed_arms")
 
 # Distance moved on closed arms
-sc.sum_column("dist_change_bodycentre_on_ca").store(
-    name="distance_moved_on_closed_arms"
-)
+sc.sum_column("dist_change_bodycentre_on_ca").store(name="distance_moved_on_closed_arms")
 
 # 10) Collate scalar outputs into DataFrame and save results in CSV
 summary_df = sc.to_df(include_tags=True)
@@ -418,9 +405,10 @@ summary_df.to_csv(f"{OUT_DIR}/EPM_results.csv")
 
 # %%
 if TEST_MODE:
+    from pathlib import Path
+
     import numpy as np
     import pandas as pd
-    from pathlib import Path
 
     # 1) SummaryCollection creation and keys
     assert set(sc.keys()) == set(fc.keys()), "sc keys should match fc"
@@ -544,14 +532,10 @@ if TEST_MODE:
         s = sc[handle].data
         assert s["time_on_open_arms"] >= 0, f"{handle}: time_on_open_arms < 0"
         assert s["time_on_closed_arms"] >= 0, f"{handle}: time_on_closed_arms < 0"
-        assert s["distance_moved_on_open_arms"] >= 0, (
-            f"{handle}: distance_moved_on_open_arms < 0"
-        )
+        assert s["distance_moved_on_open_arms"] >= 0, f"{handle}: distance_moved_on_open_arms < 0"
         assert s["distance_moved_on_closed_arms"] >= 0, (
             f"{handle}: distance_moved_on_closed_arms < 0"
         )
-        assert s["total_distance_bodycentre"] >= 0, (
-            f"{handle}: total_distance_bodycentre < 0"
-        )
+        assert s["total_distance_bodycentre"] >= 0, f"{handle}: total_distance_bodycentre < 0"
 
     print("SummaryCollection + EPM results + CSV tests passed.")
