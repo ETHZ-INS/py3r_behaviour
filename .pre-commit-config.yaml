@@ -4,3 +4,18 @@ repos:
     rev: 0.7.1
     hooks:
       - id: nbstripout
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.14
+    hooks:
+      - id: ruff-format
+      - id: ruff-check
+
+  - repo: local
+    hooks:
+      - id: generate-batch-mixins
+        name: generate batch mixins
+        entry: python tools/gen_batch_mixins.py
+        language: system
+        pass_filenames: false
+        stages: [manual]

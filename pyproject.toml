@@ -36,6 +36,8 @@ dev = [
     "nbdime>=3,<4.0.0",
     "nbstripout>=0.7,<1.0.0",
     "jupytext>=1,<2.0.0",
+    "ruff==0.14.14",
+    "pre-commit==3.8.0",  # optional but strongly recommended
 ]
 
 [tool.setuptools.packages.find]
@@ -47,3 +49,27 @@ addopts = "-q"
 testpaths = ["src", "tests"]
 doctest_optionflags = ["ELLIPSIS", "IGNORE_EXCEPTION_DETAIL", "NORMALIZE_WHITESPACE"]
 filterwarnings = ["ignore::UserWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["build", "dist", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+# E/F  = pycodestyle + pyflakes
+# I    = import sorting (replaces isort)
+# B    = bugbear (common footguns)
+# UP   = pyupgrade (modern syntax)
+
+# Generated batch mixins:
+# - E501: docstrings mirror leaf methods and can exceed line-length
+# - B009: generator emits getattr(_obj, "method_name")(...) by design
+# - I001: import order is fixed by the generator
+[tool.ruff.lint.extend-per-file-ignores]
+"src/py3r/behaviour/tracking/tracking_collection_batch_mixin.py" = ["E501", "B009", "I001"]
+"src/py3r/behaviour/features/features_collection_batch_mixin.py" = ["E501", "B009", "I001"]
+"src/py3r/behaviour/summary/summary_collection_batch_mixin.py" = ["E501", "B009", "I001"]
+
+[tool.ruff.format]
+# defaults intentionally left alone

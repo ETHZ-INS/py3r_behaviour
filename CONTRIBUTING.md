@@ -50,6 +50,13 @@ python -m pip install -U pip
 pip install -e ".[dev]" "mkdocstrings[python]" mkdocs-material mike mkdocs-autorefs xdoctest pytest packaging
 ```
 
+### Pre-commit hooks
+Pre-commit is included in the `.[dev]` extra. Install the git hooks so ruff (format + check) runs automatically on each commit:
+```bash
+pre-commit install
+```
+After this, commits will run the hooks; you can also run them manually with `pre-commit run --all-files`.
+
 ## Before you push
 ### Generate batch mixins and make sure no uncommitted changes remain after generation:
 ```bash

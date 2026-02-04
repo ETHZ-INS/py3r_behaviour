@@ -1,5 +1,6 @@
-from py3r.behaviour.config import DEV_MODE, USE_DISCONTINUED_METHODS
 import functools
+
+from py3r.behaviour.config import DEV_MODE, USE_DISCONTINUED_METHODS
 
 
 def dev_mode(func):
@@ -12,9 +13,7 @@ def dev_mode(func):
     @functools.wraps(original_func)
     def wrapper(*args, **kwargs):
         if not DEV_MODE:
-            raise RuntimeError(
-                f"{original_func.__name__} is not available in production mode."
-            )
+            raise RuntimeError(f"{original_func.__name__} is not available in production mode.")
         return original_func(*args, **kwargs)
 
     wrapper.__doc__ = f"[DEV MODE ONLY]\n{original_func.__doc__ or ''}"
@@ -35,9 +34,7 @@ def discontinued_method(func):
     @functools.wraps(original_func)
     def wrapper(*args, **kwargs):
         if not USE_DISCONTINUED_METHODS:
-            raise RuntimeError(
-                f"{original_func.__name__} is discontinued and no longer in use."
-            )
+            raise RuntimeError(f"{original_func.__name__} is discontinued and no longer in use.")
         return original_func(*args, **kwargs)
 
     wrapper.__doc__ = f"[DISCONTINUED METHOD]\n{original_func.__doc__ or ''}"

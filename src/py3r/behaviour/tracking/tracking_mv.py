@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 from py3r.behaviour.tracking.tracking import Tracking
 
@@ -48,8 +49,9 @@ class TrackingMV:
         ...     # load a packaged calibration json (must define 'view_order' incl. 'left','right')
         ...     with data_path('py3r.behaviour.tracking._data', 'calibration.json') as p_cal:
         ...         calib = json.loads(Path(p_cal).read_text())
-        ...     mv = TrackingMV.from_views({'left': str(left), 'right': str(right)}, handle='rec1',
-        ...                                 calibration=calib, tracking_loader=Tracking.from_dlc, fps=30)
+        ...     mv = TrackingMV.from_views(
+        ...         {'left': str(left), 'right': str(right)}, handle='rec1',
+        ...         calibration=calib, tracking_loader=Tracking.from_dlc, fps=30)
         >>> isinstance(mv, TrackingMV) and set(mv.views.keys()) == {'left','right'}
         True
 
@@ -70,13 +72,13 @@ class TrackingMV:
         tracking_loader,
         fps: float,
         aspectratio_correction: float = 1.0,
-    ) -> "TrackingMV":
+    ) -> TrackingMV:
         """
         Build a TrackingMV from a folder containing view CSVs and calibration.json.
         """
-        from pathlib import Path as _Path
-        import os
         import json
+        import os
+        from pathlib import Path as _Path
 
         folder = _Path(folder_path)
         if not folder.is_dir():
@@ -124,7 +126,12 @@ class TrackingMV:
         ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p_csv:
         ...         left = d / 'left.csv'; right = d / 'right.csv'
         ...         _ = shutil.copy(p_csv, left); _ = shutil.copy(p_csv, right)
-        ...     calib = {'view_order':['left','right'],'views':{'left':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]},'right':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]}},'relative_pose':{'R':[[1,0,0],[0,1,0],[0,0,1]],'T':[0.1,0,0]}}
+        ...     calib = {
+        ...         'view_order': ['left','right'],
+        ...         'views': {'left': {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0]*5},
+        ...                  'right': {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0]*5}},
+        ...         'relative_pose': {'R': [[1,0,0],[0,1,0],[0,0,1]], 'T': [0.1,0,0]},
+        ...     }
         ...     (d/'calibration.json').write_text(json.dumps(calib))
         ...     mv = TrackingMV.from_dlc(str(d), 'rec1', fps=30)
         >>> isinstance(mv, TrackingMV)
@@ -163,7 +170,12 @@ class TrackingMV:
         ...     with data_path('py3r.behaviour.tracking._data', 'dlcma_multi.csv') as p_csv:
         ...         left = d / 'left.csv'; right = d / 'right.csv'
         ...         _ = shutil.copy(p_csv, left); _ = shutil.copy(p_csv, right)
-        ...     calib = {'view_order':['left','right'],'views':{'left':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]},'right':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]}},'relative_pose':{'R':[[1,0,0],[0,1,0],[0,0,1]],'T':[0.1,0,0]}}
+        ...     calib = {
+        ...         'view_order': ['left','right'],
+        ...         'views': {'left': {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0]*5},
+        ...                  'right': {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0]*5}},
+        ...         'relative_pose': {'R': [[1,0,0],[0,1,0],[0,0,1]], 'T': [0.1,0,0]},
+        ...     }
         ...     (d/'calibration.json').write_text(json.dumps(calib))
         ...     mv = TrackingMV.from_dlcma(str(d), 'rec1', fps=30)
         >>> isinstance(mv, TrackingMV)
@@ -202,7 +214,12 @@ class TrackingMV:
         ...     with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p_csv:
         ...         left = d / 'left.csv'; right = d / 'right.csv'
         ...         _ = shutil.copy(p_csv, left); _ = shutil.copy(p_csv, right)
-        ...     calib = {'view_order':['left','right'],'views':{'left':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]},'right':{'K':[[1,0,0],[0,1,0],[0,0,1]],'dist':[0,0,0,0,0]}},'relative_pose':{'R':[[1,0,0],[0,1,0],[0,0,1]],'T':[0.1,0,0]}}
+        ...     calib = {
+        ...         'view_order': ['left','right'],
+        ...         'views': {'left': {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0]*5},
+        ...                  'right': {'K': [[1,0,0],[0,1,0],[0,0,1]], 'dist': [0]*5}},
+        ...         'relative_pose': {'R': [[1,0,0],[0,1,0],[0,0,1]], 'T': [0.1,0,0]},
+        ...     }
         ...     (d/'calibration.json').write_text(json.dumps(calib))
         ...     mv = TrackingMV.from_yolo3r(str(d), 'rec1', fps=30)
         >>> isinstance(mv, TrackingMV)
@@ -218,7 +235,7 @@ class TrackingMV:
             aspectratio_correction=aspectratio_correction,
         )
 
-    def stereo_triangulate(self, invert_z: bool = True) -> "Tracking":
+    def stereo_triangulate(self, invert_z: bool = True) -> Tracking:
         import cv2
         import numpy as np
 
@@ -238,7 +255,9 @@ class TrackingMV:
         ...         _ = shutil.copy(p_csv, left); _ = shutil.copy(p_csv, right)
         ...     with data_path('py3r.behaviour.tracking._data', 'calibration.json') as p_cal:
         ...         calib = json.loads(Path(p_cal).read_text())
-        ...     mv = TrackingMV.from_dlc({'left': str(left), 'right': str(right)}, 'rec1', fps=30, calibration=calib)
+        ...     mv = TrackingMV.from_dlc(
+        ...         {'left': str(left), 'right': str(right)}, 'rec1',
+        ...         fps=30, calibration=calib)
         ...     tri = mv.stereo_triangulate()
         >>> from py3r.behaviour.tracking.tracking import Tracking
         >>> isinstance(tri, Tracking)
@@ -288,23 +307,18 @@ class TrackingMV:
 
         # helper for triangulation
         def triangulate_point(xs1, ys1, xs2, ys2, l1, l2):
-            valid = (
-                np.isfinite(xs1)
-                & np.isfinite(ys1)
-                & np.isfinite(xs2)
-                & np.isfinite(ys2)
-            )
+            valid = np.isfinite(xs1) & np.isfinite(ys1) & np.isfinite(xs2) & np.isfinite(ys2)
             n = len(xs1)
             x3d, y3d, z3d, likelihood = [np.full(n, np.nan) for _ in range(4)]
             if np.any(valid):
                 pts1 = np.stack([xs1[valid], ys1[valid]], axis=1).astype(np.float32)
                 pts2 = np.stack([xs2[valid], ys2[valid]], axis=1).astype(np.float32)
-                pts1_ud = cv2.undistortPoints(
-                    pts1.reshape(-1, 1, 2), K1, dist1, P=K1
-                ).reshape(-1, 2)
-                pts2_ud = cv2.undistortPoints(
-                    pts2.reshape(-1, 1, 2), K2, dist2, P=K2
-                ).reshape(-1, 2)
+                pts1_ud = cv2.undistortPoints(pts1.reshape(-1, 1, 2), K1, dist1, P=K1).reshape(
+                    -1, 2
+                )
+                pts2_ud = cv2.undistortPoints(pts2.reshape(-1, 1, 2), K2, dist2, P=K2).reshape(
+                    -1, 2
+                )
                 pts4d = cv2.triangulatePoints(P1, P2, pts1_ud.T, pts2_ud.T)
                 pts3d = (pts4d[:3] / pts4d[3]).T
                 x3d[valid], y3d[valid], z3d[valid] = (
@@ -357,9 +371,7 @@ class TrackingMV:
 
     @staticmethod
     def _extract_coords(df, animals, keypoints, frames):
-        coords = np.full(
-            (len(frames), len(animals), len(keypoints), 2), np.nan, dtype=np.float32
-        )
+        coords = np.full((len(frames), len(animals), len(keypoints), 2), np.nan, dtype=np.float32)
         for ai, animal in enumerate(animals):
             for ki, kp in enumerate(keypoints):
                 xcol = f"{animal}.{kp}.x"
@@ -389,23 +401,21 @@ class TrackingMV:
         return cost_matrices
 
     @staticmethod
-    def _reorder_view2_data(
-        df2, animals1, animals2, keypoints, aligned_indices, frames
-    ):
+    def _reorder_view2_data(df2, animals1, animals2, keypoints, aligned_indices, frames):
         import numpy as np
         import pandas as pd
 
         n_frames = len(frames)
         new_data_dict = {}
-        for ai, animal1 in enumerate(animals1):
-            for ki, kp in enumerate(keypoints):
+        for _ai, animal1 in enumerate(animals1):
+            for _ki, kp in enumerate(keypoints):
                 for coord in ["x", "y", "likelihood"]:
                     colname = f"{animal1}.{kp}.{coord}"
                     new_data_dict[colname] = np.full(n_frames, np.nan, dtype=np.float32)
         for fi, frame in enumerate(frames):
             for ai, animal1 in enumerate(animals1):
                 aj = aligned_indices[fi, ai]
-                for ki, kp in enumerate(keypoints):
+                for _ki, kp in enumerate(keypoints):
                     for coord in ["x", "y", "likelihood"]:
                         src_col = f"{animals2[aj]}.{kp}.{coord}"
                         dst_col = f"{animal1}.{kp}.{coord}"
@@ -425,21 +435,17 @@ class TrackingMV:
         self,
         keypoints: list[str],
         views: list[str] | None = None,
-    ) -> "TrackingMV":
+    ) -> TrackingMV:
         import numpy as np
         from scipy.optimize import linear_sum_assignment
 
         all_views = list(self.views.keys())
         if views is not None:
             if len(views) != 2:
-                raise ValueError(
-                    "views argument must be a list or tuple of two view names."
-                )
+                raise ValueError("views argument must be a list or tuple of two view names.")
             v1, v2 = views
             if v1 not in self.views or v2 not in self.views:
-                raise ValueError(
-                    f"Specified views {views} not found in TrackingMV object."
-                )
+                raise ValueError(f"Specified views {views} not found in TrackingMV object.")
         else:
             if len(all_views) < 2:
                 raise ValueError("TrackingMV must have at least two views to align.")
@@ -467,12 +473,8 @@ class TrackingMV:
             df2, animals1, animals2, keypoints, aligned_indices, frames
         )
         new_views = self.views.copy()
-        new_views[v1] = Tracking(
-            df1.loc[frames], self.views[v1].meta.copy(), self.views[v1].handle
-        )
-        new_views[v2] = Tracking(
-            new_df2, self.views[v2].meta.copy(), self.views[v2].handle
-        )
+        new_views[v1] = Tracking(df1.loc[frames], self.views[v1].meta.copy(), self.views[v1].handle)
+        new_views[v2] = Tracking(new_df2, self.views[v2].meta.copy(), self.views[v2].handle)
         return TrackingMV(new_views, self.calibration, self.handle)
 
     def plot(
@@ -519,4 +521,5 @@ class TrackingMV:
         return batch_method
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} with {len(self.views)} views: {', '.join(self.views.keys())}>"
+        views_str = ", ".join(self.views.keys())
+        return f"<{self.__class__.__name__} with {len(self.views)} views: {views_str}>"
