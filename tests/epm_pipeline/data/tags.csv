@@ -1,0 +1,7 @@
+handle,treatment,sex,genotype,id
+CRS5EPM_2DeepCut_resnet50_Official EPM Network 2020Jul16shuffle1_300000,Acutely restrained,F,wt,CRS5EPM_2
+CRS5EPM_5DeepCut_resnet50_Official EPM Network 2020Jul16shuffle1_300000,Acutely restrained,M,wt,CRS5EPM_5
+CRS5EPM_1DeepCut_resnet50_Official EPM Network 2020Jul16shuffle1_300000,Control,M,wt,CRS5EPM_1
+CRS5EPM_4DeepCut_resnet50_Official EPM Network 2020Jul16shuffle1_300000,Control,F,wt,CRS5EPM_4
+CRS5EPM_3DeepCut_resnet50_Official EPM Network 2020Jul16shuffle1_300000,Repeatedly restrained,M,wt,CRS5EPM_3
+CRS5EPM_6DeepCut_resnet50_Official EPM Network 2020Jul16shuffle1_300000,Repeatedly restrained,F,wt,CRS5EPM_6

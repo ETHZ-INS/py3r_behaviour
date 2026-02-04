@@ -2,7 +2,6 @@ name: CI
 
 on:
   pull_request:
-  push:
 
 jobs:
   test-and-docs:
@@ -15,8 +14,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate version bump for main (PRs and pushes)
-        if: (github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      - name: Validate version bump for main
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
         shell: python
         run: |
           import subprocess, sys, re
@@ -77,8 +76,18 @@ jobs:
         run: |
           git diff --exit-code || (echo "Uncommitted changes after generation. Commit mixins." && exit 1)
 
-      - name: Run tests (incl. doctests)
-        run: pytest -q --xdoctest --xdoctest-modules
+      - name: Run doctests
+        run: pytest -q --xdoctest --xdoctest-modules src/
+
+      - name: Run integration tests (EPM pipeline)
+        run: |
+          cd tests/epm_pipeline
+          MPLBACKEND=Agg python epm_pipeline.py > /dev/null
+
+      - name: Run integration tests (OFT pipeline)
+        run: |
+          cd tests/oft_pipeline
+          MPLBACKEND=Agg python oft_pipeline.py > /dev/null
 
       - name: Build docs
         run: mkdocs build --strict
