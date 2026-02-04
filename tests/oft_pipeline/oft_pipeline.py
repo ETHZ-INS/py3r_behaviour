@@ -8,11 +8,11 @@ TEST_MODE = True
 # set (local) paths
 
 # %%
-from pathlib import Path # noqa: E402
-import os # noqa: E402
-import json # noqa: E402
-import numpy as np # noqa: E402
-import pandas as pd # noqa: E402
+from pathlib import Path  # noqa: E402
+import os  # noqa: E402
+import json  # noqa: E402
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 
 # Inputs (bundled with the notebook)
 if TEST_MODE:
