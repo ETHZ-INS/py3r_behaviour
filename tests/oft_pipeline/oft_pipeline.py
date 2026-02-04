@@ -33,7 +33,7 @@ FPS = 25
 # load a tracking collection from a folder (dlc format)
 
 # %%
-import py3r.behaviour as p3b # noqa: E402
+import py3r.behaviour as p3b  # noqa: E402
 
 tc = p3b.TrackingCollection.from_dlc_folder(
     folder_path=DATA_DIR,
