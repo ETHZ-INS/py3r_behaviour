@@ -2,14 +2,17 @@
 # specify whether we're running in test mode or not
 
 # %%
+import os  # noqa: E402
+
 TEST_MODE = True
+# Skip heavy visualization dependencies (pycirclize, umap) in CI environments
+SKIP_HEAVY_VIZ = os.environ.get("CI") == "true"
 
 # %% [markdown]
 # set (local) paths
 
 # %%
 import json  # noqa: E402
-import os  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 import numpy as np  # noqa: E402
@@ -681,24 +684,25 @@ if TEST_MODE:
     print("BFA stats tests passed.")
 
 # %% [markdown]
-# plot BFA chord diagrams
+# plot BFA chord diagrams (requires pycirclize - skipped in CI)
 
 # %%
-sc_grouped.plot_chord(
-    column="kmeans_25",
-    all_states=np.arange(0, N_CLUSTERS),
-    save_dir=OUT_DIR,
-    show=False,
-    start=-265,
-    end=95,
-    space=5,
-    r_lim=(93, 100),
-    label_kws=dict(r=94, size=12, color="white"),
-    link_kws=dict(ec="black", lw=0.5),
-)
+if not SKIP_HEAVY_VIZ:
+    sc_grouped.plot_chord(
+        column="kmeans_25",
+        all_states=np.arange(0, N_CLUSTERS),
+        save_dir=OUT_DIR,
+        show=False,
+        start=-265,
+        end=95,
+        space=5,
+        r_lim=(93, 100),
+        label_kws=dict(r=94, size=12, color="white"),
+        link_kws=dict(ec="black", lw=0.5),
+    )
 
 # %%
-if TEST_MODE:
+if TEST_MODE and not SKIP_HEAVY_VIZ:
     # Check that chord plots were saved
     chord_plots = list(Path(OUT_DIR).glob("*chord*")) + list(Path(OUT_DIR).glob("*bfa*"))
     # The plot may have different naming conventions, so just check output dir has more files
@@ -735,26 +739,27 @@ if TEST_MODE:
     print("BFA histogram tests passed.")
 
 # %% [markdown]
-# plot UMAP embeddings of transition matrices
+# plot UMAP embeddings of transition matrices (requires umap-learn - skipped in CI)
 
 # %%
-# Plot UMAP embedding of per-subject transition matrices
-# Groups can be specified as a list of group names or as sequential groups for gradient coloring
-fig, ax = sc_grouped.plot_transition_umap(
-    column="kmeans_25",
-    all_states=np.arange(0, N_CLUSTERS),
-    n_neighbors=15,
-    min_dist=0.1,
-    random_state=42,
-    figsize=(6, 5),
-    show=False,
-    save_dir=OUT_DIR,
-)
+if not SKIP_HEAVY_VIZ:
+    # Plot UMAP embedding of per-subject transition matrices
+    # Groups can be specified as a list of group names or as sequential groups for gradient coloring
+    fig, ax = sc_grouped.plot_transition_umap(
+        column="kmeans_25",
+        all_states=np.arange(0, N_CLUSTERS),
+        n_neighbors=15,
+        min_dist=0.1,
+        random_state=42,
+        figsize=(6, 5),
+        show=False,
+        save_dir=OUT_DIR,
+    )
 
 # %%
-if TEST_MODE:
+if TEST_MODE and not SKIP_HEAVY_VIZ:
     # Check that UMAP plot was saved
-    umap_path = Path(OUT_DIR)
+    umap_path = Path(OUT_DIR) / "transition_umap.png"
     assert umap_path.exists(), f"UMAP plot not saved at {umap_path}"
 
     print("UMAP embedding tests passed.")
@@ -766,6 +771,8 @@ if TEST_MODE:
 if TEST_MODE:
     print("\n" + "=" * 60)
     print("ALL OFT PIPELINE TESTS PASSED SUCCESSFULLY!")
+    if SKIP_HEAVY_VIZ:
+        print("(Skipped: chord diagrams, UMAP - requires pycirclize/umap-learn)")
     print("=" * 60)
     print(f"\nOutputs saved to: {OUT_DIR}")
     print("  - OFT_results.csv")
@@ -773,8 +780,9 @@ if TEST_MODE:
     print("  - bfa_results.json")
     print("  - bfa_stats.json")
     print("  - Trajectory plots")
-    print("  - BFA chord diagrams")
     print("  - BFA histograms")
-    print("  - transition_umap.png")
+    if not SKIP_HEAVY_VIZ:
+        print("  - BFA chord diagrams")
+        print("  - transition_umap.png")
 
 # %%
