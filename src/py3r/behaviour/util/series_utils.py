@@ -277,7 +277,7 @@ def smooth_bool_series(ser: pd.Series, window: int = 1) -> pd.Series:
 def latencies_from_series(
     series: pd.Series,
     target_value: str | float | int | None = None,
-    threshold_op: Literal["gt", "lt", "eq", "ne"] = "eq",
+    threshold_op: Literal[">", ">=", "<=", "<", "==", "!="] = "==",
     integration_window: int = 1,
 ) -> list[int]:
     """
@@ -296,13 +296,9 @@ def latencies_from_series(
     target_value : str | float | int | None, optional
         Value to compare against for non-boolean series. Required unless
         `series` is already boolean.
-    threshold_op : {"gt", "lt", "eq", "ne"}, default "eq"
+    threshold_op : {">", ">=","<=", "<", "==", "!="}, default "=="
         Comparison operator used to generate the boolean condition.
-        Only "eq" and "ne" are valid for string comparisons.
-        - "gt": greater than (>)
-        - "lt": less than (<)
-        - "eq": equal to (==)
-        - "ne": not equal (!=)
+        Only "==" and "!=" are valid for string comparisons.
     integration_window : int, default 1
         Window size for boolean integration/smoothing. Values > 1 apply
         temporal smoothing before latency extraction.
@@ -334,18 +330,18 @@ def latencies_from_series(
      >>> latencies
      [0, 8]
      >>> series_float = pd.Series([1., 2., 3., 4., 1., 1., 2., 3., 3., 4., 5.], dtype = float)
-     >>> latencies = latencies_from_series(series_float, target_value = 2., threshold_op = "gt" )
+     >>> latencies = latencies_from_series(series_float, target_value = 2., threshold_op = ">" )
      >>> latencies
      [2, 7]
      >>> series_int = pd.Series([1, 2, 3, 4, 1, 1, 2, 3, 3, 4, 5], dtype = int)
-     >>> latencies = latencies_from_series(series_int, target_value = 2, threshold_op = "lt" )
+     >>> latencies = latencies_from_series(series_int, target_value = 2, threshold_op = "<" )
      >>> latencies
      [0, 4]
      >>> series_str = pd.Series(['A', 'A', 'B', 'A', 'A', 'C', 'C', 'A', 'A'], dtype = str)
      >>> latencies = latencies_from_series(series_str, target_value = 'A')
      >>> latencies
      [0, 3, 7]
-     >>> latencies = latencies_from_series(series_str, target_value = 'A', threshold_op = "ne")
+     >>> latencies = latencies_from_series(series_str, target_value = 'A', threshold_op = "!=")
      >>> latencies
      [2, 5]
 
@@ -353,12 +349,14 @@ def latencies_from_series(
     """
 
     ops = {
-        "gt": lambda s: s > target_value,
-        "lt": lambda s: s < target_value,
-        "eq": lambda s: s == target_value,
-        "ne": lambda s: s != target_value,
+        ">": lambda s: s > target_value,
+        "<": lambda s: s < target_value,
+        ">=": lambda s: s >= target_value,
+        "<=": lambda s: s <= target_value,
+        "==": lambda s: s == target_value,
+        "!=": lambda s: s != target_value,
     }
-    valid_str_ops = {"eq", "ne"}
+    valid_str_ops = {"==", "!="}
     series_dtype = series.dtype
     target_dtype = pd.Series([target_value]).dtype
 
