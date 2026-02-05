@@ -21,6 +21,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Optional heavy visualization dependencies
+viz = [
+    "pycirclize>=1,<2.0.0",
+    "umap-learn>=0.5,<1.0.0",
+]
 # Developer tooling: testing, notebooks-as-tests, and documentation build
 dev = [
     # testing
