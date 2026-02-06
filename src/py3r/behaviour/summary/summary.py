@@ -196,7 +196,7 @@ class Summary:
         self,
         column: str,
         target_value: str | float | int = None,
-        threshold_op: Literal["gt", "lt", "eq", "ne"] = "eq",
+        threshold_op: Literal[">", ">=", "<=", "<", "==", "!="] = "==",
         nth_event: int = 0,
         integration_window=1,
     ):
@@ -219,13 +219,9 @@ class Summary:
         target_value : str | float | int | None, optional
             Value to compare against for non-boolean columns.
             Required unless the column is already boolean.
-        threshold_op : {"gt", "lt", "eq", "ne"}, default "eq"
-            - "gt": greater than (>)
-            - "lt": less than (<)
-            - "eq": equal to (==)
-            - "ne": not equal (!=)
+        threshold_op : {">", ">=","<=", "<", "==", "!="}, default "=="
             Comparison operator used to generate the boolean condition.
-            Only "eq" and "ne" are valid for string-valued columns.
+            Only "==" and "!=" are valid for string-valued columns.
         nth_event : int, default 0
             Index of the onset event to return (0-based).
         integration_window : int, default 1 = no smoothing
@@ -265,7 +261,7 @@ class Summary:
         1.0
 
         >>> print(res._func_name)
-        latency_mask_eq_True_int1_n0
+        latency_mask_==_True_int1_n0
 
         ```
 
@@ -292,7 +288,7 @@ class Summary:
         ```pycon
         >>> speed = pd.Series([0.1, 0.2, 0.8, 0.9, 0.1], dtype = float)
         >>> f.store(speed, 'speed', meta={})
-        >>> res = s.calculate_latency_nth_onset('speed', target_value=0.5, threshold_op='gt')
+        >>> res = s.calculate_latency_nth_onset('speed', target_value=0.5, threshold_op='>')
         >>> res.value
         2.0
 
@@ -303,7 +299,7 @@ class Summary:
         ```pycon
         >>> id = pd.Series([2, 1, 3, 2, 1], dtype = int)
         >>> f.store(id, 'id', meta={})
-        >>> res = s.calculate_latency_nth_onset('id', target_value=2, threshold_op='lt')
+        >>> res = s.calculate_latency_nth_onset('id', target_value=2, threshold_op='<')
         >>> res.value
         1.0
 
