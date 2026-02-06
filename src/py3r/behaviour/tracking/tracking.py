@@ -391,6 +391,204 @@ class Tracking:
             tags=copy.deepcopy(self.tags),
         )
 
+    @classmethod
+    def concat(
+        cls: type[Self],
+        trackings: list[Self],
+        *,
+        handle: str | None = None,
+        reindex: Literal["rezero", "follow_previous", "none"] = "follow_previous",
+    ) -> Self:
+        """
+        Concatenate multiple Tracking objects along the time (frame) axis.
+
+        All Tracking objects must have:
+        - Matching fps
+        - Identical column names (same tracked points and dimensions)
+
+        Parameters
+        ----------
+        trackings : list[Tracking]
+            List of Tracking objects to concatenate, in temporal order.
+        handle : str, optional
+            Handle for the concatenated object. If None, uses first object's handle.
+        reindex : {"rezero", "follow_previous", "none"}, default "follow_previous"
+            How to handle frame indices:
+            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
+            - "follow_previous": Each chunk continues from where the previous
+              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
+            - "none": Leave indices untouched; duplicates are allowed.
+
+        Returns
+        -------
+        Tracking
+            A new Tracking object containing all frames from input objects.
+
+        Raises
+        ------
+        ValueError
+            If trackings is empty, fps values don't match, or columns differ.
+
+        Examples
+        --------
+        Concatenate two tracking objects:
+
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t1 = Tracking.from_dlc(str(p), handle='ex1', fps=30)
+        ...     t2 = Tracking.from_dlc(str(p), handle='ex2', fps=30)
+        >>> combined = Tracking.concat([t1, t2], handle='combined')
+        >>> len(combined.data) == len(t1.data) + len(t2.data)
+        True
+        >>> combined.handle
+        'combined'
+        >>> combined.meta['fps']
+        30.0
+
+        ```
+
+        Verify column preservation:
+
+        ```pycon
+        >>> list(combined.data.columns) == list(t1.data.columns)
+        True
+
+        ```
+
+        Concatenation metadata is recorded:
+
+        ```pycon
+        >>> 'concat' in combined.meta
+        True
+        >>> combined.meta['concat']['n_chunks']
+        2
+
+        ```
+        """
+        if not trackings:
+            raise ValueError("Cannot concatenate empty list of Tracking objects")
+
+        if len(trackings) == 1:
+            result = trackings[0].copy()
+            if handle is not None:
+                result.handle = handle
+            return result
+
+        # Keys in meta that are expected to differ between chunks (not validated)
+        _meta_ignore_keys = {"filepath", "concat"}
+
+        # Validate fps consistency
+        fps_values = [t.meta["fps"] for t in trackings]
+        if len(set(fps_values)) > 1:
+            raise ValueError(f"All Tracking objects must have the same fps. Got: {fps_values}")
+
+        # Validate column consistency
+        reference_cols = list(trackings[0].data.columns)
+        for i, t in enumerate(trackings[1:], start=1):
+            if list(t.data.columns) != reference_cols:
+                raise ValueError(
+                    f"Column mismatch: Tracking[0] has columns {reference_cols}, "
+                    f"but Tracking[{i}] has columns {list(t.data.columns)}"
+                )
+
+        # Validate meta consistency (excluding ignored keys)
+        ref_meta = trackings[0].meta
+        for i, t in enumerate(trackings[1:], start=1):
+            ref_keys = set(ref_meta.keys()) - _meta_ignore_keys
+            t_keys = set(t.meta.keys()) - _meta_ignore_keys
+            if ref_keys != t_keys:
+                raise ValueError(
+                    f"Meta key mismatch: Tracking[0] has keys {ref_keys}, "
+                    f"but Tracking[{i}] has keys {t_keys}"
+                )
+            for key in ref_keys:
+                if ref_meta[key] != t.meta[key]:
+                    raise ValueError(
+                        f"Meta value mismatch for key '{key}': "
+                        f"Tracking[0] has {ref_meta[key]!r}, "
+                        f"but Tracking[{i}] has {t.meta[key]!r}"
+                    )
+
+        # Check handle consistency - warn if differs, use first
+        handles = [t.handle for t in trackings]
+        if len(set(handles)) > 1 and handle is None:
+            warnings.warn(
+                f"Handles differ across Tracking objects: {handles}. "
+                f"Using first handle '{handles[0]}'. "
+                f"Pass handle= parameter to specify explicitly.",
+                stacklevel=2,
+            )
+
+        # Check tags consistency - warn if differs, use first
+        first_tags = trackings[0].tags
+        tags_differ = any(t.tags != first_tags for t in trackings[1:])
+        if tags_differ:
+            warnings.warn(
+                f"Tags differ across Tracking objects. Using tags from first object: {first_tags}",
+                stacklevel=2,
+            )
+
+        # Build concatenated DataFrame with adjusted indices
+        dfs = []
+        chunk_boundaries = []
+        # For "follow_previous", start from first object's starting index
+        # For "rezero", start from 0
+        if reindex == "rezero":
+            current_offset = 0
+        else:
+            current_offset = trackings[0].data.index[0]
+
+        for i, t in enumerate(trackings):
+            df = t.data.copy()
+            original_start = df.index[0]
+            original_end = df.index[-1]
+            n_frames = len(df)
+
+            if reindex == "rezero":
+                # Contiguous reindexing starting from 0
+                df.index = pd.RangeIndex(current_offset, current_offset + n_frames)
+            elif reindex == "follow_previous":
+                # Each chunk continues from previous end + 1
+                df.index = pd.RangeIndex(current_offset, current_offset + n_frames)
+            # else reindex == "none": leave df.index untouched
+
+            chunk_boundaries.append(
+                {
+                    "chunk_index": i,
+                    "original_handle": t.handle,
+                    "original_start_frame": int(original_start),
+                    "original_end_frame": int(original_end),
+                    "concat_start_frame": int(df.index[0]),
+                    "concat_end_frame": int(df.index[-1]),
+                    "n_frames": n_frames,
+                }
+            )
+
+            dfs.append(df)
+            # Update offset for next chunk (only matters for rezero/follow_previous)
+            current_offset = df.index[-1] + 1
+
+        combined_data = pd.concat(dfs, axis=0)
+        combined_data.index.name = "frame"
+
+        # Build metadata (from first, add concat info)
+        combined_meta = copy.deepcopy(trackings[0].meta)
+        combined_meta["concat"] = {
+            "n_chunks": len(trackings),
+            "chunk_boundaries": chunk_boundaries,
+            "reindexed": reindex,
+            "source_handles": handles,
+        }
+
+        # Use first object's tags
+        combined_tags = copy.deepcopy(first_tags)
+
+        result_handle = handle if handle is not None else trackings[0].handle
+
+        return cls(combined_data, combined_meta, result_handle, combined_tags)
+
     @staticmethod
     def _apply_aspectratio_correction(df: pd.DataFrame, correction: float) -> pd.DataFrame:
         """

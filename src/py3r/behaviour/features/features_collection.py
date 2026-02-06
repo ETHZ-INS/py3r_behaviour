@@ -107,6 +107,162 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 raise ValueError(f"Key '{handle}' does not match object's handle '{t.handle}'")
         return cls({handle: feature_cls(t) for handle, t in tracking_collection._obj_dict.items()})
 
+    @classmethod
+    def concat(
+        cls,
+        collections: list[FeaturesCollection],
+        *,
+        reindex: Literal["rezero", "follow_previous", "none"] = "follow_previous",
+    ) -> FeaturesCollection:
+        """
+        Concatenate multiple FeaturesCollections along the time (frame) axis.
+
+        Each collection must have the same handles (keys). For each handle,
+        the corresponding Features objects are concatenated in order.
+        Supports both flat and grouped collections.
+
+        Parameters
+        ----------
+        collections : list[FeaturesCollection]
+            List of FeaturesCollection objects to concatenate, in temporal order.
+            All must have matching keys (handles) and feature columns.
+        reindex : {"rezero", "follow_previous", "none"}, default "follow_previous"
+            How to handle frame indices:
+            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
+            - "follow_previous": Each chunk continues from where the previous
+              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
+            - "none": Leave indices untouched; duplicates are allowed.
+
+        Returns
+        -------
+        FeaturesCollection
+            A new collection with concatenated Features objects for each handle.
+
+        Raises
+        ------
+        ValueError
+            If collections is empty, keys don't match, or grouping structure differs.
+
+        Notes
+        -----
+        For context-dependent features (normalization, embeddings with temporal
+        windows, etc.), consider whether you need to recompute features on
+        concatenated Tracking data rather than concatenating pre-computed features.
+
+        Examples
+        --------
+        Concatenate two flat collections:
+
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc1 = TrackingCollection.from_dlc({'A': str(d/'A.csv'),
+        ...                                       'B': str(d/'B.csv')}, fps=30)
+        ...     tc2 = TrackingCollection.from_dlc({'A': str(d/'A.csv'),
+        ...                                        'B': str(d/'B.csv')}, fps=30)
+        >>> fc1 = FeaturesCollection.from_tracking_collection(tc1)
+        >>> fc2 = FeaturesCollection.from_tracking_collection(tc2)
+        >>> # Add a feature to all
+        >>> for f in list(fc1.values()) + list(fc2.values()):
+        ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
+        ...     f.store(s, 'counter', meta={})
+        >>> combined = FeaturesCollection.concat([fc1, fc2])
+        >>> len(combined['A'].data) == len(fc1['A'].data) + len(fc2['A'].data)
+        True
+        >>> 'concat' in combined['A'].meta
+        True
+
+        ```
+        """
+        if not collections:
+            raise ValueError("Cannot concatenate empty list of FeaturesCollections")
+
+        if len(collections) == 1:
+            # Return a deep copy
+            import copy
+
+            result_dict = {}
+            for k, v in collections[0].items():
+                if isinstance(v, FeaturesCollection):
+                    # Grouped: v is a sub-collection
+                    result_dict[k] = cls({sk: copy.deepcopy(sv) for sk, sv in v.items()})
+                else:
+                    result_dict[k] = copy.deepcopy(v)
+            result = cls(result_dict)
+            if getattr(collections[0], "is_grouped", False):
+                result._is_grouped = True
+                result._groupby_tags = getattr(collections[0], "_groupby_tags", None)
+            return result
+
+        # Check grouping consistency
+        is_grouped = [getattr(c, "is_grouped", False) for c in collections]
+        if len(set(is_grouped)) > 1:
+            raise ValueError(
+                "Cannot concatenate mixed grouped/ungrouped collections. "
+                f"Grouping states: {is_grouped}"
+            )
+
+        first = collections[0]
+
+        if first.is_grouped:
+            # Grouped collections: validate group keys match
+            group_keys = [set(c.keys()) for c in collections]
+            if not all(gk == group_keys[0] for gk in group_keys):
+                raise ValueError(
+                    f"Group key mismatch across collections. "
+                    f"First has {group_keys[0]}, others have {group_keys[1:]}"
+                )
+
+            # For each group, validate handles match and concatenate
+            result_dict = {}
+            for group_key in first.keys():
+                sub_collections = [c[group_key] for c in collections]
+                # Validate handles within group
+                handle_sets = [set(sc.keys()) for sc in sub_collections]
+                if not all(hs == handle_sets[0] for hs in handle_sets):
+                    raise ValueError(
+                        f"Handle mismatch in group '{group_key}'. "
+                        f"First has {handle_sets[0]}, others differ."
+                    )
+                # Concatenate each handle within this group
+                group_result = {}
+                for handle in sub_collections[0].keys():
+                    features_list = [sc[handle] for sc in sub_collections]
+                    group_result[handle] = Features.concat(
+                        features_list, handle=handle, reindex=reindex
+                    )
+                result_dict[group_key] = cls(group_result)
+
+            result = cls(result_dict)
+            result._is_grouped = True
+            result._groupby_tags = getattr(first, "_groupby_tags", None)
+            return result
+
+        else:
+            # Flat collections: validate handles match
+            handle_sets = [set(c.keys()) for c in collections]
+            if not all(hs == handle_sets[0] for hs in handle_sets):
+                raise ValueError(
+                    f"Handle mismatch across collections. "
+                    f"First has {handle_sets[0]}, others have {handle_sets[1:]}"
+                )
+
+            # Concatenate each handle
+            result_dict = {}
+            for handle in first.keys():
+                features_list = [c[handle] for c in collections]
+                result_dict[handle] = Features.concat(features_list, handle=handle, reindex=reindex)
+
+            return cls(result_dict)
+
     def within_boundary_static(
         self,
         point: str,
