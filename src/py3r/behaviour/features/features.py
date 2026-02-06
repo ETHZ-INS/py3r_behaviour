@@ -50,6 +50,64 @@ logging.basicConfig(stream=sys.stdout, format=logformat)
 logger.setLevel(logging.INFO)
 
 
+def _compute_time_in_state_single(
+    series: pd.Series,
+    fps: float,
+    max_unique: int = 50,
+) -> pd.Series:
+    """
+    Compute time spent in each state for a single boolean or categorical series.
+
+    Parameters
+    ----------
+    series : pd.Series
+        The input series (boolean or categorical).
+    fps : float
+        Frames per second for time conversion.
+    max_unique : int
+        Maximum number of unique values allowed for categorical columns. Default 50.
+
+    Returns
+    -------
+    pd.Series
+        Index = state values, values = time in seconds.
+    """
+    from py3r.behaviour.util.series_utils import time_in_state
+
+    return time_in_state(series, fps, max_unique=max_unique)
+
+
+def _plot_time_in_state_bars(
+    ax,
+    data: pd.Series,
+    color=None,
+    width: float = 0.8,
+):
+    """
+    Plot bars for time-in-state data on the given axes.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The axes to plot on.
+    data : pd.Series
+        Series with state labels as index and time values.
+    color : optional
+        Bar color.
+    width : float
+        Bar width.
+    """
+    import numpy as np
+
+    x = np.arange(len(data))
+    bars = ax.bar(x, data.fillna(0).values, width, color=color)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(data.index, rotation=45, ha="right")
+
+    return bars
+
+
 class Features:
     """
     generates features from a pre-processed Tracking object
@@ -1315,6 +1373,91 @@ class Features:
             angle_in_radians,
             n_points,
         )
+
+    def hist_time_in_state(
+        self,
+        column: str,
+        *,
+        max_unique: int = 50,
+        show: bool = True,
+        savedir: str | None = None,
+        filename: str | None = None,
+        figsize: tuple[float, float] = (8, 5),
+        title: str | None = None,
+    ):
+        """
+        Plot a histogram showing time spent in each state for a boolean or categorical column.
+
+        For boolean columns: shows time where value is True.
+        For categorical columns: shows time per state value.
+
+        Parameters
+        ----------
+        column : str
+            Column name from self.data to plot.
+        max_unique : int
+            Maximum number of unique values allowed for categorical columns. Default 50.
+        show : bool
+            If True, display the plot. Default True.
+        savedir : str | None
+            If provided, save the figure to this directory.
+        filename : str | None
+            Filename for the saved figure. If None, auto-generates as
+            "{handle}_{column}_time_in_state.png".
+        figsize : tuple
+            Figure size (width, height) in inches.
+        title : str | None
+            Optional title for the plot. Defaults to "{handle}: {column}".
+
+        Returns
+        -------
+        tuple[matplotlib.figure.Figure, matplotlib.axes.Axes, pd.Series]
+            The figure, axes, and underlying data (time in seconds per state).
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> # Create a boolean feature
+        >>> f.store(pd.Series([True, False, True] * 10, index=f.tracking.data.index[:30]),
+        ...         'is_active', meta={})
+        >>> fig, ax, data = f.hist_time_in_state('is_active', show=False)
+        >>> isinstance(data, pd.Series)
+        True
+
+        ```
+        """
+        import matplotlib.pyplot as plt
+
+        if column not in self.data.columns:
+            raise ValueError(f"Column '{column}' not found in data")
+
+        fps = self.tracking.meta.get("fps", 1.0)
+        hist_data = _compute_time_in_state_single(self.data[column], fps, max_unique=max_unique)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        _plot_time_in_state_bars(ax, hist_data)
+
+        ax.set_ylabel("Time (seconds)")
+        ax.set_title(title or f"{self.handle}: {column}")
+
+        plt.tight_layout()
+
+        if savedir:
+            os.makedirs(savedir, exist_ok=True)
+            fname = filename or f"{self.handle}_{column}_time_in_state.png"
+            fig.savefig(os.path.join(savedir, fname), dpi=150, bbox_inches="tight")
+
+        if show:
+            plt.show()
+
+        return fig, ax, hist_data
 
     def define_elliptical_boundary_from_points(
         self,
