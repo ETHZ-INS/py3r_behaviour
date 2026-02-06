@@ -1009,3 +1009,95 @@ class Summary:
             plt.show()
         plt.close(fig)
         return fig
+
+    # -------------------------------------------------------------------------
+    # Seaborn plotting wrappers (delegate to SummaryCollection)
+    # -------------------------------------------------------------------------
+
+    def _as_collection(self):
+        """Wrap this Summary in a single-item SummaryCollection for plotting."""
+        from py3r.behaviour.summary.summary_collection import SummaryCollection
+
+        return SummaryCollection({self.handle: self})
+
+    def snsstrip(self, metric, **kwargs):
+        """
+        Strip plot (jittered scatter) using seaborn.
+
+        See SummaryCollection.snsstrip for full documentation.
+
+        Parameters
+        ----------
+        metric : str or SummaryResult
+            Either a key from self.data, or a SummaryResult (e.g., from time_in_state).
+        **kwargs
+            Passed to seaborn.stripplot.
+
+        Returns
+        -------
+        tuple[Figure, Axes, DataFrame]
+        """
+        # Handle SummaryResult by wrapping in dict
+        if hasattr(metric, "value") and hasattr(metric, "name"):
+            metric = {self.handle: metric}
+        return self._as_collection().snsstrip(metric, **kwargs)
+
+    def snsswarm(self, metric, **kwargs):
+        """
+        Swarm plot (non-overlapping scatter) using seaborn.
+
+        See SummaryCollection.snsswarm for full documentation.
+        """
+        if hasattr(metric, "value") and hasattr(metric, "name"):
+            metric = {self.handle: metric}
+        return self._as_collection().snsswarm(metric, **kwargs)
+
+    def snsbar(self, metric, **kwargs):
+        """
+        Bar plot with error bars using seaborn.
+
+        See SummaryCollection.snsbar for full documentation.
+        """
+        if hasattr(metric, "value") and hasattr(metric, "name"):
+            metric = {self.handle: metric}
+        return self._as_collection().snsbar(metric, **kwargs)
+
+    def snsbox(self, metric, **kwargs):
+        """
+        Box plot using seaborn.
+
+        See SummaryCollection.snsbox for full documentation.
+        """
+        if hasattr(metric, "value") and hasattr(metric, "name"):
+            metric = {self.handle: metric}
+        return self._as_collection().snsbox(metric, **kwargs)
+
+    def snsviolin(self, metric, **kwargs):
+        """
+        Violin plot using seaborn.
+
+        See SummaryCollection.snsviolin for full documentation.
+        """
+        if hasattr(metric, "value") and hasattr(metric, "name"):
+            metric = {self.handle: metric}
+        return self._as_collection().snsviolin(metric, **kwargs)
+
+    def snspoint(self, metric, **kwargs):
+        """
+        Point plot (mean + CI) using seaborn.
+
+        See SummaryCollection.snspoint for full documentation.
+        """
+        if hasattr(metric, "value") and hasattr(metric, "name"):
+            metric = {self.handle: metric}
+        return self._as_collection().snspoint(metric, **kwargs)
+
+    def snssuperplot(self, metric, **kwargs):
+        """
+        Superplot: strip plot (individual dots) + point plot (mean marker) overlay.
+
+        See SummaryCollection.snssuperplot for full documentation.
+        """
+        if hasattr(metric, "value") and hasattr(metric, "name"):
+            metric = {self.handle: metric}
+        return self._as_collection().snssuperplot(metric, **kwargs)
