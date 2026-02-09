@@ -539,3 +539,44 @@ if TEST_MODE:
         assert s["total_distance_bodycentre"] >= 0, f"{handle}: total_distance_bodycentre < 0"
 
     print("SummaryCollection + EPM results + CSV tests passed.")
+
+# %% [markdown]
+# seaborn plotting wrappers (quick smoke test)
+
+# %%
+import matplotlib  # noqa: E402
+
+matplotlib.use("Agg")
+
+# Flat superplot of total distance (auto title, ylabel, filename)
+fig, ax, df_tidy = sc.snssuperplot(
+    sc.total_distance("bodycentre"),
+    show=False,
+    savedir=OUT_DIR,
+)
+print(f"EPM snssuperplot: {len(df_tidy)} rows")
+
+# Grouped bar of time on open arms by treatment (auto everything)
+sc_grouped = sc.groupby(tags=["treatment"])
+fig, ax, df_grouped = sc_grouped.snsbar(
+    "time_on_open_arms",
+    show=False,
+    savedir=OUT_DIR,
+)
+print(f"EPM grouped snsbar: {len(df_grouped)} rows, groups: {list(df_grouped['_group'].unique())}")
+
+# %%
+if TEST_MODE:
+    # Tidy DataFrame structure
+    assert {"component", "value", "_handle"} <= set(df_tidy.columns)
+    assert len(df_tidy) > 0
+
+    # Grouped DataFrame structure
+    assert {"component", "value", "_handle", "_group"} <= set(df_grouped.columns)
+    assert df_grouped["_group"].nunique() == 3, "Expected 3 treatment groups"
+
+    # At least one auto-named plot saved
+    sns_pngs = list(Path(OUT_DIR).glob("*superplot.png")) + list(Path(OUT_DIR).glob("*barplot.png"))
+    assert len(sns_pngs) >= 2, f"Expected at least 2 sns plot PNGs, got {len(sns_pngs)}"
+
+    print("EPM seaborn plotting tests passed.")

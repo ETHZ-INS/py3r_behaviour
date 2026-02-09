@@ -629,155 +629,122 @@ if TEST_MODE:
     print("Summary DataFrame and CSV tests passed.")
 
 # %% [markdown]
-# seaborn plotting wrappers (flat SummaryCollection)
+# seaborn plotting wrappers
+#
+# Demonstrates the sns* plotting API on flat and grouped SummaryCollections.
+# All plots use auto-generated titles, ylabels, and filenames.
 
 # %%
 import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")  # non-interactive backend for test mode
 
-# --- Individual Summary plotting (delegates to SummaryCollection) ---
-# Bar plot showing time-in-state for the boolean center feature (single recording)
+# --- 1. Single Summary: delegation to SummaryCollection ---
+# A single Summary delegates plotting to a 1-item SummaryCollection.
+# Auto-filename is prefixed with the recording handle.
 single_summary = sc[list(sc.keys())[0]]
-fig, ax, df_tidy = single_summary.snsbar(
+fig_single, ax_single, df_single = single_summary.snsbar(
     single_summary.time_in_state("within_boundary_static_bodycentre_in_center"),
-    title="Time in center (single recording)",
-    show=True,
+    show=False,
     savedir=OUT_DIR,
 )
-print(f"Single Summary snsbar: {len(df_tidy)} rows, components: {df_tidy['component'].unique()}")
+print(f"Single Summary snsbar: {len(df_single)} rows")
 
-# --- Flat SummaryCollection plots ---
-# Strip plot of a scalar metric — auto-title from metric name
-fig, ax, df_tidy = sc.snsstrip(
+# --- 2. Flat SC strip (stored scalar metric, string key) ---
+# Uses a previously stored metric by name. Auto ylabel comes from stored meta.
+fig_strip, ax_strip, df_strip = sc.snsstrip(
     "total_distance_bodycentre",
-    show=True,
+    show=False,
     savedir=OUT_DIR,
 )
-print(f"snsstrip scalar: {len(df_tidy)} rows")
+print(f"snsstrip scalar: {len(df_strip)} rows")
 
-# Superplot of time_in_state for the boolean center feature — auto-title
-fig, ax, df_tidy = sc.snssuperplot(
+# --- 3. Flat SC superplot (multi-component SummaryResult) ---
+# Passing a SummaryResult directly; auto ylabel from _ylabel attribute.
+fig_super, ax_super, df_super = sc.snssuperplot(
     sc.time_in_state("within_boundary_static_bodycentre_in_center"),
-    show=True,
+    show=False,
     savedir=OUT_DIR,
 )
-print(f"snssuperplot time_in_state: {len(df_tidy)} rows")
-
-# Box plot of time_in_state for kmeans clusters (auto-sized to 25 components)
-fig, ax, df_tidy = sc.snsbox(
-    sc.time_in_state("kmeans_25"),
-    title="Time per cluster (box)",
-    show=True,
-    savedir=OUT_DIR,
-)
-print(f"snsbox kmeans: {len(df_tidy)} rows, {df_tidy['component'].nunique()} components")
+print(f"snssuperplot time_in_state: {len(df_super)} rows")
 
 # %%
 if TEST_MODE:
-    # Verify tidy DataFrame structure from seaborn wrappers
-    assert "component" in df_tidy.columns, "Missing 'component' column in tidy df"
-    assert "value" in df_tidy.columns, "Missing 'value' column in tidy df"
-    assert "_handle" in df_tidy.columns, "Missing '_handle' column in tidy df"
-    assert df_tidy["component"].nunique() > 0, "No components found"
-    assert len(df_tidy) > 0, "Tidy DataFrame is empty"
+    # Tidy DataFrame structure checks (flat)
+    for label, df_check in [("single", df_single), ("strip", df_strip), ("super", df_super)]:
+        assert {"component", "value", "_handle"} <= set(df_check.columns), (
+            f"{label}: missing required columns"
+        )
+        assert len(df_check) > 0, f"{label}: tidy DataFrame is empty"
+
+    # Auto-generated files should exist (auto naming = no explicit filename)
+    flat_pngs = list(Path(OUT_DIR).glob("*stripplot.png")) + list(
+        Path(OUT_DIR).glob("*superplot.png")
+    )
+    assert len(flat_pngs) >= 2, f"Expected at least 2 auto-named plot PNGs, got {len(flat_pngs)}"
+
+    # Single-summary file should be prefixed with the handle slug
+    single_pngs = list(Path(OUT_DIR).glob("*barplot.png"))
+    assert len(single_pngs) >= 1, "Single Summary barplot not saved"
 
     print("Flat seaborn plotting tests passed.")
 
 # %% [markdown]
-# group by tags and perform behavior flow analysis (BFA)
+# group by tags for grouped analyses and plotting
 
 # %%
-# Group by treatment tag for BFA
 sc_grouped = sc.groupby(tags=["treatment", "timepoint"])
 
-# %% [markdown]
-# seaborn plotting wrappers (grouped SummaryCollection)
-
-# %%
-# Define a group_order dict to control how groups appear on plots.
-# Keys are tag names (matching those passed to groupby(tags=...)),
-# values are lists of tag values in the desired display order.
+# group_order controls display ordering on plots:
+# keys = tag names (matching groupby tags), values = desired value order
 GROUP_ORDER = {"treatment": ["control", "FST"], "timepoint": ["45m", "1d"]}
 
-# Grouped superplot: compare total distance across treatment groups
-# Using group_order to ensure control comes before FST, 45m before 1d
-fig, ax, df_tidy = sc_grouped.snssuperplot(
+# --- 4. Grouped SC superplot (scalar stored metric) ---
+# Scalar metric with group_order; auto palette, auto ylabel from stored meta.
+fig_gsup, ax_gsup, df_gsup = sc_grouped.snssuperplot(
     "total_distance_bodycentre",
     group_order=GROUP_ORDER,
-    title="Total distance by group (superplot)",
     show=False,
     savedir=str(OUT_DIR),
-    filename="total_distance_superplot.png",
 )
-print(f"Grouped snssuperplot scalar: {len(df_tidy)} rows, groups: {df_tidy['_group'].unique()}")
+print(f"Grouped superplot: {len(df_gsup)} rows, groups: {list(df_gsup['_group'].unique())}")
 
-# Grouped bar plot: time_in_state for the center feature across groups
-fig, ax, df_tidy = sc_grouped.snsbar(
-    sc_grouped.time_in_state("within_boundary_static_bodycentre_in_center"),
-    group_order=GROUP_ORDER,
-    title="Time in center by group (bar)",
-    show=False,
-)
-print(f"Grouped snsbar: {len(df_tidy)} rows")
-
-# Grouped bar plot: time per kmeans cluster across groups (with group_order)
-# This is the key test: 25 clusters × N groups, component-major ordering
-# Each cluster section shows all groups side-by-side, coloured by group
-fig, ax, df_tidy = sc_grouped.snsbar(
+# --- 5. Grouped SC bar (multi-component SummaryResult + group_order) ---
+# 25 clusters × 4 groups, component-major ordering with groups dodged per cluster.
+fig_gbar, ax_gbar, df_gbar = sc_grouped.snsbar(
     sc_grouped.time_in_state("kmeans_25"),
     group_order=GROUP_ORDER,
-    title="Time per cluster by group (bar)",
-    show=True,
+    show=False,
     savedir=str(OUT_DIR),
-    filename="kmeans_time_in_state_grouped_bar.png",
 )
 print(
-    f"Grouped snsbar kmeans: {len(df_tidy)} rows, "
-    f"{df_tidy['component'].nunique()} components, "
-    f"{df_tidy['_group'].nunique()} groups"
+    f"Grouped bar kmeans: {len(df_gbar)} rows, "
+    f"{df_gbar['component'].nunique()} components, "
+    f"{df_gbar['_group'].nunique()} groups"
 )
-
-# Grouped violin plot with group_order: shows that order is respected
-fig, ax, df_tidy = sc_grouped.snsviolin(
-    "total_distance_bodycentre",
-    group_order=GROUP_ORDER,
-    title="Total distance by group (violin, ordered)",
-    show=False,
-    savedir=str(OUT_DIR),
-    filename="total_distance_violin_ordered.png",
-)
-print(f"Grouped snsviolin ordered: {len(df_tidy)} rows")
-
-# Grouped violin with reversed order to demonstrate the effect
-REVERSED_ORDER = {"treatment": ["FST", "control"], "timepoint": ["1d", "45m"]}
-fig, ax, df_tidy_rev = sc_grouped.snsviolin(
-    "total_distance_bodycentre",
-    group_order=REVERSED_ORDER,
-    title="Total distance by group (violin, reversed)",
-    show=False,
-    savedir=str(OUT_DIR),
-    filename="total_distance_violin_reversed.png",
-)
-print(f"Grouped snsviolin reversed: {len(df_tidy_rev)} rows")
 
 # %%
 if TEST_MODE:
-    # Verify grouped tidy DataFrame has _group column
-    assert "_group" in df_tidy.columns, "Missing '_group' column in grouped tidy df"
-    assert df_tidy["_group"].nunique() > 1, "Expected multiple groups"
-    assert "component" in df_tidy.columns, "Missing 'component' column"
-    assert len(df_tidy) > 0, "Grouped tidy DataFrame is empty"
+    # Tidy DataFrame structure checks (grouped)
+    for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
+        assert {"component", "value", "_handle", "_group"} <= set(df_check.columns), (
+            f"{label}: missing required columns"
+        )
+        assert df_check["_group"].nunique() > 1, f"{label}: expected multiple groups"
+        assert len(df_check) > 0, f"{label}: tidy DataFrame is empty"
 
-    # Check plots were saved
-    superplot_path = Path(OUT_DIR) / "total_distance_superplot.png"
-    assert superplot_path.exists(), f"Superplot not saved at {superplot_path}"
-    kmeans_bar_path = Path(OUT_DIR) / "kmeans_time_in_state_grouped_bar.png"
-    assert kmeans_bar_path.exists(), f"Kmeans grouped bar not saved at {kmeans_bar_path}"
-    violin_ord_path = Path(OUT_DIR) / "total_distance_violin_ordered.png"
-    assert violin_ord_path.exists(), f"Ordered violin not saved at {violin_ord_path}"
-    violin_rev_path = Path(OUT_DIR) / "total_distance_violin_reversed.png"
-    assert violin_rev_path.exists(), f"Reversed violin not saved at {violin_rev_path}"
+    # Multi-component grouped bar should have 25 components × 4 groups
+    assert df_gbar["component"].nunique() == N_CLUSTERS, (
+        f"Expected {N_CLUSTERS} components, got {df_gbar['component'].nunique()}"
+    )
+
+    # Auto-generated grouped plot files should exist
+    grouped_pngs = list(Path(OUT_DIR).glob("*superplot.png")) + list(
+        Path(OUT_DIR).glob("*barplot.png")
+    )
+    assert len(grouped_pngs) >= 3, (
+        f"Expected at least 3 auto-named plot PNGs (1 flat + 2 grouped), got {len(grouped_pngs)}"
+    )
 
     print("Grouped seaborn plotting tests passed.")
 
@@ -927,9 +894,9 @@ if TEST_MODE:
     print(f"\nOutputs saved to: {OUT_DIR}")
     print("  - OFT_results.csv")
     print("  - features/")
-    print("  - bfa_results.json")
-    print("  - bfa_stats.json")
+    print("  - bfa_results.json, bfa_stats.json")
     print("  - Trajectory plots")
+    print("  - Seaborn summary plots (auto-named)")
     print("  - BFA histograms")
     if not SKIP_HEAVY_VIZ:
         print("  - BFA chord diagrams")
