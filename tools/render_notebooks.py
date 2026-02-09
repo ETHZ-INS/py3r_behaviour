@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import copy
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -58,55 +57,6 @@ def _strip_norender_cells(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
     return nb
 
 
-def _enable_inline_plots(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
-    """Replace ``show=False`` with ``show=True`` so plots render in-cell."""
-    nb = copy.deepcopy(nb)
-    for cell in nb.cells:
-        if cell.cell_type == "code":
-            cell.source = cell.source.replace("show=False", "show=True")
-    return nb
-
-
-def _inject_inline_backend(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
-    """Insert a setup cell that configures matplotlib for inline rendering.
-
-    Also suppresses the ``FigureCanvasAgg is non-interactive`` warning that
-    ``plt.show()`` emits inside non-interactive kernels.
-    """
-    nb = copy.deepcopy(nb)
-    setup_src = (
-        "%matplotlib inline\n"
-        "import warnings\n"
-        "warnings.filterwarnings(\n"
-        '    "ignore", message="FigureCanvasAgg is non-interactive"\n'
-        ")\n"
-    )
-    setup_cell = nbformat.v4.new_code_cell(source=setup_src)
-    setup_cell.metadata["tags"] = []
-    nb.cells.insert(0, setup_cell)
-    return nb
-
-
-def _tidy_preamble(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
-    """Ensure SKIP_HEAVY_VIZ = True so heavy deps are skipped in rendering."""
-    nb = copy.deepcopy(nb)
-    for cell in nb.cells:
-        if cell.cell_type != "code":
-            continue
-        src = cell.source.strip()
-        if re.search(r"^TEST_MODE\s*=\s*True", src, re.MULTILINE):
-            if "SKIP_HEAVY_VIZ" not in src:
-                cell.source += "\nSKIP_HEAVY_VIZ = True\n"
-            else:
-                cell.source = re.sub(
-                    r"SKIP_HEAVY_VIZ\s*=.*",
-                    "SKIP_HEAVY_VIZ = True  # skip heavy viz in rendered notebook",
-                    cell.source,
-                )
-            break
-    return nb
-
-
 # ---------------------------------------------------------------------------
 # Core render function
 # ---------------------------------------------------------------------------
@@ -144,9 +94,6 @@ def render(name: str, script_path: Path, out_dir: Path | None = None) -> Path:
 
     # Transform the notebook for rendering
     nb = _strip_norender_cells(nb)
-    nb = _tidy_preamble(nb)
-    nb = _inject_inline_backend(nb)
-    nb = _enable_inline_plots(nb)
 
     # Execute the notebook from the script's own directory
     cwd = str(script_path.parent)

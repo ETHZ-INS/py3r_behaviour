@@ -616,7 +616,7 @@ if TEST_MODE:
 # %%
 summary_df = sc.to_df(include_tags=True)
 summary_df.to_csv(f"{OUT_DIR}/OFT_results.csv")
-print(summary_df)
+summary_df.head()
 
 # %%
 # norender
