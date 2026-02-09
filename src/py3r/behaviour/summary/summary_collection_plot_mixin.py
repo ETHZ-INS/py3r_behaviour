@@ -1,0 +1,1100 @@
+"""Seaborn plotting wrappers for SummaryCollection.
+
+This mixin is mixed into :class:`SummaryCollection` and provides all
+``sns*`` categorical-plot helpers plus the shared infrastructure they rely on
+(data tidying, figure sizing, palette construction, pre/post plot hooks).
+"""
+
+from __future__ import annotations
+
+import pandas as pd
+
+
+class SummaryCollectionPlotMixin:
+    """Mixin supplying seaborn plotting methods to SummaryCollection."""
+
+    # -------------------------------------------------------------------------
+    # Static helpers — group labelling, sorting, palettes
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _gkey_to_label(gkey):
+        """Format a group key tuple as a clean string label."""
+        if isinstance(gkey, tuple):
+            if len(gkey) == 1:
+                return str(gkey[0])
+            return ", ".join(str(x) for x in gkey)
+        return str(gkey)
+
+    @staticmethod
+    def _rank_tuple(parts, tags, group_order):
+        """Build a sort-key tuple from *parts* using *group_order* for *tags*.
+
+        For each position, if the tag appears in *group_order*, the rank is the
+        index within that list (unlisted values sort last).  Otherwise falls
+        back to numeric-aware ordering.
+        """
+        ranks = []
+        for i, tag in enumerate(tags):
+            val = parts[i] if i < len(parts) else ""
+            if tag in group_order:
+                try:
+                    ranks.append(group_order[tag].index(val))
+                except ValueError:
+                    ranks.append(len(group_order[tag]))
+            else:
+                try:
+                    ranks.append((0, float(val)))
+                except (ValueError, TypeError):
+                    ranks.append((1, str(val)))
+        return ranks
+
+    @staticmethod
+    def _sort_group_labels(label_to_tuple, group_order=None, groupby_tags=None):
+        """
+        Return group labels sorted according to *group_order*.
+
+        Parameters
+        ----------
+        label_to_tuple : dict[str, tuple]
+            Mapping of display label → raw group-key tuple.
+        group_order : dict[str, list] | None
+            ``{tag_name: [val, ...]}`` giving the desired order per tag.
+            Tags not present fall back to :meth:`_smart_sort_labels`.
+        groupby_tags : list[str] | None
+            Tag names corresponding to tuple positions (from ``groupby(tags=...)``).
+
+        Returns
+        -------
+        list[str]
+            Group labels in the desired order.
+        """
+        if not group_order or not groupby_tags:
+            return SummaryCollectionPlotMixin._smart_sort_labels(label_to_tuple.keys())
+
+        def _key(label):
+            return SummaryCollectionPlotMixin._rank_tuple(
+                label_to_tuple[label], groupby_tags, group_order
+            )
+
+        return sorted(label_to_tuple.keys(), key=_key)
+
+    @staticmethod
+    def _build_group_palette(label_to_tuple, group_order=None, groupby_tags=None):
+        """
+        Build a colour palette from group labels mapped to their raw tuples.
+
+        For multi-tag groups the first n-1 tuple elements choose a base colour
+        (from ``tab10``) and the last element creates a light-to-dark gradient
+        within that base.  Single-tag groups return ``None`` (seaborn default).
+
+        When *group_order* and *groupby_tags* are provided, the ordering of
+        base-colour groups (first n-1 tags) and shade values (last tag) respects
+        the user-specified order.
+        """
+        import colorsys
+
+        import matplotlib.pyplot as plt
+
+        max_depth = max(len(t) for t in label_to_tuple.values())
+        if max_depth <= 1:
+            return None
+
+        # Resolve base-group ordering (first n-1 tags)
+        raw_bases = list(set(t[:-1] for t in label_to_tuple.values()))
+        if group_order and groupby_tags and len(groupby_tags) > 1:
+            base_tags = groupby_tags[:-1]
+            base_groups = sorted(
+                raw_bases,
+                key=lambda bg: SummaryCollectionPlotMixin._rank_tuple(bg, base_tags, group_order),
+            )
+        else:
+            base_groups = sorted(raw_bases)
+
+        base_colors = plt.cm.tab10.colors
+        base_map = {bg: base_colors[i % len(base_colors)] for i, bg in enumerate(base_groups)}
+
+        # Resolve shade ordering (last tag)
+        raw_shades = set(t[-1] for t in label_to_tuple.values())
+        last_tag = groupby_tags[-1] if groupby_tags else None
+        if group_order and last_tag and last_tag in group_order:
+            specified = group_order[last_tag]
+            shade_values = [v for v in specified if v in raw_shades]
+            # Append any values not in the specified order
+            shade_values += SummaryCollectionPlotMixin._smart_sort_labels(
+                raw_shades - set(shade_values)
+            )
+        else:
+            shade_values = SummaryCollectionPlotMixin._smart_sort_labels(raw_shades)
+        n_shades = len(shade_values)
+
+        palette = {}
+        for label, parts in label_to_tuple.items():
+            base_rgb = base_map[parts[:-1]]
+            shade_idx = shade_values.index(parts[-1])
+
+            # Blend from light (towards white) to full colour
+            if n_shades > 1:
+                t = 0.35 + (shade_idx / (n_shades - 1)) * 0.65
+            else:
+                t = 0.8
+
+            # Adjust saturation via HLS so hue stays stable
+            h, _l, s = colorsys.rgb_to_hls(*base_rgb[:3])
+            lightness = 0.85 - t * 0.45  # range ~0.85 (light) → ~0.40 (dark)
+            r, g, b = colorsys.hls_to_rgb(h, lightness, s)
+            palette[label] = (r, g, b)
+
+        return palette
+
+    # -------------------------------------------------------------------------
+    # Data tidying
+    # -------------------------------------------------------------------------
+
+    def _metric_to_tidy(
+        self, metric, group_order=None
+    ) -> tuple[pd.DataFrame, str, dict | None, list | None]:
+        """
+        Convert a metric (string key or BatchResult) to a tidy (long-form) DataFrame.
+
+        Parameters
+        ----------
+        metric : str or BatchResult
+            Metric to convert.
+        group_order : dict[str, list] | None
+            ``{tag_name: [value, ...]}`` controlling group display order.
+
+        Returns
+        -------
+        tuple[pd.DataFrame, str, dict | None, list | None, str | None]
+            - DataFrame with columns: _handle, _group (if grouped), component, value
+            - metric_name string for labeling
+            - palette dict (label → RGB) or None
+            - sorted group labels list or None
+            - ylabel string (from SummaryResult) or None
+        """
+        from py3r.behaviour.util.collection_utils import BatchResult
+
+        flat_self = self.flatten()
+        is_grouped = getattr(self, "is_grouped", False)
+
+        # Extract data based on metric type
+        metric_name = None
+        auto_ylabel = None
+        if isinstance(metric, str):
+            metric_name = metric
+            if is_grouped:
+                data_map = {}
+                for gkey, subcoll in self.items():
+                    data_map[gkey] = {}
+                    for handle, summary in subcoll.items():
+                        if metric not in summary.data:
+                            raise KeyError(f"Metric '{metric}' not found in Summary '{handle}'")
+                        data_map[gkey][handle] = summary.data[metric]
+                        if auto_ylabel is None:
+                            stored_meta = summary.meta.get(metric)
+                            if isinstance(stored_meta, dict):
+                                auto_ylabel = stored_meta.get("_ylabel")
+            else:
+                data_map = {}
+                for handle, summary in flat_self.items():
+                    if metric not in summary.data:
+                        raise KeyError(f"Metric '{metric}' not found in Summary '{handle}'")
+                    data_map[handle] = summary.data[metric]
+                    if auto_ylabel is None:
+                        stored_meta = summary.meta.get(metric)
+                        if isinstance(stored_meta, dict):
+                            auto_ylabel = stored_meta.get("_ylabel")
+
+        elif isinstance(metric, (dict, BatchResult)):
+            raw = dict(metric) if isinstance(metric, BatchResult) else metric
+            first_val = next(iter(raw.values()))
+            if isinstance(first_val, dict):
+                # Grouped structure: {group: {handle: SummaryResult}}
+                is_grouped = True
+                data_map = {}
+                for gkey, subdict in raw.items():
+                    data_map[gkey] = {}
+                    for handle, sr in subdict.items():
+                        val = sr.value if hasattr(sr, "value") else sr
+                        data_map[gkey][handle] = val
+                        if metric_name is None and hasattr(sr, "_func_name"):
+                            metric_name = sr._func_name
+                        if auto_ylabel is None and hasattr(sr, "_ylabel"):
+                            auto_ylabel = sr._ylabel
+            else:
+                # Flat structure: {handle: SummaryResult}
+                data_map = {}
+                for handle, sr in raw.items():
+                    val = sr.value if hasattr(sr, "value") else sr
+                    data_map[handle] = val
+                    if metric_name is None and hasattr(sr, "_func_name"):
+                        metric_name = sr._func_name
+                    if auto_ylabel is None and hasattr(sr, "_ylabel"):
+                        auto_ylabel = sr._ylabel
+        else:
+            raise TypeError(f"metric must be str or BatchResult/dict, got {type(metric).__name__}")
+
+        if metric_name is None:
+            metric_name = "value"
+
+        # Build tidy DataFrame: one row per (handle, component) pair
+        # For grouped data, also track raw tuples for palette construction.
+        rows = []
+        label_to_tuple = {}  # {label_str: raw_tuple}
+        if is_grouped:
+            for gkey, subdict in data_map.items():
+                gkey_tuple = gkey if isinstance(gkey, tuple) else (gkey,)
+                gkey_str = self._gkey_to_label(gkey)
+                label_to_tuple[gkey_str] = gkey_tuple
+                for handle, val in subdict.items():
+                    if isinstance(val, pd.Series):
+                        for comp, v in val.items():
+                            rows.append(
+                                {
+                                    "_handle": handle,
+                                    "_group": gkey_str,
+                                    "component": str(comp),
+                                    "value": v,
+                                }
+                            )
+                    else:
+                        rows.append(
+                            {
+                                "_handle": handle,
+                                "_group": gkey_str,
+                                "component": metric_name,
+                                "value": float(val),
+                            }
+                        )
+        else:
+            for handle, val in data_map.items():
+                if isinstance(val, pd.Series):
+                    for comp, v in val.items():
+                        rows.append({"_handle": handle, "component": str(comp), "value": v})
+                else:
+                    rows.append(
+                        {
+                            "_handle": handle,
+                            "component": metric_name,
+                            "value": float(val),
+                        }
+                    )
+
+        df = pd.DataFrame(rows)
+        if len(df) == 0:
+            raise ValueError("No data to plot.")
+
+        # Build palette and sorted group labels from group structure
+        groupby_tags = getattr(self, "_groupby_tags", None)
+        if label_to_tuple:
+            palette = self._build_group_palette(label_to_tuple, group_order, groupby_tags)
+            sorted_groups = self._sort_group_labels(label_to_tuple, group_order, groupby_tags)
+        else:
+            palette = None
+            sorted_groups = None
+
+        return df, metric_name, palette, sorted_groups, auto_ylabel
+
+    # -------------------------------------------------------------------------
+    # Figure sizing
+    # -------------------------------------------------------------------------
+
+    # Default sizing constants for seaborn wrappers
+    _SNS_HEIGHT = 4.0  # fixed vertical size (inches)
+    _SNS_MIN_WIDTH = 2.0  # minimum figure width (inches)
+    _SNS_BASE_PER_TICK = 0.35  # base horizontal inches per x-tick
+    _SNS_EXTRA_PER_GROUP = 0.15  # additional inches per dodged sub-bar
+
+    @staticmethod
+    def _auto_figsize(n_components: int, n_groups: int = 1, figsize=None) -> tuple[float, float]:
+        """Compute default figure size.
+
+        Width per tick position scales with the number of sub-bars that
+        need to fit (i.e. *n_groups* when dodge is active).  This keeps
+        bars compact when ungrouped and gives enough room when several
+        groups are dodged within each component.
+        """
+        if figsize is not None:
+            return figsize
+        n_ticks = n_groups if n_components == 1 else n_components
+        # How many sub-bars per tick? 1 when ungrouped or single-component-grouped.
+        bars_per_tick = n_groups if n_components > 1 else 1
+        width_per_tick = (
+            SummaryCollectionPlotMixin._SNS_BASE_PER_TICK
+            + bars_per_tick * SummaryCollectionPlotMixin._SNS_EXTRA_PER_GROUP
+        )
+        width = max(SummaryCollectionPlotMixin._SNS_MIN_WIDTH, n_ticks * width_per_tick)
+        return (width, SummaryCollectionPlotMixin._SNS_HEIGHT)
+
+    # -------------------------------------------------------------------------
+    # Misc static helpers
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _smart_sort_labels(labels):
+        """Sort labels numerically when possible, otherwise alphabetically."""
+
+        def _sort_key(label):
+            try:
+                return (0, float(label))
+            except (ValueError, TypeError):
+                return (1, str(label))
+
+        return sorted(labels, key=_sort_key)
+
+    @staticmethod
+    def _prettify_metric_name(metric_name):
+        """Convert a snake_case metric key into a human-readable title.
+
+        ``"total_distance_bodycentre"`` → ``"Total Distance Bodycentre"``
+        """
+        return metric_name.replace("_", " ").strip().title()
+
+    @staticmethod
+    def _slugify_metric_name(metric_name):
+        """Convert a metric name into a safe filename slug.
+
+        Replaces spaces and special characters with underscores and
+        strips leading/trailing underscores.
+        """
+        import re
+
+        slug = re.sub(r"[^a-zA-Z0-9]+", "_", metric_name)
+        return slug.strip("_").lower()
+
+    # -------------------------------------------------------------------------
+    # Seaborn kwargs builder
+    # -------------------------------------------------------------------------
+
+    @staticmethod
+    def _build_sns_kwargs(df, ax, palette=None, sorted_groups=None):
+        """
+        Build core seaborn plot kwargs based on data shape.
+
+        - **Ungrouped**: ``x=component``, no hue.
+        - **Grouped, single component** (scalar metric): ``x=_group``,
+          ``hue=_group`` for colouring.  Legend is hidden (info in tick labels).
+        - **Grouped, multi-component**: ``x=component``, ``hue=_group``,
+          ``dodge=True``.  Seaborn packs groups tightly within each component
+          position with natural gaps between components.
+
+        Returns
+        -------
+        tuple[dict, bool]
+            (plot_kwargs, hide_legend)
+        """
+        is_grouped = "_group" in df.columns
+        n_components = df["component"].nunique()
+
+        if not is_grouped:
+            components = SummaryCollectionPlotMixin._smart_sort_labels(df["component"].unique())
+            return {
+                "data": df,
+                "x": "component",
+                "y": "value",
+                "hue": "component",
+                "dodge": False,
+                "order": components,
+                "hue_order": components,
+                "ax": ax,
+            }, True
+
+        groups = sorted_groups if sorted_groups is not None else sorted(df["_group"].unique())
+
+        if n_components == 1:
+            # Scalar grouped: groups as tick labels, hue for colouring only
+            kwargs = {
+                "data": df,
+                "x": "_group",
+                "y": "value",
+                "hue": "_group",
+                "dodge": False,
+                "order": groups,
+                "hue_order": groups,
+                "ax": ax,
+            }
+            if palette:
+                kwargs["palette"] = palette
+            return kwargs, True  # legend redundant (info in tick labels)
+
+        # Multi-component grouped: seaborn dodge handles spacing natively
+        components = SummaryCollectionPlotMixin._smart_sort_labels(df["component"].unique())
+        kwargs = {
+            "data": df,
+            "x": "component",
+            "y": "value",
+            "hue": "_group",
+            "dodge": True,
+            "order": components,
+            "hue_order": groups,
+            "ax": ax,
+        }
+        if palette:
+            kwargs["palette"] = palette
+        return kwargs, False
+
+    # ------------------------------------------------------------------
+    # Shared pre/post helpers for seaborn wrappers
+    # ------------------------------------------------------------------
+
+    def _sns_pre_plot(self, metric, *, group_order=None, ax=None, figsize=None):
+        """Prepare data, figure, and seaborn kwargs for a categorical plot.
+
+        Returns
+        -------
+        fig, ax, df, metric_name, plot_kwargs, hide_legend,
+        n_components, n_groups, auto_ylabel, filename_prefix
+        """
+        import matplotlib.pyplot as plt
+
+        df, metric_name, palette, sorted_groups, auto_ylabel = self._metric_to_tidy(
+            metric, group_order
+        )
+        is_grouped = "_group" in df.columns
+        n_components = df["component"].nunique()
+        n_groups = df["_group"].nunique() if is_grouped else 1
+
+        if ax is None:
+            figsize = self._auto_figsize(n_components, n_groups, figsize)
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            fig = ax.figure
+
+        plot_kwargs, hide_legend = self._build_sns_kwargs(df, ax, palette, sorted_groups)
+
+        # For single-item collections, prefix auto-filename with the handle
+        unique_handles = df["_handle"].unique()
+        filename_prefix = (
+            self._slugify_metric_name(unique_handles[0]) if len(unique_handles) == 1 else None
+        )
+
+        return (
+            fig,
+            ax,
+            df,
+            metric_name,
+            plot_kwargs,
+            hide_legend,
+            n_components,
+            n_groups,
+            auto_ylabel,
+            filename_prefix,
+        )
+
+    @staticmethod
+    def _sns_post_plot(
+        fig,
+        ax,
+        *,
+        metric_name,
+        title=None,
+        ylabel="Value",
+        n_components=1,
+        n_groups=1,
+        hide_legend=True,
+        legend_n_entries=None,
+        savedir=None,
+        filename=None,
+        filename_prefix=None,
+        default_suffix="plot",
+        show=True,
+    ):
+        """Apply styling, manage legend, save/show figure.
+
+        Parameters
+        ----------
+        legend_n_entries : int | None
+            When not None, deduplicate a multi-layer legend by keeping only
+            the first *legend_n_entries* handles (used by superplot).
+        filename_prefix : str | None
+            Optional prefix for the auto-generated filename (e.g. a handle).
+        """
+        import os
+
+        import matplotlib.pyplot as plt
+
+        ax.set_xlabel("")
+        ax.set_ylabel(ylabel)
+        pretty_title = title or SummaryCollectionPlotMixin._prettify_metric_name(metric_name)
+        ax.set_title(pretty_title)
+
+        # Rotate x-tick labels if many ticks
+        n_ticks = n_groups if n_components == 1 else n_components
+        if n_ticks > 3:
+            ax.tick_params(axis="x", rotation=45)
+            for label in ax.get_xticklabels():
+                label.set_ha("right")
+
+        # Legend: hide when redundant, otherwise place outside plot
+        legend = ax.get_legend()
+        if legend is not None:
+            if hide_legend:
+                legend.remove()
+            elif legend_n_entries is not None:
+                handles, labels = ax.get_legend_handles_labels()
+                ax.legend(
+                    handles[:legend_n_entries],
+                    labels[:legend_n_entries],
+                    title="Group",
+                    bbox_to_anchor=(1.02, 1),
+                    loc="upper left",
+                )
+            else:
+                legend.set_bbox_to_anchor((1.02, 1))
+                legend.set_loc("upper left")
+
+        plt.tight_layout()
+
+        if savedir:
+            os.makedirs(savedir, exist_ok=True)
+            if filename is None:
+                slug = SummaryCollectionPlotMixin._slugify_metric_name(metric_name)
+                parts = [filename_prefix, slug, default_suffix]
+                fname = "_".join(p for p in parts if p) + ".png"
+            else:
+                fname = filename
+            fig.savefig(os.path.join(savedir, fname), dpi=150, bbox_inches="tight")
+
+        if show:
+            plt.show()
+
+    # ------------------------------------------------------------------
+    # Main single-function wrapper
+    # ------------------------------------------------------------------
+
+    def _sns_plot_common(
+        self,
+        plot_func,
+        metric,
+        *,
+        group_order: dict | None = None,
+        ax=None,
+        show: bool = True,
+        savedir: str | None = None,
+        filename: str | None = None,
+        title: str | None = None,
+        ylabel: str | None = None,
+        **kwargs,
+    ):
+        """
+        Common wrapper logic for seaborn categorical plots.
+
+        Parameters
+        ----------
+        plot_func : callable
+            The seaborn plotting function (e.g., sns.stripplot).
+        metric : str or BatchResult
+            Metric to plot.
+        group_order : dict[str, list] | None
+            Control group display order. Keys are tag names (matching those
+            passed to ``groupby(tags=...)``), values are lists of tag values
+            in the desired order.  Example::
+
+                group_order={"treatment": ["control", "FST"],
+                             "timepoint": ["45m", "1d"]}
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. If None, creates new figure.
+        show : bool
+            Display the plot.
+        savedir : str | None
+            Directory to save figure.
+        filename : str | None
+            Custom filename.
+        title : str | None
+            Plot title.
+        ylabel : str | None
+            Y-axis label. When *None*, uses the unit label from the
+            ``SummaryResult`` (e.g. ``"Time (s)"``), falling back to
+            ``"Value"`` if unavailable.
+        **kwargs
+            Passed to the seaborn plot function.
+
+        Returns
+        -------
+        tuple[Figure, Axes, DataFrame]
+        """
+        (
+            fig,
+            ax,
+            df,
+            metric_name,
+            plot_kwargs,
+            hide_legend,
+            n_comp,
+            n_groups,
+            auto_ylabel,
+            fname_prefix,
+        ) = self._sns_pre_plot(
+            metric,
+            group_order=group_order,
+            ax=ax,
+            figsize=kwargs.pop("figsize", None),
+        )
+        plot_kwargs.update(kwargs)
+        plot_func(**plot_kwargs)
+
+        self._sns_post_plot(
+            fig,
+            ax,
+            metric_name=metric_name,
+            title=title,
+            ylabel=ylabel or auto_ylabel or "Value",
+            filename_prefix=fname_prefix,
+            n_components=n_comp,
+            n_groups=n_groups,
+            hide_legend=hide_legend,
+            savedir=savedir,
+            filename=filename,
+            default_suffix=plot_func.__name__,
+            show=show,
+        )
+        return fig, ax, df
+
+    # ------------------------------------------------------------------
+    # Public seaborn wrappers
+    # ------------------------------------------------------------------
+
+    def snsstrip(
+        self,
+        metric,
+        *,
+        group_order: dict | None = None,
+        ax=None,
+        show: bool = True,
+        savedir: str | None = None,
+        filename: str | None = None,
+        title: str | None = None,
+        **kwargs,
+    ):
+        """
+        Strip plot (jittered scatter) using seaborn.
+
+        Parameters
+        ----------
+        metric : str or BatchResult
+            Either a key from Summary.data, or a BatchResult from a batch method.
+        group_order : dict[str, list] | None
+            Control group display order.  See :meth:`_sns_plot_common`.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. If None, creates new figure.
+        show : bool
+            Display the plot. Default True.
+        savedir : str | None
+            Directory to save figure.
+        filename : str | None
+            Custom filename.
+        title : str | None
+            Plot title.
+        **kwargs
+            Passed to seaborn.stripplot (e.g., jitter, alpha, size, palette).
+
+        Returns
+        -------
+        tuple[Figure, Axes, DataFrame]
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> for f in fc.values():
+        ...     f.store(pd.Series([True, False] * 15, index=f.tracking.data.index[:30]),
+        ...             'active', meta={})
+        >>> sc = SummaryCollection.from_features_collection(fc)
+        >>> fig, ax, df = sc.snsstrip(sc.time_in_state('active'), show=False)
+        >>> isinstance(df, pd.DataFrame)
+        True
+
+        ```
+        """
+        import seaborn as sns
+
+        defaults = {"alpha": 0.7, "jitter": True, "size": 5}
+        for k, v in defaults.items():
+            kwargs.setdefault(k, v)
+
+        return self._sns_plot_common(
+            sns.stripplot,
+            metric,
+            group_order=group_order,
+            ax=ax,
+            show=show,
+            savedir=savedir,
+            filename=filename,
+            title=title,
+            **kwargs,
+        )
+
+    def snsswarm(
+        self,
+        metric,
+        *,
+        group_order: dict | None = None,
+        ax=None,
+        show: bool = True,
+        savedir: str | None = None,
+        filename: str | None = None,
+        title: str | None = None,
+        **kwargs,
+    ):
+        """
+        Swarm plot (non-overlapping scatter) using seaborn.
+
+        Parameters
+        ----------
+        metric : str or BatchResult
+            Either a key from Summary.data, or a BatchResult from a batch method.
+        group_order : dict[str, list] | None
+            Control group display order.  See :meth:`_sns_plot_common`.
+        ax, show, savedir, filename, title
+            Save/display options.
+        **kwargs
+            Passed to seaborn.swarmplot (e.g., size, palette).
+
+        Returns
+        -------
+        tuple[Figure, Axes, DataFrame]
+        """
+        import seaborn as sns
+
+        defaults = {"size": 5}
+        for k, v in defaults.items():
+            kwargs.setdefault(k, v)
+
+        return self._sns_plot_common(
+            sns.swarmplot,
+            metric,
+            group_order=group_order,
+            ax=ax,
+            show=show,
+            savedir=savedir,
+            filename=filename,
+            title=title,
+            **kwargs,
+        )
+
+    def snsbar(
+        self,
+        metric,
+        *,
+        group_order: dict | None = None,
+        ax=None,
+        show: bool = True,
+        savedir: str | None = None,
+        filename: str | None = None,
+        title: str | None = None,
+        **kwargs,
+    ):
+        """
+        Bar plot with error bars using seaborn.
+
+        Parameters
+        ----------
+        metric : str or BatchResult
+            Either a key from Summary.data, or a BatchResult from a batch method.
+        group_order : dict[str, list] | None
+            Control group display order.  See :meth:`_sns_plot_common`.
+        ax, show, savedir, filename, title
+            Save/display options.
+        **kwargs
+            Passed to seaborn.barplot (e.g., errorbar, palette, saturation).
+
+        Returns
+        -------
+        tuple[Figure, Axes, DataFrame]
+        """
+        import seaborn as sns
+
+        defaults = {"errorbar": "se", "capsize": 0.1}
+        for k, v in defaults.items():
+            kwargs.setdefault(k, v)
+
+        return self._sns_plot_common(
+            sns.barplot,
+            metric,
+            group_order=group_order,
+            ax=ax,
+            show=show,
+            savedir=savedir,
+            filename=filename,
+            title=title,
+            **kwargs,
+        )
+
+    def snsbox(
+        self,
+        metric,
+        *,
+        group_order: dict | None = None,
+        ax=None,
+        show: bool = True,
+        savedir: str | None = None,
+        filename: str | None = None,
+        title: str | None = None,
+        **kwargs,
+    ):
+        """
+        Box plot using seaborn.
+
+        Parameters
+        ----------
+        metric : str or BatchResult
+            Either a key from Summary.data, or a BatchResult from a batch method.
+        group_order : dict[str, list] | None
+            Control group display order.  See :meth:`_sns_plot_common`.
+        ax, show, savedir, filename, title
+            Save/display options.
+        **kwargs
+            Passed to seaborn.boxplot (e.g., width, palette, fliersize).
+
+        Returns
+        -------
+        tuple[Figure, Axes, DataFrame]
+        """
+        import seaborn as sns
+
+        return self._sns_plot_common(
+            sns.boxplot,
+            metric,
+            group_order=group_order,
+            ax=ax,
+            show=show,
+            savedir=savedir,
+            filename=filename,
+            title=title,
+            **kwargs,
+        )
+
+    def snsviolin(
+        self,
+        metric,
+        *,
+        group_order: dict | None = None,
+        ax=None,
+        show: bool = True,
+        savedir: str | None = None,
+        filename: str | None = None,
+        title: str | None = None,
+        **kwargs,
+    ):
+        """
+        Violin plot using seaborn.
+
+        Parameters
+        ----------
+        metric : str or BatchResult
+            Either a key from Summary.data, or a BatchResult from a batch method.
+        group_order : dict[str, list] | None
+            Control group display order.  See :meth:`_sns_plot_common`.
+        ax, show, savedir, filename, title
+            Save/display options.
+        **kwargs
+            Passed to seaborn.violinplot (e.g., inner, split, palette).
+
+        Returns
+        -------
+        tuple[Figure, Axes, DataFrame]
+        """
+        import seaborn as sns
+
+        defaults = {"inner": "box"}
+        for k, v in defaults.items():
+            kwargs.setdefault(k, v)
+
+        return self._sns_plot_common(
+            sns.violinplot,
+            metric,
+            group_order=group_order,
+            ax=ax,
+            show=show,
+            savedir=savedir,
+            filename=filename,
+            title=title,
+            **kwargs,
+        )
+
+    def snspoint(
+        self,
+        metric,
+        *,
+        group_order: dict | None = None,
+        ax=None,
+        show: bool = True,
+        savedir: str | None = None,
+        filename: str | None = None,
+        title: str | None = None,
+        **kwargs,
+    ):
+        """
+        Point plot (mean + CI) using seaborn.
+
+        Parameters
+        ----------
+        metric : str or BatchResult
+            Either a key from Summary.data, or a BatchResult from a batch method.
+        group_order : dict[str, list] | None
+            Control group display order.  See :meth:`_sns_plot_common`.
+        ax, show, savedir, filename, title
+            Save/display options.
+        **kwargs
+            Passed to seaborn.pointplot (e.g., errorbar, markers, linestyles).
+
+        Returns
+        -------
+        tuple[Figure, Axes, DataFrame]
+        """
+        import seaborn as sns
+
+        defaults = {"errorbar": "se", "capsize": 0.1, "join": False}
+        for k, v in defaults.items():
+            kwargs.setdefault(k, v)
+
+        return self._sns_plot_common(
+            sns.pointplot,
+            metric,
+            group_order=group_order,
+            ax=ax,
+            show=show,
+            savedir=savedir,
+            filename=filename,
+            title=title,
+            **kwargs,
+        )
+
+    def snssuperplot(
+        self,
+        metric,
+        *,
+        group_order: dict | None = None,
+        ax=None,
+        show: bool = True,
+        savedir: str | None = None,
+        filename: str | None = None,
+        title: str | None = None,
+        ylabel: str | None = None,
+        bar_kwargs: dict | None = None,
+        strip_kwargs: dict | None = None,
+        **kwargs,
+    ):
+        """
+        Superplot: bar plot (mean) with strip plot (individual dots) overlay.
+
+        This is the "publication-ready" visualization showing mean bars with
+        individual data points scattered on top, commonly used in scientific
+        papers.  The dots are constrained within the bar width by default.
+
+        Parameters
+        ----------
+        metric : str or BatchResult
+            Either a key from Summary.data, or a BatchResult from a batch method.
+        group_order : dict[str, list] | None
+            Control group display order.  See :meth:`_sns_plot_common`.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on. If None, creates new figure.
+        show : bool
+            Display the plot. Default True.
+        savedir : str | None
+            Directory to save figure.
+        filename : str | None
+            Custom filename.
+        title : str | None
+            Plot title.
+        ylabel : str | None
+            Y-axis label. Auto-detected from metric when *None*.
+        bar_kwargs : dict | None
+            Extra kwargs for barplot (e.g., errorbar, capsize, saturation).
+        strip_kwargs : dict | None
+            Extra kwargs for stripplot (e.g., alpha, size, jitter).
+        **kwargs
+            Common kwargs passed to both plots (e.g., palette, dodge).
+
+        Returns
+        -------
+        tuple[Figure, Axes, DataFrame]
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> for f in fc.values():
+        ...     states = pd.Series(['A', 'B', 'A'] * (len(f.tracking.data)//3 + 1),
+        ...                        index=f.tracking.data.index)[:len(f.tracking.data)]
+        ...     f.store(states, 'zone', meta={})
+        >>> sc = SummaryCollection.from_features_collection(fc)
+        >>> fig, ax, df = sc.snssuperplot(sc.time_in_state('zone'), show=False)
+        >>> isinstance(df, pd.DataFrame)
+        True
+
+        ```
+        """
+        import seaborn as sns
+
+        (
+            fig,
+            ax,
+            df,
+            metric_name,
+            common,
+            hide_legend,
+            n_comp,
+            n_groups,
+            auto_ylabel,
+            fname_prefix,
+        ) = self._sns_pre_plot(
+            metric,
+            group_order=group_order,
+            ax=ax,
+            figsize=kwargs.pop("figsize", None),
+        )
+
+        # Bar plot (mean + error bars) — base layer
+        bar_defaults = {"errorbar": None, "capsize": 0.1, "alpha": 0.7, "zorder": 1}
+        bar_kw = {**common, **bar_defaults, **(bar_kwargs or {}), **kwargs}
+        sns.barplot(**bar_kw, legend=False)
+
+        # Strip plot (individual dots) — overlay
+        strip_defaults = {"alpha": 0.8, "jitter": True, "size": 4, "zorder": 2}
+        strip_kw = {**common, **strip_defaults, **(strip_kwargs or {}), **kwargs}
+        sns.stripplot(**strip_kw)
+
+        self._sns_post_plot(
+            fig,
+            ax,
+            metric_name=metric_name,
+            title=title,
+            ylabel=ylabel or auto_ylabel or "Value",
+            filename_prefix=fname_prefix,
+            n_components=n_comp,
+            n_groups=n_groups,
+            hide_legend=hide_legend,
+            legend_n_entries=n_groups,
+            savedir=savedir,
+            filename=filename,
+            default_suffix="superplot",
+            show=show,
+        )
+        return fig, ax, df
