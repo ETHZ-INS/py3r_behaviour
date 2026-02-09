@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 """Render pipeline scripts as executed HTML notebooks.
 
-Usage:
-    python tests/render_notebooks.py                    # render all
-    python tests/render_notebooks.py oft_pipeline       # render one
-    python tests/render_notebooks.py --list             # show available
+Usage (from repo root):
+    python tools/render_notebooks.py                    # render all
+    python tools/render_notebooks.py oft_pipeline       # render one
+    python tools/render_notebooks.py --list             # show available
 
-Reads each ``# %%``-style script via jupytext, strips ``if TEST_MODE`` cells,
-executes the notebook in-process, and writes an HTML file that looks like a
-Jupyter notebook with inline plots and outputs.
+Reads each ``# %%``-style script via jupytext, strips cells marked with
+``# norender``, executes the notebook, and writes an HTML file that looks
+like a Jupyter notebook with inline plots and outputs.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from nbclient import NotebookClient
 from nbconvert import HTMLExporter
 
 # ---------------------------------------------------------------------------
-# Registry of pipeline scripts
+# Registry of pipeline scripts (paths relative to repo root)
 # ---------------------------------------------------------------------------
 PIPELINES: dict[str, Path] = {
     "oft_pipeline": Path("tests/oft_pipeline/oft_pipeline.py"),
@@ -38,21 +38,23 @@ PIPELINES: dict[str, Path] = {
 # ---------------------------------------------------------------------------
 
 
-def _is_test_cell(cell: nbformat.NotebookNode) -> bool:
-    """Return True if this cell is a TEST_MODE guard or pure-test block."""
-    if cell.cell_type != "code":
-        return False
-    src = cell.source.strip()
-    # Cells that start with 'if TEST_MODE'
-    if re.match(r"^if\s+TEST_MODE", src):
+def _has_norender_flag(cell: nbformat.NotebookNode) -> bool:
+    """Return True if the cell's source starts with ``# norender``."""
+    src = cell.source.lstrip()
+    # Code cells: first line is literally "# norender"
+    if cell.cell_type == "code" and src.startswith("# norender"):
+        return True
+    # Markdown cells: jupytext strips the leading '# ' so the raw source
+    # begins with "norender"
+    if cell.cell_type in ("markdown", "raw") and src.startswith("norender"):
         return True
     return False
 
 
-def _strip_test_cells(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
-    """Return a copy of *nb* with TEST_MODE cells removed."""
+def _strip_norender_cells(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
+    """Return a copy of *nb* with ``# norender`` cells removed."""
     nb = copy.deepcopy(nb)
-    nb.cells = [c for c in nb.cells if not _is_test_cell(c)]
+    nb.cells = [c for c in nb.cells if not _has_norender_flag(c)]
     return nb
 
 
@@ -66,11 +68,10 @@ def _enable_inline_plots(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
 
 
 def _inject_inline_backend(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
-    """Activate the IPython inline backend so figures render in-cell.
+    """Insert a setup cell that configures matplotlib for inline rendering.
 
     Also suppresses the ``FigureCanvasAgg is non-interactive`` warning that
-    ``plt.show()`` emits when called from library code outside IPython's
-    display integration.
+    ``plt.show()`` emits inside non-interactive kernels.
     """
     nb = copy.deepcopy(nb)
     setup_src = (
@@ -87,15 +88,13 @@ def _inject_inline_backend(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
 
 
 def _tidy_preamble(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
-    """Keep TEST_MODE = True (needed for data paths) and skip heavy viz."""
+    """Ensure SKIP_HEAVY_VIZ = True so heavy deps are skipped in rendering."""
     nb = copy.deepcopy(nb)
     for cell in nb.cells:
         if cell.cell_type != "code":
             continue
         src = cell.source.strip()
-        # Cell that defines TEST_MODE
         if re.search(r"^TEST_MODE\s*=\s*True", src, re.MULTILINE):
-            # Inject SKIP_HEAVY_VIZ = True if the script uses it
             if "SKIP_HEAVY_VIZ" not in src:
                 cell.source += "\nSKIP_HEAVY_VIZ = True\n"
             else:
@@ -106,6 +105,11 @@ def _tidy_preamble(nb: nbformat.NotebookNode) -> nbformat.NotebookNode:
                 )
             break
     return nb
+
+
+# ---------------------------------------------------------------------------
+# Core render function
+# ---------------------------------------------------------------------------
 
 
 def render(name: str, script_path: Path, out_dir: Path | None = None) -> Path:
@@ -138,8 +142,8 @@ def render(name: str, script_path: Path, out_dir: Path | None = None) -> Path:
     print(f"[{name}] Reading {script_path} …")
     nb = jupytext.read(str(script_path))
 
-    # Remove test-only cells, tidy preamble, add inline backend
-    nb = _strip_test_cells(nb)
+    # Transform the notebook for rendering
+    nb = _strip_norender_cells(nb)
     nb = _tidy_preamble(nb)
     nb = _inject_inline_backend(nb)
     nb = _enable_inline_plots(nb)
@@ -173,7 +177,10 @@ def render(name: str, script_path: Path, out_dir: Path | None = None) -> Path:
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "names",
         nargs="*",
@@ -197,7 +204,7 @@ def main():
             print(f"  {k:20s} → {v}")
         return
 
-    # Resolve repo root so relative PIPELINES paths work
+    # Always resolve paths relative to the repo root (parent of tools/)
     repo_root = Path(__file__).resolve().parent.parent
     os.chdir(repo_root)
 

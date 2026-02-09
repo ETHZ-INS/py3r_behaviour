@@ -1,4 +1,5 @@
 # %% [markdown]
+# norender
 # specify whether we're running in test mode or not
 
 # %%
@@ -47,6 +48,7 @@ tc = p3b.TrackingCollection.from_dlc_folder(
 print(tc)
 
 # %%
+# norender
 if TEST_MODE:
     # Expected handles detected from files on disk
     expected_handles = {p.stem for p in Path(DATA_DIR).glob("*.csv")}
@@ -93,6 +95,7 @@ tc.add_tags_from_csv(csv_path=TAGS_CSV)
 print(tc.tags_info())
 
 # %%
+# norender
 if TEST_MODE:
     # Validate tags loaded from CSV are attached to each matching handle
     tags_df = pd.read_csv(TAGS_CSV)
@@ -137,6 +140,7 @@ tc.smooth_all(window=3, method="mean")
 tc.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.64)
 
 # %%
+# norender
 if TEST_MODE:
     # Meta and structural invariants after preprocessing
     for handle, t in tc.items():
@@ -191,6 +195,7 @@ trajectories = ["bodycentre"]
 static = ["tl", "tr", "bl", "br"]
 lines = [("tr", "tl"), ("tl", "bl"), ("bl", "br"), ("br", "tr")]
 
+# save plots for all recordings to OUT_DIR
 tc.plot(
     trajectories=trajectories,
     static=static,
@@ -199,10 +204,11 @@ tc.plot(
     savedir=OUT_DIR,
 )
 
-# single inline display plot for QC:
+# single inline display plot for QC
 tc[0].plot(trajectories=trajectories, static=static, lines=lines, show=True)
 
 # %%
+# norender
 if TEST_MODE:
     # Plots saved by the earlier tc.plot call should exist in OUT_DIR
     has_plot = any(
@@ -219,6 +225,7 @@ if TEST_MODE:
 fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 # %%
+# norender
 # FeaturesCollection creation checks
 if TEST_MODE:
     from py3r.behaviour.features.features import Features
@@ -261,6 +268,7 @@ dist_change_in_center = in_center.astype("Int64") * dist_change
 dist_change_in_center.store(name="dist_change_bodycentre_in_center")
 
 # %%
+# norender
 if TEST_MODE:
     # Check center boundary feature was computed and stored
     stored_cols = [
@@ -345,6 +353,7 @@ fc.distance_to_boundary_static("bodycentre", bdry, boundary_name="oft").store()
 fc.distance_to_boundary_static("tailbase", bdry, boundary_name="oft").store()
 
 # %%
+# norender
 if TEST_MODE:
     # Check that BFA-related features were computed and stored
     # Naming convention: speed_of_{point}_in_xy
@@ -436,6 +445,7 @@ if TEST_MODE:
 fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
 
 # %%
+# norender
 if TEST_MODE:
     features_dir = Path(OUT_DIR) / "features"
     assert features_dir.exists(), f"Features directory not created: {features_dir}"
@@ -483,6 +493,7 @@ cluster_labels, centroids, _ = fc.cluster_embedding(
 cluster_labels.store("kmeans_25", overwrite=True)
 
 # %%
+# norender
 if TEST_MODE:
     # Check clustering results
     assert set(cluster_labels.keys()) == set(fc.keys()), "Cluster labels keys mismatch"
@@ -512,6 +523,7 @@ if TEST_MODE:
 sc = p3b.SummaryCollection.from_features_collection(fc)
 
 # %%
+# norender
 if TEST_MODE:
     from py3r.behaviour.summary.summary import Summary
 
@@ -540,6 +552,7 @@ sc.time_true("within_boundary_static_bodycentre_in_center").store("time_in_cente
 sc.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
 
 # %%
+# norender
 if TEST_MODE:
     summary_stored = [
         "total_distance_bodycentre",
@@ -606,6 +619,7 @@ summary_df.to_csv(f"{OUT_DIR}/OFT_results.csv")
 print(summary_df)
 
 # %%
+# norender
 if TEST_MODE:
     # summary_df structure checks
     assert isinstance(summary_df, pd.DataFrame)
@@ -635,6 +649,7 @@ if TEST_MODE:
 # All plots use auto-generated titles, ylabels, and filenames.
 
 # %%
+# norender
 import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")  # non-interactive backend for test mode
@@ -645,7 +660,7 @@ matplotlib.use("Agg")  # non-interactive backend for test mode
 single_summary = sc[list(sc.keys())[0]]
 fig_single, ax_single, df_single = single_summary.snsbar(
     single_summary.time_in_state("within_boundary_static_bodycentre_in_center"),
-    show=False,
+    show=True,
     savedir=OUT_DIR,
 )
 print(f"Single Summary snsbar: {len(df_single)} rows")
@@ -654,7 +669,7 @@ print(f"Single Summary snsbar: {len(df_single)} rows")
 # Uses a previously stored metric by name. Auto ylabel comes from stored meta.
 fig_strip, ax_strip, df_strip = sc.snsstrip(
     "total_distance_bodycentre",
-    show=False,
+    show=True,
     savedir=OUT_DIR,
 )
 print(f"snsstrip scalar: {len(df_strip)} rows")
@@ -663,12 +678,13 @@ print(f"snsstrip scalar: {len(df_strip)} rows")
 # Passing a SummaryResult directly; auto ylabel from _ylabel attribute.
 fig_super, ax_super, df_super = sc.snssuperplot(
     sc.time_in_state("within_boundary_static_bodycentre_in_center"),
-    show=False,
+    show=True,
     savedir=OUT_DIR,
 )
 print(f"snssuperplot time_in_state: {len(df_super)} rows")
 
 # %%
+# norender
 if TEST_MODE:
     # Tidy DataFrame structure checks (flat)
     for label, df_check in [("single", df_single), ("strip", df_strip), ("super", df_super)]:
@@ -704,7 +720,7 @@ GROUP_ORDER = {"treatment": ["control", "FST"], "timepoint": ["45m", "1d"]}
 fig_gsup, ax_gsup, df_gsup = sc_grouped.snssuperplot(
     "total_distance_bodycentre",
     group_order=GROUP_ORDER,
-    show=False,
+    show=True,
     savedir=str(OUT_DIR),
 )
 print(f"Grouped superplot: {len(df_gsup)} rows, groups: {list(df_gsup['_group'].unique())}")
@@ -714,7 +730,7 @@ print(f"Grouped superplot: {len(df_gsup)} rows, groups: {list(df_gsup['_group'].
 fig_gbar, ax_gbar, df_gbar = sc_grouped.snsbar(
     sc_grouped.time_in_state("kmeans_25"),
     group_order=GROUP_ORDER,
-    show=False,
+    show=True,
     savedir=str(OUT_DIR),
 )
 print(
@@ -724,6 +740,7 @@ print(
 )
 
 # %%
+# norender
 if TEST_MODE:
     # Tidy DataFrame structure checks (grouped)
     for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
@@ -754,14 +771,13 @@ if TEST_MODE:
 # %%
 # Perform behavior flow analysis on clustering results
 bfa_results = sc_grouped.bfa(column="kmeans_25", all_states=np.arange(0, N_CLUSTERS))
-print("BFA Results:")
-print(bfa_results)
 
 # Save BFA results
 with open(f"{OUT_DIR}/bfa_results.json", "w") as f:
     json.dump(bfa_results, f, indent=4)
 
 # %%
+# norender
 if TEST_MODE:
     # Check BFA results structure
     assert isinstance(bfa_results, dict), "BFA results should be a dict"
@@ -783,13 +799,12 @@ if TEST_MODE:
 # %%
 # Compute the statistics and save the results
 bfa_stats = p3b.SummaryCollection.bfa_stats(bfa_results)
-print("BFA Statistics:")
-print(bfa_stats)
 
 with open(f"{OUT_DIR}/bfa_stats.json", "w") as f:
     json.dump(bfa_stats, f, indent=4)
 
 # %%
+# norender
 if TEST_MODE:
     # Check BFA stats structure
     assert isinstance(bfa_stats, dict), "BFA stats should be a dict"
@@ -809,7 +824,7 @@ if not SKIP_HEAVY_VIZ:
         column="kmeans_25",
         all_states=np.arange(0, N_CLUSTERS),
         save_dir=OUT_DIR,
-        show=False,
+        show=True,
         start=-265,
         end=95,
         space=5,
@@ -817,8 +832,8 @@ if not SKIP_HEAVY_VIZ:
         label_kws=dict(r=94, size=12, color="white"),
         link_kws=dict(ec="black", lw=0.5),
     )
-
 # %%
+# norender
 if TEST_MODE and not SKIP_HEAVY_VIZ:
     # Check that chord plots were saved
     chord_plots = list(Path(OUT_DIR).glob("*chord*")) + list(Path(OUT_DIR).glob("*bfa*"))
@@ -843,10 +858,11 @@ p3b.SummaryCollection.plot_bfa_results(
     bins=20,
     figsize=(4, 3),
     save_dir=OUT_DIR,
-    show=False,
+    show=True,
 )
 
 # %%
+# norender
 if TEST_MODE:
     # Check that histogram plots were saved (one per comparison)
     # Files are named after comparisons, e.g., "control_1d_vs_FST_1d.png"
@@ -869,11 +885,12 @@ if not SKIP_HEAVY_VIZ:
         min_dist=0.1,
         random_state=42,
         figsize=(6, 5),
-        show=False,
-        save_dir=OUT_DIR,
+        show=True,
+        save_dir=str(OUT_DIR),
     )
 
 # %%
+# norender
 if TEST_MODE and not SKIP_HEAVY_VIZ:
     # Check that UMAP plot was saved
     umap_path = Path(OUT_DIR) / "transition_umap.png"
@@ -885,6 +902,7 @@ if TEST_MODE and not SKIP_HEAVY_VIZ:
 # final summary
 
 # %%
+# norender
 if TEST_MODE:
     print("\n" + "=" * 60)
     print("ALL OFT PIPELINE TESTS PASSED SUCCESSFULLY!")

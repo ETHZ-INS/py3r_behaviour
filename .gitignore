@@ -11,3 +11,4 @@ output
 development_testing/
 **/_artifacts/
 .ruff_cache/
+**/_rendered/
