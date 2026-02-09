@@ -1270,11 +1270,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         Returns
         -------
-        tuple[pd.DataFrame, str, dict | None, list | None]
+        tuple[pd.DataFrame, str, dict | None, list | None, str | None]
             - DataFrame with columns: _handle, _group (if grouped), component, value
             - metric_name string for labeling
             - palette dict (label → RGB) or None
             - sorted group labels list or None
+            - ylabel string (from SummaryResult) or None
         """
         from py3r.behaviour.util.collection_utils import BatchResult
 
@@ -1283,6 +1284,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         # Extract data based on metric type
         metric_name = None
+        auto_ylabel = None
         if isinstance(metric, str):
             metric_name = metric
             if is_grouped:
@@ -1293,12 +1295,20 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                         if metric not in summary.data:
                             raise KeyError(f"Metric '{metric}' not found in Summary '{handle}'")
                         data_map[gkey][handle] = summary.data[metric]
+                        if auto_ylabel is None:
+                            stored_meta = summary.meta.get(metric)
+                            if isinstance(stored_meta, dict):
+                                auto_ylabel = stored_meta.get("_ylabel")
             else:
                 data_map = {}
                 for handle, summary in flat_self.items():
                     if metric not in summary.data:
                         raise KeyError(f"Metric '{metric}' not found in Summary '{handle}'")
                     data_map[handle] = summary.data[metric]
+                    if auto_ylabel is None:
+                        stored_meta = summary.meta.get(metric)
+                        if isinstance(stored_meta, dict):
+                            auto_ylabel = stored_meta.get("_ylabel")
 
         elif isinstance(metric, (dict, BatchResult)):
             raw = dict(metric) if isinstance(metric, BatchResult) else metric
@@ -1314,6 +1324,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                         data_map[gkey][handle] = val
                         if metric_name is None and hasattr(sr, "_func_name"):
                             metric_name = sr._func_name
+                        if auto_ylabel is None and hasattr(sr, "_ylabel"):
+                            auto_ylabel = sr._ylabel
             else:
                 # Flat structure: {handle: SummaryResult}
                 data_map = {}
@@ -1322,6 +1334,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                     data_map[handle] = val
                     if metric_name is None and hasattr(sr, "_func_name"):
                         metric_name = sr._func_name
+                    if auto_ylabel is None and hasattr(sr, "_ylabel"):
+                        auto_ylabel = sr._ylabel
         else:
             raise TypeError(f"metric must be str or BatchResult/dict, got {type(metric).__name__}")
 
@@ -1384,7 +1398,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             palette = None
             sorted_groups = None
 
-        return df, metric_name, palette, sorted_groups
+        return df, metric_name, palette, sorted_groups, auto_ylabel
 
     # Default sizing constants for seaborn wrappers
     _SNS_HEIGHT = 4.0  # fixed vertical size (inches)
@@ -1521,11 +1535,14 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         Returns
         -------
-        fig, ax, df, metric_name, plot_kwargs, hide_legend, n_components, n_groups
+        fig, ax, df, metric_name, plot_kwargs, hide_legend,
+        n_components, n_groups, auto_ylabel, filename_prefix
         """
         import matplotlib.pyplot as plt
 
-        df, metric_name, palette, sorted_groups = self._metric_to_tidy(metric, group_order)
+        df, metric_name, palette, sorted_groups, auto_ylabel = self._metric_to_tidy(
+            metric, group_order
+        )
         is_grouped = "_group" in df.columns
         n_components = df["component"].nunique()
         n_groups = df["_group"].nunique() if is_grouped else 1
@@ -1537,7 +1554,25 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             fig = ax.figure
 
         plot_kwargs, hide_legend = self._build_sns_kwargs(df, ax, palette, sorted_groups)
-        return fig, ax, df, metric_name, plot_kwargs, hide_legend, n_components, n_groups
+
+        # For single-item collections, prefix auto-filename with the handle
+        unique_handles = df["_handle"].unique()
+        filename_prefix = (
+            self._slugify_metric_name(unique_handles[0]) if len(unique_handles) == 1 else None
+        )
+
+        return (
+            fig,
+            ax,
+            df,
+            metric_name,
+            plot_kwargs,
+            hide_legend,
+            n_components,
+            n_groups,
+            auto_ylabel,
+            filename_prefix,
+        )
 
     @staticmethod
     def _sns_post_plot(
@@ -1553,6 +1588,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         legend_n_entries=None,
         savedir=None,
         filename=None,
+        filename_prefix=None,
         default_suffix="plot",
         show=True,
     ):
@@ -1563,6 +1599,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         legend_n_entries : int | None
             When not None, deduplicate a multi-layer legend by keeping only
             the first *legend_n_entries* handles (used by superplot).
+        filename_prefix : str | None
+            Optional prefix for the auto-generated filename (e.g. a handle).
         """
         import os
 
@@ -1602,8 +1640,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         if savedir:
             os.makedirs(savedir, exist_ok=True)
-            slug = SummaryCollection._slugify_metric_name(metric_name)
-            fname = filename or f"{slug}_{default_suffix}.png"
+            if filename is None:
+                slug = SummaryCollection._slugify_metric_name(metric_name)
+                parts = [filename_prefix, slug, default_suffix]
+                fname = "_".join(p for p in parts if p) + ".png"
+            else:
+                fname = filename
             fig.savefig(os.path.join(savedir, fname), dpi=150, bbox_inches="tight")
 
         if show:
@@ -1624,7 +1666,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         savedir: str | None = None,
         filename: str | None = None,
         title: str | None = None,
-        ylabel: str = "Value",
+        ylabel: str | None = None,
         **kwargs,
     ):
         """
@@ -1653,8 +1695,10 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             Custom filename.
         title : str | None
             Plot title.
-        ylabel : str
-            Y-axis label.
+        ylabel : str | None
+            Y-axis label. When *None*, uses the unit label from the
+            ``SummaryResult`` (e.g. ``"Time (s)"``), falling back to
+            ``"Value"`` if unavailable.
         **kwargs
             Passed to the seaborn plot function.
 
@@ -1662,13 +1706,18 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         -------
         tuple[Figure, Axes, DataFrame]
         """
-        # TODO: auto-populate ylabel with units once feature/summary methods
-        # carry unit metadata (e.g. "Time (s)", "Distance (m)", "Speed (m/s)").
-        # This would require storing a 'units' field in SummaryResult and
-        # propagating it through _metric_to_tidy. See also Tracking.meta
-        # 'distance_units' for existing precedent.
-
-        fig, ax, df, metric_name, plot_kwargs, hide_legend, n_comp, n_groups = self._sns_pre_plot(
+        (
+            fig,
+            ax,
+            df,
+            metric_name,
+            plot_kwargs,
+            hide_legend,
+            n_comp,
+            n_groups,
+            auto_ylabel,
+            fname_prefix,
+        ) = self._sns_pre_plot(
             metric,
             group_order=group_order,
             ax=ax,
@@ -1682,7 +1731,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             ax,
             metric_name=metric_name,
             title=title,
-            ylabel=ylabel,
+            ylabel=ylabel or auto_ylabel or "Value",
+            filename_prefix=fname_prefix,
             n_components=n_comp,
             n_groups=n_groups,
             hide_legend=hide_legend,
@@ -2021,7 +2071,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         savedir: str | None = None,
         filename: str | None = None,
         title: str | None = None,
-        ylabel: str = "Value",
+        ylabel: str | None = None,
         bar_kwargs: dict | None = None,
         strip_kwargs: dict | None = None,
         **kwargs,
@@ -2049,8 +2099,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             Custom filename.
         title : str | None
             Plot title.
-        ylabel : str
-            Y-axis label.
+        ylabel : str | None
+            Y-axis label. Auto-detected from metric when *None*.
         bar_kwargs : dict | None
             Extra kwargs for barplot (e.g., errorbar, capsize, saturation).
         strip_kwargs : dict | None
@@ -2091,7 +2141,18 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         """
         import seaborn as sns
 
-        fig, ax, df, metric_name, common, hide_legend, n_comp, n_groups = self._sns_pre_plot(
+        (
+            fig,
+            ax,
+            df,
+            metric_name,
+            common,
+            hide_legend,
+            n_comp,
+            n_groups,
+            auto_ylabel,
+            fname_prefix,
+        ) = self._sns_pre_plot(
             metric,
             group_order=group_order,
             ax=ax,
@@ -2113,7 +2174,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             ax,
             metric_name=metric_name,
             title=title,
-            ylabel=ylabel,
+            ylabel=ylabel or auto_ylabel or "Value",
+            filename_prefix=fname_prefix,
             n_components=n_comp,
             n_groups=n_groups,
             hide_legend=hide_legend,
