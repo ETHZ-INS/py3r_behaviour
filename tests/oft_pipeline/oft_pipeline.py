@@ -648,19 +648,17 @@ fig, ax, df_tidy = single_summary.snsbar(
 print(f"Single Summary snsbar: {len(df_tidy)} rows, components: {df_tidy['component'].unique()}")
 
 # --- Flat SummaryCollection plots ---
-# Strip plot of a scalar metric across all recordings
+# Strip plot of a scalar metric — auto-title from metric name
 fig, ax, df_tidy = sc.snsstrip(
     "total_distance_bodycentre",
-    title="Total distance (strip)",
     show=True,
     savedir=OUT_DIR,
 )
 print(f"snsstrip scalar: {len(df_tidy)} rows")
 
-# Superplot of time_in_state for the boolean center feature
+# Superplot of time_in_state for the boolean center feature — auto-title
 fig, ax, df_tidy = sc.snssuperplot(
     sc.time_in_state("within_boundary_static_bodycentre_in_center"),
-    title="Time in center states (superplot)",
     show=True,
     savedir=OUT_DIR,
 )

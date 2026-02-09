@@ -1026,7 +1026,9 @@ class Summary:
         Wraps a bare ``SummaryResult`` in the dict format that
         :meth:`SummaryCollection._metric_to_tidy` expects, then delegates.
         """
-        if hasattr(metric, "value") and hasattr(metric, "name"):
+        from py3r.behaviour.summary.summary_result import SummaryResult
+
+        if isinstance(metric, SummaryResult):
             metric = {self.handle: metric}
         return getattr(self._as_collection(), method_name)(metric, **kwargs)
 

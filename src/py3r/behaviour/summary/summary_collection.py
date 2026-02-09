@@ -1312,16 +1312,16 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                     for handle, sr in subdict.items():
                         val = sr.value if hasattr(sr, "value") else sr
                         data_map[gkey][handle] = val
-                        if metric_name is None and hasattr(sr, "name"):
-                            metric_name = sr.name
+                        if metric_name is None and hasattr(sr, "_func_name"):
+                            metric_name = sr._func_name
             else:
                 # Flat structure: {handle: SummaryResult}
                 data_map = {}
                 for handle, sr in raw.items():
                     val = sr.value if hasattr(sr, "value") else sr
                     data_map[handle] = val
-                    if metric_name is None and hasattr(sr, "name"):
-                        metric_name = sr.name
+                    if metric_name is None and hasattr(sr, "_func_name"):
+                        metric_name = sr._func_name
         else:
             raise TypeError(f"metric must be str or BatchResult/dict, got {type(metric).__name__}")
 
@@ -1388,25 +1388,29 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
     # Default sizing constants for seaborn wrappers
     _SNS_HEIGHT = 4.0  # fixed vertical size (inches)
-    _SNS_WIDTH_PER_TICK = 0.65  # horizontal inches per x-axis tick position
-    _SNS_MIN_WIDTH = 3.0  # minimum figure width (inches)
+    _SNS_MIN_WIDTH = 2.0  # minimum figure width (inches)
+    _SNS_BASE_PER_TICK = 0.35  # base horizontal inches per x-tick
+    _SNS_EXTRA_PER_GROUP = 0.15  # additional inches per dodged sub-bar
 
     @staticmethod
     def _auto_figsize(n_components: int, n_groups: int = 1, figsize=None) -> tuple[float, float]:
         """Compute default figure size.
 
-        For single-component grouped data, the ticks are group names so
-        width scales with ``n_groups``.  For multi-component data the ticks
-        are component names and groups are dodged within each, so width
-        scales with ``n_components``.
+        Width per tick position scales with the number of sub-bars that
+        need to fit (i.e. *n_groups* when dodge is active).  This keeps
+        bars compact when ungrouped and gives enough room when several
+        groups are dodged within each component.
         """
         if figsize is not None:
             return figsize
         n_ticks = n_groups if n_components == 1 else n_components
-        width = max(
-            SummaryCollection._SNS_MIN_WIDTH,
-            n_ticks * SummaryCollection._SNS_WIDTH_PER_TICK,
+        # How many sub-bars per tick? 1 when ungrouped or single-component-grouped.
+        bars_per_tick = n_groups if n_components > 1 else 1
+        width_per_tick = (
+            SummaryCollection._SNS_BASE_PER_TICK
+            + bars_per_tick * SummaryCollection._SNS_EXTRA_PER_GROUP
         )
+        width = max(SummaryCollection._SNS_MIN_WIDTH, n_ticks * width_per_tick)
         return (width, SummaryCollection._SNS_HEIGHT)
 
     @staticmethod
@@ -1420,6 +1424,26 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 return (1, str(label))
 
         return sorted(labels, key=_sort_key)
+
+    @staticmethod
+    def _prettify_metric_name(metric_name):
+        """Convert a snake_case metric key into a human-readable title.
+
+        ``"total_distance_bodycentre"`` → ``"Total Distance Bodycentre"``
+        """
+        return metric_name.replace("_", " ").strip().title()
+
+    @staticmethod
+    def _slugify_metric_name(metric_name):
+        """Convert a metric name into a safe filename slug.
+
+        Replaces spaces and special characters with underscores and
+        strips leading/trailing underscores.
+        """
+        import re
+
+        slug = re.sub(r"[^a-zA-Z0-9]+", "_", metric_name)
+        return slug.strip("_").lower()
 
     @staticmethod
     def _build_sns_kwargs(df, ax, palette=None, sorted_groups=None):
@@ -1447,7 +1471,10 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 "data": df,
                 "x": "component",
                 "y": "value",
+                "hue": "component",
+                "dodge": False,
                 "order": components,
+                "hue_order": components,
                 "ax": ax,
             }, True
 
@@ -1543,7 +1570,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         ax.set_xlabel("")
         ax.set_ylabel(ylabel)
-        ax.set_title(title or metric_name)
+        pretty_title = title or SummaryCollection._prettify_metric_name(metric_name)
+        ax.set_title(pretty_title)
 
         # Rotate x-tick labels if many ticks
         n_ticks = n_groups if n_components == 1 else n_components
@@ -1574,7 +1602,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         if savedir:
             os.makedirs(savedir, exist_ok=True)
-            fname = filename or f"{metric_name}_{default_suffix}.png"
+            slug = SummaryCollection._slugify_metric_name(metric_name)
+            fname = filename or f"{slug}_{default_suffix}.png"
             fig.savefig(os.path.join(savedir, fname), dpi=150, bbox_inches="tight")
 
         if show:
