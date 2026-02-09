@@ -1020,84 +1020,40 @@ class Summary:
 
         return SummaryCollection({self.handle: self})
 
-    def snsstrip(self, metric, **kwargs):
+    def _delegate_plot(self, method_name, metric, **kwargs):
+        """Forward a plotting call to SummaryCollection.
+
+        Wraps a bare ``SummaryResult`` in the dict format that
+        :meth:`SummaryCollection._metric_to_tidy` expects, then delegates.
         """
-        Strip plot (jittered scatter) using seaborn.
-
-        See SummaryCollection.snsstrip for full documentation.
-
-        Parameters
-        ----------
-        metric : str or SummaryResult
-            Either a key from self.data, or a SummaryResult (e.g., from time_in_state).
-        **kwargs
-            Passed to seaborn.stripplot.
-
-        Returns
-        -------
-        tuple[Figure, Axes, DataFrame]
-        """
-        # Handle SummaryResult by wrapping in dict
         if hasattr(metric, "value") and hasattr(metric, "name"):
             metric = {self.handle: metric}
-        return self._as_collection().snsstrip(metric, **kwargs)
+        return getattr(self._as_collection(), method_name)(metric, **kwargs)
+
+    def snsstrip(self, metric, **kwargs):
+        """Strip plot -- see :meth:`SummaryCollection.snsstrip`."""
+        return self._delegate_plot("snsstrip", metric, **kwargs)
 
     def snsswarm(self, metric, **kwargs):
-        """
-        Swarm plot (non-overlapping scatter) using seaborn.
-
-        See SummaryCollection.snsswarm for full documentation.
-        """
-        if hasattr(metric, "value") and hasattr(metric, "name"):
-            metric = {self.handle: metric}
-        return self._as_collection().snsswarm(metric, **kwargs)
+        """Swarm plot -- see :meth:`SummaryCollection.snsswarm`."""
+        return self._delegate_plot("snsswarm", metric, **kwargs)
 
     def snsbar(self, metric, **kwargs):
-        """
-        Bar plot with error bars using seaborn.
-
-        See SummaryCollection.snsbar for full documentation.
-        """
-        if hasattr(metric, "value") and hasattr(metric, "name"):
-            metric = {self.handle: metric}
-        return self._as_collection().snsbar(metric, **kwargs)
+        """Bar plot -- see :meth:`SummaryCollection.snsbar`."""
+        return self._delegate_plot("snsbar", metric, **kwargs)
 
     def snsbox(self, metric, **kwargs):
-        """
-        Box plot using seaborn.
-
-        See SummaryCollection.snsbox for full documentation.
-        """
-        if hasattr(metric, "value") and hasattr(metric, "name"):
-            metric = {self.handle: metric}
-        return self._as_collection().snsbox(metric, **kwargs)
+        """Box plot -- see :meth:`SummaryCollection.snsbox`."""
+        return self._delegate_plot("snsbox", metric, **kwargs)
 
     def snsviolin(self, metric, **kwargs):
-        """
-        Violin plot using seaborn.
-
-        See SummaryCollection.snsviolin for full documentation.
-        """
-        if hasattr(metric, "value") and hasattr(metric, "name"):
-            metric = {self.handle: metric}
-        return self._as_collection().snsviolin(metric, **kwargs)
+        """Violin plot -- see :meth:`SummaryCollection.snsviolin`."""
+        return self._delegate_plot("snsviolin", metric, **kwargs)
 
     def snspoint(self, metric, **kwargs):
-        """
-        Point plot (mean + CI) using seaborn.
-
-        See SummaryCollection.snspoint for full documentation.
-        """
-        if hasattr(metric, "value") and hasattr(metric, "name"):
-            metric = {self.handle: metric}
-        return self._as_collection().snspoint(metric, **kwargs)
+        """Point plot -- see :meth:`SummaryCollection.snspoint`."""
+        return self._delegate_plot("snspoint", metric, **kwargs)
 
     def snssuperplot(self, metric, **kwargs):
-        """
-        Superplot: strip plot (individual dots) + point plot (mean marker) overlay.
-
-        See SummaryCollection.snssuperplot for full documentation.
-        """
-        if hasattr(metric, "value") and hasattr(metric, "name"):
-            metric = {self.handle: metric}
-        return self._as_collection().snssuperplot(metric, **kwargs)
+        """Superplot -- see :meth:`SummaryCollection.snssuperplot`."""
+        return self._delegate_plot("snssuperplot", metric, **kwargs)
