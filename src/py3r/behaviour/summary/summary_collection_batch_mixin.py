@@ -287,3 +287,94 @@ class SummaryCollectionBatchMixin:
         return self._invoke_batch(
             "plot_chord", column, all_states, cmap=cmap, show=show, save_dir=save_dir, **kwargs
         )
+
+    def snsstrip(self, metric, **kwargs) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.snsstrip across the collection.
+
+        Strip plot -- see :meth:`SummaryCollection.snsstrip`.
+
+        See leaf method ``Summary.snsstrip`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, "snsstrip")(metric, **kwargs))
+        return self._invoke_batch("snsstrip", metric, **kwargs)
+
+    def snsswarm(self, metric, **kwargs) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.snsswarm across the collection.
+
+        Swarm plot -- see :meth:`SummaryCollection.snsswarm`.
+
+        See leaf method ``Summary.snsswarm`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, "snsswarm")(metric, **kwargs))
+        return self._invoke_batch("snsswarm", metric, **kwargs)
+
+    def snsbar(self, metric, **kwargs) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.snsbar across the collection.
+
+        Bar plot -- see :meth:`SummaryCollection.snsbar`.
+
+        See leaf method ``Summary.snsbar`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, "snsbar")(metric, **kwargs))
+        return self._invoke_batch("snsbar", metric, **kwargs)
+
+    def snsbox(self, metric, **kwargs) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.snsbox across the collection.
+
+        Box plot -- see :meth:`SummaryCollection.snsbox`.
+
+        See leaf method ``Summary.snsbox`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, "snsbox")(metric, **kwargs))
+        return self._invoke_batch("snsbox", metric, **kwargs)
+
+    def snsviolin(self, metric, **kwargs) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.snsviolin across the collection.
+
+        Violin plot -- see :meth:`SummaryCollection.snsviolin`.
+
+        See leaf method ``Summary.snsviolin`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, "snsviolin")(metric, **kwargs))
+        return self._invoke_batch("snsviolin", metric, **kwargs)
+
+    def snspoint(self, metric, **kwargs) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.snspoint across the collection.
+
+        Point plot -- see :meth:`SummaryCollection.snspoint`.
+
+        See leaf method ``Summary.snspoint`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, "snspoint")(metric, **kwargs))
+        return self._invoke_batch("snspoint", metric, **kwargs)
+
+    def snssuperplot(self, metric, **kwargs) -> BatchResult:
+        """
+        Batch-mode wrapper for Summary.snssuperplot across the collection.
+
+        Superplot -- see :meth:`SummaryCollection.snssuperplot`.
+
+        See leaf method ``Summary.snssuperplot`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, "snssuperplot")(metric, **kwargs))
+        return self._invoke_batch("snssuperplot", metric, **kwargs)
