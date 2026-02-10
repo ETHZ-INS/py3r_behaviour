@@ -560,6 +560,122 @@ class SummaryCollectionPlotMixin:
             plt.show()
 
     # ------------------------------------------------------------------
+    # Statistical annotations (statannotations integration)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _apply_annotations(ax, df, annotate, sns_kw):
+        """Apply statistical annotations to a seaborn plot.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes containing the plot.
+        df : pandas.DataFrame
+            The tidy DataFrame (used to extract group labels for help mode).
+        annotate : str or dict or None
+            - ``None``: no annotations (returns immediately).
+            - ``"help"``: prints a guide with available tests, corrections,
+              and the current group labels, then returns without annotating.
+            - ``dict``: must contain ``"pairs"``; all other keys are passed
+              to ``Annotator.configure()``.  Defaults::
+
+                  test="Mann-Whitney", text_format="star", loc="inside"
+        sns_kw : dict
+            Seaborn call parameters (``data``, ``x``, ``y``, etc.) stashed
+            by the plot function.
+
+        Returns
+        -------
+        bool
+            True if annotations were applied, False otherwise.
+        """
+        if annotate is None:
+            return False
+
+        # ---- Help mode ----
+        is_grouped = "_group" in df.columns
+        if annotate == "help":
+            if is_grouped:
+                labels = sorted(df["_group"].unique().tolist())
+            else:
+                labels = sorted(df["component"].unique().tolist())
+
+            print(
+                "=== Statistical Annotation Guide ===\n"
+                "\n"
+                "annotate={\n"
+                '    "pairs": [("groupA", "groupB"), ...],  # REQUIRED\n'
+                '    "test": "Mann-Whitney",                # see below\n'
+                '    "correction": None,                    # see below\n'
+                '    "text_format": "star",                 # "star", "simple", "full"\n'
+                "}\n"
+                "\n"
+                "Available tests:\n"
+                "  Parametric:     t-test_ind, t-test_welch, t-test_paired\n"
+                "  Non-parametric: Mann-Whitney, Wilcoxon, Kruskal, Brunner-Munzel\n"
+                "  Other:          Levene (variance equality)\n"
+                "\n"
+                "  Tip: Mann-Whitney is a safe default for most behavioural data.\n"
+                "  Use paired tests (t-test_paired, Wilcoxon) for repeated measures.\n"
+                "  Use parametric tests only if data is normally distributed.\n"
+                "\n"
+                "Multiple comparisons correction (recommended for >3 pairs):\n"
+                "  FWER (conservative): bonferroni, holm\n"
+                "  FDR  (less conservative): fdr_bh (Benjamini-Hochberg), fdr_by\n"
+                "\n"
+                f"Your labels: {labels}\n"
+            )
+            return False
+
+        # ---- Annotation mode ----
+        if not isinstance(annotate, dict):
+            raise TypeError(
+                'annotate must be None, "help", or a dict with at least "pairs". '
+                'Pass annotate="help" for a guide.'
+            )
+
+        try:
+            from statannotations.Annotator import Annotator
+        except ImportError as e:
+            raise ImportError(
+                "statannotations is required for plot annotations. "
+                "Install with: pip install statannotations"
+            ) from e
+
+        pairs = annotate.get("pairs")
+        if not pairs:
+            raise ValueError(
+                'annotate dict must contain "pairs", e.g. '
+                'annotate={"pairs": [("groupA", "groupB")]}'
+            )
+
+        # Separate Annotator.configure kwargs from our own
+        configure_kw = {k: v for k, v in annotate.items() if k != "pairs"}
+
+        # Sensible defaults
+        configure_kw.setdefault("test", "Mann-Whitney")
+        configure_kw.setdefault("text_format", "star")
+        configure_kw.setdefault("loc", "inside")
+
+        # Map our friendly "correction" key to statannotations' name
+        correction = configure_kw.pop("correction", None)
+        if correction is not None:
+            configure_kw["comparisons_correction"] = correction
+
+        # Add headroom for brackets when using loc="inside"
+        if configure_kw.get("loc") == "inside":
+            ymin, ymax = ax.get_ylim()
+            n_levels = len(pairs)
+            headroom = 1 + 0.08 * n_levels + 0.08
+            ax.set_ylim(ymin, ymax * headroom)
+
+        annotator = Annotator(ax, pairs, **sns_kw)
+        annotator.configure(**configure_kw)
+        annotator.apply_and_annotate()
+        return True
+
+    # ------------------------------------------------------------------
     # Main single-function wrapper
     # ------------------------------------------------------------------
 
@@ -569,6 +685,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        annotate=None,
         ax=None,
         show: bool = True,
         savedir: str | None = None,
@@ -593,6 +710,21 @@ class SummaryCollectionPlotMixin:
 
                 group_order={"treatment": ["control", "FST"],
                              "timepoint": ["45m", "1d"]}
+        annotate : str or dict or None
+            Statistical annotations via ``statannotations``.
+
+            - ``None`` (default): no annotations.
+            - ``"help"``: print a guide with available tests, corrections,
+              and the group labels present in this plot.
+            - ``dict``: must contain ``"pairs"``; everything else is
+              optional with sensible defaults::
+
+                  annotate={
+                      "pairs": [("control, 45m", "FST, 45m")],
+                      "test": "Mann-Whitney",    # default
+                      "correction": None,         # "bonferroni", "holm", "fdr_bh", …
+                      "text_format": "star",      # "star", "simple", "full"
+                  }
         ax : matplotlib.axes.Axes, optional
             Axes to plot on. If None, creates new figure.
         show : bool
@@ -634,6 +766,17 @@ class SummaryCollectionPlotMixin:
         plot_kwargs.update(kwargs)
         plot_func(**plot_kwargs)
 
+        # Stash the seaborn call parameters for statannotations passthrough
+        sns_kw = {
+            k: v
+            for k, v in plot_kwargs.items()
+            if k in ("data", "x", "y", "hue", "order", "hue_order")
+        }
+        df.attrs["sns_kw"] = sns_kw
+
+        # Apply statistical annotations (before save/show)
+        self._apply_annotations(ax, df, annotate, sns_kw)
+
         self._sns_post_plot(
             fig,
             ax,
@@ -649,6 +792,7 @@ class SummaryCollectionPlotMixin:
             default_suffix=plot_func.__name__,
             show=show,
         )
+
         return fig, ax, df
 
     # ------------------------------------------------------------------
@@ -660,6 +804,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        annotate=None,
         ax=None,
         show: bool = True,
         savedir: str | None = None,
@@ -729,6 +874,7 @@ class SummaryCollectionPlotMixin:
             sns.stripplot,
             metric,
             group_order=group_order,
+            annotate=annotate,
             ax=ax,
             show=show,
             savedir=savedir,
@@ -742,6 +888,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        annotate=None,
         ax=None,
         show: bool = True,
         savedir: str | None = None,
@@ -777,6 +924,7 @@ class SummaryCollectionPlotMixin:
             sns.swarmplot,
             metric,
             group_order=group_order,
+            annotate=annotate,
             ax=ax,
             show=show,
             savedir=savedir,
@@ -790,6 +938,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        annotate=None,
         ax=None,
         show: bool = True,
         savedir: str | None = None,
@@ -825,6 +974,7 @@ class SummaryCollectionPlotMixin:
             sns.barplot,
             metric,
             group_order=group_order,
+            annotate=annotate,
             ax=ax,
             show=show,
             savedir=savedir,
@@ -838,6 +988,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        annotate=None,
         ax=None,
         show: bool = True,
         savedir: str | None = None,
@@ -869,6 +1020,7 @@ class SummaryCollectionPlotMixin:
             sns.boxplot,
             metric,
             group_order=group_order,
+            annotate=annotate,
             ax=ax,
             show=show,
             savedir=savedir,
@@ -882,6 +1034,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        annotate=None,
         ax=None,
         show: bool = True,
         savedir: str | None = None,
@@ -917,6 +1070,7 @@ class SummaryCollectionPlotMixin:
             sns.violinplot,
             metric,
             group_order=group_order,
+            annotate=annotate,
             ax=ax,
             show=show,
             savedir=savedir,
@@ -930,6 +1084,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        annotate=None,
         ax=None,
         show: bool = True,
         savedir: str | None = None,
@@ -965,6 +1120,7 @@ class SummaryCollectionPlotMixin:
             sns.pointplot,
             metric,
             group_order=group_order,
+            annotate=annotate,
             ax=ax,
             show=show,
             savedir=savedir,
@@ -978,6 +1134,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        annotate=None,
         ax=None,
         show: bool = True,
         savedir: str | None = None,
@@ -1001,6 +1158,8 @@ class SummaryCollectionPlotMixin:
             Either a key from Summary.data, or a BatchResult from a batch method.
         group_order : dict[str, list] | None
             Control group display order.  See :meth:`_sns_plot_common`.
+        annotate : str or dict or None
+            Statistical annotations.  See :meth:`_sns_plot_common`.
         ax : matplotlib.axes.Axes, optional
             Axes to plot on. If None, creates new figure.
         show : bool
@@ -1081,6 +1240,15 @@ class SummaryCollectionPlotMixin:
         strip_kw = {**common, **strip_defaults, **(strip_kwargs or {}), **kwargs}
         sns.stripplot(**strip_kw)
 
+        # Stash seaborn params for statannotations passthrough
+        sns_kw = {
+            k: v for k, v in common.items() if k in ("data", "x", "y", "hue", "order", "hue_order")
+        }
+        df.attrs["sns_kw"] = sns_kw
+
+        # Apply statistical annotations (before save/show)
+        self._apply_annotations(ax, df, annotate, sns_kw)
+
         self._sns_post_plot(
             fig,
             ax,
@@ -1097,4 +1265,5 @@ class SummaryCollectionPlotMixin:
             default_suffix="superplot",
             show=show,
         )
+
         return fig, ax, df

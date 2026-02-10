@@ -739,6 +739,34 @@ print(
     f"{df_gbar['_group'].nunique()} groups"
 )
 
+# %% [markdown]
+# statistical annotations (statannotations passthrough)
+
+# %%
+# Annotations are integrated via the `annotate` parameter.
+# Pass annotate="help" to see available tests, corrections, and group labels.
+fig_ann, ax_ann, df_ann = sc_grouped.snssuperplot(
+    "total_distance_bodycentre",
+    group_order=GROUP_ORDER,
+    annotate={
+        "pairs": [("control, 45m", "FST, 45m"), ("control, 1d", "FST, 1d")],
+        "test": "Mann-Whitney",
+        "text_format": "simple",
+    },
+    savedir=str(OUT_DIR),
+    filename="total_distance_annotated_superplot.png",
+    show=True,
+)
+# %%
+fig_ann, ax_ann, df_ann = sc_grouped.snssuperplot(
+    "total_distance_bodycentre",
+    group_order=GROUP_ORDER,
+    annotate="help",
+    savedir=str(OUT_DIR),
+    filename="total_distance_annotated_superplot.png",
+    show=True,
+)
+
 # %%
 # norender
 if TEST_MODE:

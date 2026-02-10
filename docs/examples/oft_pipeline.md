@@ -525,6 +525,87 @@ print(
 <pre><code>Grouped bar kmeans: 174 rows, 25 components, 4 groups</code></pre>
 </div>
 
+statistical annotations (statannotations passthrough)
+
+<div class="nb-cell-input" markdown>
+
+```python
+# Annotations are integrated via the `annotate` parameter.
+# Pass annotate="help" to see available tests, corrections, and group labels.
+fig_ann, ax_ann, df_ann = sc_grouped.snssuperplot(
+    "total_distance_bodycentre",
+    group_order=GROUP_ORDER,
+    annotate={
+        "pairs": [("control, 45m", "FST, 45m"), ("control, 1d", "FST, 1d")],
+        "test": "Mann-Whitney",
+        "text_format": "simple",
+    },
+    savedir=str(OUT_DIR),
+    filename="total_distance_annotated_superplot.png",
+    show=True,
+)
+```
+
+</div>
+
+<div class="nb-cell-output">
+<pre><code>control, 45m vs. FST, 45m: Mann-Whitney-Wilcoxon test two-sided, P_val:3.939e-01 U_stat=1.200e+01
+control, 1d vs. FST, 1d: Mann-Whitney-Wilcoxon test two-sided, P_val:4.113e-02 U_stat=3.100e+01</code></pre>
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_31_1.png)
+
+</div>
+
+<div class="nb-cell-input" markdown>
+
+```python
+fig_ann, ax_ann, df_ann = sc_grouped.snssuperplot(
+    "total_distance_bodycentre",
+    group_order=GROUP_ORDER,
+    annotate="help",
+    savedir=str(OUT_DIR),
+    filename="total_distance_annotated_superplot.png",
+    show=True,
+)
+```
+
+</div>
+
+<div class="nb-cell-output">
+<pre><code>=== Statistical Annotation Guide ===
+
+annotate={
+    &quot;pairs&quot;: [(&quot;groupA&quot;, &quot;groupB&quot;), ...],  # REQUIRED
+    &quot;test&quot;: &quot;Mann-Whitney&quot;,                # see below
+    &quot;correction&quot;: None,                    # see below
+    &quot;text_format&quot;: &quot;star&quot;,                 # &quot;star&quot;, &quot;simple&quot;, &quot;full&quot;
+}
+
+Available tests:
+  Parametric:     t-test_ind, t-test_welch, t-test_paired
+  Non-parametric: Mann-Whitney, Wilcoxon, Kruskal, Brunner-Munzel
+  Other:          Levene (variance equality)
+
+  Tip: Mann-Whitney is a safe default for most behavioural data.
+  Use paired tests (t-test_paired, Wilcoxon) for repeated measures.
+  Use parametric tests only if data is normally distributed.
+
+Multiple comparisons correction (recommended for &gt;3 pairs):
+  FWER (conservative): bonferroni, holm
+  FDR  (less conservative): fdr_bh (Benjamini-Hochberg), fdr_by
+
+Your labels: [&#x27;FST, 1d&#x27;, &#x27;FST, 45m&#x27;, &#x27;control, 1d&#x27;, &#x27;control, 45m&#x27;]</code></pre>
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_32_1.png)
+
+</div>
+
 perform behavior flow analysis (BFA)
 
 <div class="nb-cell-input" markdown>
@@ -578,25 +659,25 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_35_0.png)
+![output](oft_pipeline_files/output_38_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_35_1.png)
+![output](oft_pipeline_files/output_38_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_35_2.png)
+![output](oft_pipeline_files/output_38_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_35_3.png)
+![output](oft_pipeline_files/output_38_3.png)
 
 </div>
 
@@ -621,37 +702,37 @@ p3b.SummaryCollection.plot_bfa_results(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_37_0.png)
+![output](oft_pipeline_files/output_40_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_37_1.png)
+![output](oft_pipeline_files/output_40_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_37_2.png)
+![output](oft_pipeline_files/output_40_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_37_3.png)
+![output](oft_pipeline_files/output_40_3.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_37_4.png)
+![output](oft_pipeline_files/output_40_4.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_37_5.png)
+![output](oft_pipeline_files/output_40_5.png)
 
 </div>
 
@@ -704,7 +785,7 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_39_2.png)
+![output](oft_pipeline_files/output_42_2.png)
 
 </div>
 

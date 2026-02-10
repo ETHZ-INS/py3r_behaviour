@@ -253,9 +253,12 @@ def render(name: str, script_path: Path, out_dir: Path | None = None) -> Path:
     md_path = out_dir / f"{name}.md"
     md_path.write_text(body, encoding="utf-8")
 
-    # Write image assets into {name}_files/
+    # Write image assets into {name}_files/ (remove stale images first)
+    images_dir = out_dir / images_dir_name
+    if images_dir.exists():
+        for old in images_dir.glob("output_*.png"):
+            old.unlink()
     if image_outputs:
-        images_dir = out_dir / images_dir_name
         images_dir.mkdir(parents=True, exist_ok=True)
         for fname, data in image_outputs.items():
             (images_dir / fname).write_bytes(data)
