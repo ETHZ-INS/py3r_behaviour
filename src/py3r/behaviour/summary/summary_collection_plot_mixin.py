@@ -855,7 +855,8 @@ class SummaryCollectionPlotMixin:
         ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
         >>> fc = FeaturesCollection.from_tracking_collection(tc)
         >>> for f in fc.values():
-        ...     f.store(pd.Series([True, False] * 15, index=f.tracking.data.index[:30]),
+        ...     idx = f.tracking.data.index[:30]
+        ...     f.store(pd.Series(([True, False] * 15)[:len(idx)], index=idx),
         ...             'active', meta={})
         >>> sc = SummaryCollection.from_features_collection(fc)
         >>> fig, ax, df = sc.snsstrip(sc.time_in_state('active'), show=False)
@@ -1200,8 +1201,9 @@ class SummaryCollectionPlotMixin:
         ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
         >>> fc = FeaturesCollection.from_tracking_collection(tc)
         >>> for f in fc.values():
-        ...     states = pd.Series(['A', 'B', 'A'] * (len(f.tracking.data)//3 + 1),
-        ...                        index=f.tracking.data.index)[:len(f.tracking.data)]
+        ...     n = len(f.tracking.data)
+        ...     states = pd.Series((['A', 'B', 'A'] * (n // 3 + 1))[:n],
+        ...                        index=f.tracking.data.index)
         ...     f.store(states, 'zone', meta={})
         >>> sc = SummaryCollection.from_features_collection(fc)
         >>> fig, ax, df = sc.snssuperplot(sc.time_in_state('zone'), show=False)

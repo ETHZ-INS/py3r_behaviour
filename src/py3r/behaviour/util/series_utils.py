@@ -437,9 +437,9 @@ def time_in_state(
     >>> # Categorical series
     >>> s_cat = pd.Series(['A', 'A', 'B', 'A', 'C'])
     >>> result = time_in_state(s_cat, fps=1.0)
-    >>> result['A']
+    >>> float(result['A'])
     3.0
-    >>> result['B']
+    >>> float(result['B'])
     1.0
 
     ```
