@@ -92,7 +92,7 @@ if TEST_MODE:
 
 # %%
 tc.add_tags_from_csv(csv_path=TAGS_CSV)
-print(tc.tags_info())
+tc.tags_info()
 
 # %%
 # norender

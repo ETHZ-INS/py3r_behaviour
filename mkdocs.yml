@@ -33,6 +33,15 @@ nav:
 plugins:
   - search
   - autorefs
+  - glightbox:
+      touchNavigation: true
+      loop: false
+      effect: zoom
+      slide_effect: slide
+      width: "100%"
+      height: auto
+      zoomable: true
+      draggable: true
   - mkdocstrings:
       handlers:
         python:
@@ -60,6 +69,7 @@ plugins:
               show_inheritance: true
 markdown_extensions:
   - admonition
+  - md_in_html
   - pymdownx.highlight:
       anchor_linenums: false
       pygments_lang_class: true
