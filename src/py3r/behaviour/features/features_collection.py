@@ -186,21 +186,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
             raise ValueError("Cannot concatenate empty list of FeaturesCollections")
 
         if len(collections) == 1:
-            # Return a deep copy
-            import copy
-
-            result_dict = {}
-            for k, v in collections[0].items():
-                if isinstance(v, FeaturesCollection):
-                    # Grouped: v is a sub-collection
-                    result_dict[k] = cls({sk: copy.deepcopy(sv) for sk, sv in v.items()})
-                else:
-                    result_dict[k] = copy.deepcopy(v)
-            result = cls(result_dict)
-            if getattr(collections[0], "is_grouped", False):
-                result._is_grouped = True
-                result._groupby_tags = getattr(collections[0], "_groupby_tags", None)
-            return result
+            # Return a copy (delegates to Features.copy() on each leaf)
+            return collections[0].copy()
 
         # Check grouping consistency
         is_grouped = [getattr(c, "is_grouped", False) for c in collections]

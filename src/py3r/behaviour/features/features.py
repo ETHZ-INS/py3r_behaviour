@@ -161,6 +161,37 @@ class Features:
         obj.tags = manifest.get("tags", obj.tags)
         return obj
 
+    def copy(self) -> Features:
+        """Creates an independent copy of this Features object.
+
+        The returned object shares no mutable state with the original:
+        Tracking is copied via Tracking.copy(), the features DataFrame
+        via DataFrame.copy(), and meta/tags via deepcopy.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> f_copy = f.copy()
+        >>> f_copy.handle == f.handle
+        True
+        >>> f_copy.tracking.data is not f.tracking.data
+        True
+
+        ```
+        """
+        result = type(self)(self.tracking.copy())
+        result.data = self.data.copy()
+        result.meta = copy.deepcopy(self.meta)
+        result.handle = self.handle
+        result.tags = copy.deepcopy(self.tags)
+        return result
+
     @classmethod
     def concat(
         cls,
@@ -253,7 +284,7 @@ class Features:
             raise ValueError("Cannot concatenate empty list of Features objects")
 
         if len(features_list) == 1:
-            result = copy.deepcopy(features_list[0])
+            result = features_list[0].copy()
             if handle is not None:
                 result.handle = handle
             return result

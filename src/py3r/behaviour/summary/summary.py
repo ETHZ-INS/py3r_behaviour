@@ -638,6 +638,39 @@ class Summary:
             self.data[name] = summarystat
         self.meta[name] = meta
 
+    def copy(self) -> Summary:
+        """Creates an independent copy of this Summary object.
+
+        The returned object shares no mutable state with the original:
+        Features is copied via Features.copy(), and data/meta/tags
+        via deepcopy.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> s = Summary(f)
+        >>> s_copy = s.copy()
+        >>> s_copy.handle == s.handle
+        True
+        >>> s_copy.features.tracking.data is not s.features.tracking.data
+        True
+
+        ```
+        """
+        result = type(self)(self.features.copy())
+        result.data = deepcopy(self.data)
+        result.meta = deepcopy(self.meta)
+        result.handle = self.handle
+        result.tags = deepcopy(self.tags)
+        return result
+
     def make_bin(self, startframe: int, endframe: int) -> Summary:
         """
         creates a copy of the Summary object with the dataframes
@@ -659,8 +692,8 @@ class Summary:
 
         ```
         """
-        # make deep copy of the Summary object
-        bin_out = deepcopy(self)
+        # make independent copy of the Summary object
+        bin_out = self.copy()
 
         # trim the tracking dataframe
         bin_out.features.tracking.data = self.features.tracking.data.loc[startframe:endframe].copy()
