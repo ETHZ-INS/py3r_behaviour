@@ -12,6 +12,86 @@ class BatchResult(dict):
         super().__init__(data)
         self._parent_collection = parent_collection
 
+    # ------------------------------------------------------------------
+    # Display
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _leaf_count(d):
+        """Count total leaf entries and how many are None, recursively."""
+        total = 0
+        none_count = 0
+        for v in d.values():
+            if isinstance(v, dict):
+                t, n = BatchResult._leaf_count(v)
+                total += t
+                none_count += n
+            else:
+                total += 1
+                if v is None:
+                    none_count += 1
+        return total, none_count
+
+    @staticmethod
+    def _leaf_type_name(d):
+        """Return the type name of the first non-None leaf, or None."""
+        for v in d.values():
+            if isinstance(v, dict):
+                name = BatchResult._leaf_type_name(v)
+                if name is not None:
+                    return name
+            elif v is not None:
+                return type(v).__name__
+        return None
+
+    def __repr__(self):
+        total, none_count = self._leaf_count(self)
+        nested_groups = [k for k, v in self.items() if isinstance(v, dict)]
+
+        # All None -> compact in-place summary
+        if none_count == total and not nested_groups:
+            return f"BatchResult: {total} items processed (in-place)"
+
+        # No Nones and small enough -> show abbreviated dict
+        type_name = self._leaf_type_name(self) or "?"
+        if nested_groups:
+            group_lines = []
+            for gk in self:
+                sub = self[gk]
+                if isinstance(sub, dict):
+                    t, n = self._leaf_count(sub)
+                    if n == t:
+                        group_lines.append(f"  {gk}: {t} items (in-place)")
+                    else:
+                        group_lines.append(f"  {gk}: {t} items -> {type_name}")
+                else:
+                    val_str = "None" if sub is None else type(sub).__name__
+                    group_lines.append(f"  {gk}: {val_str}")
+            body = "\n".join(group_lines)
+            return f"BatchResult ({total} items, {len(self)} groups):\n{body}"
+
+        # Flat structure -- show keys with truncated values
+        if total <= 8:
+            lines = []
+            for k, v in self.items():
+                if v is None:
+                    lines.append(f"  {k}: None (in-place)")
+                else:
+                    v_repr = repr(v)
+                    if len(v_repr) > 80:
+                        v_repr = v_repr[:77] + "..."
+                    lines.append(f"  {k}: {v_repr}")
+            body = "\n".join(lines)
+            return f"BatchResult ({total} items -> {type_name}):\n{body}"
+
+        # Large flat -- just summarise
+        if none_count == 0:
+            return f"BatchResult: {total} items -> {type_name}"
+        return (
+            f"BatchResult: {total} items "
+            f"({total - none_count} -> {type_name}, {none_count} in-place)"
+        )
+
     def plot(self, *args, **kwargs):
         return self._parent_collection.plot(self, *args, **kwargs)
 

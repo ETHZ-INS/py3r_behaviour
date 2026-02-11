@@ -7,11 +7,14 @@ from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.summary.summary_collection_batch_mixin import (
     SummaryCollectionBatchMixin,
 )
+from py3r.behaviour.summary.summary_collection_plot_mixin import (
+    SummaryCollectionPlotMixin,
+)
 from py3r.behaviour.summary.summary_result import SummaryResult
 from py3r.behaviour.util.base_collection import BaseCollection
 
 
-class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
+class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryCollectionPlotMixin):
     """
     collection of Summary objects
     (e.g. for grouping individuals)
