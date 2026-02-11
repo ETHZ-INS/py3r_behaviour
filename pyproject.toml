@@ -77,10 +77,13 @@ select = ["E", "F", "I", "B", "UP"]
 # - E501: docstrings mirror leaf methods and can exceed line-length
 # - B009: generator emits getattr(_obj, "method_name")(...) by design
 # - I001: import order is fixed by the generator
+# pipeline notebook .py files: E402 because imports not at top of file by design
 [tool.ruff.lint.extend-per-file-ignores]
 "src/py3r/behaviour/tracking/tracking_collection_batch_mixin.py" = ["E501", "B009", "I001"]
 "src/py3r/behaviour/features/features_collection_batch_mixin.py" = ["E501", "B009", "I001"]
 "src/py3r/behaviour/summary/summary_collection_batch_mixin.py" = ["E501", "B009", "I001"]
+"tests/**/oft_pipeline.py" = ["E402"]
+"tests/**/epm_pipeline.py" = ["E402"]
 
 [tool.ruff.format]
 # defaults intentionally left alone

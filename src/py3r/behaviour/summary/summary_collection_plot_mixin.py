@@ -444,7 +444,7 @@ class SummaryCollectionPlotMixin:
         Returns
         -------
         fig, ax, df, metric_name, plot_kwargs, hide_legend,
-        n_components, n_groups, auto_ylabel, filename_prefix
+        n_components, n_groups, auto_ylabel, filename_prefix, created_fig
         """
         import matplotlib.pyplot as plt
 
@@ -455,7 +455,8 @@ class SummaryCollectionPlotMixin:
         n_components = df["component"].nunique()
         n_groups = df["_group"].nunique() if is_grouped else 1
 
-        if ax is None:
+        created_fig = ax is None
+        if created_fig:
             figsize = self._auto_figsize(n_components, n_groups, figsize)
             fig, ax = plt.subplots(figsize=figsize)
         else:
@@ -480,6 +481,7 @@ class SummaryCollectionPlotMixin:
             n_groups,
             auto_ylabel,
             filename_prefix,
+            created_fig,
         )
 
     @staticmethod
@@ -499,6 +501,7 @@ class SummaryCollectionPlotMixin:
         filename_prefix=None,
         default_suffix="plot",
         show=True,
+        created_fig=True,
     ):
         """Apply styling, manage legend, save/show figure.
 
@@ -509,6 +512,10 @@ class SummaryCollectionPlotMixin:
             the first *legend_n_entries* handles (used by superplot).
         filename_prefix : str | None
             Optional prefix for the auto-generated filename (e.g. a handle).
+        created_fig : bool
+            Whether this method's caller created the figure (True) or the
+            user passed an external *ax* (False).  When False the figure is
+            never closed, because the user owns it.
         """
         import os
 
@@ -558,6 +565,13 @@ class SummaryCollectionPlotMixin:
 
         if show:
             plt.show()
+        elif created_fig:
+            # Close figure to suppress automatic inline-backend display in
+            # Jupyter/IPython.  The returned *fig* object remains usable for
+            # saving (fig.savefig(...)) or explicit display(fig).
+            # Only close if we created the figure; user-provided axes are
+            # left open so the user retains control.
+            plt.close(fig)
 
     # ------------------------------------------------------------------
     # Statistical annotations (statannotations integration)
@@ -609,6 +623,7 @@ class SummaryCollectionPlotMixin:
                 '    "test": "Mann-Whitney",                # see below\n'
                 '    "correction": None,                    # see below\n'
                 '    "text_format": "star",                 # "star", "simple", "full"\n'
+                '    "headroom": None,                      # float multiplier, see below\n'
                 "}\n"
                 "\n"
                 "Available tests:\n"
@@ -623,6 +638,10 @@ class SummaryCollectionPlotMixin:
                 "Multiple comparisons correction (recommended for >3 pairs):\n"
                 "  FWER (conservative): bonferroni, holm\n"
                 "  FDR  (less conservative): fdr_bh (Benjamini-Hochberg), fdr_by\n"
+                "\n"
+                "Headroom:\n"
+                "  Extra vertical space for brackets, as a fraction of the y range.\n"
+                "  E.g. headroom=0.3 adds 30%% extra room above the data.\n"
                 "\n"
                 f"Your labels: {labels}\n"
             )
@@ -663,12 +682,14 @@ class SummaryCollectionPlotMixin:
         if correction is not None:
             configure_kw["comparisons_correction"] = correction
 
-        # Add headroom for brackets when using loc="inside"
-        if configure_kw.get("loc") == "inside":
+        # Pop our custom headroom key before it reaches statannotations
+        headroom = configure_kw.pop("headroom", None)
+
+        # Optional manual headroom: fraction of extra vertical space, e.g.
+        # 0.3 means 30% extra room above the data for annotation brackets.
+        if headroom:
             ymin, ymax = ax.get_ylim()
-            n_levels = len(pairs)
-            headroom = 1 + 0.08 * n_levels + 0.08
-            ax.set_ylim(ymin, ymax * headroom)
+            ax.set_ylim(ymin, ymax * (1 + headroom))
 
         annotator = Annotator(ax, pairs, **sns_kw)
         annotator.configure(**configure_kw)
@@ -724,7 +745,12 @@ class SummaryCollectionPlotMixin:
                       "test": "Mann-Whitney",    # default
                       "correction": None,         # "bonferroni", "holm", "fdr_bh", …
                       "text_format": "star",      # "star", "simple", "full"
+                      "headroom": None,           # float; vertical space multiplier
                   }
+
+              ``headroom`` (float, optional): extra vertical space for
+              annotation brackets, as a fraction of the y range.  E.g.
+              ``0.3`` adds 30% extra room above the data.
         ax : matplotlib.axes.Axes, optional
             Axes to plot on. If None, creates new figure.
         show : bool
@@ -757,6 +783,7 @@ class SummaryCollectionPlotMixin:
             n_groups,
             auto_ylabel,
             fname_prefix,
+            created_fig,
         ) = self._sns_pre_plot(
             metric,
             group_order=group_order,
@@ -766,13 +793,12 @@ class SummaryCollectionPlotMixin:
         plot_kwargs.update(kwargs)
         plot_func(**plot_kwargs)
 
-        # Stash the seaborn call parameters for statannotations passthrough
+        # Build seaborn params dict for statannotations passthrough
         sns_kw = {
             k: v
             for k, v in plot_kwargs.items()
             if k in ("data", "x", "y", "hue", "order", "hue_order")
         }
-        df.attrs["sns_kw"] = sns_kw
 
         # Apply statistical annotations (before save/show)
         self._apply_annotations(ax, df, annotate, sns_kw)
@@ -791,6 +817,7 @@ class SummaryCollectionPlotMixin:
             filename=filename,
             default_suffix=plot_func.__name__,
             show=show,
+            created_fig=created_fig,
         )
 
         return fig, ax, df
@@ -1225,6 +1252,7 @@ class SummaryCollectionPlotMixin:
             n_groups,
             auto_ylabel,
             fname_prefix,
+            created_fig,
         ) = self._sns_pre_plot(
             metric,
             group_order=group_order,
@@ -1242,11 +1270,10 @@ class SummaryCollectionPlotMixin:
         strip_kw = {**common, **strip_defaults, **(strip_kwargs or {}), **kwargs}
         sns.stripplot(**strip_kw)
 
-        # Stash seaborn params for statannotations passthrough
+        # Build seaborn params dict for statannotations passthrough
         sns_kw = {
             k: v for k, v in common.items() if k in ("data", "x", "y", "hue", "order", "hue_order")
         }
-        df.attrs["sns_kw"] = sns_kw
 
         # Apply statistical annotations (before save/show)
         self._apply_annotations(ax, df, annotate, sns_kw)
@@ -1266,6 +1293,7 @@ class SummaryCollectionPlotMixin:
             filename=filename,
             default_suffix="superplot",
             show=show,
+            created_fig=created_fig,
         )
 
         return fig, ax, df
