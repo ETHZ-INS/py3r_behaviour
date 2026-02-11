@@ -1,4 +1,5 @@
 # %% [markdown]
+# norender
 # specify whether we're running in test mode or not
 
 # %%
@@ -35,6 +36,7 @@ tc = p3b.TrackingCollection.from_dlc_folder(folder_path=DATA_DIR, fps=25)
 print(tc)
 
 # %%
+# norender
 if TEST_MODE:
     # Expected handles detected from files on disk
     expected_handles = {p.stem for p in Path(DATA_DIR).glob("*.csv")}
@@ -81,6 +83,7 @@ tc.add_tags_from_csv(csv_path=TAGS_CSV)
 print(tc.tags_info())
 
 # %%
+# norender
 if TEST_MODE:
     # Validate tags loaded from CSV are attached to each matching handle
     tags_df = pd.read_csv(TAGS_CSV)
@@ -120,6 +123,7 @@ tc.smooth_all(window=3, method="mean")
 tc.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.655)
 
 # %%
+# norender
 if TEST_MODE:
     # Meta and structural invariants after preprocessing
     for handle, t in tc.items():
@@ -187,6 +191,7 @@ tc.plot(
 tc[0].plot(trajectories=trajectories, static=static, lines=lines, show=True)
 
 # %%
+# norender
 if TEST_MODE:
     # Plots saved by the earlier tc.plot call should exist in OUT_DIR
     has_plot = any(
@@ -201,6 +206,7 @@ if TEST_MODE:
 fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 # %%
+# norender
 # FeaturesCollection creation checks
 if TEST_MODE:
     from py3r.behaviour.features.features import Features
@@ -257,6 +263,7 @@ dist_change_on_ca.store(name="dist_change_bodycentre_on_ca")
 fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
 
 # %%
+# norender
 if TEST_MODE:
     import numpy as np
     import pandas as pd
@@ -404,6 +411,7 @@ summary_df = sc.to_df(include_tags=True)
 summary_df.to_csv(f"{OUT_DIR}/EPM_results.csv")
 
 # %%
+# norender
 if TEST_MODE:
     from pathlib import Path
 
@@ -539,3 +547,46 @@ if TEST_MODE:
         assert s["total_distance_bodycentre"] >= 0, f"{handle}: total_distance_bodycentre < 0"
 
     print("SummaryCollection + EPM results + CSV tests passed.")
+
+# %% [markdown]
+# seaborn plotting wrappers (quick smoke test)
+
+# %%
+# norender
+import matplotlib  # noqa: E402
+
+matplotlib.use("Agg")
+
+# Flat superplot of total distance (auto title, ylabel, filename)
+fig, ax, df_tidy = sc.snssuperplot(
+    sc.total_distance("bodycentre"),
+    show=False,
+    savedir=OUT_DIR,
+)
+print(f"EPM snssuperplot: {len(df_tidy)} rows")
+
+# Grouped bar of time on open arms by treatment (auto everything)
+sc_grouped = sc.groupby(tags=["treatment"])
+fig, ax, df_grouped = sc_grouped.snsbar(
+    "time_on_open_arms",
+    show=False,
+    savedir=OUT_DIR,
+)
+print(f"EPM grouped snsbar: {len(df_grouped)} rows, groups: {list(df_grouped['_group'].unique())}")
+
+# %%
+# norender
+if TEST_MODE:
+    # Tidy DataFrame structure
+    assert {"component", "value", "_handle"} <= set(df_tidy.columns)
+    assert len(df_tidy) > 0
+
+    # Grouped DataFrame structure
+    assert {"component", "value", "_handle", "_group"} <= set(df_grouped.columns)
+    assert df_grouped["_group"].nunique() == 3, "Expected 3 treatment groups"
+
+    # At least one auto-named plot saved
+    sns_pngs = list(Path(OUT_DIR).glob("*superplot.png")) + list(Path(OUT_DIR).glob("*barplot.png"))
+    assert len(sns_pngs) >= 2, f"Expected at least 2 sns plot PNGs, got {len(sns_pngs)}"
+
+    print("EPM seaborn plotting tests passed.")

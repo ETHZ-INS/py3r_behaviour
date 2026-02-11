@@ -190,13 +190,13 @@ class Summary:
             raise Exception("count_onset requires boolean series as input")
         count = (nonan & (nonan != nonan.shift(-1))).sum()
         meta = {"function": "count_onset", "column": column}
-        return SummaryResult(count, self, f"count_onset_{column}", meta)
+        return SummaryResult(count, self, f"count_onset_{column}", meta, ylabel="Count")
 
     def calculate_latency_nth_onset(
         self,
         column: str,
         target_value: str | float | int = None,
-        threshold_op: Literal["gt", "lt", "eq", "ne"] = "eq",
+        threshold_op: Literal[">", ">=", "<=", "<", "==", "!="] = "==",
         nth_event: int = 0,
         integration_window=1,
     ):
@@ -219,13 +219,9 @@ class Summary:
         target_value : str | float | int | None, optional
             Value to compare against for non-boolean columns.
             Required unless the column is already boolean.
-        threshold_op : {"gt", "lt", "eq", "ne"}, default "eq"
-            - "gt": greater than (>)
-            - "lt": less than (<)
-            - "eq": equal to (==)
-            - "ne": not equal (!=)
+        threshold_op : {">", ">=","<=", "<", "==", "!="}, default "=="
             Comparison operator used to generate the boolean condition.
-            Only "eq" and "ne" are valid for string-valued columns.
+            Only "==" and "!=" are valid for string-valued columns.
         nth_event : int, default 0
             Index of the onset event to return (0-based).
         integration_window : int, default 1 = no smoothing
@@ -265,7 +261,7 @@ class Summary:
         1.0
 
         >>> print(res._func_name)
-        latency_mask_eq_True_int1_n0
+        latency_mask_==_True_int1_n0
 
         ```
 
@@ -292,7 +288,7 @@ class Summary:
         ```pycon
         >>> speed = pd.Series([0.1, 0.2, 0.8, 0.9, 0.1], dtype = float)
         >>> f.store(speed, 'speed', meta={})
-        >>> res = s.calculate_latency_nth_onset('speed', target_value=0.5, threshold_op='gt')
+        >>> res = s.calculate_latency_nth_onset('speed', target_value=0.5, threshold_op='>')
         >>> res.value
         2.0
 
@@ -303,7 +299,7 @@ class Summary:
         ```pycon
         >>> id = pd.Series([2, 1, 3, 2, 1], dtype = int)
         >>> f.store(id, 'id', meta={})
-        >>> res = s.calculate_latency_nth_onset('id', target_value=2, threshold_op='lt')
+        >>> res = s.calculate_latency_nth_onset('id', target_value=2, threshold_op='<')
         >>> res.value
         1.0
 
@@ -346,7 +342,7 @@ class Summary:
         }
         col = f"latency_{column}_{threshold_op}_{target_value}_int{integration_window}_n{nth_event}"
         latency_s = latency / self.features.tracking.meta["fps"]
-        return SummaryResult(latency_s, self, col, meta)
+        return SummaryResult(latency_s, self, col, meta, ylabel="Latency (s)")
 
     def time_true(self, column: str) -> SummaryResult:
         """
@@ -382,7 +378,7 @@ class Summary:
             raise Exception("time_true requires boolean-convertible series as input") from err
         time = bool_series.fillna(False).sum() / self.features.tracking.meta["fps"]
         meta = {"function": "time_true", "column": column}
-        return SummaryResult(time, self, f"time_true_{column}", meta)
+        return SummaryResult(time, self, f"time_true_{column}", meta, ylabel="Time (s)")
 
     def time_false(self, column: str) -> SummaryResult:
         """
@@ -418,7 +414,7 @@ class Summary:
             raise Exception("time_false requires boolean-convertible series as input") from err
         time = (~bool_series.fillna(True)).sum() / self.features.tracking.meta["fps"]
         meta = {"function": "time_false", "column": column}
-        return SummaryResult(time, self, f"time_false_{column}", meta)
+        return SummaryResult(time, self, f"time_false_{column}", meta, ylabel="Time (s)")
 
     def total_distance(
         self, point: str, startframe: int | None = None, endframe: int | None = None
@@ -462,7 +458,9 @@ class Summary:
             "startframe": startframe,
             "endframe": endframe,
         }
-        return SummaryResult(value, self, name, meta)
+        units = self.features.tracking.meta.get("distance_units")
+        ylabel = f"Distance ({units})" if units else "Distance (a.u.)"
+        return SummaryResult(value, self, name, meta, ylabel=ylabel)
 
     def _apply_column(self, column: str, func, **kwargs) -> SummaryResult:
         """
@@ -781,7 +779,9 @@ class Summary:
         transition_states = states[transitions]
         state_counts = transition_states.value_counts()
         meta = {"function": "count_state_onsets", "column": column}
-        return SummaryResult(state_counts, self, f"count_state_onsets_{column}", meta)
+        return SummaryResult(
+            state_counts, self, f"count_state_onsets_{column}", meta, ylabel="Count"
+        )
 
     def time_in_state(self, column: str) -> SummaryResult:
         """
@@ -811,7 +811,9 @@ class Summary:
         states = self.features.data[column]
         time_in_state = states.value_counts() / self.features.tracking.meta["fps"]
         meta = {"function": "time_in_state", "column": column}
-        return SummaryResult(time_in_state, self, f"time_in_state_{column}", meta)
+        return SummaryResult(
+            time_in_state, self, f"time_in_state_{column}", meta, ylabel="Time (s)"
+        )
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.data)} summary statistics>"
@@ -1009,3 +1011,53 @@ class Summary:
             plt.show()
         plt.close(fig)
         return fig
+
+    # -------------------------------------------------------------------------
+    # Seaborn plotting wrappers (delegate to SummaryCollection)
+    # -------------------------------------------------------------------------
+
+    def _as_collection(self):
+        """Wrap this Summary in a single-item SummaryCollection for plotting."""
+        from py3r.behaviour.summary.summary_collection import SummaryCollection
+
+        return SummaryCollection({self.handle: self})
+
+    def _delegate_plot(self, method_name, metric, **kwargs):
+        """Forward a plotting call to SummaryCollection.
+
+        Wraps a bare ``SummaryResult`` in the dict format that
+        :meth:`SummaryCollection._metric_to_tidy` expects, then delegates.
+        """
+        from py3r.behaviour.summary.summary_result import SummaryResult
+
+        if isinstance(metric, SummaryResult):
+            metric = {self.handle: metric}
+        return getattr(self._as_collection(), method_name)(metric, **kwargs)
+
+    def snsstrip(self, metric, **kwargs):
+        """Strip plot -- see :meth:`SummaryCollection.snsstrip`."""
+        return self._delegate_plot("snsstrip", metric, **kwargs)
+
+    def snsswarm(self, metric, **kwargs):
+        """Swarm plot -- see :meth:`SummaryCollection.snsswarm`."""
+        return self._delegate_plot("snsswarm", metric, **kwargs)
+
+    def snsbar(self, metric, **kwargs):
+        """Bar plot -- see :meth:`SummaryCollection.snsbar`."""
+        return self._delegate_plot("snsbar", metric, **kwargs)
+
+    def snsbox(self, metric, **kwargs):
+        """Box plot -- see :meth:`SummaryCollection.snsbox`."""
+        return self._delegate_plot("snsbox", metric, **kwargs)
+
+    def snsviolin(self, metric, **kwargs):
+        """Violin plot -- see :meth:`SummaryCollection.snsviolin`."""
+        return self._delegate_plot("snsviolin", metric, **kwargs)
+
+    def snspoint(self, metric, **kwargs):
+        """Point plot -- see :meth:`SummaryCollection.snspoint`."""
+        return self._delegate_plot("snspoint", metric, **kwargs)
+
+    def snssuperplot(self, metric, **kwargs):
+        """Superplot -- see :meth:`SummaryCollection.snssuperplot`."""
+        return self._delegate_plot("snssuperplot", metric, **kwargs)

@@ -243,8 +243,17 @@ def _extract_type_checking_imports(src: str) -> list[str]:
     return lines
 
 
-def _generate_collection_mixin(leaf_py: Path, leaf_class: str, mixin_class: str) -> str:
-    methods = list(_iter_public_instance_methods_from_ast(leaf_py, leaf_class))
+def _generate_collection_mixin(
+    leaf_py: Path,
+    leaf_class: str,
+    mixin_class: str,
+    exclude: frozenset[str] = frozenset(),
+) -> str:
+    methods = [
+        m
+        for m in _iter_public_instance_methods_from_ast(leaf_py, leaf_class)
+        if m.name not in exclude
+    ]
     needs_any = any("Any" in m.params_src for m in methods)
     needs_literal = any("Literal" in m.params_src for m in methods)
     needs_optional = any("Optional" in m.params_src for m in methods)
@@ -328,29 +337,51 @@ def _generate_collection_mixin(leaf_py: Path, leaf_class: str, mixin_class: str)
 
 def main() -> None:
     root = Path("src/py3r/behaviour")
+
+    # Summary.sns* methods are delegation proxies that forward back to
+    # SummaryCollectionPlotMixin via _delegate_plot.  Generating batch
+    # wrappers for them causes infinite recursion because the batch mixin
+    # shadows the plot mixin in the MRO, creating a cycle:
+    #   Collection(batch) -> _invoke_batch -> Summary._delegate_plot
+    #   -> new Collection(batch) -> _invoke_batch -> ...
+    _SUMMARY_EXCLUDE = frozenset(
+        {
+            "snsstrip",
+            "snsswarm",
+            "snsbar",
+            "snsbox",
+            "snsviolin",
+            "snspoint",
+            "snssuperplot",
+        }
+    )
+
     targets = [
-        # (leaf_file, leaf_class, output_file, mixin_class)
+        # (leaf_file, leaf_class, output_file, mixin_class, exclude)
         (
             root / "tracking" / "tracking.py",
             "Tracking",
             root / "tracking" / "tracking_collection_batch_mixin.py",
             "TrackingCollectionBatchMixin",
+            frozenset(),
         ),
         (
             root / "features" / "features.py",
             "Features",
             root / "features" / "features_collection_batch_mixin.py",
             "FeaturesCollectionBatchMixin",
+            frozenset(),
         ),
         (
             root / "summary" / "summary.py",
             "Summary",
             root / "summary" / "summary_collection_batch_mixin.py",
             "SummaryCollectionBatchMixin",
+            _SUMMARY_EXCLUDE,
         ),
     ]
-    for leaf_py, leaf_cls, out_py, mixin in targets:
-        content = _generate_collection_mixin(leaf_py, leaf_cls, mixin)
+    for leaf_py, leaf_cls, out_py, mixin, exclude in targets:
+        content = _generate_collection_mixin(leaf_py, leaf_cls, mixin, exclude=exclude)
         out_py.parent.mkdir(parents=True, exist_ok=True)
         out_py.write_text(content)
         print(f"Wrote {out_py}")
