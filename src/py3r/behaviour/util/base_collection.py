@@ -388,6 +388,135 @@ class BaseCollection(MutableMapping):
             ) from e
         return cls(obj_dict)
 
+    @classmethod
+    def merge(cls, collections, *, copy=False):
+        """
+        Merge multiple collections into a single flat collection containing
+        all leaf elements from each input.
+
+        Each input collection is flattened before merging, so grouped inputs
+        are supported. The result is always a new flat collection. Leaves are
+        shared by reference unless ``copy=True``.
+
+        Parameters
+        ----------
+        collections : list[BaseCollection]
+            Two or more collections of the same concrete type. Every element
+            across all collections must have a unique handle.
+        copy : bool, default False
+            If True, each leaf is copied (via its ``.copy()`` method) so that
+            the merged collection is fully independent of the originals.
+
+        Returns
+        -------
+        BaseCollection
+            A new flat collection containing all leaves.
+
+        Raises
+        ------
+        ValueError
+            If *collections* is empty, or if any handles are duplicated.
+        TypeError
+            If any input is not an instance of the calling class.
+
+        Warns
+        -----
+        UserWarning
+            If the tag key sets differ across input collections (the merged
+            collection will have mixed tag coverage).
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...         _ = shutil.copy(p, d / 'C.csv'); _ = shutil.copy(p, d / 'D.csv')
+        ...     c1 = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        ...     c2 = TrackingCollection.from_dlc({'C': str(d/'C.csv'), 'D': str(d/'D.csv')}, fps=30)
+        >>> merged = TrackingCollection.merge([c1, c2])
+        >>> sorted(merged.keys())
+        ['A', 'B', 'C', 'D']
+        >>> len(merged)
+        4
+
+        ```
+        """
+        if not collections:
+            raise ValueError("merge() requires at least one collection.")
+
+        for i, coll in enumerate(collections):
+            if not isinstance(coll, cls):
+                raise TypeError(
+                    f"All collections must be {cls.__name__} instances, "
+                    f"but item {i} is {type(coll).__name__}."
+                )
+
+        # Flatten all inputs and gather leaves + tag schemas per collection
+        all_leaves = []
+        tag_key_sets = []
+        for coll in collections:
+            flat = coll.flatten()
+            leaves = list(flat.values())
+            all_leaves.extend(leaves)
+            coll_tags = set()
+            for obj in leaves:
+                tags = getattr(obj, "tags", None)
+                if isinstance(tags, dict):
+                    coll_tags.update(tags.keys())
+            tag_key_sets.append(coll_tags)
+
+        # Check for handle collisions
+        seen = set()
+        duplicates = []
+        for obj in all_leaves:
+            h = getattr(obj, "handle", id(obj))
+            if h in seen:
+                duplicates.append(h)
+            seen.add(h)
+        if duplicates:
+            unique_dupes = sorted(set(str(d) for d in duplicates))
+            raise ValueError(
+                f"Cannot merge: duplicate handles found across collections: "
+                f"{unique_dupes}. Each element must have a unique handle."
+            )
+
+        # Warn about mismatched tag schemas across collections
+        if len(tag_key_sets) > 1:
+            all_tag_keys = set.union(*tag_key_sets)
+            if all_tag_keys and not all(ts == all_tag_keys for ts in tag_key_sets):
+                per_coll = ", ".join(
+                    f"collection {i}: {{{', '.join(sorted(ts))}}}"
+                    if ts
+                    else f"collection {i}: (none)"
+                    for i, ts in enumerate(tag_key_sets)
+                )
+                warnings.warn(
+                    f"Merging collections with different tag schemas. "
+                    f"The merged collection will have mixed tag coverage. "
+                    f"Tag keys per collection — {per_coll}",
+                    stacklevel=2,
+                )
+
+        # Optionally deep-copy leaves for full independence from originals
+        if copy:
+            copied = []
+            for obj in all_leaves:
+                try:
+                    copied.append(obj.copy())
+                except AttributeError:
+                    raise NotImplementedError(
+                        f"{type(obj).__name__} does not implement copy()"
+                    ) from None
+            all_leaves = copied
+
+        return cls.from_list(all_leaves)
+
     def groupby(self, tags):
         """
         Group the collection by one or more existing tag names.
