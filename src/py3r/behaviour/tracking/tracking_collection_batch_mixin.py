@@ -10,19 +10,6 @@ import pandas as pd
 
 
 class TrackingCollectionBatchMixin:
-    def copy(self) -> BatchResult:
-        """
-        Batch-mode wrapper for Tracking.copy across the collection.
-
-        Creates a copy of an existing tracking object
-
-        See leaf method ``Tracking.copy`` for examples.
-        """
-        _inplace = locals().get("inplace", True)
-        if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, "copy")())
-        return self._invoke_batch("copy")
-
     def add_usermeta(self, usermeta: dict, overwrite: bool = False) -> BatchResult:
         """
         Batch-mode wrapper for Tracking.add_usermeta across the collection.
