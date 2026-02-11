@@ -397,7 +397,7 @@ class Tracking:
         trackings: list[Self],
         *,
         handle: str | None = None,
-        reindex: Literal["rezero", "follow_previous", "none"] = "follow_previous",
+        reindex: Literal["rezero", "follow_previous", "keep_original"] = "follow_previous",
     ) -> Self:
         """
         Concatenate multiple Tracking objects along the time (frame) axis.
@@ -412,12 +412,12 @@ class Tracking:
             List of Tracking objects to concatenate, in temporal order.
         handle : str, optional
             Handle for the concatenated object. If None, uses first object's handle.
-        reindex : {"rezero", "follow_previous", "none"}, default "follow_previous"
+        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
             How to handle frame indices:
             - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
             - "follow_previous": Each chunk continues from where the previous
               ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
-            - "none": Leave indices untouched; duplicates are allowed.
+            - "keep_original": Leave indices untouched; duplicates are allowed.
 
         Returns
         -------
@@ -552,7 +552,7 @@ class Tracking:
             elif reindex == "follow_previous":
                 # Each chunk continues from previous end + 1
                 df.index = pd.RangeIndex(current_offset, current_offset + n_frames)
-            # else reindex == "none": leave df.index untouched
+            # else reindex == "keep_original": leave df.index untouched
 
             chunk_boundaries.append(
                 {

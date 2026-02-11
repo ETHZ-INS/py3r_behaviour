@@ -112,7 +112,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         cls,
         collections: list[FeaturesCollection],
         *,
-        reindex: Literal["rezero", "follow_previous", "none"] = "follow_previous",
+        reindex: Literal["rezero", "follow_previous", "keep_original"] = "follow_previous",
     ) -> FeaturesCollection:
         """
         Concatenate multiple FeaturesCollections along the time (frame) axis.
@@ -126,12 +126,12 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         collections : list[FeaturesCollection]
             List of FeaturesCollection objects to concatenate, in temporal order.
             All must have matching keys (handles) and feature columns.
-        reindex : {"rezero", "follow_previous", "none"}, default "follow_previous"
+        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
             How to handle frame indices:
             - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
             - "follow_previous": Each chunk continues from where the previous
               ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
-            - "none": Leave indices untouched; duplicates are allowed.
+            - "keep_original": Leave indices untouched; duplicates are allowed.
 
         Returns
         -------

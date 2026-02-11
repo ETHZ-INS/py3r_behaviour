@@ -379,7 +379,7 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         cls,
         collections: list[TrackingCollection],
         *,
-        reindex: Literal["rezero", "follow_previous", "none"] = "follow_previous",
+        reindex: Literal["rezero", "follow_previous", "keep_original"] = "follow_previous",
     ) -> TrackingCollection:
         """
         Concatenate multiple TrackingCollections along the time (frame) axis.
@@ -393,12 +393,12 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         collections : list[TrackingCollection]
             List of TrackingCollection objects to concatenate, in temporal order.
             All must have matching keys (handles).
-        reindex : {"rezero", "follow_previous", "none"}, default "follow_previous"
+        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
             How to handle frame indices:
             - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
             - "follow_previous": Each chunk continues from where the previous
               ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
-            - "none": Leave indices untouched; duplicates are allowed.
+            - "keep_original": Leave indices untouched; duplicates are allowed.
 
         Returns
         -------
