@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pandas as pd
@@ -160,6 +160,224 @@ class Features:
         obj.handle = manifest.get("handle", obj.handle)
         obj.tags = manifest.get("tags", obj.tags)
         return obj
+
+    def copy(self) -> Features:
+        """Creates an independent copy of this Features object.
+
+        The returned object shares no mutable state with the original:
+        Tracking is copied via Tracking.copy(), the features DataFrame
+        via DataFrame.copy(), and meta/tags via deepcopy.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> f_copy = f.copy()
+        >>> f_copy.handle == f.handle
+        True
+        >>> f_copy.tracking.data is not f.tracking.data
+        True
+
+        ```
+        """
+        result = type(self)(self.tracking.copy())
+        result.data = self.data.copy()
+        result.meta = copy.deepcopy(self.meta)
+        result.handle = self.handle
+        result.tags = copy.deepcopy(self.tags)
+        return result
+
+    @classmethod
+    def concat(
+        cls,
+        features_list: list[Features],
+        *,
+        handle: str | None = None,
+        reindex: Literal["rezero", "follow_previous", "keep_original"] = "follow_previous",
+    ) -> Features:
+        """
+        Concatenate multiple Features objects along the time (frame) axis.
+
+        This method concatenates both the underlying Tracking data and the
+        computed features DataFrame. All Features objects must have:
+        - Matching fps (in underlying Tracking)
+        - Identical tracking column names
+        - Identical feature column names
+
+        Parameters
+        ----------
+        features_list : list[Features]
+            List of Features objects to concatenate, in temporal order.
+        handle : str, optional
+            Handle for the concatenated object. If None, uses first object's handle.
+        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
+            How to handle frame indices:
+            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
+            - "follow_previous": Each chunk continues from where the previous
+              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
+            - "keep_original": Leave indices untouched; duplicates are allowed.
+
+        Returns
+        -------
+        Features
+            A new Features object containing all frames from input objects.
+
+        Raises
+        ------
+        ValueError
+            If features_list is empty, fps values don't match, or columns differ.
+
+        Notes
+        -----
+        For context-dependent features (normalization, embeddings with temporal
+        windows, etc.), consider whether you need to recompute features on
+        concatenated Tracking data rather than concatenating pre-computed features.
+
+        Examples
+        --------
+        Concatenate two features objects:
+
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t1 = Tracking.from_dlc(str(p), handle='ex1', fps=30)
+        ...     t2 = Tracking.from_dlc(str(p), handle='ex2', fps=30)
+        >>> f1, f2 = Features(t1), Features(t2)
+        >>> # Add a simple feature to both
+        >>> f1.store(pd.Series([1,2,3,4,5], index=t1.data.index), 'val', meta={})
+        >>> f2.store(pd.Series([6,7,8,9,10], index=t2.data.index), 'val', meta={})
+        >>> combined = Features.concat([f1, f2], handle='combined')
+        >>> len(combined.data) == len(f1.data) + len(f2.data)
+        True
+        >>> list(combined.data['val'])
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+        ```
+
+        Verify tracking is also concatenated:
+
+        ```pycon
+        >>> len(combined.tracking.data) == len(t1.data) + len(t2.data)
+        True
+
+        ```
+
+        Concatenation metadata is recorded:
+
+        ```pycon
+        >>> 'concat' in combined.meta
+        True
+        >>> combined.meta['concat']['n_chunks']
+        2
+
+        ```
+        """
+        if not features_list:
+            raise ValueError("Cannot concatenate empty list of Features objects")
+
+        if len(features_list) == 1:
+            result = features_list[0].copy()
+            if handle is not None:
+                result.handle = handle
+            return result
+
+        # Keys in meta that are expected to differ between chunks (not validated)
+        _meta_ignore_keys = {"concat"}
+
+        # Validate feature column consistency
+        reference_cols = list(features_list[0].data.columns)
+        for i, f in enumerate(features_list[1:], start=1):
+            if list(f.data.columns) != reference_cols:
+                raise ValueError(
+                    f"Feature column mismatch: Features[0] has columns {reference_cols}, "
+                    f"but Features[{i}] has columns {list(f.data.columns)}"
+                )
+
+        # Validate Features meta consistency (excluding ignored keys)
+        # Note: Tracking meta is validated by Tracking.concat
+        ref_meta = features_list[0].meta
+        for i, f in enumerate(features_list[1:], start=1):
+            ref_keys = set(ref_meta.keys()) - _meta_ignore_keys
+            f_keys = set(f.meta.keys()) - _meta_ignore_keys
+            if ref_keys != f_keys:
+                raise ValueError(
+                    f"Features meta key mismatch: Features[0] has keys {ref_keys}, "
+                    f"but Features[{i}] has keys {f_keys}"
+                )
+            for key in ref_keys:
+                if ref_meta[key] != f.meta[key]:
+                    raise ValueError(
+                        f"Features meta value mismatch for key '{key}': "
+                        f"Features[0] has {ref_meta[key]!r}, "
+                        f"but Features[{i}] has {f.meta[key]!r}"
+                    )
+
+        # Check handle consistency - warn if differs, use first
+        handles = [f.handle for f in features_list]
+        if len(set(handles)) > 1 and handle is None:
+            warnings.warn(
+                f"Handles differ across Features objects: {handles}. "
+                f"Using first handle '{handles[0]}'. "
+                f"Pass handle= parameter to specify explicitly.",
+                stacklevel=2,
+            )
+
+        # Check tags consistency - warn if differs, use first
+        first_tags = features_list[0].tags
+        tags_differ = any(f.tags != first_tags for f in features_list[1:])
+        if tags_differ:
+            warnings.warn(
+                f"Tags differ across Features objects. Using tags from first object: {first_tags}",
+                stacklevel=2,
+            )
+
+        # Concatenate underlying Tracking objects (this validates Tracking meta)
+        trackings = [f.tracking for f in features_list]
+        result_handle = handle if handle is not None else features_list[0].handle
+        combined_tracking = Tracking.concat(trackings, handle=result_handle, reindex=reindex)
+
+        # Build concatenated features DataFrame with matching indices
+        dfs = []
+        chunk_info = combined_tracking.meta["concat"]["chunk_boundaries"]
+
+        for i, f in enumerate(features_list):
+            df = f.data.copy()
+            info = chunk_info[i]
+            n_frames = len(df)
+
+            # Reindex to match the concatenated tracking
+            new_start = info["concat_start_frame"]
+            df.index = pd.RangeIndex(new_start, new_start + n_frames)
+            dfs.append(df)
+
+        combined_features_data = pd.concat(dfs, axis=0)
+        combined_features_data.index.name = "frame"
+
+        # Create result object
+        result = cls(combined_tracking)
+        result.data = combined_features_data
+
+        # Build metadata (from first, add concat info)
+        result.meta = copy.deepcopy(features_list[0].meta)
+        result.meta["concat"] = {
+            "n_chunks": len(features_list),
+            "source_handles": handles,
+            "reindexed": reindex,
+        }
+
+        # Use first object's tags
+        result.tags = copy.deepcopy(first_tags)
+
+        result.handle = result_handle
+        return result
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> FeaturesResult:
         """

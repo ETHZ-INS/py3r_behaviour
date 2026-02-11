@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import Literal
 
 import pandas as pd
 
@@ -372,6 +373,135 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
             fps=fps,
             aspectratio_correction=aspectratio_correction,
         )
+
+    @classmethod
+    def concat(
+        cls,
+        collections: list[TrackingCollection],
+        *,
+        reindex: Literal["rezero", "follow_previous", "keep_original"] = "follow_previous",
+    ) -> TrackingCollection:
+        """
+        Concatenate multiple TrackingCollections along the time (frame) axis.
+
+        Each collection must have the same handles (keys). For each handle,
+        the corresponding Tracking objects are concatenated in order.
+        Supports both flat and grouped collections.
+
+        Parameters
+        ----------
+        collections : list[TrackingCollection]
+            List of TrackingCollection objects to concatenate, in temporal order.
+            All must have matching keys (handles).
+        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
+            How to handle frame indices:
+            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
+            - "follow_previous": Each chunk continues from where the previous
+              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
+            - "keep_original": Leave indices untouched; duplicates are allowed.
+
+        Returns
+        -------
+        TrackingCollection
+            A new collection with concatenated Tracking objects for each handle.
+
+        Raises
+        ------
+        ValueError
+            If collections is empty, keys don't match, or grouping structure differs.
+
+        Examples
+        --------
+        Concatenate two flat collections:
+
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc1 = TrackingCollection.from_dlc({'A': str(d/'A.csv'),
+        ...                                       'B': str(d/'B.csv')}, fps=30)
+        ...     tc2 = TrackingCollection.from_dlc({'A': str(d/'A.csv'),
+        ...                                        'B': str(d/'B.csv')}, fps=30)
+        >>> combined = TrackingCollection.concat([tc1, tc2])
+        >>> len(combined['A'].data) == len(tc1['A'].data) + len(tc2['A'].data)
+        True
+        >>> 'concat' in combined['A'].meta
+        True
+
+        ```
+        """
+        if not collections:
+            raise ValueError("Cannot concatenate empty list of TrackingCollections")
+
+        if len(collections) == 1:
+            # Return a copy
+            return cls({k: v.copy() for k, v in collections[0].items()})
+
+        # Check grouping consistency
+        is_grouped = [getattr(c, "is_grouped", False) for c in collections]
+        if len(set(is_grouped)) > 1:
+            raise ValueError(
+                "Cannot concatenate mixed grouped/ungrouped collections. "
+                f"Grouping states: {is_grouped}"
+            )
+
+        first = collections[0]
+
+        if first.is_grouped:
+            # Grouped collections: validate group keys match
+            group_keys = [set(c.keys()) for c in collections]
+            if not all(gk == group_keys[0] for gk in group_keys):
+                raise ValueError(
+                    f"Group key mismatch across collections. "
+                    f"First has {group_keys[0]}, others have {group_keys[1:]}"
+                )
+
+            # For each group, validate handles match and concatenate
+            result_dict = {}
+            for group_key in first.keys():
+                sub_collections = [c[group_key] for c in collections]
+                # Validate handles within group
+                handle_sets = [set(sc.keys()) for sc in sub_collections]
+                if not all(hs == handle_sets[0] for hs in handle_sets):
+                    raise ValueError(
+                        f"Handle mismatch in group '{group_key}'. "
+                        f"First has {handle_sets[0]}, others differ."
+                    )
+                # Concatenate each handle within this group
+                group_result = {}
+                for handle in sub_collections[0].keys():
+                    trackings = [sc[handle] for sc in sub_collections]
+                    group_result[handle] = Tracking.concat(
+                        trackings, handle=handle, reindex=reindex
+                    )
+                result_dict[group_key] = cls(group_result)
+
+            result = cls(result_dict)
+            result._is_grouped = True
+            result._groupby_tags = getattr(first, "_groupby_tags", None)
+            return result
+
+        else:
+            # Flat collections: validate handles match
+            handle_sets = [set(c.keys()) for c in collections]
+            if not all(hs == handle_sets[0] for hs in handle_sets):
+                raise ValueError(
+                    f"Handle mismatch across collections. "
+                    f"First has {handle_sets[0]}, others have {handle_sets[1:]}"
+                )
+
+            # Concatenate each handle
+            result_dict = {}
+            for handle in first.keys():
+                trackings = [c[handle] for c in collections]
+                result_dict[handle] = Tracking.concat(trackings, handle=handle, reindex=reindex)
+
+            return cls(result_dict)
 
     def add_tags_from_csv(self, csv_path: str) -> None:
         """

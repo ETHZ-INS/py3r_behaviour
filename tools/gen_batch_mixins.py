@@ -338,13 +338,18 @@ def _generate_collection_mixin(
 def main() -> None:
     root = Path("src/py3r/behaviour")
 
+    # Methods already provided by BaseCollection. Generating batch wrappers
+    # for these would shadow the collection-level versions (which return a
+    # proper collection, not a BatchResult).
+    _COMMON_EXCLUDE = frozenset({"copy"})
+
     # Summary.sns* methods are delegation proxies that forward back to
     # SummaryCollectionPlotMixin via _delegate_plot.  Generating batch
     # wrappers for them causes infinite recursion because the batch mixin
     # shadows the plot mixin in the MRO, creating a cycle:
     #   Collection(batch) -> _invoke_batch -> Summary._delegate_plot
     #   -> new Collection(batch) -> _invoke_batch -> ...
-    _SUMMARY_EXCLUDE = frozenset(
+    _SUMMARY_EXCLUDE = _COMMON_EXCLUDE | frozenset(
         {
             "snsstrip",
             "snsswarm",
@@ -363,14 +368,14 @@ def main() -> None:
             "Tracking",
             root / "tracking" / "tracking_collection_batch_mixin.py",
             "TrackingCollectionBatchMixin",
-            frozenset(),
+            _COMMON_EXCLUDE,
         ),
         (
             root / "features" / "features.py",
             "Features",
             root / "features" / "features_collection_batch_mixin.py",
             "FeaturesCollectionBatchMixin",
-            frozenset(),
+            _COMMON_EXCLUDE,
         ),
         (
             root / "summary" / "summary.py",
