@@ -18,8 +18,6 @@
 # ## 1. Setup
 
 # %%
-TEST_MODE = True
-
 import json
 import os
 from pathlib import Path
@@ -32,12 +30,9 @@ import py3r.behaviour as p3b
 # Skip heavy visualisation deps (pycirclize, umap-learn) in CI
 SKIP_HEAVY_VIZ = os.environ.get("CI", "").lower() in ("true", "1", "yes")
 
-# Paths — point these at your own data outside test mode
-if TEST_MODE:
-    DATA_DIR = Path("data/tracking")
-    TAGS_CSV = Path("data/tags.csv")
-else:
-    raise NotImplementedError("Example dataset artifact not yet bundled with package")
+# Paths
+DATA_DIR = Path("data/tracking")
+TAGS_CSV = Path("data/tags.csv")
 
 OUT_DIR = Path(os.environ.get("NB_OUT_DIR", Path.cwd() / "_artifacts"))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -65,31 +60,30 @@ print(tc)
 
 # %%
 # norender
-if TEST_MODE:
-    # Structural checks on raw data (before preprocessing alters values)
-    expected_handles = {p.stem for p in Path(DATA_DIR).glob("*.csv")}
-    assert len(expected_handles) > 0, "No CSVs found in DATA_DIR"
-    assert set(tc.keys()) == expected_handles
-    assert len(tc) == len(expected_handles)
+# Structural checks on raw data (before preprocessing alters values)
+expected_handles = {p.stem for p in Path(DATA_DIR).glob("*.csv")}
+assert len(expected_handles) > 0, "No CSVs found in DATA_DIR"
+assert set(tc.keys()) == expected_handles
+assert len(tc) == len(expected_handles)
 
-    for handle, t in tc.items():
-        assert t.handle == handle
-        assert "fps" in t.meta and float(t.meta["fps"]) == FPS
-        df = t.data
-        assert isinstance(df, pd.DataFrame)
-        assert df.index.name == "frame"
-        assert df.index.is_monotonic_increasing
-        assert np.issubdtype(df.index.dtype, np.integer)
-        cols = df.columns.astype(str)
-        assert any(c.endswith(".x") for c in cols), f"{handle} missing .x columns"
-        assert any(c.endswith(".y") for c in cols), f"{handle} missing .y columns"
-        like_cols = [c for c in cols if c.endswith(".likelihood")]
-        if like_cols:
-            lk = df[like_cols].to_numpy()
-            assert np.isfinite(lk).all()
-            assert (lk >= 0).all() and (lk <= 1).all()
+for handle, t in tc.items():
+    assert t.handle == handle
+    assert "fps" in t.meta and float(t.meta["fps"]) == FPS
+    df = t.data
+    assert isinstance(df, pd.DataFrame)
+    assert df.index.name == "frame"
+    assert df.index.is_monotonic_increasing
+    assert np.issubdtype(df.index.dtype, np.integer)
+    cols = df.columns.astype(str)
+    assert any(c.endswith(".x") for c in cols), f"{handle} missing .x columns"
+    assert any(c.endswith(".y") for c in cols), f"{handle} missing .y columns"
+    like_cols = [c for c in cols if c.endswith(".likelihood")]
+    if like_cols:
+        lk = df[like_cols].to_numpy()
+        assert np.isfinite(lk).all()
+        assert (lk >= 0).all() and (lk <= 1).all()
 
-    print("Loading tests passed.")
+print("Loading tests passed.")
 
 # %% [markdown]
 # ### 2.2 Add experimental tags
@@ -131,60 +125,59 @@ tc[0].plot(trajectories=trajectories, static=static, lines=lines, show=True)
 
 # %%
 # norender
-if TEST_MODE:
-    # --- Tag checks ---
-    tags_df = pd.read_csv(TAGS_CSV)
-    present = tags_df[tags_df["handle"].isin(list(tc.keys()))]
-    assert not present.empty, "tags.csv has no handles matching loaded data"
-    required_cols = [c for c in tags_df.columns if c != "handle"]
-    assert "treatment" in required_cols
-    assert "timepoint" in required_cols
-    for _, row in present.iterrows():
-        h = row["handle"]
-        tags = tc[h].tags
-        for col in required_cols:
-            assert col in tags, f"missing tag {col} for {h}"
-            assert str(tags[col]) == str(row[col])
-    expected_treatments = set(present["treatment"].unique().tolist())
-    got_treatments = {tc[h].tags.get("treatment") for h in present["handle"]}
-    assert got_treatments == expected_treatments
+# --- Tag checks ---
+tags_df = pd.read_csv(TAGS_CSV)
+present = tags_df[tags_df["handle"].isin(list(tc.keys()))]
+assert not present.empty, "tags.csv has no handles matching loaded data"
+required_cols = [c for c in tags_df.columns if c != "handle"]
+assert "treatment" in required_cols
+assert "timepoint" in required_cols
+for _, row in present.iterrows():
+    h = row["handle"]
+    tags = tc[h].tags
+    for col in required_cols:
+        assert col in tags, f"missing tag {col} for {h}"
+        assert str(tags[col]) == str(row[col])
+expected_treatments = set(present["treatment"].unique().tolist())
+got_treatments = {tc[h].tags.get("treatment") for h in present["handle"]}
+assert got_treatments == expected_treatments
 
-    # --- Preprocessing metadata ---
-    for handle, t in tc.items():
-        meta = t.meta
-        assert float(meta["fps"]) == FPS
-        assert "interpolation" in meta, f"{handle}: missing interpolation meta"
-        assert "smoothing" in meta, f"{handle}: missing smoothing meta"
-        assert meta.get("distance_units") == "m"
+# --- Preprocessing metadata ---
+for handle, t in tc.items():
+    meta = t.meta
+    assert float(meta["fps"]) == FPS
+    assert "interpolation" in meta, f"{handle}: missing interpolation meta"
+    assert "smoothing" in meta, f"{handle}: missing smoothing meta"
+    assert meta.get("distance_units") == "m"
 
-    # --- Golden coordinate values (post-preprocessing) ---
-    H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    GOLDEN_COORDS = {
-        H1: {
-            (10, "bodycentre.x"): 0.42322453052345843,
-            (10, "bodycentre.y"): 0.47276440015430876,
-            (50, "bodycentre.x"): 0.4075528138290211,
-            (50, "bodycentre.y"): 0.46311350683685765,
-        },
-        H2: {
-            (10, "bodycentre.x"): 0.6458406837205221,
-            (10, "bodycentre.y"): 0.6093473239614059,
-        },
-    }
-    for handle, coords in GOLDEN_COORDS.items():
-        if handle in tc:
-            for (frame, col), expected in coords.items():
-                got = float(tc[handle].data.loc[frame, col])
-                assert np.isclose(got, expected, rtol=1e-5), (
-                    f"{handle} {col}@{frame}: {got} != {expected}"
-                )
+# --- Golden coordinate values (post-preprocessing) ---
+H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
+H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
+GOLDEN_COORDS = {
+    H1: {
+        (10, "bodycentre.x"): 0.42322453052345843,
+        (10, "bodycentre.y"): 0.47276440015430876,
+        (50, "bodycentre.x"): 0.4075528138290211,
+        (50, "bodycentre.y"): 0.46311350683685765,
+    },
+    H2: {
+        (10, "bodycentre.x"): 0.6458406837205221,
+        (10, "bodycentre.y"): 0.6093473239614059,
+    },
+}
+for handle, coords in GOLDEN_COORDS.items():
+    if handle in tc:
+        for (frame, col), expected in coords.items():
+            got = float(tc[handle].data.loc[frame, col])
+            assert np.isclose(got, expected, rtol=1e-5), (
+                f"{handle} {col}@{frame}: {got} != {expected}"
+            )
 
-    # --- Trajectory plot files ---
-    has_plot = any(p.suffix.lower() in {".png", ".jpg", ".svg"} for p in OUT_DIR.glob("*"))
-    assert has_plot, f"No plot files in {OUT_DIR}"
+# --- Trajectory plot files ---
+has_plot = any(p.suffix.lower() in {".png", ".jpg", ".svg"} for p in OUT_DIR.glob("*"))
+assert has_plot, f"No plot files in {OUT_DIR}"
 
-    print("Tags, preprocessing, and trajectory plot tests passed.")
+print("Tags, preprocessing, and trajectory plot tests passed.")
 
 # %% [markdown]
 # ## 3. Compute Features
@@ -287,99 +280,98 @@ fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
 
 # %%
 # norender
-if TEST_MODE:
-    # --- Center boundary golden values ---
-    H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    GOLDEN_IN_CENTER = {H1: 1, H2: 5}
-    for handle, expected in GOLDEN_IN_CENTER.items():
-        if handle in fc:
-            got = int(in_center[handle].sum())
-            assert got == expected, f"{handle} in_center: {got} != {expected}"
+# --- Center boundary golden values ---
+H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
+H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
+GOLDEN_IN_CENTER = {H1: 1, H2: 5}
+for handle, expected in GOLDEN_IN_CENTER.items():
+    if handle in fc:
+        got = int(in_center[handle].sum())
+        assert got == expected, f"{handle} in_center: {got} != {expected}"
 
-    # --- Feature columns exist ---
-    first_handle = list(fc.keys())[0]
-    cols = fc[first_handle].data.columns.tolist()
-    expected_speed_cols = [
-        "speed_of_nose_in_xy",
-        "speed_of_neck_in_xy",
-        "speed_of_earr_in_xy",
-        "speed_of_earl_in_xy",
-        "speed_of_bodycentre_in_xy",
-        "speed_of_hipl_in_xy",
-        "speed_of_hipr_in_xy",
-        "speed_of_tailbase_in_xy",
-    ]
-    expected_azimuth_cols = [
-        "azimuth_deviation_tailbase_to_hipr_and_hipl",
-        "azimuth_deviation_bodycentre_to_tailbase_and_neck",
-        "azimuth_deviation_neck_to_bodycentre_and_headcentre",
-        "azimuth_deviation_headcentre_to_earr_and_earl",
-    ]
-    expected_boundary_cols = [
-        "distance_to_boundary_static_nose_in_oft",
-        "distance_to_boundary_static_neck_in_oft",
-        "distance_to_boundary_static_bodycentre_in_oft",
-        "distance_to_boundary_static_tailbase_in_oft",
-    ]
-    for col in expected_speed_cols + expected_azimuth_cols + expected_boundary_cols:
-        assert col in cols, f"Missing column: {col}"
-    distance_cols = [c for c in cols if c.startswith("distance_between_")]
-    assert len(distance_cols) >= 14, f"Expected >= 14 distance columns, got {len(distance_cols)}"
-    area_cols = [c for c in cols if "area_of_boundary" in c]
-    assert len(area_cols) >= 4, f"Expected >= 4 area columns, got {len(area_cols)}"
+# --- Feature columns exist ---
+first_handle = list(fc.keys())[0]
+cols = fc[first_handle].data.columns.tolist()
+expected_speed_cols = [
+    "speed_of_nose_in_xy",
+    "speed_of_neck_in_xy",
+    "speed_of_earr_in_xy",
+    "speed_of_earl_in_xy",
+    "speed_of_bodycentre_in_xy",
+    "speed_of_hipl_in_xy",
+    "speed_of_hipr_in_xy",
+    "speed_of_tailbase_in_xy",
+]
+expected_azimuth_cols = [
+    "azimuth_deviation_tailbase_to_hipr_and_hipl",
+    "azimuth_deviation_bodycentre_to_tailbase_and_neck",
+    "azimuth_deviation_neck_to_bodycentre_and_headcentre",
+    "azimuth_deviation_headcentre_to_earr_and_earl",
+]
+expected_boundary_cols = [
+    "distance_to_boundary_static_nose_in_oft",
+    "distance_to_boundary_static_neck_in_oft",
+    "distance_to_boundary_static_bodycentre_in_oft",
+    "distance_to_boundary_static_tailbase_in_oft",
+]
+for col in expected_speed_cols + expected_azimuth_cols + expected_boundary_cols:
+    assert col in cols, f"Missing column: {col}"
+distance_cols = [c for c in cols if c.startswith("distance_between_")]
+assert len(distance_cols) >= 14, f"Expected >= 14 distance columns, got {len(distance_cols)}"
+area_cols = [c for c in cols if "area_of_boundary" in c]
+assert len(area_cols) >= 4, f"Expected >= 4 area columns, got {len(area_cols)}"
 
-    # --- Speed golden values ---
-    GOLDEN_SPEED_SUM = {
-        H1: 8.59331427489955,
-        H2: 53.870505758473946,
-    }
-    for handle, expected_sum in GOLDEN_SPEED_SUM.items():
-        if handle in fc:
-            got_sum = float(fc[handle].data["speed_of_bodycentre_in_xy"].sum())
-            assert np.isclose(got_sum, expected_sum, rtol=1e-5), (
-                f"{handle} speed sum: {got_sum} != {expected_sum}"
+# --- Speed golden values ---
+GOLDEN_SPEED_SUM = {
+    H1: 8.59331427489955,
+    H2: 53.870505758473946,
+}
+for handle, expected_sum in GOLDEN_SPEED_SUM.items():
+    if handle in fc:
+        got_sum = float(fc[handle].data["speed_of_bodycentre_in_xy"].sum())
+        assert np.isclose(got_sum, expected_sum, rtol=1e-5), (
+            f"{handle} speed sum: {got_sum} != {expected_sum}"
+        )
+
+GOLDEN_FRAME_VALUES = {
+    H1: {
+        (10, "speed_of_bodycentre_in_xy"): 0.0554176299795388,
+        (50, "speed_of_bodycentre_in_xy"): 0.299759367213119,
+        (10, "distance_between_nose_and_headcentre_in_xy"): 0.013693473948303931,
+    },
+}
+for handle, frame_vals in GOLDEN_FRAME_VALUES.items():
+    if handle in fc:
+        for (frame, col), expected in frame_vals.items():
+            got = float(fc[handle].data.loc[frame, col])
+            assert np.isclose(got, expected, rtol=1e-5), (
+                f"{handle} {col}@{frame}: {got} != {expected}"
             )
 
-    GOLDEN_FRAME_VALUES = {
-        H1: {
-            (10, "speed_of_bodycentre_in_xy"): 0.0554176299795388,
-            (50, "speed_of_bodycentre_in_xy"): 0.299759367213119,
-            (10, "distance_between_nose_and_headcentre_in_xy"): 0.013693473948303931,
-        },
-    }
-    for handle, frame_vals in GOLDEN_FRAME_VALUES.items():
-        if handle in fc:
-            for (frame, col), expected in frame_vals.items():
-                got = float(fc[handle].data.loc[frame, col])
-                assert np.isclose(got, expected, rtol=1e-5), (
-                    f"{handle} {col}@{frame}: {got} != {expected}"
-                )
+# --- Clustering ---
+assert set(cluster_labels.keys()) == set(fc.keys())
+for handle in fc.keys():
+    assert "kmeans_25" in fc[handle].data.columns, f"{handle}: kmeans_25 not stored"
+    valid = cluster_labels[handle].dropna()
+    if len(valid) > 0:
+        assert valid.min() >= 0, f"{handle}: negative cluster label"
+        assert valid.max() < N_CLUSTERS, f"{handle}: label >= {N_CLUSTERS}"
+assert centroids.shape[0] == N_CLUSTERS, (
+    f"Expected {N_CLUSTERS} centroids, got {centroids.shape[0]}"
+)
 
-    # --- Clustering ---
-    assert set(cluster_labels.keys()) == set(fc.keys())
-    for handle in fc.keys():
-        assert "kmeans_25" in fc[handle].data.columns, f"{handle}: kmeans_25 not stored"
-        valid = cluster_labels[handle].dropna()
-        if len(valid) > 0:
-            assert valid.min() >= 0, f"{handle}: negative cluster label"
-            assert valid.max() < N_CLUSTERS, f"{handle}: label >= {N_CLUSTERS}"
-    assert centroids.shape[0] == N_CLUSTERS, (
-        f"Expected {N_CLUSTERS} centroids, got {centroids.shape[0]}"
-    )
+# --- Save / manifest ---
+features_dir = Path(OUT_DIR) / "features"
+manifest_path = features_dir / "manifest.json"
+assert manifest_path.exists(), f"manifest.json not found in {features_dir}"
+with open(manifest_path) as f:
+    manifest = json.load(f)
+assert set(manifest["elements_index"].keys()) == set(fc.keys())
+elements_dir = features_dir / "elements"
+for handle in fc.keys():
+    assert (elements_dir / handle / "data.csv").exists(), f"Missing data.csv for {handle}"
 
-    # --- Save / manifest ---
-    features_dir = Path(OUT_DIR) / "features"
-    manifest_path = features_dir / "manifest.json"
-    assert manifest_path.exists(), f"manifest.json not found in {features_dir}"
-    with open(manifest_path) as f:
-        manifest = json.load(f)
-    assert set(manifest["elements_index"].keys()) == set(fc.keys())
-    elements_dir = features_dir / "elements"
-    for handle in fc.keys():
-        assert (elements_dir / handle / "data.csv").exists(), f"Missing data.csv for {handle}"
-
-    print("Feature computation, clustering, and save tests passed.")
+print("Feature computation, clustering, and save tests passed.")
 
 # %% [markdown]
 # ## 4. Summarise
@@ -413,81 +405,78 @@ summary_df.head()
 
 # %%
 # norender
-if TEST_MODE:
-    from py3r.behaviour.summary.summary import Summary
+from py3r.behaviour.summary.summary import Summary
 
-    # --- SummaryCollection structure ---
-    assert set(sc.keys()) == set(fc.keys())
-    assert len(sc) == len(fc)
-    for handle, s in sc.items():
-        assert isinstance(s, Summary), f"{handle} is not a Summary"
-        assert s.handle == handle
-        assert s.tags == fc[handle].tags
+# --- SummaryCollection structure ---
+assert set(sc.keys()) == set(fc.keys())
+assert len(sc) == len(fc)
+for handle, s in sc.items():
+    assert isinstance(s, Summary), f"{handle} is not a Summary"
+    assert s.handle == handle
+    assert s.tags == fc[handle].tags
 
-    # --- Stored summary metrics ---
-    summary_stored = [
-        "total_distance_bodycentre",
-        "time_in_center",
-        "distance_moved_in_center",
-    ]
-    for handle in sc.keys():
-        for name in summary_stored:
-            assert name in sc[handle].data, f"{handle}: missing '{name}'"
-            val = sc[handle].data[name]
-            assert isinstance(val, (int, float, bool, np.integer, np.floating)), (
-                f"{handle}: '{name}' should be scalar, got {type(val)}"
-            )
+# --- Stored summary metrics ---
+summary_stored = [
+    "total_distance_bodycentre",
+    "time_in_center",
+    "distance_moved_in_center",
+]
+for handle in sc.keys():
+    for name in summary_stored:
+        assert name in sc[handle].data, f"{handle}: missing '{name}'"
+        val = sc[handle].data[name]
+        assert isinstance(val, (int, float, bool, np.integer, np.floating)), (
+            f"{handle}: '{name}' should be scalar, got {type(val)}"
+        )
 
-    # --- Golden summary values ---
-    H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    H3 = "USSOFT1_8DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    GOLDEN_SUMMARY = {
-        H1: {
-            "total_distance_bodycentre": 0.3437325709959821,
-            "time_in_center": 0.04,
-            "distance_moved_in_center": 0.023400103796424813,
-        },
-        H2: {
-            "total_distance_bodycentre": 2.154820230338958,
-            "time_in_center": 0.2,
-            "distance_moved_in_center": 0.383824548159979,
-        },
-        H3: {
-            "total_distance_bodycentre": 0.7647580838539083,
-            "time_in_center": 0.0,
-            "distance_moved_in_center": 0.0,
-        },
-    }
-    for handle, expected_vals in GOLDEN_SUMMARY.items():
-        if handle in sc:
-            for metric, expected in expected_vals.items():
-                got = float(sc[handle].data[metric])
-                assert np.isclose(got, expected, rtol=1e-5), (
-                    f"{handle} {metric}: {got} != {expected}"
-                )
+# --- Golden summary values ---
+H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
+H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
+H3 = "USSOFT1_8DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
+GOLDEN_SUMMARY = {
+    H1: {
+        "total_distance_bodycentre": 0.3437325709959821,
+        "time_in_center": 0.04,
+        "distance_moved_in_center": 0.023400103796424813,
+    },
+    H2: {
+        "total_distance_bodycentre": 2.154820230338958,
+        "time_in_center": 0.2,
+        "distance_moved_in_center": 0.383824548159979,
+    },
+    H3: {
+        "total_distance_bodycentre": 0.7647580838539083,
+        "time_in_center": 0.0,
+        "distance_moved_in_center": 0.0,
+    },
+}
+for handle, expected_vals in GOLDEN_SUMMARY.items():
+    if handle in sc:
+        for metric, expected in expected_vals.items():
+            got = float(sc[handle].data[metric])
+            assert np.isclose(got, expected, rtol=1e-5), f"{handle} {metric}: {got} != {expected}"
 
-    # --- Sanity checks ---
-    for handle in sc.keys():
-        s = sc[handle].data
-        assert s["time_in_center"] >= 0
-        assert s["total_distance_bodycentre"] >= 0
-        assert s["distance_moved_in_center"] >= 0 or np.isnan(s["distance_moved_in_center"])
+# --- Sanity checks ---
+for handle in sc.keys():
+    s = sc[handle].data
+    assert s["time_in_center"] >= 0
+    assert s["total_distance_bodycentre"] >= 0
+    assert s["distance_moved_in_center"] >= 0 or np.isnan(s["distance_moved_in_center"])
 
-    # --- CSV round-trip ---
-    csv_path = Path(OUT_DIR) / "OFT_results.csv"
-    assert csv_path.exists()
-    loaded = pd.read_csv(csv_path, index_col=0)
-    assert len(loaded) == len(summary_df)
-    for col in summary_stored:
-        assert col in loaded.columns, f"CSV missing '{col}'"
+# --- CSV round-trip ---
+csv_path = Path(OUT_DIR) / "OFT_results.csv"
+assert csv_path.exists()
+loaded = pd.read_csv(csv_path, index_col=0)
+assert len(loaded) == len(summary_df)
+for col in summary_stored:
+    assert col in loaded.columns, f"CSV missing '{col}'"
 
-    # --- summary_df structure ---
-    assert isinstance(summary_df, pd.DataFrame)
-    assert summary_df.index.name == "handle"
-    assert set(summary_df.index) == set(sc.keys())
+# --- summary_df structure ---
+assert isinstance(summary_df, pd.DataFrame)
+assert summary_df.index.name == "handle"
+assert set(summary_df.index) == set(sc.keys())
 
-    print("Summary computation and CSV tests passed.")
+print("Summary computation and CSV tests passed.")
 
 # %% [markdown]
 # ## 5. Visualise
@@ -634,40 +623,39 @@ fig, ax, df_mc = sc.snsbar(
 
 # %%
 # norender
-if TEST_MODE:
-    # --- Flat tidy DataFrame structure ---
-    for label, df_check in [
-        ("strip", df_strip),
-        ("bar", df_bar),
-        ("super", df_super),
-    ]:
-        assert {"component", "value", "_handle"} <= set(df_check.columns), (
-            f"{label}: missing required columns"
-        )
-        assert len(df_check) > 0, f"{label}: empty DataFrame"
-
-    # --- Single Summary delegation ---
-    assert {"component", "value", "_handle"} <= set(df_single.columns)
-
-    # --- Grouped tidy DataFrame structure ---
-    for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
-        assert {"component", "value", "_handle", "_group"} <= set(df_check.columns), (
-            f"{label}: missing required columns"
-        )
-        assert df_check["_group"].nunique() > 1, f"{label}: expected multiple groups"
-        assert len(df_check) > 0, f"{label}: empty DataFrame"
-
-    # Multi-component grouped bar: 25 clusters × 4 groups
-    assert df_gbar["component"].nunique() == N_CLUSTERS, (
-        f"Expected {N_CLUSTERS} components, got {df_gbar['component'].nunique()}"
+# --- Flat tidy DataFrame structure ---
+for label, df_check in [
+    ("strip", df_strip),
+    ("bar", df_bar),
+    ("super", df_super),
+]:
+    assert {"component", "value", "_handle"} <= set(df_check.columns), (
+        f"{label}: missing required columns"
     )
+    assert len(df_check) > 0, f"{label}: empty DataFrame"
 
-    # --- Auto-named plot files ---
-    assert len(list(OUT_DIR.glob("*stripplot.png"))) >= 1
-    assert len(list(OUT_DIR.glob("*superplot.png"))) >= 1
-    assert len(list(OUT_DIR.glob("*barplot.png"))) >= 1
+# --- Single Summary delegation ---
+assert {"component", "value", "_handle"} <= set(df_single.columns)
 
-    print("Visualisation tests passed.")
+# --- Grouped tidy DataFrame structure ---
+for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
+    assert {"component", "value", "_handle", "_group"} <= set(df_check.columns), (
+        f"{label}: missing required columns"
+    )
+    assert df_check["_group"].nunique() > 1, f"{label}: expected multiple groups"
+    assert len(df_check) > 0, f"{label}: empty DataFrame"
+
+# Multi-component grouped bar: 25 clusters × 4 groups
+assert df_gbar["component"].nunique() == N_CLUSTERS, (
+    f"Expected {N_CLUSTERS} components, got {df_gbar['component'].nunique()}"
+)
+
+# --- Auto-named plot files ---
+assert len(list(OUT_DIR.glob("*stripplot.png"))) >= 1
+assert len(list(OUT_DIR.glob("*superplot.png"))) >= 1
+assert len(list(OUT_DIR.glob("*barplot.png"))) >= 1
+
+print("Visualisation tests passed.")
 
 # %% [markdown]
 # ## 6. Behaviour Flow Analysis (BFA)
@@ -740,32 +728,30 @@ if not SKIP_HEAVY_VIZ:
 
 # %%
 # norender
-if TEST_MODE:
-    # --- BFA results structure ---
-    assert isinstance(bfa_results, dict), "BFA results should be a dict"
-    assert Path(f"{OUT_DIR}/bfa_results.json").exists()
-    assert isinstance(bfa_stats, dict), "BFA stats should be a dict"
-    assert Path(f"{OUT_DIR}/bfa_stats.json").exists()
+# --- BFA results structure ---
+assert isinstance(bfa_results, dict), "BFA results should be a dict"
+assert Path(f"{OUT_DIR}/bfa_results.json").exists()
+assert isinstance(bfa_stats, dict), "BFA stats should be a dict"
+assert Path(f"{OUT_DIR}/bfa_stats.json").exists()
 
-    # --- Heavy viz files (if run) ---
-    if not SKIP_HEAVY_VIZ:
-        chord_files = list(OUT_DIR.glob("*chord*")) + list(OUT_DIR.glob("*bfa*"))
-        assert any(p.suffix.lower() in {".png", ".jpg", ".svg", ".pdf"} for p in chord_files), (
-            "No chord plot files found"
-        )
-        assert Path(f"{OUT_DIR}/transition_umap.png").exists()
+# --- Heavy viz files (if run) ---
+if not SKIP_HEAVY_VIZ:
+    chord_files = list(OUT_DIR.glob("*chord*")) + list(OUT_DIR.glob("*bfa*"))
+    assert any(p.suffix.lower() in {".png", ".jpg", ".svg", ".pdf"} for p in chord_files), (
+        "No chord plot files found"
+    )
+    assert Path(f"{OUT_DIR}/transition_umap.png").exists()
 
-    print("BFA tests passed.")
+print("BFA tests passed.")
 
 # %% [markdown]
 # ## Done
 
 # %%
 # norender
-if TEST_MODE:
-    print("\n" + "=" * 60)
-    print("ALL OFT PIPELINE TESTS PASSED")
-    if SKIP_HEAVY_VIZ:
-        print("(Skipped: chord diagrams, UMAP — requires pycirclize/umap-learn)")
-    print("=" * 60)
-    print(f"\nOutputs saved to: {OUT_DIR}")
+print("\n" + "=" * 60)
+print("ALL OFT PIPELINE TESTS PASSED")
+if SKIP_HEAVY_VIZ:
+    print("(Skipped: chord diagrams, UMAP — requires pycirclize/umap-learn)")
+print("=" * 60)
+print(f"\nOutputs saved to: {OUT_DIR}")
