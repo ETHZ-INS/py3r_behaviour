@@ -38,7 +38,7 @@ OUT_DIR = Path(os.environ.get("NB_OUT_DIR", Path.cwd() / "_artifacts"))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Constants
-FPS = 25
+FPS = 30
 N_CLUSTERS = 25
 
 # %% [markdown]
@@ -54,7 +54,6 @@ N_CLUSTERS = 25
 tc = p3b.TrackingCollection.from_dlc_folder(
     folder_path=DATA_DIR,
     fps=FPS,
-    aspectratio_correction=0.75,
 )
 print(tc)
 
@@ -104,7 +103,7 @@ tc.tags_info()
 # to real-world units.
 
 # %%
-tc.filter_likelihood(threshold=0.5)
+tc.filter_likelihood(threshold=0.9)
 tc.interpolate(limit=5)
 tc.smooth_all(window=3, method="mean")
 tc.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.64)
@@ -151,18 +150,20 @@ for handle, t in tc.items():
     assert meta.get("distance_units") == "m"
 
 # --- Golden coordinate values (post-preprocessing) ---
-H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
+H1 = "OFT1_1"
+H2 = "OFT1_10"
 GOLDEN_COORDS = {
     H1: {
-        (10, "bodycentre.x"): 0.42322453052345843,
-        (10, "bodycentre.y"): 0.47276440015430876,
-        (50, "bodycentre.x"): 0.4075528138290211,
-        (50, "bodycentre.y"): 0.46311350683685765,
+        (10, "bodycentre.x"): 0.5627381131700598,
+        (10, "bodycentre.y"): 0.2774778306233837,
+        (50, "bodycentre.x"): 0.700039705397047,
+        (50, "bodycentre.y"): 0.41430397632776833,
     },
     H2: {
-        (10, "bodycentre.x"): 0.6458406837205221,
-        (10, "bodycentre.y"): 0.6093473239614059,
+        (10, "bodycentre.x"): 0.6185524853964406,
+        (10, "bodycentre.y"): 0.24807079148985997,
+        (50, "bodycentre.x"): 0.7445399009882802,
+        (50, "bodycentre.y"): 0.24343088410270214,
     },
 }
 for handle, coords in GOLDEN_COORDS.items():
@@ -281,9 +282,9 @@ fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
 # %%
 # norender
 # --- Center boundary golden values ---
-H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-GOLDEN_IN_CENTER = {H1: 1, H2: 5}
+H1 = "OFT1_1"
+H2 = "OFT1_10"
+GOLDEN_IN_CENTER = {H1: 5, H2: 0}
 for handle, expected in GOLDEN_IN_CENTER.items():
     if handle in fc:
         got = int(in_center[handle].sum())
@@ -323,8 +324,8 @@ assert len(area_cols) >= 4, f"Expected >= 4 area columns, got {len(area_cols)}"
 
 # --- Speed golden values ---
 GOLDEN_SPEED_SUM = {
-    H1: 8.59331427489955,
-    H2: 53.870505758473946,
+    H1: 13.430283546187345,
+    H2: 7.708798105663596,
 }
 for handle, expected_sum in GOLDEN_SPEED_SUM.items():
     if handle in fc:
@@ -335,9 +336,9 @@ for handle, expected_sum in GOLDEN_SPEED_SUM.items():
 
 GOLDEN_FRAME_VALUES = {
     H1: {
-        (10, "speed_of_bodycentre_in_xy"): 0.0554176299795388,
-        (50, "speed_of_bodycentre_in_xy"): 0.299759367213119,
-        (10, "distance_between_nose_and_headcentre_in_xy"): 0.013693473948303931,
+        (10, "speed_of_bodycentre_in_xy"): 0.053635888585183436,
+        (50, "speed_of_bodycentre_in_xy"): 0.029256103508145354,
+        (10, "distance_between_nose_and_headcentre_in_xy"): 0.01306663873926128,
     },
 }
 for handle, frame_vals in GOLDEN_FRAME_VALUES.items():
@@ -430,22 +431,22 @@ for handle in sc.keys():
         )
 
 # --- Golden summary values ---
-H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-H3 = "USSOFT1_8DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
+H1 = "OFT1_1"
+H2 = "OFT1_10"
+H3 = "OFT1_11"
 GOLDEN_SUMMARY = {
     H1: {
-        "total_distance_bodycentre": 0.3437325709959821,
-        "time_in_center": 0.04,
-        "distance_moved_in_center": 0.023400103796424813,
+        "total_distance_bodycentre": 0.44767611820624487,
+        "time_in_center": 0.16666666666666666,
+        "distance_moved_in_center": 0.03422028501882547,
     },
     H2: {
-        "total_distance_bodycentre": 2.154820230338958,
-        "time_in_center": 0.2,
-        "distance_moved_in_center": 0.383824548159979,
+        "total_distance_bodycentre": 0.25695993685545326,
+        "time_in_center": 0.0,
+        "distance_moved_in_center": 0.0,
     },
     H3: {
-        "total_distance_bodycentre": 0.7647580838539083,
+        "total_distance_bodycentre": 0.16675110816606706,
         "time_in_center": 0.0,
         "distance_moved_in_center": 0.0,
     },
@@ -536,7 +537,7 @@ fig, ax, df_single = single.snsbar(
 sc_grouped = sc.groupby(tags=["treatment", "timepoint"])
 
 # Keys = tag names (must match groupby tags), values = desired display order
-GROUP_ORDER = {"treatment": ["control", "FST"], "timepoint": ["45m", "1d"]}
+GROUP_ORDER = {"treatment": ["control", "stressor"], "timepoint": ["pre", "post"]}
 
 # %%
 # Scalar metric — grouped superplot
@@ -591,7 +592,7 @@ fig_ann, ax_ann, df_ann = sc_grouped.snsbox(
     "total_distance_bodycentre",
     group_order=GROUP_ORDER,
     annotate={
-        "pairs": [("control, 45m", "FST, 45m"), ("control, 1d", "FST, 1d")],
+        "pairs": [("control, pre", "stressor, pre"), ("control, post", "stressor, post")],
         "test": "Mann-Whitney",
         "correction": None,
         "text_format": "star",
@@ -601,6 +602,7 @@ fig_ann, ax_ann, df_ann = sc_grouped.snsbox(
     filename="total_distance_annotated_superplot.png",
     show=True,
 )
+
 
 # %% [markdown]
 # ### 5.5 Metric input options
