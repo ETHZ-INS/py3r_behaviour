@@ -1289,6 +1289,64 @@ class Features:
         embed_df = pd.DataFrame(data, index=self.data.index)
         return embed_df
 
+    def cluster_embedding(
+        self,
+        embedding_dict: dict[str, list[int]],
+        n_clusters: int,
+        random_state: int = 0,
+        *,
+        auto_normalize: bool = False,
+        rescale_factors: dict | None = None,
+        lowmem: bool = False,
+        decimation_factor: int = 10,
+        custom_scaling: dict[str, dict] | None = None,
+        missing_policy: Literal["drop", "impute_weight"] = "drop",
+    ):
+        """
+        Perform k-means clustering on a single Features object.
+
+        Delegates to ``FeaturesCollection.cluster_embedding`` so all
+        clustering logic remains centralised.
+
+        Returns
+        -------
+        (FeaturesResult, centroids DataFrame, normalization_factors or None)
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
+        >>> result, centroids, norm = f.cluster_embedding({'counter': [0]}, n_clusters=2)
+        >>> isinstance(centroids, pd.DataFrame)
+        True
+        >>> len(result) == len(f.data)
+        True
+
+        ```
+        """
+        from py3r.behaviour.features.features_collection import FeaturesCollection
+
+        fc = FeaturesCollection.from_list([self])
+        batch, centroids, norm = fc.cluster_embedding(
+            embedding_dict,
+            n_clusters,
+            random_state,
+            auto_normalize=auto_normalize,
+            rescale_factors=rescale_factors,
+            lowmem=lowmem,
+            decimation_factor=decimation_factor,
+            custom_scaling=custom_scaling,
+            missing_policy=missing_policy,
+        )
+        return batch[self.handle], centroids, norm
+
     def assign_clusters_by_centroids(
         self,
         embedding: dict[str, list[int]],
