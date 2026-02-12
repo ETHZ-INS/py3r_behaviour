@@ -349,6 +349,11 @@ def main() -> None:
     # shadows the plot mixin in the MRO, creating a cycle:
     #   Collection(batch) -> _invoke_batch -> Summary._delegate_plot
     #   -> new Collection(batch) -> _invoke_batch -> ...
+    # cluster_embedding on Features is a thin wrapper that delegates to
+    # FeaturesCollection.cluster_embedding (which uses ClusteringPipeline).
+    # Generating a batch wrapper would shadow the collection-level method.
+    _FEATURES_EXCLUDE = _COMMON_EXCLUDE | frozenset({"cluster_embedding"})
+
     _SUMMARY_EXCLUDE = _COMMON_EXCLUDE | frozenset(
         {
             "snsstrip",
@@ -375,7 +380,7 @@ def main() -> None:
             "Features",
             root / "features" / "features_collection_batch_mixin.py",
             "FeaturesCollectionBatchMixin",
-            _COMMON_EXCLUDE,
+            _FEATURES_EXCLUDE,
         ),
         (
             root / "summary" / "summary.py",
