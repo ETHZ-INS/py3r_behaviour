@@ -50,7 +50,7 @@ class SummaryCollectionPlotMixin:
         return ranks
 
     @staticmethod
-    def _sort_group_labels(label_to_tuple, group_order=None, groupby_tags=None):
+    def _sort_group_labels(label_to_tuple, group_order=None, groupby_tags=None, sort_by=None):
         """
         Return group labels sorted according to *group_order*.
 
@@ -63,6 +63,15 @@ class SummaryCollectionPlotMixin:
             Tags not present fall back to :meth:`_smart_sort_labels`.
         groupby_tags : list[str] | None
             Tag names corresponding to tuple positions (from ``groupby(tags=...)``).
+        sort_by : list[str] | str | None
+            Tag names in the desired *spatial* priority order.  When provided,
+            the sort key is built using this tag order instead of *groupby_tags*,
+            allowing spatial arrangement to differ from palette colour assignment
+            (which always follows *groupby_tags*).
+
+            Accepts a single tag name (string) to promote that tag to primary
+            sort position while keeping the remaining tags in their original
+            ``groupby`` order.
 
         Returns
         -------
@@ -72,10 +81,25 @@ class SummaryCollectionPlotMixin:
         if not group_order or not groupby_tags:
             return SummaryCollectionPlotMixin._smart_sort_labels(label_to_tuple.keys())
 
+        # Resolve sort_by into a full tag ordering
+        if sort_by is not None:
+            if isinstance(sort_by, str):
+                sort_by = [sort_by]
+            # Validate all sort_by tags exist in groupby_tags
+            unknown = set(sort_by) - set(groupby_tags)
+            if unknown:
+                raise ValueError(f"sort_by tag(s) {unknown} not in groupby tags {groupby_tags}")
+            # Append any groupby_tags not mentioned in sort_by (preserve their
+            # relative order as a tiebreaker)
+            sort_tags = list(sort_by) + [t for t in groupby_tags if t not in sort_by]
+        else:
+            sort_tags = groupby_tags
+
         def _key(label):
-            return SummaryCollectionPlotMixin._rank_tuple(
-                label_to_tuple[label], groupby_tags, group_order
-            )
+            raw = label_to_tuple[label]
+            # Rearrange tuple elements to match sort_tags order
+            reordered = tuple(raw[groupby_tags.index(t)] for t in sort_tags)
+            return SummaryCollectionPlotMixin._rank_tuple(reordered, sort_tags, group_order)
 
         return sorted(label_to_tuple.keys(), key=_key)
 
@@ -152,7 +176,7 @@ class SummaryCollectionPlotMixin:
     # -------------------------------------------------------------------------
 
     def _metric_to_tidy(
-        self, metric, group_order=None
+        self, metric, group_order=None, sort_by=None
     ) -> tuple[pd.DataFrame, str, dict | None, list | None]:
         """
         Convert a metric (string key or BatchResult) to a tidy (long-form) DataFrame.
@@ -163,6 +187,8 @@ class SummaryCollectionPlotMixin:
             Metric to convert.
         group_order : dict[str, list] | None
             ``{tag_name: [value, ...]}`` controlling group display order.
+        sort_by : list[str] | str | None
+            Override spatial sort priority.  See :meth:`_sort_group_labels`.
 
         Returns
         -------
@@ -289,7 +315,9 @@ class SummaryCollectionPlotMixin:
         groupby_tags = getattr(self, "_groupby_tags", None)
         if label_to_tuple:
             palette = self._build_group_palette(label_to_tuple, group_order, groupby_tags)
-            sorted_groups = self._sort_group_labels(label_to_tuple, group_order, groupby_tags)
+            sorted_groups = self._sort_group_labels(
+                label_to_tuple, group_order, groupby_tags, sort_by=sort_by
+            )
         else:
             palette = None
             sorted_groups = None
@@ -433,56 +461,6 @@ class SummaryCollectionPlotMixin:
         if palette:
             kwargs["palette"] = palette
         return kwargs, False
-
-    # ------------------------------------------------------------------
-    # Shared pre/post helpers for seaborn wrappers
-    # ------------------------------------------------------------------
-
-    def _sns_pre_plot(self, metric, *, group_order=None, ax=None, figsize=None):
-        """Prepare data, figure, and seaborn kwargs for a categorical plot.
-
-        Returns
-        -------
-        fig, ax, df, metric_name, plot_kwargs, hide_legend,
-        n_components, n_groups, auto_ylabel, filename_prefix, created_fig
-        """
-        import matplotlib.pyplot as plt
-
-        df, metric_name, palette, sorted_groups, auto_ylabel = self._metric_to_tidy(
-            metric, group_order
-        )
-        is_grouped = "_group" in df.columns
-        n_components = df["component"].nunique()
-        n_groups = df["_group"].nunique() if is_grouped else 1
-
-        created_fig = ax is None
-        if created_fig:
-            figsize = self._auto_figsize(n_components, n_groups, figsize)
-            fig, ax = plt.subplots(figsize=figsize)
-        else:
-            fig = ax.figure
-
-        plot_kwargs, hide_legend = self._build_sns_kwargs(df, ax, palette, sorted_groups)
-
-        # For single-item collections, prefix auto-filename with the handle
-        unique_handles = df["_handle"].unique()
-        filename_prefix = (
-            self._slugify_metric_name(unique_handles[0]) if len(unique_handles) == 1 else None
-        )
-
-        return (
-            fig,
-            ax,
-            df,
-            metric_name,
-            plot_kwargs,
-            hide_legend,
-            n_components,
-            n_groups,
-            auto_ylabel,
-            filename_prefix,
-            created_fig,
-        )
 
     @staticmethod
     def _sns_post_plot(
@@ -706,6 +684,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        sort_by: list | str | None = None,
         annotate=None,
         ax=None,
         show: bool = True,
@@ -731,6 +710,18 @@ class SummaryCollectionPlotMixin:
 
                 group_order={"treatment": ["control", "FST"],
                              "timepoint": ["45m", "1d"]}
+        sort_by : list[str] | str | None
+            Override spatial sort priority on the x-axis without affecting
+            colour assignment.  Accepts a list of tag names in the desired
+            sort priority, or a single tag name (string) to promote it to
+            primary.  Colours always follow the ``groupby(tags=...)`` order.
+            Example::
+
+                # groupby(tags=["treatment", "timepoint"])
+                # colours: treatment = base colour, timepoint = shade
+                sort_by=["timepoint", "treatment"]
+                # → control,45m | FST,45m | control,1d | FST,1d
+
         annotate : str or dict or None
             Statistical annotations via ``statannotations``.
 
@@ -772,55 +763,164 @@ class SummaryCollectionPlotMixin:
         -------
         tuple[Figure, Axes, DataFrame]
         """
-        (
-            fig,
-            ax,
-            df,
-            metric_name,
-            plot_kwargs,
-            hide_legend,
-            n_comp,
-            n_groups,
-            auto_ylabel,
-            fname_prefix,
-            created_fig,
-        ) = self._sns_pre_plot(
+        spec = self.prepare_plot(
             metric,
             group_order=group_order,
+            sort_by=sort_by,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
-        plot_kwargs.update(kwargs)
-        plot_func(**plot_kwargs)
+        spec.sns_kwargs.update(kwargs)
+        plot_func(**spec.sns_kwargs)
 
         # Build seaborn params dict for statannotations passthrough
         sns_kw = {
             k: v
-            for k, v in plot_kwargs.items()
+            for k, v in spec.sns_kwargs.items()
             if k in ("data", "x", "y", "hue", "order", "hue_order")
         }
 
         # Apply statistical annotations (before save/show)
-        self._apply_annotations(ax, df, annotate, sns_kw)
+        self._apply_annotations(spec.ax, spec.df, annotate, sns_kw)
 
         self._sns_post_plot(
-            fig,
-            ax,
-            metric_name=metric_name,
+            spec.fig,
+            spec.ax,
+            metric_name=spec.metric_name,
             title=title,
-            ylabel=ylabel or auto_ylabel or "Value",
-            filename_prefix=fname_prefix,
-            n_components=n_comp,
-            n_groups=n_groups,
-            hide_legend=hide_legend,
+            ylabel=ylabel or spec.ylabel,
+            filename_prefix=spec.filename_prefix,
+            n_components=spec.n_components,
+            n_groups=spec.n_groups,
+            hide_legend=spec.hide_legend,
             savedir=savedir,
             filename=filename,
             default_suffix=plot_func.__name__,
             show=show,
-            created_fig=created_fig,
+            created_fig=spec.created_fig,
         )
 
-        return fig, ax, df
+        return spec.fig, spec.ax, spec.df
+
+    # ------------------------------------------------------------------
+    # Public prepare_plot() — power-user escape hatch
+    # ------------------------------------------------------------------
+
+    def prepare_plot(
+        self,
+        metric,
+        *,
+        group_order: dict | None = None,
+        sort_by: list | str | None = None,
+        ax=None,
+        figsize=None,
+    ):
+        """
+        Prepare a tidy DataFrame and seaborn kwargs without drawing anything.
+
+        This is the single entry point for all plot data preparation.  The
+        convenience ``sns*`` methods call this internally; power users can
+        call it directly for full control over the seaborn call.
+
+        Parameters
+        ----------
+        metric : str or BatchResult
+            Metric to prepare.
+        group_order : dict[str, list] | None
+            ``{tag_name: [value, ...]}`` controlling within-tag value ordering.
+        sort_by : list[str] | str | None
+            Override spatial sort priority (which tag is the primary x-axis
+            sort dimension).  Colours are unaffected — they always follow
+            the ``groupby(tags=...)`` order.  Accepts a single tag name or a
+            list.  See :meth:`_sns_plot_common` for details.
+        ax : matplotlib.axes.Axes, optional
+            Axes to plot on.  If *None*, a new figure is created with
+            auto-calculated size.
+        figsize : tuple[float, float], optional
+            Override the automatic figure size.
+
+        Returns
+        -------
+        PlotSpec
+            A namespace with the following attributes:
+
+            - **fig** — the :class:`~matplotlib.figure.Figure`
+            - **ax** — the :class:`~matplotlib.axes.Axes`
+            - **df** — tidy long-form :class:`~pandas.DataFrame`
+            - **sns_kwargs** — ``dict`` ready to unpack into any seaborn
+              categorical plot function (contains ``data``, ``x``, ``y``,
+              ``hue``, ``order``, ``hue_order``, ``palette``, ``dodge``,
+              ``ax``)
+            - **metric_name** — raw metric name string
+            - **ylabel** — auto-detected y-axis label (or ``"Value"``)
+            - **hide_legend** — ``bool`` hint for legend handling
+            - **created_fig** — ``bool`` whether the figure was created here
+            - **n_components** — ``int`` number of unique components
+            - **n_groups** — ``int`` number of unique groups (1 if ungrouped)
+            - **filename_prefix** — ``str | None`` handle slug for auto-filenames
+
+        Examples
+        --------
+        Basic power-user workflow::
+
+            import seaborn as sns
+
+            spec = sc_grouped.prepare_plot(
+                "total_distance",
+                group_order=GROUP_ORDER,
+                sort_by="timepoint",
+            )
+
+            # Full seaborn control — override anything you like
+            sns.boxplot(**spec.sns_kwargs, width=0.6)
+            spec.ax.set_title("My custom title")
+            spec.fig.savefig("custom.png", dpi=300)
+
+        Composing multiple layers::
+
+            spec = sc_grouped.prepare_plot(metric, group_order=ORDER)
+            sns.barplot(**spec.sns_kwargs, errorbar=None, alpha=0.4)
+            sns.stripplot(**spec.sns_kwargs, size=4, jitter=True)
+        """
+        from types import SimpleNamespace
+
+        import matplotlib.pyplot as plt
+
+        df, metric_name, palette, sorted_groups, auto_ylabel = self._metric_to_tidy(
+            metric, group_order, sort_by=sort_by
+        )
+        is_grouped = "_group" in df.columns
+        n_components = df["component"].nunique()
+        n_groups = df["_group"].nunique() if is_grouped else 1
+
+        created_fig = ax is None
+        if created_fig:
+            figsize = self._auto_figsize(n_components, n_groups, figsize)
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            fig = ax.figure
+
+        plot_kwargs, hide_legend = self._build_sns_kwargs(df, ax, palette, sorted_groups)
+
+        # For single-item collections, prefix auto-filename with the handle
+        unique_handles = df["_handle"].unique()
+        filename_prefix = (
+            self._slugify_metric_name(unique_handles[0]) if len(unique_handles) == 1 else None
+        )
+
+        return SimpleNamespace(
+            fig=fig,
+            ax=ax,
+            df=df,
+            sns_kwargs=plot_kwargs,
+            metric_name=metric_name,
+            ylabel=auto_ylabel or "Value",
+            hide_legend=hide_legend,
+            created_fig=created_fig,
+            n_components=n_components,
+            n_groups=n_groups,
+            filename_prefix=filename_prefix,
+        )
 
     # ------------------------------------------------------------------
     # Public seaborn wrappers
@@ -831,6 +931,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        sort_by: list | str | None = None,
         annotate=None,
         ax=None,
         show: bool = True,
@@ -848,6 +949,8 @@ class SummaryCollectionPlotMixin:
             Either a key from Summary.data, or a BatchResult from a batch method.
         group_order : dict[str, list] | None
             Control group display order.  See :meth:`_sns_plot_common`.
+        sort_by : list[str] | str | None
+            Override spatial sort priority.  See :meth:`_sns_plot_common`.
         ax : matplotlib.axes.Axes, optional
             Axes to plot on. If None, creates new figure.
         show : bool
@@ -902,6 +1005,7 @@ class SummaryCollectionPlotMixin:
             sns.stripplot,
             metric,
             group_order=group_order,
+            sort_by=sort_by,
             annotate=annotate,
             ax=ax,
             show=show,
@@ -916,6 +1020,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        sort_by: list | str | None = None,
         annotate=None,
         ax=None,
         show: bool = True,
@@ -933,6 +1038,8 @@ class SummaryCollectionPlotMixin:
             Either a key from Summary.data, or a BatchResult from a batch method.
         group_order : dict[str, list] | None
             Control group display order.  See :meth:`_sns_plot_common`.
+        sort_by : list[str] | str | None
+            Override spatial sort priority.  See :meth:`_sns_plot_common`.
         ax, show, savedir, filename, title
             Save/display options.
         **kwargs
@@ -952,6 +1059,7 @@ class SummaryCollectionPlotMixin:
             sns.swarmplot,
             metric,
             group_order=group_order,
+            sort_by=sort_by,
             annotate=annotate,
             ax=ax,
             show=show,
@@ -966,6 +1074,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        sort_by: list | str | None = None,
         annotate=None,
         ax=None,
         show: bool = True,
@@ -983,6 +1092,8 @@ class SummaryCollectionPlotMixin:
             Either a key from Summary.data, or a BatchResult from a batch method.
         group_order : dict[str, list] | None
             Control group display order.  See :meth:`_sns_plot_common`.
+        sort_by : list[str] | str | None
+            Override spatial sort priority.  See :meth:`_sns_plot_common`.
         ax, show, savedir, filename, title
             Save/display options.
         **kwargs
@@ -1002,6 +1113,7 @@ class SummaryCollectionPlotMixin:
             sns.barplot,
             metric,
             group_order=group_order,
+            sort_by=sort_by,
             annotate=annotate,
             ax=ax,
             show=show,
@@ -1016,6 +1128,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        sort_by: list | str | None = None,
         annotate=None,
         ax=None,
         show: bool = True,
@@ -1033,6 +1146,8 @@ class SummaryCollectionPlotMixin:
             Either a key from Summary.data, or a BatchResult from a batch method.
         group_order : dict[str, list] | None
             Control group display order.  See :meth:`_sns_plot_common`.
+        sort_by : list[str] | str | None
+            Override spatial sort priority.  See :meth:`_sns_plot_common`.
         ax, show, savedir, filename, title
             Save/display options.
         **kwargs
@@ -1048,6 +1163,7 @@ class SummaryCollectionPlotMixin:
             sns.boxplot,
             metric,
             group_order=group_order,
+            sort_by=sort_by,
             annotate=annotate,
             ax=ax,
             show=show,
@@ -1062,6 +1178,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        sort_by: list | str | None = None,
         annotate=None,
         ax=None,
         show: bool = True,
@@ -1079,6 +1196,8 @@ class SummaryCollectionPlotMixin:
             Either a key from Summary.data, or a BatchResult from a batch method.
         group_order : dict[str, list] | None
             Control group display order.  See :meth:`_sns_plot_common`.
+        sort_by : list[str] | str | None
+            Override spatial sort priority.  See :meth:`_sns_plot_common`.
         ax, show, savedir, filename, title
             Save/display options.
         **kwargs
@@ -1098,6 +1217,7 @@ class SummaryCollectionPlotMixin:
             sns.violinplot,
             metric,
             group_order=group_order,
+            sort_by=sort_by,
             annotate=annotate,
             ax=ax,
             show=show,
@@ -1112,6 +1232,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        sort_by: list | str | None = None,
         annotate=None,
         ax=None,
         show: bool = True,
@@ -1129,6 +1250,8 @@ class SummaryCollectionPlotMixin:
             Either a key from Summary.data, or a BatchResult from a batch method.
         group_order : dict[str, list] | None
             Control group display order.  See :meth:`_sns_plot_common`.
+        sort_by : list[str] | str | None
+            Override spatial sort priority.  See :meth:`_sns_plot_common`.
         ax, show, savedir, filename, title
             Save/display options.
         **kwargs
@@ -1148,6 +1271,7 @@ class SummaryCollectionPlotMixin:
             sns.pointplot,
             metric,
             group_order=group_order,
+            sort_by=sort_by,
             annotate=annotate,
             ax=ax,
             show=show,
@@ -1162,6 +1286,7 @@ class SummaryCollectionPlotMixin:
         metric,
         *,
         group_order: dict | None = None,
+        sort_by: list | str | None = None,
         annotate=None,
         ax=None,
         show: bool = True,
@@ -1186,6 +1311,8 @@ class SummaryCollectionPlotMixin:
             Either a key from Summary.data, or a BatchResult from a batch method.
         group_order : dict[str, list] | None
             Control group display order.  See :meth:`_sns_plot_common`.
+        sort_by : list[str] | str | None
+            Override spatial sort priority.  See :meth:`_sns_plot_common`.
         annotate : str or dict or None
             Statistical annotations.  See :meth:`_sns_plot_common`.
         ax : matplotlib.axes.Axes, optional
@@ -1241,59 +1368,50 @@ class SummaryCollectionPlotMixin:
         """
         import seaborn as sns
 
-        (
-            fig,
-            ax,
-            df,
-            metric_name,
-            common,
-            hide_legend,
-            n_comp,
-            n_groups,
-            auto_ylabel,
-            fname_prefix,
-            created_fig,
-        ) = self._sns_pre_plot(
+        spec = self.prepare_plot(
             metric,
             group_order=group_order,
+            sort_by=sort_by,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
 
         # Bar plot (mean + error bars) — base layer
         bar_defaults = {"errorbar": None, "capsize": 0.1, "alpha": 0.7, "zorder": 1}
-        bar_kw = {**common, **bar_defaults, **(bar_kwargs or {}), **kwargs}
+        bar_kw = {**spec.sns_kwargs, **bar_defaults, **(bar_kwargs or {}), **kwargs}
         sns.barplot(**bar_kw, legend=False)
 
         # Strip plot (individual dots) — overlay
         strip_defaults = {"alpha": 0.8, "jitter": True, "size": 4, "zorder": 2}
-        strip_kw = {**common, **strip_defaults, **(strip_kwargs or {}), **kwargs}
+        strip_kw = {**spec.sns_kwargs, **strip_defaults, **(strip_kwargs or {}), **kwargs}
         sns.stripplot(**strip_kw)
 
         # Build seaborn params dict for statannotations passthrough
         sns_kw = {
-            k: v for k, v in common.items() if k in ("data", "x", "y", "hue", "order", "hue_order")
+            k: v
+            for k, v in spec.sns_kwargs.items()
+            if k in ("data", "x", "y", "hue", "order", "hue_order")
         }
 
         # Apply statistical annotations (before save/show)
-        self._apply_annotations(ax, df, annotate, sns_kw)
+        self._apply_annotations(spec.ax, spec.df, annotate, sns_kw)
 
         self._sns_post_plot(
-            fig,
-            ax,
-            metric_name=metric_name,
+            spec.fig,
+            spec.ax,
+            metric_name=spec.metric_name,
             title=title,
-            ylabel=ylabel or auto_ylabel or "Value",
-            filename_prefix=fname_prefix,
-            n_components=n_comp,
-            n_groups=n_groups,
-            hide_legend=hide_legend,
-            legend_n_entries=n_groups,
+            ylabel=ylabel or spec.ylabel,
+            filename_prefix=spec.filename_prefix,
+            n_components=spec.n_components,
+            n_groups=spec.n_groups,
+            hide_legend=spec.hide_legend,
+            legend_n_entries=spec.n_groups,
             savedir=savedir,
             filename=filename,
             default_suffix="superplot",
             show=show,
-            created_fig=created_fig,
+            created_fig=spec.created_fig,
         )
 
-        return fig, ax, df
+        return spec.fig, spec.ax, spec.df
