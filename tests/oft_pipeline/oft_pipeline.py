@@ -582,6 +582,43 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 )
 
 # %% [markdown]
+# ### 5.3b sort_by — independent spatial ordering
+#
+# `sort_by` overrides the spatial arrangement on the x-axis without changing
+# colour assignment.  Here `groupby(tags=["treatment", "timepoint"])` means
+# treatment drives the base colour (control=blue, FST=orange).  Adding
+# `sort_by="timepoint"` interleaves control/FST within each timepoint.
+
+# %%
+# Interleaved superplot — timepoint as primary spatial axis, colours by treatment
+fig, ax, df_interleaved = sc_grouped.snssuperplot(
+    "total_distance_bodycentre",
+    group_order=GROUP_ORDER,
+    sort_by="timepoint",
+    show=True,
+    savedir=str(OUT_DIR),
+    filename="total_distance_interleaved_superplot.png",
+)
+
+# %%
+# Power-user workflow with prepare_plot — full seaborn control
+import seaborn as sns
+
+spec = sc_grouped.prepare_plot(
+    "total_distance_bodycentre",
+    group_order=GROUP_ORDER,
+    sort_by=["timepoint", "treatment"],
+)
+sns.boxplot(**spec.sns_kwargs, width=0.6)
+spec.ax.set_ylabel(spec.ylabel)
+spec.ax.set_title("Custom: prepare_plot + boxplot")
+import matplotlib.pyplot as plt
+
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
 # ### 5.4 Statistical annotations
 #
 # Use `annotate="help"` to discover available tests, corrections, and the
@@ -636,22 +673,24 @@ fig, ax, df_mc = sc.snsbar(
 # norender
 if TEST_MODE:
     # --- Flat tidy DataFrame structure ---
+    # The y-column is renamed from "value" to the ylabel by prepare_plot,
+    # so we check for the structural columns only.
     for label, df_check in [
         ("strip", df_strip),
         ("bar", df_bar),
         ("super", df_super),
     ]:
-        assert {"component", "value", "_handle"} <= set(df_check.columns), (
+        assert {"component", "_handle"} <= set(df_check.columns), (
             f"{label}: missing required columns"
         )
         assert len(df_check) > 0, f"{label}: empty DataFrame"
 
     # --- Single Summary delegation ---
-    assert {"component", "value", "_handle"} <= set(df_single.columns)
+    assert {"component", "_handle"} <= set(df_single.columns)
 
     # --- Grouped tidy DataFrame structure ---
     for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
-        assert {"component", "value", "_handle", "_group"} <= set(df_check.columns), (
+        assert {"component", "_handle", "_group"} <= set(df_check.columns), (
             f"{label}: missing required columns"
         )
         assert df_check["_group"].nunique() > 1, f"{label}: expected multiple groups"

@@ -577,12 +577,12 @@ print(f"EPM grouped snsbar: {len(df_grouped)} rows, groups: {list(df_grouped['_g
 # %%
 # norender
 if TEST_MODE:
-    # Tidy DataFrame structure
-    assert {"component", "value", "_handle"} <= set(df_tidy.columns)
+    # Tidy DataFrame structure (y-column is renamed to the ylabel by prepare_plot)
+    assert {"component", "_handle"} <= set(df_tidy.columns)
     assert len(df_tidy) > 0
 
     # Grouped DataFrame structure
-    assert {"component", "value", "_handle", "_group"} <= set(df_grouped.columns)
+    assert {"component", "_handle", "_group"} <= set(df_grouped.columns)
     assert df_grouped["_group"].nunique() == 3, "Expected 3 treatment groups"
 
     # At least one auto-named plot saved
