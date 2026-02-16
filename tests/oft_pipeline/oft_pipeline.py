@@ -572,6 +572,43 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 )
 
 # %% [markdown]
+# ### 5.3b sort_by — independent spatial ordering
+#
+# `sort_by` overrides the spatial arrangement on the x-axis without changing
+# colour assignment.  Here `groupby(tags=["treatment", "timepoint"])` means
+# treatment drives the base colour (control=blue, FST=orange).  Adding
+# `sort_by="timepoint"` interleaves control/FST within each timepoint.
+
+# %%
+# Interleaved superplot — timepoint as primary spatial axis, colours by treatment
+fig, ax, df_interleaved = sc_grouped.snssuperplot(
+    "total_distance_bodycentre",
+    group_order=GROUP_ORDER,
+    sort_by="timepoint",
+    show=True,
+    savedir=str(OUT_DIR),
+    filename="total_distance_interleaved_superplot.png",
+)
+
+# %%
+# Power-user workflow with prepare_plot — full seaborn control
+import seaborn as sns
+
+spec = sc_grouped.prepare_plot(
+    "total_distance_bodycentre",
+    group_order=GROUP_ORDER,
+    sort_by=["timepoint", "treatment"],
+)
+sns.boxplot(**spec.sns_kwargs, width=0.6)
+spec.ax.set_ylabel(spec.ylabel)
+spec.ax.set_title("Custom: prepare_plot + boxplot")
+import matplotlib.pyplot as plt
+
+plt.xticks(rotation=90)
+plt.tight_layout()
+plt.show()
+
+# %% [markdown]
 # ### 5.4 Statistical annotations
 #
 # Use `annotate="help"` to discover available tests, corrections, and the

@@ -47,7 +47,7 @@ class SummaryCollectionBatchMixin:
         column: str,
         target_value: str | float | int = None,
         threshold_op: Literal[">", ">=", "<=", "<", "==", "!="] = "==",
-        nth_event: int = 0,
+        nth_event: int = 1,
         integration_window=1,
     ) -> BatchResult:
         """

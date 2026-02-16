@@ -197,7 +197,7 @@ class Summary:
         column: str,
         target_value: str | float | int = None,
         threshold_op: Literal[">", ">=", "<=", "<", "==", "!="] = "==",
-        nth_event: int = 0,
+        nth_event: int = 1,
         integration_window=1,
     ):
         """
@@ -205,7 +205,7 @@ class Summary:
 
         This method extracts a column from `features.data`,
         passes it on to `latencies_from_series`, and returns the index
-        of the N-th False → True transition. If fewer than `nth_event + 1`
+        of the N-th False → True transition. If fewer than `nth_event`
         events are present, NaN is returned.
 
         The column may already be boolean or may be thresholded against
@@ -222,8 +222,8 @@ class Summary:
         threshold_op : {">", ">=","<=", "<", "==", "!="}, default "=="
             Comparison operator used to generate the boolean condition.
             Only "==" and "!=" are valid for string-valued columns.
-        nth_event : int, default 0
-            Index of the onset event to return (0-based).
+        nth_event : int, default 1
+            Index of the onset event to return (1 = first, note).
         integration_window : int, default 1 = no smoothing
             Window size for boolean integration/smoothing prior to latency
             extraction.
@@ -261,14 +261,14 @@ class Summary:
         1.0
 
         >>> print(res._func_name)
-        latency_mask_==_True_int1_n0
+        latency_mask_==_True_int1_n1
 
         ```
 
         Selecting a later onset:
 
         ```pycon
-        >>> res = s.calculate_latency_nth_onset('mask', nth_event=1)
+        >>> res = s.calculate_latency_nth_onset('mask', nth_event=2)
         >>> res.value
         3.0
 
@@ -330,7 +330,14 @@ class Summary:
         )
 
         target_value = True if target_value is None else target_value  # for reporting True if bool
-        latency = latencies[nth_event] if len(latencies) >= nth_event else np.nan
+
+        if nth_event < 1:
+            raise IndexError(
+                f"Set nth_event to {nth_event}."
+                + "nth event is not python indexing based and always needs to be >= 1"
+            )
+
+        latency = latencies[nth_event - 1] if len(latencies) >= nth_event else np.nan
 
         meta = {
             "function": "latencies_from_series",
