@@ -614,6 +614,7 @@ spec.ax.set_ylabel(spec.ylabel)
 spec.ax.set_title("Custom: prepare_plot + boxplot")
 import matplotlib.pyplot as plt
 
+plt.xticks(rotation=90)
 plt.tight_layout()
 plt.show()
 

@@ -902,6 +902,13 @@ class SummaryCollectionPlotMixin:
 
         plot_kwargs, hide_legend = self._build_sns_kwargs(df, ax, palette, sorted_groups)
 
+        # Rename the y-column from generic "value" to the actual label so
+        # seaborn auto-labels the y-axis correctly (e.g. "Time (s)").
+        ylabel = auto_ylabel or "Value"
+        df = df.rename(columns={"value": ylabel})
+        plot_kwargs["y"] = ylabel
+        plot_kwargs["data"] = df
+
         # For single-item collections, prefix auto-filename with the handle
         unique_handles = df["_handle"].unique()
         filename_prefix = (
@@ -914,7 +921,7 @@ class SummaryCollectionPlotMixin:
             df=df,
             sns_kwargs=plot_kwargs,
             metric_name=metric_name,
-            ylabel=auto_ylabel or "Value",
+            ylabel=ylabel,
             hide_legend=hide_legend,
             created_fig=created_fig,
             n_components=n_components,
