@@ -673,22 +673,24 @@ fig, ax, df_mc = sc.snsbar(
 # norender
 if TEST_MODE:
     # --- Flat tidy DataFrame structure ---
+    # The y-column is renamed from "value" to the ylabel by prepare_plot,
+    # so we check for the structural columns only.
     for label, df_check in [
         ("strip", df_strip),
         ("bar", df_bar),
         ("super", df_super),
     ]:
-        assert {"component", "value", "_handle"} <= set(df_check.columns), (
+        assert {"component", "_handle"} <= set(df_check.columns), (
             f"{label}: missing required columns"
         )
         assert len(df_check) > 0, f"{label}: empty DataFrame"
 
     # --- Single Summary delegation ---
-    assert {"component", "value", "_handle"} <= set(df_single.columns)
+    assert {"component", "_handle"} <= set(df_single.columns)
 
     # --- Grouped tidy DataFrame structure ---
     for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
-        assert {"component", "value", "_handle", "_group"} <= set(df_check.columns), (
+        assert {"component", "_handle", "_group"} <= set(df_check.columns), (
             f"{label}: missing required columns"
         )
         assert df_check["_group"].nunique() > 1, f"{label}: expected multiple groups"

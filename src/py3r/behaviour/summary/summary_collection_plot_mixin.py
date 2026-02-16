@@ -396,7 +396,7 @@ class SummaryCollectionPlotMixin:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def _build_sns_kwargs(df, ax, palette=None, sorted_groups=None):
+    def _build_sns_kwargs(df, ax, palette=None, sorted_groups=None, y_col="value"):
         """
         Build core seaborn plot kwargs based on data shape.
 
@@ -406,6 +406,13 @@ class SummaryCollectionPlotMixin:
         - **Grouped, multi-component**: ``x=component``, ``hue=_group``,
           ``dodge=True``.  Seaborn packs groups tightly within each component
           position with natural gaps between components.
+
+        Parameters
+        ----------
+        y_col : str
+            Name of the y-value column in *df*.  Defaults to ``"value"``
+            but will be the ylabel string when called from
+            :meth:`prepare_plot`.
 
         Returns
         -------
@@ -420,7 +427,7 @@ class SummaryCollectionPlotMixin:
             return {
                 "data": df,
                 "x": "component",
-                "y": "value",
+                "y": y_col,
                 "hue": "component",
                 "dodge": False,
                 "order": components,
@@ -435,7 +442,7 @@ class SummaryCollectionPlotMixin:
             kwargs = {
                 "data": df,
                 "x": "_group",
-                "y": "value",
+                "y": y_col,
                 "hue": "_group",
                 "dodge": False,
                 "order": groups,
@@ -451,7 +458,7 @@ class SummaryCollectionPlotMixin:
         kwargs = {
             "data": df,
             "x": "component",
-            "y": "value",
+            "y": y_col,
             "hue": "_group",
             "dodge": True,
             "order": components,
@@ -893,6 +900,11 @@ class SummaryCollectionPlotMixin:
         n_components = df["component"].nunique()
         n_groups = df["_group"].nunique() if is_grouped else 1
 
+        # Rename the y-column from generic "value" to the actual label so
+        # seaborn auto-labels the y-axis correctly (e.g. "Time (s)").
+        ylabel = auto_ylabel or "Value"
+        df = df.rename(columns={"value": ylabel})
+
         created_fig = ax is None
         if created_fig:
             figsize = self._auto_figsize(n_components, n_groups, figsize)
@@ -900,14 +912,9 @@ class SummaryCollectionPlotMixin:
         else:
             fig = ax.figure
 
-        plot_kwargs, hide_legend = self._build_sns_kwargs(df, ax, palette, sorted_groups)
-
-        # Rename the y-column from generic "value" to the actual label so
-        # seaborn auto-labels the y-axis correctly (e.g. "Time (s)").
-        ylabel = auto_ylabel or "Value"
-        df = df.rename(columns={"value": ylabel})
-        plot_kwargs["y"] = ylabel
-        plot_kwargs["data"] = df
+        plot_kwargs, hide_legend = self._build_sns_kwargs(
+            df, ax, palette, sorted_groups, y_col=ylabel
+        )
 
         # For single-item collections, prefix auto-filename with the handle
         unique_handles = df["_handle"].unique()
