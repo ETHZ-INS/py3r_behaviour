@@ -6,7 +6,7 @@ import inspect
 import os
 import warnings
 from collections.abc import MutableMapping
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 
@@ -26,7 +26,7 @@ class _EachProxy:
     def __init__(self, parent: BaseCollection):
         self._parent = parent
 
-    def __getattr__(self, name: str):
+    def _build_batch_wrapper(self, name: str):
         leaf_attr = self._parent._get_leaf_callable(name)
 
         def _batch_wrapper(*args, **kwargs):
@@ -39,6 +39,14 @@ class _EachProxy:
         except Exception:
             pass
         return _batch_wrapper
+
+    def __getattribute__(self, name: str):
+        if name.startswith("_"):
+            return object.__getattribute__(self, name)
+        try:
+            return object.__getattribute__(self, "_build_batch_wrapper")(name)
+        except AttributeError:
+            return object.__getattribute__(self, name)
 
     def __dir__(self):
         base = set(super().__dir__())
@@ -61,7 +69,7 @@ class _EachProxy:
         return sorted(base | names)
 
 
-class BaseCollection[TLeaf](MutableMapping):
+class BaseCollection(MutableMapping):
     """
     Abstract base class for collections of objects (e.g., Features, Tracking, Summary).
     Provides groupby and flatten logic, and basic dict-like access.
@@ -377,7 +385,7 @@ class BaseCollection[TLeaf](MutableMapping):
         return leaf_attr
 
     @property
-    def each(self) -> TLeaf:
+    def each(self):
         """
         Explicit leaf-batch facade.
 
@@ -387,7 +395,7 @@ class BaseCollection[TLeaf](MutableMapping):
         """
         if self._each_proxy is None:
             self._each_proxy = _EachProxy(self)
-        return cast(TLeaf, self._each_proxy)
+        return self._each_proxy
 
     # ---- Dynamic fallback for user-extended leaf APIs ----
     def __getattr__(self, name):

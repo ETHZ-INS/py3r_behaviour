@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import cast
+
 import pandas as pd
 
 from py3r.behaviour.features.features_collection import FeaturesCollection
@@ -11,12 +13,10 @@ from py3r.behaviour.summary.summary_collection_plot_mixin import (
     SummaryCollectionPlotMixin,
 )
 from py3r.behaviour.summary.summary_result import SummaryResult
-from py3r.behaviour.util.base_collection import BaseCollection
+from py3r.behaviour.util.base_collection import BaseCollection, _EachProxy
 
 
-class SummaryCollection(
-    BaseCollection[Summary], SummaryCollectionBatchMixin, SummaryCollectionPlotMixin
-):
+class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryCollectionPlotMixin):
     """
     collection of Summary objects
     (e.g. for grouping individuals)
@@ -59,6 +59,12 @@ class SummaryCollection(
     @property
     def summary_dict(self):
         return self._obj_dict
+
+    @property
+    def each(self) -> Summary:
+        if not isinstance(self._each_proxy, SummaryEach):
+            self._each_proxy = SummaryEach(self)
+        return cast(Summary, self._each_proxy)
 
     @classmethod
     def from_features_collection(cls, features_collection: FeaturesCollection, summary_cls=Summary):
@@ -605,6 +611,10 @@ class SummaryCollection(
         if len(out) == 1:
             return next(iter(out.values()))
         return out
+
+
+class SummaryEach(_EachProxy, Summary):
+    """Runtime proxy exposing Summary methods for completion."""
 
     def plot_transition_umap(
         self,
