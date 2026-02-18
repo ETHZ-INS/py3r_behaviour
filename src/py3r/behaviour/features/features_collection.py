@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, cast
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ from py3r.behaviour.features.features_collection_batch_mixin import (
     FeaturesCollectionBatchMixin,
 )
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-from py3r.behaviour.util.base_collection import BaseCollection, _EachProxy
+from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import BatchResult, _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.series_utils import (
@@ -51,6 +51,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
     """
 
     _element_type = Features
+    each: Features
 
     def __init__(self, features_dict: dict[str, Features]):
         super().__init__(features_dict)
@@ -58,12 +59,6 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
     @property
     def features_dict(self):
         return self._obj_dict
-
-    @property
-    def each(self) -> Features:
-        if not isinstance(self._each_proxy, FeaturesEach):
-            self._each_proxy = FeaturesEach(self)
-        return cast(Features, self._each_proxy)
 
     @classmethod
     def from_tracking_collection(
@@ -1349,7 +1344,3 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
     def _iloc(self, idx):
         return self.__class__({k: v.iloc[idx] for k, v in self.features_dict.items()})
-
-
-class FeaturesEach(_EachProxy, Features):
-    """Runtime proxy exposing Features methods for completion."""

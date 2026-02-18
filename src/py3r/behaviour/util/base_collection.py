@@ -26,7 +26,7 @@ class _EachProxy:
     def __init__(self, parent: BaseCollection):
         self._parent = parent
 
-    def _build_batch_wrapper(self, name: str):
+    def __getattr__(self, name: str):
         leaf_attr = self._parent._get_leaf_callable(name)
 
         def _batch_wrapper(*args, **kwargs):
@@ -39,14 +39,6 @@ class _EachProxy:
         except Exception:
             pass
         return _batch_wrapper
-
-    def __getattribute__(self, name: str):
-        if name.startswith("_"):
-            return object.__getattribute__(self, name)
-        try:
-            return object.__getattribute__(self, "_build_batch_wrapper")(name)
-        except AttributeError:
-            return object.__getattribute__(self, name)
 
     def __dir__(self):
         base = set(super().__dir__())

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Literal, cast
+from typing import Literal
 
 import pandas as pd
 
@@ -10,7 +10,7 @@ from py3r.behaviour.tracking.tracking_collection_batch_mixin import (
     TrackingCollectionBatchMixin,
 )
 from py3r.behaviour.tracking.tracking_mv import TrackingMV
-from py3r.behaviour.util.base_collection import BaseCollection, _EachProxy
+from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
 
@@ -37,12 +37,6 @@ class _TrackingCollectionBase(BaseCollection, TrackingCollectionBatchMixin):
     @property
     def tracking_dict(self):
         return self._obj_dict
-
-    @property
-    def each(self) -> Tracking:
-        if not isinstance(self._each_proxy, TrackingEach):
-            self._each_proxy = TrackingEach(self)
-        return cast(Tracking, self._each_proxy)
 
     @classmethod
     def from_mapping(
@@ -86,6 +80,8 @@ class _TrackingCollectionBase(BaseCollection, TrackingCollectionBatchMixin):
 
 
 class TrackingCollection(_TrackingCollectionBase):
+    each: Tracking
+
     @classmethod
     def from_dlc(
         cls,
@@ -698,7 +694,3 @@ class TrackingCollection(_TrackingCollectionBase):
         print(f"\nCollection: {getattr(self, 'handle', 'unnamed')}")
         for handle, tracking in self.tracking_dict.items():
             tracking.plot(*args, title=handle, **kwargs)
-
-
-class TrackingEach(_EachProxy, Tracking):
-    """Runtime proxy exposing Tracking methods for completion."""
