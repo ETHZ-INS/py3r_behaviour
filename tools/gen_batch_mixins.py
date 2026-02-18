@@ -352,7 +352,9 @@ def main() -> None:
     # cluster_embedding on Features is a thin wrapper that delegates to
     # FeaturesCollection.cluster_embedding (which uses ClusteringPipeline).
     # Generating a batch wrapper would shadow the collection-level method.
-    _FEATURES_EXCLUDE = _COMMON_EXCLUDE | frozenset({"cluster_embedding"})
+    _FEATURES_EXCLUDE = _COMMON_EXCLUDE | frozenset(
+        {"cluster_embedding", "cluster_embedding_stream"}
+    )
 
     _SUMMARY_EXCLUDE = _COMMON_EXCLUDE | frozenset(
         {

@@ -451,16 +451,16 @@ class FeaturesCollectionBatchMixin:
         embedding: dict[str, list[int]],
         centroids_df: pd.DataFrame,
         *,
+        scaling_factors: dict[str, float] | None = None,
+        impute_medians: pd.Series | None = None,
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
-        impute_medians: pd.Series | None = None,
     ) -> BatchResult:
         """
         Batch-mode wrapper for Features.assign_clusters_by_centroids
         across the collection.
 
-        new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
-        centroids_df: (n_clusters, n_features) DataFrame of cluster centers
+        Assign cluster labels to this Features object using pre-fitted centroids.
 
         See leaf method ``Features.assign_clusters_by_centroids`` for examples.
         """
@@ -470,18 +470,20 @@ class FeaturesCollectionBatchMixin:
                 lambda _obj: getattr(_obj, "assign_clusters_by_centroids")(
                     embedding,
                     centroids_df,
+                    scaling_factors=scaling_factors,
+                    impute_medians=impute_medians,
                     rescale_factors=rescale_factors,
                     custom_scaling=custom_scaling,
-                    impute_medians=impute_medians,
                 )
             )
         return self._invoke_batch(
             "assign_clusters_by_centroids",
             embedding,
             centroids_df,
+            scaling_factors=scaling_factors,
+            impute_medians=impute_medians,
             rescale_factors=rescale_factors,
             custom_scaling=custom_scaling,
-            impute_medians=impute_medians,
         )
 
     def train_knn_regressor(

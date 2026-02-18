@@ -8,6 +8,8 @@ import pandas as pd
 from py3r.behaviour.features.cluster_pipeline import (
     ClusteringConfig,
     ClusteringPipeline,
+    StreamingClusteringPipeline,
+    StreamingConfig,
 )
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.features.features_collection_batch_mixin import (
@@ -409,21 +411,39 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         n_clusters: int,
         random_state: int = 0,
         *,
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
+        normalize: bool = False,
+        feature_weights: dict[str, float] | None = None,
         lowmem: bool = False,
         decimation_factor: int = 10,
-        custom_scaling: dict[str, dict] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
+        # --- deprecated params (kept for backward compat) ---
+        auto_normalize: bool = False,
+        rescale_factors: dict | None = None,
+        custom_scaling: dict[str, dict] | None = None,
     ):
         """
         Perform k-means clustering using the specified embedding.
 
-        Unified behaviour for flat and grouped collections.
-        Returns a BatchResult mapping:
-          - grouped: {group_key: {feature_handle: FeaturesResult}}
-          - flat:    {feature_handle: FeaturesResult}
-        along with (centroids, normalization_factors or None).
+        Returns ``(BatchResult, centroids, scaling_factors)`` where
+        *scaling_factors* is a dict of one float per embedding column —
+        the combined effect of normalisation and feature weights.
+
+        Parameters
+        ----------
+        normalize : bool
+            Divide each base feature by its global std before embedding.
+        feature_weights : dict[str, float] | None
+            Substring → weight mapping, e.g. ``{"speed": 4.0, "accel": 2.0}``.
+            Each key is matched against embedding column names by substring;
+            matched columns are multiplied by the value.  Resolved internally
+            via :func:`~py3r.behaviour.util.series_utils.build_column_weights`.
+            Raises if a rule matches no column (likely typo).
+        auto_normalize : bool
+            .. deprecated:: Use *normalize* instead.
+        rescale_factors : dict | None
+            .. deprecated:: Use *normalize* and/or *feature_weights*.
+        custom_scaling : dict[str, dict] | None
+            .. deprecated:: Use *feature_weights*.
 
         Examples
         --------
@@ -460,12 +480,12 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
         ```
         """
-
-        # Delegate to the pluggable pipeline
         pipeline = ClusteringPipeline()
         cfg = ClusteringConfig(
             n_clusters=n_clusters,
             random_state=random_state,
+            normalize=normalize,
+            feature_weights=feature_weights,
             auto_normalize=auto_normalize,
             rescale_factors=rescale_factors,
             lowmem=lowmem,
@@ -473,10 +493,100 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
             custom_scaling=custom_scaling,
             missing_policy=missing_policy,
         )
-        result_dict, centroids, normalization_factors, _meta = pipeline.run(
-            self, embedding_dict, cfg
+        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
+        return BatchResult(result_dict, self), centroids, scaling_factors
+
+    def cluster_embedding_stream(
+        self,
+        embedding_dict: dict[str, list[int]],
+        n_clusters: int,
+        random_state: int = 0,
+        *,
+        normalize: bool = False,
+        feature_weights: dict[str, float] | None = None,
+        missing_policy: Literal["drop", "impute_weight"] = "drop",
+        chunk_size: int = 10_000,
+        n_epochs: int = 3,
+        batch_size: int = 1024,
+    ):
+        """
+        Memory-friendly clustering via streaming MiniBatchKMeans.
+
+        Unlike ``cluster_embedding``, this never builds a combined DataFrame.
+        Embeddings are extracted one Features at a time, sliced into
+        fixed-size chunks, and fed to ``MiniBatchKMeans.partial_fit``.
+        Multiple epochs improve convergence; uniform chunk sizes prevent
+        large recordings from dominating centroid updates.
+
+        Normalisation is computed on base feature columns (before embedding)
+        so that all time-shifts of the same feature share the same std.
+        The returned ``scaling_factors`` is a dict of one float per
+        *embedding column* — the combined effect of normalisation and
+        feature weights.  Multiply raw embedding values by these to reproduce
+        the transform.
+
+        Returns ``(BatchResult, centroids, scaling_factors)``.
+
+        Parameters
+        ----------
+        embedding_dict : dict[str, list[int]]
+            Feature columns and their time shifts for the embedding.
+        n_clusters : int
+            Number of clusters.
+        random_state : int
+            Seed for reproducibility.
+        normalize : bool
+            Divide each base feature by its global std before embedding.
+        feature_weights : dict[str, float] | None
+            Substring → weight mapping, e.g. ``{"speed": 4.0}``.
+            Resolved internally into per-column weights.  Raises if a
+            rule matches no column (likely typo).
+        missing_policy : {"drop", "impute_weight"}
+            How to handle NaN rows.
+        chunk_size : int
+            Max rows per partial_fit call.
+        n_epochs : int
+            Number of full passes over the data.
+        batch_size : int
+            MiniBatchKMeans internal mini-batch size.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> for f in fc.values():
+        ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
+        ...     f.store(s, 'counter')
+        >>> batch, centroids, norm = fc.cluster_embedding_stream(
+        ...     {'counter': [0]}, n_clusters=2)
+        >>> isinstance(centroids, pd.DataFrame) and centroids.shape[0] == 2
+        True
+
+        ```
+        """
+        pipeline = StreamingClusteringPipeline()
+        cfg = StreamingConfig(
+            n_clusters=n_clusters,
+            random_state=random_state,
+            normalize=normalize,
+            feature_weights=feature_weights,
+            missing_policy=missing_policy,
+            chunk_size=chunk_size,
+            n_epochs=n_epochs,
+            batch_size=batch_size,
         )
-        return BatchResult(result_dict, self), centroids, normalization_factors
+        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
+        return BatchResult(result_dict, self), centroids, scaling_factors
 
     def cluster_diagnostics(
         self,
