@@ -5,7 +5,7 @@ from typing import Literal, NamedTuple, Protocol
 
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans
 
 from py3r.behaviour.features.features import Features, FeaturesResult
 from py3r.behaviour.util.missing_tolerance import fit_frame_imputer, impute_frame
@@ -316,3 +316,200 @@ class ClusteringPipeline:
                     labels, feat, f"kmeans_{cfg.n_clusters}", meta
                 )
         return result_dict, centroids, norm, meta
+
+
+# ---------------------------------------------------------------------------
+# Streaming (MiniBatchKMeans + partial_fit) pipeline
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class StreamingConfig:
+    n_clusters: int
+    random_state: int = 0
+    auto_normalize: bool = False
+    rescale_factors: dict | None = None
+    custom_scaling: dict[str, dict] | None = None
+    missing_policy: Literal["drop", "impute_weight"] = "drop"
+    chunk_size: int = 10_000
+    n_epochs: int = 3
+    batch_size: int = 1024
+
+
+def _iter_features(fc):
+    """Yield (group_key, feat_name, Features) for flat or grouped collections."""
+    is_grouped = getattr(fc, "is_grouped", False)
+    if is_grouped:
+        for gkey, sub in fc.items():
+            for feat_name, feat in sub.features_dict.items():
+                yield gkey, feat_name, feat
+    else:
+        for feat_name, feat in fc.features_dict.items():
+            yield None, feat_name, feat
+
+
+class StreamingClusteringPipeline:
+    """
+    Memory-friendly clustering via MiniBatchKMeans.partial_fit.
+
+    Phase 1 (optional): streaming pass to compute normalisation factors.
+    Phase 2: n_epochs passes of partial_fit over fixed-size chunks.
+    Phase 3: per-Features assignment using the fitted centroids.
+
+    Never builds a combined DataFrame — only one chunk is in memory at a time.
+    """
+
+    def run(
+        self,
+        fc,
+        embedding_dict: dict[str, list[int]],
+        cfg: StreamingConfig,
+    ) -> tuple[dict, pd.DataFrame, dict | None, dict]:
+        scaling_factors, impute_means = self._streaming_stats(fc, embedding_dict, cfg)
+
+        model = MiniBatchKMeans(
+            n_clusters=cfg.n_clusters,
+            random_state=cfg.random_state,
+            batch_size=cfg.batch_size,
+        )
+
+        columns = None
+        for _epoch in range(cfg.n_epochs):
+            for _gkey, _fname, feat in _iter_features(fc):
+                embed_df = feat.embedding_df(embedding_dict).astype(np.float32)
+                embed_df = self._apply_scaling(embed_df, scaling_factors, cfg)
+                columns = embed_df.columns
+                for start in range(0, len(embed_df), cfg.chunk_size):
+                    chunk = embed_df.iloc[start : start + cfg.chunk_size]
+                    X, w = self._prepare_chunk(chunk, cfg.missing_policy, impute_means)
+                    if len(X) == 0:
+                        continue
+                    model.partial_fit(X, sample_weight=w)
+
+        centroids = pd.DataFrame(model.cluster_centers_, columns=columns)
+
+        meta = {
+            "function": "cluster_embedding_stream",
+            "embedding_dict": embedding_dict,
+            "n_clusters": cfg.n_clusters,
+            "random_state": cfg.random_state,
+            "auto_normalize": cfg.auto_normalize,
+            "rescale_factors": cfg.rescale_factors,
+            "custom_scaling": cfg.custom_scaling,
+            "missing_policy": cfg.missing_policy,
+            "chunk_size": cfg.chunk_size,
+            "n_epochs": cfg.n_epochs,
+            "batch_size": cfg.batch_size,
+            "impute_means": (impute_means.to_dict() if impute_means is not None else None),
+        }
+
+        result_dict = self._assign_all(
+            fc, embedding_dict, centroids, cfg, scaling_factors, impute_means, meta
+        )
+        return result_dict, centroids, scaling_factors, meta
+
+    # -- internal helpers ---------------------------------------------------
+
+    @staticmethod
+    def _apply_scaling(df, scaling_factors, cfg):
+        if scaling_factors is not None:
+            return apply_normalization_to_df(df, scaling_factors)
+        if cfg.custom_scaling is not None:
+            return apply_custom_scaling(df, cfg.custom_scaling)
+        return df
+
+    @staticmethod
+    def _prepare_chunk(chunk, missing_policy, impute_means):
+        if missing_policy == "impute_weight" and impute_means is not None:
+            X, w = impute_frame(chunk, impute_means)
+            return X.values, w.values
+        valid = chunk.notna().all(axis=1)
+        return chunk[valid].values, None
+
+    def _streaming_stats(self, fc, embedding_dict, cfg):
+        """
+        Single streaming pass to compute global column stats.
+
+        Returns (scaling_factors, impute_means) where either may be None
+        depending on cfg.  When auto_normalize is True, scaling_factors is
+        a dict of per-column stds.  When missing_policy is "impute_weight",
+        impute_means is a Series of per-column means (computed after scaling).
+        """
+        if cfg.custom_scaling is not None and (
+            cfg.auto_normalize or cfg.rescale_factors is not None
+        ):
+            raise ValueError(
+                "custom_scaling is mutually exclusive with auto_normalize or rescale_factors"
+            )
+
+        need_norm = cfg.auto_normalize and cfg.rescale_factors is None
+        need_impute = cfg.missing_policy == "impute_weight"
+
+        if cfg.rescale_factors is not None:
+            scaling_factors = cfg.rescale_factors
+        elif not need_norm:
+            scaling_factors = None
+        else:
+            scaling_factors = None  # computed below
+
+        if not need_norm and not need_impute:
+            return scaling_factors, None
+
+        # One pass over all embeddings to accumulate running sums
+        col_sum = None
+        col_sq_sum = None
+        n_valid = 0
+        for _gkey, _fname, feat in _iter_features(fc):
+            embed_df = feat.embedding_df(embedding_dict).astype(np.float32)
+            if not need_norm:
+                embed_df = self._apply_scaling(embed_df, scaling_factors, cfg)
+            valid = embed_df.notna().all(axis=1)
+            vals = embed_df[valid].values
+            if col_sum is None:
+                col_sum = np.zeros(vals.shape[1], dtype=np.float64)
+                col_sq_sum = np.zeros(vals.shape[1], dtype=np.float64)
+            col_sum += vals.sum(axis=0)
+            col_sq_sum += (vals**2).sum(axis=0)
+            n_valid += len(vals)
+
+        if n_valid == 0:
+            raise ValueError("No valid rows found in embedding data")
+
+        ref_cols = feat.embedding_df(embedding_dict).columns
+        means = col_sum / n_valid
+
+        if need_norm:
+            stds = np.sqrt(col_sq_sum / n_valid - means**2)
+            stds[stds == 0] = 1.0
+            scaling_factors = dict(zip(ref_cols, stds, strict=True))
+
+        impute_means = None
+        if need_impute:
+            if need_norm:
+                # Means were computed on raw data; re-derive after scaling
+                impute_means = pd.Series(
+                    means / np.array(list(scaling_factors.values())), index=ref_cols
+                )
+            else:
+                impute_means = pd.Series(means, index=ref_cols)
+
+        return scaling_factors, impute_means
+
+    @staticmethod
+    def _assign_all(fc, embedding_dict, centroids, cfg, scaling_factors, impute_means, meta):
+        is_grouped = getattr(fc, "is_grouped", False)
+        result_dict = {}
+        rescale_for_assign = scaling_factors if cfg.custom_scaling is None else None
+        for gkey, feat_name, feat in _iter_features(fc):
+            fr = feat.assign_clusters_by_centroids(
+                embedding_dict,
+                centroids,
+                rescale_factors=rescale_for_assign,
+                custom_scaling=cfg.custom_scaling,
+                impute_medians=impute_means,
+            )
+            if is_grouped:
+                result_dict.setdefault(gkey, {})[feat_name] = fr
+            else:
+                result_dict[feat_name] = fr
+        return result_dict
