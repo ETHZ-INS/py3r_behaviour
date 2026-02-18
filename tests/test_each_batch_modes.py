@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from py3r.behaviour.exceptions import BatchProcessError
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import BatchResult
 
@@ -75,9 +76,10 @@ def test_grouped_each_auto_upcasts_and_preserves_grouping():
         assert all(obj.tags.get("touched") is True for obj in sub.values())
 
 
-def test_each_supports_per_handle_positional_args():
+def test_each_supports_batchresult_per_handle_positional_args():
     coll = _make_collection()
-    out = coll.each.label({"A": "left", "B": "right"})
+    mapped = BatchResult({"A": "left", "B": "right"}, coll)
+    out = coll.each.label(mapped)
     assert isinstance(out, BatchResult)
     assert out["A"] == "A:left"
     assert out["B"] == "B:right"
@@ -98,20 +100,24 @@ def test_each_forcebatch_keeps_batch_result_with_smart_dispatch():
     assert all(isinstance(v, DummyLeaf) for v in out.values())
 
 
-def test_grouped_each_accepts_flat_handle_mapping():
+def test_grouped_each_accepts_flat_handle_batchresult_mapping():
     grouped = _make_collection().groupby("group")
-    out = grouped.each.label({"A": "left", "B": "right"})
+    mapped = BatchResult({"A": "left", "B": "right"}, grouped)
+    out = grouped.each.label(mapped)
     assert isinstance(out, BatchResult)
     assert out[("g1",)]["A"] == "A:left"
     assert out[("g2",)]["B"] == "B:right"
 
 
-def test_grouped_each_warns_and_falls_back_when_group_keys_differ():
+def test_grouped_each_warns_and_falls_back_when_batchresult_group_keys_differ():
     grouped = _make_collection().groupby("group")
-    old_grouped_map = {
-        ("old_g1",): {"A": "left"},
-        ("old_g2",): {"B": "right"},
-    }
+    old_grouped_map = BatchResult(
+        {
+            ("old_g1",): {"A": "left"},
+            ("old_g2",): {"B": "right"},
+        },
+        grouped,
+    )
     with pytest.warns(UserWarning, match="falling back to handle-based mapping"):
         out = grouped.each.label(old_grouped_map)
     assert out[("g1",)]["A"] == "A:left"
@@ -125,3 +131,10 @@ def test_each_non_matching_dict_is_broadcast_not_mapped():
     assert isinstance(out, BatchResult)
     assert out["A"] is cfg
     assert out["B"] is cfg
+
+
+def test_each_invalid_batchresult_mapping_raises():
+    coll = _make_collection()
+    bad = BatchResult({"A": "left"}, coll)  # missing B
+    with pytest.raises(BatchProcessError, match="BatchResult mapping keys"):
+        coll.each.label(bad)

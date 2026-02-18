@@ -25,8 +25,8 @@ class _EachProxy:
     Dynamic batch facade exposed as ``collection.each``.
 
     This proxy always uses smart argument dispatch:
-    - mapping-like values are treated as per-handle maps only when keys match
-      exactly (flat handle keys, or grouped shape keys), and
+    - ``BatchResult`` values are treated as per-handle maps only when keys
+      match exactly (flat handle keys, or grouped shape keys), and
     - everything else is broadcast as a scalar value to all leaves.
     """
 
@@ -187,15 +187,19 @@ class BaseCollection(MutableMapping):
         per-handle mapping and scalar broadcast:
 
         - Non-mapping values are always scalar-broadcast.
-        - Mapping values are treated as mapped only when they match exactly:
+        - Only ``BatchResult`` values are eligible for mapped semantics.
+        - A ``BatchResult`` is treated as mapped only when it matches exactly:
           - flat map: ``{handle: value}`` with keys equal to flattened handles
           - grouped map: ``{group: {handle: value}}`` with exact current group
             keys and exact nested handle keys for each group.
-        - For grouped collections, a grouped-shaped mapping from a different
-          grouping layout may still be accepted if it can be flattened
-          unambiguously to a complete flat handle map; in that case a warning
-          is emitted and handle-based mapping is used.
-        - All other mappings are treated as scalar-broadcast values.
+        - For grouped collections, a grouped-shaped ``BatchResult`` from a
+          different grouping layout may still be accepted if it can be
+          flattened unambiguously to a complete flat handle map; in that case
+          a warning is emitted and handle-based mapping is used.
+        - If a ``BatchResult`` cannot be resolved to one of the above mapping
+          shapes, an error is raised.
+        - All non-``BatchResult`` values (including plain ``dict``) are
+          treated as scalar-broadcast values.
 
         If any leaf raises, a ``BatchProcessError`` is raised immediately.
         On complete success, returns a ``BatchResult`` of leaf return values
@@ -228,8 +232,8 @@ class BaseCollection(MutableMapping):
             return flat
 
         def _resolve_mode(spec):
-            # Non-mapping values are always scalar-broadcast.
-            if not isinstance(spec, Mapping):
+            # Only BatchResult supports mapped argument semantics.
+            if not isinstance(spec, BatchResult):
                 return "scalar", spec
 
             spec_id = id(spec)
@@ -261,7 +265,10 @@ class BaseCollection(MutableMapping):
                         )
                         mode, value = "flat", flattened
                     else:
-                        mode, value = "scalar", spec
+                        raise KeyError(
+                            "BatchResult mapping keys do not match current grouped structure "
+                            "or flattened handle keys."
+                        )
             else:
                 # Allow grouped-structured maps from a previous grouping by flattening by handle.
                 flattened = _flatten_grouped_map(spec)
@@ -273,7 +280,9 @@ class BaseCollection(MutableMapping):
                     )
                     mode, value = "flat", flattened
                 else:
-                    mode, value = "scalar", spec
+                    raise KeyError(
+                        "BatchResult mapping keys do not match flattened collection handle keys."
+                    )
 
             mode_cache[spec_id] = mode
             value_cache[spec_id] = value
@@ -528,8 +537,9 @@ class BaseCollection(MutableMapping):
 
         ``collection.each.method(...)`` dispatches ``method`` to every leaf and
         uses smart argument handling:
-        - exact-key mappings are applied per handle/group-handle structure,
-        - mapping values that do not match exactly are broadcast as scalars.
+        - exact-key ``BatchResult`` mappings are applied per handle/group-handle
+          structure,
+        - all other values (including plain ``dict``) are broadcast as scalars.
 
         Returns either:
         - a collection (when all leaf returns are collection element type), or
