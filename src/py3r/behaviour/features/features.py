@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pandas as pd
-from shapely.errors import GEOSException
-from shapely.geometry import Point, Polygon
+import shapely
+from shapely.geometry import Polygon
 from sklearn.neighbors import KNeighborsRegressor
 
 from py3r.behaviour.features.features_result import FeaturesResult
@@ -579,15 +579,19 @@ class Features:
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
 
-        def local_contains_static(x):
-            px, py = x[point + ".x"], x[point + ".y"]
-            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return pd.NA
-            local_point = Point(px, py)
-            local_poly = Polygon(boundary)
-            return local_poly.contains(local_point)
+        df = self.tracking.data
+        px = df[point + ".x"].to_numpy(dtype=float)
+        py = df[point + ".y"].to_numpy(dtype=float)
+        point_nan = np.isnan(px) | np.isnan(py)
 
-        result = self.tracking.data.apply(local_contains_static, axis=1).astype("boolean")
+        if boundary_has_nan:
+            result = pd.Series(pd.array([pd.NA] * len(df), dtype="boolean"), index=df.index)
+        else:
+            poly = Polygon(boundary)
+            contained = shapely.contains(poly, shapely.points(px, py))
+            result = pd.Series(pd.array(contained, dtype="boolean"), index=df.index)
+            result[point_nan] = pd.NA
+
         return FeaturesResult(result, self, name, meta)
 
     def within_boundary_dynamic(
@@ -626,17 +630,21 @@ class Features:
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
 
-        def local_contains_dynamic(x):
-            px, py = x[point + ".x"], x[point + ".y"]
-            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
-            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
-            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return pd.NA
-            local_point = Point(px, py)
-            local_poly = Polygon(bdry_pts)
-            return local_poly.contains(local_point)
+        df = self.tracking.data
+        px = df[point + ".x"].to_numpy(dtype=float)
+        py = df[point + ".y"].to_numpy(dtype=float)
+        bx = np.column_stack([df[b + ".x"].to_numpy(dtype=float) for b in boundary])
+        by = np.column_stack([df[b + ".y"].to_numpy(dtype=float) for b in boundary])
 
-        result = self.tracking.data.apply(local_contains_dynamic, axis=1).astype("boolean")
+        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(bx) | np.isnan(by), axis=1))
+
+        result = pd.Series(pd.array([pd.NA] * len(df), dtype="boolean"), index=df.index)
+        if valid.any():
+            coords = np.stack([bx[valid], by[valid]], axis=-1)
+            polys = shapely.polygons(shapely.linearrings(coords))
+            pts = shapely.points(px[valid], py[valid])
+            result[valid] = shapely.contains(polys, pts)
+
         return FeaturesResult(result, self, name, meta)
 
     def within_boundary(
@@ -708,15 +716,19 @@ class Features:
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
 
-        def row_distance(x):
-            px, py = x[point + ".x"], x[point + ".y"]
-            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return np.nan
-            local_point = Point(px, py)
-            local_poly = Polygon(boundary)
-            return local_poly.exterior.distance(local_point)
+        df = self.tracking.data
+        px = df[point + ".x"].to_numpy(dtype=float)
+        py = df[point + ".y"].to_numpy(dtype=float)
+        point_nan = np.isnan(px) | np.isnan(py)
 
-        result = self.tracking.data.apply(row_distance, axis=1)
+        if boundary_has_nan:
+            result = pd.Series(np.nan, index=df.index)
+        else:
+            exterior = Polygon(boundary).exterior
+            distances = shapely.distance(exterior, shapely.points(px, py))
+            distances[point_nan] = np.nan
+            result = pd.Series(distances, index=df.index)
+
         return FeaturesResult(result, self, name, meta)
 
     def distance_to_boundary_dynamic(
@@ -739,17 +751,22 @@ class Features:
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
 
-        def row_distance(x):
-            px, py = x[point + ".x"], x[point + ".y"]
-            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
-            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
-            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return np.nan
-            local_point = Point(px, py)
-            local_poly = Polygon(bdry_pts)
-            return local_poly.exterior.distance(local_point)
+        df = self.tracking.data
+        px = df[point + ".x"].to_numpy(dtype=float)
+        py = df[point + ".y"].to_numpy(dtype=float)
+        bx = np.column_stack([df[b + ".x"].to_numpy(dtype=float) for b in boundary])
+        by = np.column_stack([df[b + ".y"].to_numpy(dtype=float) for b in boundary])
 
-        result = self.tracking.data.apply(row_distance, axis=1)
+        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(bx) | np.isnan(by), axis=1))
+
+        result = pd.Series(np.nan, index=df.index)
+        if valid.any():
+            coords = np.stack([bx[valid], by[valid]], axis=-1)
+            polys = shapely.polygons(shapely.linearrings(coords))
+            exteriors = shapely.get_exterior_ring(polys)
+            pts = shapely.points(px[valid], py[valid])
+            result[valid] = shapely.distance(exteriors, pts)
+
         return FeaturesResult(result, self, name, meta)
 
     def area_of_boundary(self, boundary: list[str], median: bool = True) -> FeaturesResult:
@@ -784,15 +801,15 @@ class Features:
             result = pd.Series(area, index=self.tracking.data.index)
         else:
             warnings.warn("using fully dynamic boundary", stacklevel=2)
-
-            def row_area(x):
-                try:
-                    local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
-                    return local_poly.area
-                except GEOSException:
-                    return np.nan
-
-            result = self.tracking.data.apply(row_area, axis=1)
+            data = self.tracking.data
+            bx = np.column_stack([data[b + ".x"].to_numpy(dtype=float) for b in boundary])
+            by = np.column_stack([data[b + ".y"].to_numpy(dtype=float) for b in boundary])
+            bx_next = np.roll(bx, -1, axis=1)
+            by_next = np.roll(by, -1, axis=1)
+            result = pd.Series(
+                0.5 * np.abs(np.sum(bx * by_next - bx_next * by, axis=1)),
+                index=data.index,
+            )
         return FeaturesResult(result, self, name, meta)
 
     def acceleration(self, point: str, dims=("x", "y")) -> FeaturesResult:
