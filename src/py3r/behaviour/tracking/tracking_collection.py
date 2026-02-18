@@ -23,6 +23,8 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
     """
 
     _element_type = Tracking
+    each: Tracking
+    each_forcebatch: Tracking
 
     def __init__(self, tracking_dict: dict[str, Tracking]):
         # Only validate handle mapping when values are leaf Tracking objects.

@@ -52,6 +52,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
     _element_type = Features
     each: Features
+    each_forcebatch: Features
 
     def __init__(self, features_dict: dict[str, Features]):
         super().__init__(features_dict)

@@ -23,14 +23,18 @@ from py3r.behaviour.util.io_utils import (
 class _EachProxy:
     """Dynamic batch facade exposed as ``collection.each``."""
 
-    def __init__(self, parent: BaseCollection):
+    def __init__(self, parent: BaseCollection, *, force_batch: bool = False):
         self._parent = parent
+        self._force_batch = force_batch
 
     def __getattr__(self, name: str):
         leaf_attr = self._parent._get_leaf_callable(name)
 
         def _batch_wrapper(*args, **kwargs):
-            return self._parent._invoke_batch(name, *args, **kwargs)
+            result = self._parent._invoke_batch(name, *args, **kwargs)
+            if self._force_batch:
+                return result
+            return self._parent._maybe_upcast_batch_result(result)
 
         # Preserve hover docs/name as best effort for dynamic wrappers.
         try:
@@ -100,6 +104,7 @@ class BaseCollection(MutableMapping):
         self._is_grouped = False
         self._groupby_tags = None
         self._each_proxy: _EachProxy | None = None
+        self._each_forcebatch_proxy: _EachProxy | None = None
 
     def _batch_error_context(self, key):
         # If this is a grouped view, treat top-level keys as collection names
@@ -376,18 +381,64 @@ class BaseCollection(MutableMapping):
             raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
         return leaf_attr
 
+    def _maybe_upcast_batch_result(self, result):
+        """
+        Convert a BatchResult into a collection when all leaves are element type.
+        Otherwise return the result unchanged.
+        """
+        if not isinstance(result, BatchResult):
+            return result
+
+        element_type = getattr(self, "_element_type", None)
+        if element_type is None:
+            return result
+
+        if getattr(self, "is_grouped", False):
+            if set(result.keys()) != set(self.keys()):
+                return result
+            grouped_new = {}
+            for gkey, subres in result.items():
+                if not isinstance(subres, dict):
+                    return result
+                subcoll = self[gkey]
+                if set(subres.keys()) != set(subcoll.keys()):
+                    return result
+                if not all(isinstance(v, element_type) for v in subres.values()):
+                    return result
+                grouped_new[gkey] = subcoll.__class__(dict(subres))
+            out = self.__class__(grouped_new)
+            out._is_grouped = True
+            out._groupby_tags = list(self._groupby_tags) if self._groupby_tags else None
+            return out
+
+        if set(result.keys()) != set(self.keys()):
+            return result
+        if not all(isinstance(v, element_type) for v in result.values()):
+            return result
+        return self.__class__(dict(result))
+
     @property
     def each(self):
         """
         Explicit leaf-batch facade.
 
         ``collection.each.method(...)`` dispatches ``method`` to every leaf and
-        returns a BatchResult. Concrete collection classes may narrow the return
-        type annotation for IDE autocomplete.
+        returns either:
+        - a collection (when all leaf returns are collection element type), or
+        - a BatchResult otherwise.
         """
         if self._each_proxy is None:
             self._each_proxy = _EachProxy(self)
         return self._each_proxy
+
+    @property
+    def each_forcebatch(self):
+        """
+        Explicit leaf-batch facade that always returns BatchResult.
+        """
+        if self._each_forcebatch_proxy is None:
+            self._each_forcebatch_proxy = _EachProxy(self, force_batch=True)
+        return self._each_forcebatch_proxy
 
     # ---- Dynamic fallback for user-extended leaf APIs ----
     def __getattr__(self, name):
