@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from py3r.behaviour.util.collection_utils import BatchResult
-from typing import Literal
 import pandas as pd
 from typing import TYPE_CHECKING
 
@@ -446,54 +445,6 @@ class FeaturesCollectionBatchMixin:
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "embedding_df")(embedding))
         return self._invoke_batch("embedding_df", embedding)
-
-    def cluster_embedding_stream(
-        self,
-        embedding_dict: dict[str, list[int]],
-        n_clusters: int,
-        random_state: int = 0,
-        *,
-        normalize: bool = False,
-        feature_weights: dict[str, float] | None = None,
-        missing_policy: Literal["drop", "impute_weight"] = "drop",
-        chunk_size: int = 10_000,
-        n_epochs: int = 3,
-        batch_size: int = 1024,
-    ) -> BatchResult:
-        """
-        Batch-mode wrapper for Features.cluster_embedding_stream across the collection.
-
-        Memory-friendly clustering on a single Features object.
-
-        See leaf method ``Features.cluster_embedding_stream`` for examples.
-        """
-        _inplace = locals().get("inplace", True)
-        if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "cluster_embedding_stream")(
-                    embedding_dict,
-                    n_clusters,
-                    random_state,
-                    normalize=normalize,
-                    feature_weights=feature_weights,
-                    missing_policy=missing_policy,
-                    chunk_size=chunk_size,
-                    n_epochs=n_epochs,
-                    batch_size=batch_size,
-                )
-            )
-        return self._invoke_batch(
-            "cluster_embedding_stream",
-            embedding_dict,
-            n_clusters,
-            random_state,
-            normalize=normalize,
-            feature_weights=feature_weights,
-            missing_policy=missing_policy,
-            chunk_size=chunk_size,
-            n_epochs=n_epochs,
-            batch_size=batch_size,
-        )
 
     def assign_clusters_by_centroids(
         self,
