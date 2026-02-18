@@ -113,7 +113,7 @@ tc.tags_info()
 tc.filter_likelihood(threshold=0.5)
 tc.interpolate(limit=5)
 tc.smooth_all(window=3, method="mean")
-tc.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.64)
+tc.each.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.64)
 # %% [markdown]
 # ### 2.4 Quality check — trajectory plots
 #

@@ -267,6 +267,8 @@ def _generate_collection_mixin(
         "# Regenerate with: PYTHONPATH=src python -m tools.gen_batch_mixins",
         "from __future__ import annotations",
         "",
+        "import warnings",
+        "",
         "from py3r.behaviour.util.collection_utils import BatchResult",
     ]
     if needs_any:
@@ -314,6 +316,16 @@ def _generate_collection_mixin(
             lines.append(f"        See leaf method ``{leaf_class}.{mi.name}``")
             lines.append("        for examples.")
         lines.append('        """')
+        lines.append("        warnings.warn(")
+        lines.append(
+            f'            "Direct batch passthrough via {mixin_class}.{mi.name}() is deprecated; "'
+        )
+        lines.append(
+            f'            "use {mixin_class.replace("BatchMixin", "")}.each.{mi.name}() instead.",'
+        )
+        lines.append("            DeprecationWarning,")
+        lines.append("            stacklevel=2,")
+        lines.append("        )")
         suffix = f", {mi.call_args}" if mi.call_args else ""
         # inplace=False → return new collection via map_leaves
         lines.append("        _inplace = locals().get('inplace', True)")
