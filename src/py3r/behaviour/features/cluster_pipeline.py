@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import warnings
 from dataclasses import dataclass
 from typing import Literal, NamedTuple, Protocol
 
@@ -12,8 +14,11 @@ from py3r.behaviour.util.missing_tolerance import fit_frame_imputer, impute_fram
 from py3r.behaviour.util.series_utils import (
     apply_custom_scaling,
     apply_normalization_to_df,
+    build_column_weights,
     normalize_df,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class BuildResult(NamedTuple):
@@ -187,26 +192,20 @@ class DefaultAssigner:
         custom_scaling: dict[str, dict] | None,
         impute_medians: pd.Series | None,
     ) -> dict:
-        # Build dict mirrors existing lowmem assignment in FeaturesCollection
         is_grouped = getattr(fc, "is_grouped", False)
-        if is_grouped:
-            result_dict = {}
-            for gkey, sub in fc.items():
-                group_map = {}
-                for feat_name, feat in sub.features_dict.items():
-                    fr = feat.assign_clusters_by_centroids(
-                        embedding_dict,
-                        centroids,
-                        rescale_factors=scaling_factors,
-                        custom_scaling=custom_scaling,
-                        impute_medians=impute_medians,
-                    )
-                    group_map[feat_name] = fr
-                result_dict[gkey] = group_map
-            return result_dict
-        else:
-            result_dict = {}
-            for feat_name, feat in fc.features_dict.items():
+        result_dict = {}
+        items = (
+            (
+                (gkey, feat_name, feat)
+                for gkey, sub in fc.items()
+                for feat_name, feat in sub.features_dict.items()
+            )
+            if is_grouped
+            else ((None, fn, f) for fn, f in fc.features_dict.items())
+        )
+        for gkey, feat_name, feat in items:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
                 fr = feat.assign_clusters_by_centroids(
                     embedding_dict,
                     centroids,
@@ -214,8 +213,11 @@ class DefaultAssigner:
                     custom_scaling=custom_scaling,
                     impute_medians=impute_medians,
                 )
+            if is_grouped:
+                result_dict.setdefault(gkey, {})[feat_name] = fr
+            else:
                 result_dict[feat_name] = fr
-            return result_dict
+        return result_dict
 
     def combined_labels(
         self,
@@ -327,9 +329,9 @@ class ClusteringPipeline:
 class StreamingConfig:
     n_clusters: int
     random_state: int = 0
-    auto_normalize: bool = False
-    rescale_factors: dict | None = None
-    custom_scaling: dict[str, dict] | None = None
+    normalize: bool = False
+    column_weights: dict[str, float] | None = None
+    weight_rules: dict[str, float] | None = None
     missing_policy: Literal["drop", "impute_weight"] = "drop"
     chunk_size: int = 10_000
     n_epochs: int = 3
@@ -348,15 +350,54 @@ def _iter_features(fc):
             yield None, feat_name, feat
 
 
+def _resolve_weight_rules(
+    columns: list[str] | pd.Index,
+    weight_rules: dict[str, float],
+) -> dict[str, float]:
+    """
+    Resolve substring weight_rules into per-column weights and log the mapping.
+
+    *columns* must be the real embedding column names obtained from
+    ``feat.embedding_df(embedding_dict).columns``.
+
+    Raises ValueError (via build_column_weights) if any rule matches no column
+    or any column matches multiple rules.
+    """
+    weights = build_column_weights(columns, weight_rules)
+
+    for rule, w in weight_rules.items():
+        matched = [c for c in columns if rule in c]
+        logger.info("weight_rules: %r → %s × %.4g", rule, matched, w)
+    unmatched = [c for c in columns if weights[c] == 1.0]
+    if unmatched:
+        logger.info("weight_rules: unmatched columns (weight 1.0): %s", unmatched)
+
+    return weights
+
+
+def _base_feature_for_column(col: str, embedding_dict: dict[str, list[int]]) -> str:
+    """Map an embedding column name back to its base feature name."""
+    for base in embedding_dict:
+        if col.startswith(base + "_t"):
+            return base
+    raise ValueError(f"Cannot determine base feature for embedding column '{col}'")
+
+
 class StreamingClusteringPipeline:
     """
     Memory-friendly clustering via MiniBatchKMeans.partial_fit.
 
-    Phase 1 (optional): streaming pass to compute normalisation factors.
+    Phase 1 (optional): streaming pass to compute per-base-feature stds.
     Phase 2: n_epochs passes of partial_fit over fixed-size chunks.
     Phase 3: per-Features assignment using the fitted centroids.
 
-    Never builds a combined DataFrame — only one chunk is in memory at a time.
+    Normalisation is computed on base feature columns (before embedding)
+    so all time-shifts of the same feature share the same std.
+
+    The returned scaling_factors dict contains one float per embedding
+    column — the combined effect of normalisation and column weights.
+    Multiply raw embedding columns by these values to reproduce the
+    transform.
     """
 
     def run(
@@ -364,8 +405,21 @@ class StreamingClusteringPipeline:
         fc,
         embedding_dict: dict[str, list[int]],
         cfg: StreamingConfig,
-    ) -> tuple[dict, pd.DataFrame, dict | None, dict]:
-        scaling_factors, impute_means = self._streaming_stats(fc, embedding_dict, cfg)
+    ) -> tuple[dict, pd.DataFrame, dict[str, float] | None, dict]:
+        if cfg.weight_rules is not None and cfg.column_weights is not None:
+            raise ValueError("weight_rules and column_weights are mutually exclusive")
+
+        # Resolve weight_rules from the first real embedding_df columns
+        resolved_weights = cfg.column_weights
+        if cfg.weight_rules is not None:
+            first_feat = next(_iter_features(fc))[2]
+            first_cols = first_feat.embedding_df(embedding_dict).columns
+            resolved_weights = _resolve_weight_rules(first_cols, cfg.weight_rules)
+
+        base_stds = self._compute_base_stds(fc, embedding_dict, cfg) if cfg.normalize else None
+        scaling_factors, impute_means = self._build_scaling(
+            fc, embedding_dict, cfg, resolved_weights, base_stds
+        )
 
         model = MiniBatchKMeans(
             n_clusters=cfg.n_clusters,
@@ -377,11 +431,26 @@ class StreamingClusteringPipeline:
         for _epoch in range(cfg.n_epochs):
             for _gkey, _fname, feat in _iter_features(fc):
                 embed_df = feat.embedding_df(embedding_dict).astype(np.float32)
-                embed_df = self._apply_scaling(embed_df, scaling_factors, cfg)
+
+                # Verify weight_rules produce the same dict on every Features
+                if cfg.weight_rules is not None and _epoch == 0:
+                    check = _resolve_weight_rules(embed_df.columns, cfg.weight_rules)
+                    if check != resolved_weights:
+                        raise ValueError(
+                            f"weight_rules resolved differently for '{_fname}': "
+                            f"expected {resolved_weights}, got {check}"
+                        )
+
+                if scaling_factors is not None:
+                    embed_df = embed_df * pd.Series(scaling_factors)
                 columns = embed_df.columns
                 for start in range(0, len(embed_df), cfg.chunk_size):
                     chunk = embed_df.iloc[start : start + cfg.chunk_size]
-                    X, w = self._prepare_chunk(chunk, cfg.missing_policy, impute_means)
+                    X, w = self._prepare_chunk(
+                        chunk,
+                        cfg.missing_policy,
+                        impute_means,
+                    )
                     if len(X) == 0:
                         continue
                     model.partial_fit(X, sample_weight=w)
@@ -393,9 +462,9 @@ class StreamingClusteringPipeline:
             "embedding_dict": embedding_dict,
             "n_clusters": cfg.n_clusters,
             "random_state": cfg.random_state,
-            "auto_normalize": cfg.auto_normalize,
-            "rescale_factors": cfg.rescale_factors,
-            "custom_scaling": cfg.custom_scaling,
+            "normalize": cfg.normalize,
+            "column_weights": resolved_weights,
+            "weight_rules": cfg.weight_rules,
             "missing_policy": cfg.missing_policy,
             "chunk_size": cfg.chunk_size,
             "n_epochs": cfg.n_epochs,
@@ -404,19 +473,16 @@ class StreamingClusteringPipeline:
         }
 
         result_dict = self._assign_all(
-            fc, embedding_dict, centroids, cfg, scaling_factors, impute_means, meta
+            fc,
+            embedding_dict,
+            centroids,
+            scaling_factors,
+            impute_means,
+            meta,
         )
         return result_dict, centroids, scaling_factors, meta
 
     # -- internal helpers ---------------------------------------------------
-
-    @staticmethod
-    def _apply_scaling(df, scaling_factors, cfg):
-        if scaling_factors is not None:
-            return apply_normalization_to_df(df, scaling_factors)
-        if cfg.custom_scaling is not None:
-            return apply_custom_scaling(df, cfg.custom_scaling)
-        return df
 
     @staticmethod
     def _prepare_chunk(chunk, missing_policy, impute_means):
@@ -426,86 +492,82 @@ class StreamingClusteringPipeline:
         valid = chunk.notna().all(axis=1)
         return chunk[valid].values, None
 
-    def _streaming_stats(self, fc, embedding_dict, cfg):
-        """
-        Single streaming pass to compute global column stats.
-
-        Returns (scaling_factors, impute_means) where either may be None
-        depending on cfg.  When auto_normalize is True, scaling_factors is
-        a dict of per-column stds.  When missing_policy is "impute_weight",
-        impute_means is a Series of per-column means (computed after scaling).
-        """
-        if cfg.custom_scaling is not None and (
-            cfg.auto_normalize or cfg.rescale_factors is not None
-        ):
-            raise ValueError(
-                "custom_scaling is mutually exclusive with auto_normalize or rescale_factors"
-            )
-
-        need_norm = cfg.auto_normalize and cfg.rescale_factors is None
-        need_impute = cfg.missing_policy == "impute_weight"
-
-        if cfg.rescale_factors is not None:
-            scaling_factors = cfg.rescale_factors
-        elif not need_norm:
-            scaling_factors = None
-        else:
-            scaling_factors = None  # computed below
-
-        if not need_norm and not need_impute:
-            return scaling_factors, None
-
-        # One pass over all embeddings to accumulate running sums
-        col_sum = None
-        col_sq_sum = None
-        n_valid = 0
+    @staticmethod
+    def _compute_base_stds(fc, embedding_dict, cfg):
+        """Streaming pass over base feature columns to get per-feature stds."""
+        col_sum: dict[str, float] = {}
+        col_sq_sum: dict[str, float] = {}
+        col_n: dict[str, int] = {}
         for _gkey, _fname, feat in _iter_features(fc):
-            embed_df = feat.embedding_df(embedding_dict).astype(np.float32)
-            if not need_norm:
-                embed_df = self._apply_scaling(embed_df, scaling_factors, cfg)
-            valid = embed_df.notna().all(axis=1)
-            vals = embed_df[valid].values
-            if col_sum is None:
-                col_sum = np.zeros(vals.shape[1], dtype=np.float64)
-                col_sq_sum = np.zeros(vals.shape[1], dtype=np.float64)
-            col_sum += vals.sum(axis=0)
-            col_sq_sum += (vals**2).sum(axis=0)
-            n_valid += len(vals)
+            for base_col in embedding_dict:
+                vals = feat.data[base_col].to_numpy(dtype=np.float64)
+                finite = vals[np.isfinite(vals)]
+                if base_col not in col_sum:
+                    col_sum[base_col] = 0.0
+                    col_sq_sum[base_col] = 0.0
+                    col_n[base_col] = 0
+                col_sum[base_col] += finite.sum()
+                col_sq_sum[base_col] += (finite**2).sum()
+                col_n[base_col] += len(finite)
 
-        if n_valid == 0:
-            raise ValueError("No valid rows found in embedding data")
+        base_stds: dict[str, float] = {}
+        for base_col in embedding_dict:
+            n = col_n[base_col]
+            if n == 0:
+                base_stds[base_col] = 1.0
+                continue
+            mean = col_sum[base_col] / n
+            std = np.sqrt(col_sq_sum[base_col] / n - mean**2)
+            base_stds[base_col] = std if std > 0 else 1.0
+        return base_stds
 
-        ref_cols = feat.embedding_df(embedding_dict).columns
-        means = col_sum / n_valid
+    @staticmethod
+    def _build_scaling(fc, embedding_dict, cfg, column_weights, base_stds):
+        """
+        Build the combined per-embedding-column scaling factors and impute means.
 
-        if need_norm:
-            stds = np.sqrt(col_sq_sum / n_valid - means**2)
-            stds[stds == 0] = 1.0
-            scaling_factors = dict(zip(ref_cols, stds, strict=True))
+        Each factor is: (1 / base_std if normalize else 1) * (column_weight or 1).
+        Multiply raw embedding columns by these to reproduce the transform.
+        """
+        first_feat = next(_iter_features(fc))[2]
+        embed_cols = first_feat.embedding_df(embedding_dict).columns
+
+        factors: dict[str, float] = {}
+        for col in embed_cols:
+            base = _base_feature_for_column(col, embedding_dict)
+            norm_factor = 1.0 / base_stds[base] if base_stds is not None else 1.0
+            weight = column_weights.get(col, 1.0) if column_weights else 1.0
+            factors[col] = norm_factor * weight
+
+        has_non_unity = any(v != 1.0 for v in factors.values())
+        scaling_factors = factors if has_non_unity else None
 
         impute_means = None
-        if need_impute:
-            if need_norm:
-                # Means were computed on raw data; re-derive after scaling
-                impute_means = pd.Series(
-                    means / np.array(list(scaling_factors.values())), index=ref_cols
-                )
-            else:
-                impute_means = pd.Series(means, index=ref_cols)
+        if cfg.missing_policy == "impute_weight":
+            # Streaming means on the scaled embedding
+            col_sum = np.zeros(len(embed_cols), dtype=np.float64)
+            n_valid = 0
+            scale_arr = np.array([factors[c] for c in embed_cols], dtype=np.float64)
+            for _gkey, _fname, feat in _iter_features(fc):
+                embed_df = feat.embedding_df(embedding_dict).astype(np.float32)
+                vals = embed_df.values * scale_arr
+                row_valid = np.isfinite(vals).all(axis=1)
+                col_sum += vals[row_valid].sum(axis=0)
+                n_valid += row_valid.sum()
+            if n_valid > 0:
+                impute_means = pd.Series(col_sum / n_valid, index=embed_cols)
 
         return scaling_factors, impute_means
 
     @staticmethod
-    def _assign_all(fc, embedding_dict, centroids, cfg, scaling_factors, impute_means, meta):
+    def _assign_all(fc, embedding_dict, centroids, scaling_factors, impute_means, meta):
         is_grouped = getattr(fc, "is_grouped", False)
         result_dict = {}
-        rescale_for_assign = scaling_factors if cfg.custom_scaling is None else None
         for gkey, feat_name, feat in _iter_features(fc):
             fr = feat.assign_clusters_by_centroids(
                 embedding_dict,
                 centroids,
-                rescale_factors=rescale_for_assign,
-                custom_scaling=cfg.custom_scaling,
+                scaling_factors=scaling_factors,
                 impute_medians=impute_means,
             )
             if is_grouped:

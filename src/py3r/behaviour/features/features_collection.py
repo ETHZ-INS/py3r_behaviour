@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import Literal
 
 import numpy as np
@@ -10,6 +11,9 @@ from py3r.behaviour.features.cluster_pipeline import (
     ClusteringPipeline,
     StreamingClusteringPipeline,
     StreamingConfig,
+    _base_feature_for_column,
+    _iter_features,
+    _resolve_weight_rules,
 )
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.features.features_collection_batch_mixin import (
@@ -411,21 +415,42 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         n_clusters: int,
         random_state: int = 0,
         *,
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
+        normalize: bool = False,
+        column_weights: dict[str, float] | None = None,
+        weight_rules: dict[str, float] | None = None,
         lowmem: bool = False,
         decimation_factor: int = 10,
-        custom_scaling: dict[str, dict] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
+        # --- deprecated params (kept for backward compat) ---
+        auto_normalize: bool = False,
+        rescale_factors: dict | None = None,
+        custom_scaling: dict[str, dict] | None = None,
     ):
         """
         Perform k-means clustering using the specified embedding.
 
-        Unified behaviour for flat and grouped collections.
-        Returns a BatchResult mapping:
-          - grouped: {group_key: {feature_handle: FeaturesResult}}
-          - flat:    {feature_handle: FeaturesResult}
-        along with (centroids, normalization_factors or None).
+        Returns ``(BatchResult, centroids, scaling_factors)`` where
+        *scaling_factors* is a dict of one float per embedding column —
+        the combined effect of normalisation and column weights.
+
+        Parameters
+        ----------
+        normalize : bool
+            Divide each base feature by its global std before embedding.
+        column_weights : dict[str, float] | None
+            Per-embedding-column multipliers (low-level).  Mutually
+            exclusive with *weight_rules*.
+        weight_rules : dict[str, float] | None
+            Substring → weight mapping, e.g. ``{"speed": 4.0}``.
+            Resolved internally into *column_weights* via
+            :func:`~py3r.behaviour.util.series_utils.build_column_weights`.
+            Raises if a rule matches no column (likely typo).
+        auto_normalize : bool
+            .. deprecated:: Use *normalize* instead.
+        rescale_factors : dict | None
+            .. deprecated:: Use *normalize* and/or *column_weights*.
+        custom_scaling : dict[str, dict] | None
+            .. deprecated:: Use *weight_rules* or *column_weights*.
 
         Examples
         --------
@@ -462,23 +487,137 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
         ```
         """
+        # --- deprecation warnings for old params -------------------------
+        _using_legacy = auto_normalize or rescale_factors is not None or custom_scaling is not None
+        if auto_normalize:
+            warnings.warn(
+                "auto_normalize is deprecated; use normalize=True instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if rescale_factors is not None:
+            warnings.warn(
+                "rescale_factors is deprecated; use normalize and/or column_weights instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if custom_scaling is not None:
+            warnings.warn(
+                "custom_scaling is deprecated; use column_weights with "
+                "build_column_weights() instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
-        # Delegate to the pluggable pipeline
+        _using_new = normalize or column_weights is not None or weight_rules is not None
+        if _using_legacy and _using_new:
+            raise ValueError(
+                "Cannot mix new params (normalize, column_weights, "
+                "weight_rules) with deprecated params (auto_normalize, "
+                "rescale_factors, custom_scaling)."
+            )
+        if weight_rules is not None and column_weights is not None:
+            raise ValueError("weight_rules and column_weights are mutually exclusive")
+
+        if _using_legacy:
+            # --- legacy path: pass through unchanged ----------------------
+            pipeline = ClusteringPipeline()
+            cfg = ClusteringConfig(
+                n_clusters=n_clusters,
+                random_state=random_state,
+                auto_normalize=auto_normalize,
+                rescale_factors=rescale_factors,
+                lowmem=lowmem,
+                decimation_factor=decimation_factor,
+                custom_scaling=custom_scaling,
+                missing_policy=missing_policy,
+            )
+            result_dict, centroids, normalization_factors, _meta = pipeline.run(
+                self, embedding_dict, cfg
+            )
+            return BatchResult(result_dict, self), centroids, normalization_factors
+
+        # --- new path: pre-embedding normalisation + column_weights -------
+        if weight_rules is not None:
+            first_feat = next(_iter_features(self))[2]
+            first_cols = first_feat.embedding_df(embedding_dict).columns
+            column_weights = _resolve_weight_rules(first_cols, weight_rules)
+
+        scaling_factors = self._compute_scaling_factors(
+            embedding_dict, normalize=normalize, column_weights=column_weights
+        )
+
+        # Convert multiply-style factors into divide-style rescale_factors
+        # so the legacy pipeline's apply_normalization_to_df works correctly.
+        legacy_rescale = (
+            {col: 1.0 / sf for col, sf in scaling_factors.items()}
+            if scaling_factors is not None
+            else None
+        )
+
         pipeline = ClusteringPipeline()
         cfg = ClusteringConfig(
             n_clusters=n_clusters,
             random_state=random_state,
-            auto_normalize=auto_normalize,
-            rescale_factors=rescale_factors,
+            auto_normalize=False,
+            rescale_factors=legacy_rescale,
             lowmem=lowmem,
             decimation_factor=decimation_factor,
-            custom_scaling=custom_scaling,
+            custom_scaling=None,
             missing_policy=missing_policy,
         )
-        result_dict, centroids, normalization_factors, _meta = pipeline.run(
-            self, embedding_dict, cfg
-        )
-        return BatchResult(result_dict, self), centroids, normalization_factors
+        result_dict, centroids, _norm, _meta = pipeline.run(self, embedding_dict, cfg)
+        return BatchResult(result_dict, self), centroids, scaling_factors
+
+    def _compute_scaling_factors(
+        self,
+        embedding_dict: dict[str, list[int]],
+        *,
+        normalize: bool,
+        column_weights: dict[str, float] | None,
+    ) -> dict[str, float] | None:
+        """Compute combined per-embedding-column scaling factors."""
+        if not normalize and not column_weights:
+            return None
+
+        base_stds: dict[str, float] | None = None
+        if normalize:
+            col_sum: dict[str, float] = {}
+            col_sq: dict[str, float] = {}
+            col_n: dict[str, int] = {}
+            for _gkey, _fname, feat in _iter_features(self):
+                for base_col in embedding_dict:
+                    vals = feat.data[base_col].to_numpy(dtype=np.float64)
+                    finite = vals[np.isfinite(vals)]
+                    if base_col not in col_sum:
+                        col_sum[base_col] = 0.0
+                        col_sq[base_col] = 0.0
+                        col_n[base_col] = 0
+                    col_sum[base_col] += finite.sum()
+                    col_sq[base_col] += (finite**2).sum()
+                    col_n[base_col] += len(finite)
+            base_stds = {}
+            for base_col in embedding_dict:
+                n = col_n[base_col]
+                if n == 0:
+                    base_stds[base_col] = 1.0
+                    continue
+                mean = col_sum[base_col] / n
+                std = float(np.sqrt(col_sq[base_col] / n - mean**2))
+                base_stds[base_col] = std if std > 0 else 1.0
+
+        first_feat = next(_iter_features(self))[2]
+        embed_cols = first_feat.embedding_df(embedding_dict).columns
+
+        factors: dict[str, float] = {}
+        for col in embed_cols:
+            base = _base_feature_for_column(col, embedding_dict)
+            norm_factor = 1.0 / base_stds[base] if base_stds is not None else 1.0
+            weight = column_weights.get(col, 1.0) if column_weights else 1.0
+            factors[col] = norm_factor * weight
+
+        has_non_unity = any(v != 1.0 for v in factors.values())
+        return factors if has_non_unity else None
 
     def cluster_embedding_stream(
         self,
@@ -486,9 +625,9 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         n_clusters: int,
         random_state: int = 0,
         *,
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
-        custom_scaling: dict[str, dict] | None = None,
+        normalize: bool = False,
+        column_weights: dict[str, float] | None = None,
+        weight_rules: dict[str, float] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
         chunk_size: int = 10_000,
         n_epochs: int = 3,
@@ -503,8 +642,14 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         Multiple epochs improve convergence; uniform chunk sizes prevent
         large recordings from dominating centroid updates.
 
-        Returns the same ``(BatchResult, centroids, scaling_factors)`` tuple
-        as ``cluster_embedding``.
+        Normalisation is computed on base feature columns (before embedding)
+        so that all time-shifts of the same feature share the same std.
+        The returned ``scaling_factors`` is a dict of one float per
+        *embedding column* — the combined effect of normalisation and
+        column_weights.  Multiply raw embedding values by these to reproduce
+        the transform.
+
+        Returns ``(BatchResult, centroids, scaling_factors)``.
 
         Parameters
         ----------
@@ -514,18 +659,19 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
             Number of clusters.
         random_state : int
             Seed for reproducibility.
-        auto_normalize : bool
-            Compute per-column std normalisation from a streaming pass.
-        rescale_factors : dict | None
-            Pre-computed normalisation factors (mutually exclusive with
-            auto_normalize and custom_scaling).
-        custom_scaling : dict[str, dict] | None
-            Per-column scaling rules (mutually exclusive with the above).
+        normalize : bool
+            Divide each base feature by its global std before embedding.
+        column_weights : dict[str, float] | None
+            Per-embedding-column multipliers (low-level).  Mutually
+            exclusive with *weight_rules*.
+        weight_rules : dict[str, float] | None
+            Substring → weight mapping, e.g. ``{"speed": 4.0}``.
+            Resolved internally into *column_weights*.  Raises if a
+            rule matches no column (likely typo).
         missing_policy : {"drop", "impute_weight"}
             How to handle NaN rows.
         chunk_size : int
-            Max rows per partial_fit call. Controls memory and ensures each
-            chunk has roughly equal influence on centroid updates.
+            Max rows per partial_fit call.
         n_epochs : int
             Number of full passes over the data.
         batch_size : int
@@ -559,9 +705,9 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         cfg = StreamingConfig(
             n_clusters=n_clusters,
             random_state=random_state,
-            auto_normalize=auto_normalize,
-            rescale_factors=rescale_factors,
-            custom_scaling=custom_scaling,
+            normalize=normalize,
+            column_weights=column_weights,
+            weight_rules=weight_rules,
             missing_policy=missing_policy,
             chunk_size=chunk_size,
             n_epochs=n_epochs,

@@ -1312,22 +1312,26 @@ class Features:
         n_clusters: int,
         random_state: int = 0,
         *,
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
+        normalize: bool = False,
+        column_weights: dict[str, float] | None = None,
+        weight_rules: dict[str, float] | None = None,
         lowmem: bool = False,
         decimation_factor: int = 10,
-        custom_scaling: dict[str, dict] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
+        # --- deprecated params (kept for backward compat) ---
+        auto_normalize: bool = False,
+        rescale_factors: dict | None = None,
+        custom_scaling: dict[str, dict] | None = None,
     ):
         """
         Perform k-means clustering on a single Features object.
 
-        Delegates to ``FeaturesCollection.cluster_embedding`` so all
-        clustering logic remains centralised.
+        Delegates to ``FeaturesCollection.cluster_embedding``.
+        See that method for full parameter documentation.
 
         Returns
         -------
-        (FeaturesResult, centroids DataFrame, normalization_factors or None)
+        (FeaturesResult, centroids DataFrame, scaling_factors or None)
 
         Examples
         --------
@@ -1355,12 +1359,15 @@ class Features:
             embedding_dict,
             n_clusters,
             random_state,
-            auto_normalize=auto_normalize,
-            rescale_factors=rescale_factors,
+            normalize=normalize,
+            column_weights=column_weights,
+            weight_rules=weight_rules,
             lowmem=lowmem,
             decimation_factor=decimation_factor,
-            custom_scaling=custom_scaling,
             missing_policy=missing_policy,
+            auto_normalize=auto_normalize,
+            rescale_factors=rescale_factors,
+            custom_scaling=custom_scaling,
         )
         return batch[self.handle], centroids, norm
 
@@ -1370,9 +1377,9 @@ class Features:
         n_clusters: int,
         random_state: int = 0,
         *,
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
-        custom_scaling: dict[str, dict] | None = None,
+        normalize: bool = False,
+        column_weights: dict[str, float] | None = None,
+        weight_rules: dict[str, float] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
         chunk_size: int = 10_000,
         n_epochs: int = 3,
@@ -1415,9 +1422,9 @@ class Features:
             embedding_dict,
             n_clusters,
             random_state,
-            auto_normalize=auto_normalize,
-            rescale_factors=rescale_factors,
-            custom_scaling=custom_scaling,
+            normalize=normalize,
+            column_weights=column_weights,
+            weight_rules=weight_rules,
             missing_policy=missing_policy,
             chunk_size=chunk_size,
             n_epochs=n_epochs,
@@ -1430,14 +1437,37 @@ class Features:
         embedding: dict[str, list[int]],
         centroids_df: pd.DataFrame,
         *,
+        scaling_factors: dict[str, float] | None = None,
+        impute_medians: pd.Series | None = None,
+        # --- deprecated params (kept for backward compat) ---
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
-        impute_medians: pd.Series | None = None,
     ) -> FeaturesResult:
         """
-        new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
-        centroids_df: (n_clusters, n_features) DataFrame of cluster centers
-        Returns a Series of cluster IDs (0..n_clusters-1) indexed like new_embed_df.
+        Assign cluster labels to this Features object using pre-fitted centroids.
+
+        Parameters
+        ----------
+        embedding : dict[str, list[int]]
+            Same embedding dict used during fitting.
+        centroids_df : pd.DataFrame
+            (n_clusters, n_features) DataFrame of cluster centres.
+        scaling_factors : dict[str, float] | None
+            Per-embedding-column multipliers (the "dumb" scalars returned by
+            ``cluster_embedding_stream``).  Each raw embedding column is
+            multiplied by the corresponding value before distance computation.
+        impute_medians : pd.Series | None
+            Per-column fill values for NaN imputation (from training).
+        rescale_factors : dict | None
+            .. deprecated:: Use *scaling_factors* instead.
+        custom_scaling : dict[str, dict] | None
+            .. deprecated:: Use *scaling_factors* together with
+               :func:`~py3r.behaviour.util.series_utils.build_column_weights`.
+
+        Returns
+        -------
+        FeaturesResult
+            Series of cluster IDs (0 .. n_clusters-1).
 
         Examples
         --------
@@ -1463,19 +1493,35 @@ class Features:
         """
         from sklearn.metrics.pairwise import pairwise_distances_argmin
 
-        embed_df = self.embedding_df(embedding)
-        # Apply the same scaling/normalization used during centroid fitting, if provided
-        if rescale_factors is not None and custom_scaling is not None:
-            raise ValueError("rescale_factors and custom_scaling are mutually exclusive")
+        # --- handle deprecated params ------------------------------------
         if rescale_factors is not None:
+            warnings.warn(
+                "rescale_factors is deprecated; pass scaling_factors instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if custom_scaling is not None:
+            warnings.warn(
+                "custom_scaling is deprecated; use build_column_weights() "
+                "and pass scaling_factors instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        embed_df = self.embedding_df(embedding)
+
+        if scaling_factors is not None:
+            embed_df = embed_df * pd.Series(scaling_factors)
+        elif rescale_factors is not None and custom_scaling is not None:
+            raise ValueError("rescale_factors and custom_scaling are mutually exclusive")
+        elif rescale_factors is not None:
             embed_df = apply_normalization_to_df(embed_df, rescale_factors)
         elif custom_scaling is not None:
             embed_df = apply_custom_scaling(embed_df, custom_scaling)
-        # check that columns are the same
+
         if not embed_df.columns.equals(centroids_df.columns):
             raise ValueError("Columns in embedding and centroids do not match")
 
-        # Optionally impute using provided medians (from training)
         if impute_medians is not None:
             embed_df, _ = impute_frame(embed_df, impute_medians)
             mask = pd.Series(True, index=embed_df.index)
@@ -1493,9 +1539,7 @@ class Features:
         meta = {
             "function": "assign_clusters_by_centroids",
             "embedding": embedding,
-            "rescale_factors": rescale_factors,
-            "custom_scaling": custom_scaling,
-            "impute_medians": (impute_medians.to_dict() if impute_medians is not None else None),
+            "scaling_factors": scaling_factors,
         }
         return FeaturesResult(labels, self, name, meta)
 
