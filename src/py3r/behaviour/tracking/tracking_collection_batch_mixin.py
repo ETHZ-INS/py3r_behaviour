@@ -3,6 +3,8 @@
 # Regenerate with: PYTHONPATH=src python -m tools.gen_batch_mixins
 from __future__ import annotations
 
+import warnings
+
 from py3r.behaviour.util.collection_utils import BatchResult
 from typing import Literal
 from collections.abc import Iterable
@@ -18,6 +20,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.add_usermeta`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.add_usermeta() is deprecated; "
+            "use TrackingCollection.each.add_usermeta() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "add_usermeta")(usermeta, overwrite))
@@ -31,6 +39,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.add_tag`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.add_tag() is deprecated; "
+            "use TrackingCollection.each.add_tag() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -48,6 +62,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.save`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.save() is deprecated; "
+            "use TrackingCollection.each.save() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -65,6 +85,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.strip_column_names`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.strip_column_names() is deprecated; "
+            "use TrackingCollection.each.strip_column_names() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -80,6 +106,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.time_as_expected`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.time_as_expected() is deprecated; "
+            "use TrackingCollection.each.time_as_expected() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "time_as_expected")(mintime, maxtime))
@@ -95,6 +127,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.trim`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.trim() is deprecated; "
+            "use TrackingCollection.each.trim() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -110,6 +148,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.filter_likelihood`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.filter_likelihood() is deprecated; "
+            "use TrackingCollection.each.filter_likelihood() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -125,6 +169,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.distance_between`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.distance_between() is deprecated; "
+            "use TrackingCollection.each.distance_between() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -140,6 +190,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.get_point_names`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.get_point_names() is deprecated; "
+            "use TrackingCollection.each.get_point_names() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "get_point_names")())
@@ -153,6 +209,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.get_point_dimensions`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.get_point_dimensions() is deprecated; "
+            "use TrackingCollection.each.get_point_dimensions() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "get_point_dimensions")(point))
@@ -167,6 +229,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.get_point_data`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.get_point_data() is deprecated; "
+            "use TrackingCollection.each.get_point_data() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "get_point_data")(point, dims))
@@ -182,6 +250,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.set_point_data`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.set_point_data() is deprecated; "
+            "use TrackingCollection.each.set_point_data() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -205,6 +279,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.rescale_by_known_distance`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.rescale_by_known_distance() is deprecated; "
+            "use TrackingCollection.each.rescale_by_known_distance() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -226,6 +306,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.generate_smoothdict`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.generate_smoothdict() is deprecated; "
+            "use TrackingCollection.each.generate_smoothdict() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -241,6 +327,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.smooth`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.smooth() is deprecated; "
+            "use TrackingCollection.each.smooth() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "smooth")(smoothing_params))
@@ -267,6 +359,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.smooth_all`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.smooth_all() is deprecated; "
+            "use TrackingCollection.each.smooth_all() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -308,6 +406,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.interpolate`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.interpolate() is deprecated; "
+            "use TrackingCollection.each.interpolate() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -345,6 +449,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.plot`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.plot() is deprecated; "
+            "use TrackingCollection.each.plot() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -389,6 +499,12 @@ class TrackingCollectionBatchMixin:
 
         See leaf method ``Tracking.save_3d_tracking_video_multi_view`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via TrackingCollectionBatchMixin.save_3d_tracking_video_multi_view() is deprecated; "
+            "use TrackingCollection.each.save_3d_tracking_video_multi_view() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(

@@ -205,6 +205,62 @@ def apply_custom_scaling(df: pd.DataFrame, scaling: dict[str, dict]) -> pd.DataF
     return df_scaled
 
 
+def build_column_weights(
+    columns: list[str] | pd.Index, rules: dict[str, float]
+) -> dict[str, float]:
+    """
+    Build a per-column weight dict from substring-matching rules.
+
+    Each key in *rules* is matched against *columns* by substring containment.
+    A column that matches no rule gets weight 1.0.  A column that matches
+    more than one rule raises ``ValueError``.  A rule that matches *no*
+    column also raises ``ValueError`` (likely a typo in the rule key).
+
+    Parameters
+    ----------
+    columns : list[str] | pd.Index
+        The embedding column names (e.g. from ``embedding_df.columns``).
+    rules : dict[str, float]
+        Mapping of substring → weight, e.g. ``{"speed": 4.0, "accel": 2.0}``.
+
+    Returns
+    -------
+    dict[str, float]
+        ``{column_name: weight}`` for every column.
+
+    Raises
+    ------
+    ValueError
+        If a column matches more than one rule, or a rule matches no column.
+
+    Examples
+    --------
+    >>> cols = ["speed_t0", "speed_t+1", "accel_t0", "dist_t0"]
+    >>> build_column_weights(cols, {"speed": 4.0, "accel": 2.0})
+    {'speed_t0': 4.0, 'speed_t+1': 4.0, 'accel_t0': 2.0, 'dist_t0': 1.0}
+
+    """
+    weights: dict[str, float] = {}
+    used_rules: set[str] = set()
+    for col in columns:
+        matches = [key for key in rules if key in col]
+        if len(matches) > 1:
+            raise ValueError(f"Column '{col}' matches multiple rules: {matches}")
+        if matches:
+            weights[col] = rules[matches[0]]
+            used_rules.add(matches[0])
+        else:
+            weights[col] = 1.0
+
+    unused = set(rules) - used_rules
+    if unused:
+        raise ValueError(
+            f"feature_weights keys matched no columns: {sorted(unused)}. "
+            f"Check for typos. Available columns: {list(columns)}"
+        )
+    return weights
+
+
 def latencies_from_bool(ser: pd.Series) -> list[int]:
     """
     Takes a boolean series and calculates any onsets where

@@ -9,8 +9,8 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pandas as pd
-from shapely.errors import GEOSException
-from shapely.geometry import Point, Polygon
+import shapely
+from shapely.geometry import Polygon
 from sklearn.neighbors import KNeighborsRegressor
 
 from py3r.behaviour.features.features_result import FeaturesResult
@@ -579,15 +579,19 @@ class Features:
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
 
-        def local_contains_static(x):
-            px, py = x[point + ".x"], x[point + ".y"]
-            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return pd.NA
-            local_point = Point(px, py)
-            local_poly = Polygon(boundary)
-            return local_poly.contains(local_point)
+        df = self.tracking.data
+        px = df[point + ".x"].to_numpy(dtype=float)
+        py = df[point + ".y"].to_numpy(dtype=float)
+        point_nan = np.isnan(px) | np.isnan(py)
 
-        result = self.tracking.data.apply(local_contains_static, axis=1).astype("boolean")
+        if boundary_has_nan:
+            result = pd.Series(pd.array([pd.NA] * len(df), dtype="boolean"), index=df.index)
+        else:
+            poly = Polygon(boundary)
+            contained = shapely.contains(poly, shapely.points(px, py))
+            result = pd.Series(pd.array(contained, dtype="boolean"), index=df.index)
+            result[point_nan] = pd.NA
+
         return FeaturesResult(result, self, name, meta)
 
     def within_boundary_dynamic(
@@ -626,17 +630,21 @@ class Features:
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
 
-        def local_contains_dynamic(x):
-            px, py = x[point + ".x"], x[point + ".y"]
-            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
-            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
-            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return pd.NA
-            local_point = Point(px, py)
-            local_poly = Polygon(bdry_pts)
-            return local_poly.contains(local_point)
+        df = self.tracking.data
+        px = df[point + ".x"].to_numpy(dtype=float)
+        py = df[point + ".y"].to_numpy(dtype=float)
+        bx = np.column_stack([df[b + ".x"].to_numpy(dtype=float) for b in boundary])
+        by = np.column_stack([df[b + ".y"].to_numpy(dtype=float) for b in boundary])
 
-        result = self.tracking.data.apply(local_contains_dynamic, axis=1).astype("boolean")
+        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(bx) | np.isnan(by), axis=1))
+
+        result = pd.Series(pd.array([pd.NA] * len(df), dtype="boolean"), index=df.index)
+        if valid.any():
+            coords = np.stack([bx[valid], by[valid]], axis=-1)
+            polys = shapely.polygons(shapely.linearrings(coords))
+            pts = shapely.points(px[valid], py[valid])
+            result[valid] = shapely.contains(polys, pts)
+
         return FeaturesResult(result, self, name, meta)
 
     def within_boundary(
@@ -708,15 +716,19 @@ class Features:
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
 
-        def row_distance(x):
-            px, py = x[point + ".x"], x[point + ".y"]
-            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return np.nan
-            local_point = Point(px, py)
-            local_poly = Polygon(boundary)
-            return local_poly.exterior.distance(local_point)
+        df = self.tracking.data
+        px = df[point + ".x"].to_numpy(dtype=float)
+        py = df[point + ".y"].to_numpy(dtype=float)
+        point_nan = np.isnan(px) | np.isnan(py)
 
-        result = self.tracking.data.apply(row_distance, axis=1)
+        if boundary_has_nan:
+            result = pd.Series(np.nan, index=df.index)
+        else:
+            exterior = Polygon(boundary).exterior
+            distances = shapely.distance(exterior, shapely.points(px, py))
+            distances[point_nan] = np.nan
+            result = pd.Series(distances, index=df.index)
+
         return FeaturesResult(result, self, name, meta)
 
     def distance_to_boundary_dynamic(
@@ -739,17 +751,22 @@ class Features:
         if boundary_name is not None:
             meta["boundary_name"] = boundary_name
 
-        def row_distance(x):
-            px, py = x[point + ".x"], x[point + ".y"]
-            bdry_pts = [(x[i + ".x"], x[i + ".y"]) for i in boundary]
-            boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in bdry_pts)
-            if pd.isna(px) or pd.isna(py) or boundary_has_nan:
-                return np.nan
-            local_point = Point(px, py)
-            local_poly = Polygon(bdry_pts)
-            return local_poly.exterior.distance(local_point)
+        df = self.tracking.data
+        px = df[point + ".x"].to_numpy(dtype=float)
+        py = df[point + ".y"].to_numpy(dtype=float)
+        bx = np.column_stack([df[b + ".x"].to_numpy(dtype=float) for b in boundary])
+        by = np.column_stack([df[b + ".y"].to_numpy(dtype=float) for b in boundary])
 
-        result = self.tracking.data.apply(row_distance, axis=1)
+        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(bx) | np.isnan(by), axis=1))
+
+        result = pd.Series(np.nan, index=df.index)
+        if valid.any():
+            coords = np.stack([bx[valid], by[valid]], axis=-1)
+            polys = shapely.polygons(shapely.linearrings(coords))
+            exteriors = shapely.get_exterior_ring(polys)
+            pts = shapely.points(px[valid], py[valid])
+            result[valid] = shapely.distance(exteriors, pts)
+
         return FeaturesResult(result, self, name, meta)
 
     def area_of_boundary(self, boundary: list[str], median: bool = True) -> FeaturesResult:
@@ -784,15 +801,15 @@ class Features:
             result = pd.Series(area, index=self.tracking.data.index)
         else:
             warnings.warn("using fully dynamic boundary", stacklevel=2)
-
-            def row_area(x):
-                try:
-                    local_poly = Polygon([(x[i + ".x"], x[i + ".y"]) for i in boundary])
-                    return local_poly.area
-                except GEOSException:
-                    return np.nan
-
-            result = self.tracking.data.apply(row_area, axis=1)
+            data = self.tracking.data
+            bx = np.column_stack([data[b + ".x"].to_numpy(dtype=float) for b in boundary])
+            by = np.column_stack([data[b + ".y"].to_numpy(dtype=float) for b in boundary])
+            bx_next = np.roll(bx, -1, axis=1)
+            by_next = np.roll(by, -1, axis=1)
+            result = pd.Series(
+                0.5 * np.abs(np.sum(bx * by_next - bx_next * by, axis=1)),
+                index=data.index,
+            )
         return FeaturesResult(result, self, name, meta)
 
     def acceleration(self, point: str, dims=("x", "y")) -> FeaturesResult:
@@ -1295,22 +1312,25 @@ class Features:
         n_clusters: int,
         random_state: int = 0,
         *,
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
+        normalize: bool = False,
+        feature_weights: dict[str, float] | None = None,
         lowmem: bool = False,
         decimation_factor: int = 10,
-        custom_scaling: dict[str, dict] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
+        # --- deprecated params (kept for backward compat) ---
+        auto_normalize: bool = False,
+        rescale_factors: dict | None = None,
+        custom_scaling: dict[str, dict] | None = None,
     ):
         """
         Perform k-means clustering on a single Features object.
 
-        Delegates to ``FeaturesCollection.cluster_embedding`` so all
-        clustering logic remains centralised.
+        Delegates to ``FeaturesCollection.cluster_embedding``.
+        See that method for full parameter documentation.
 
         Returns
         -------
-        (FeaturesResult, centroids DataFrame, normalization_factors or None)
+        (FeaturesResult, centroids DataFrame, scaling_factors or None)
 
         Examples
         --------
@@ -1338,28 +1358,112 @@ class Features:
             embedding_dict,
             n_clusters,
             random_state,
-            auto_normalize=auto_normalize,
-            rescale_factors=rescale_factors,
+            normalize=normalize,
+            feature_weights=feature_weights,
             lowmem=lowmem,
             decimation_factor=decimation_factor,
-            custom_scaling=custom_scaling,
             missing_policy=missing_policy,
+            auto_normalize=auto_normalize,
+            rescale_factors=rescale_factors,
+            custom_scaling=custom_scaling,
         )
         return batch[self.handle], centroids, norm
+
+    def cluster_embedding_stream(
+        self,
+        embedding_dict: dict[str, list[int]],
+        n_clusters: int,
+        random_state: int = 0,
+        *,
+        normalize: bool = False,
+        feature_weights: dict[str, float] | None = None,
+        missing_policy: Literal["drop", "impute_weight"] = "drop",
+        chunk_size: int = 10_000,
+        n_epochs: int = 3,
+        batch_size: int = 1024,
+    ):
+        """
+        Memory-friendly clustering on a single Features object.
+
+        Delegates to ``FeaturesCollection.cluster_embedding_stream``.
+        See that method for full parameter documentation.
+
+        Returns
+        -------
+        (FeaturesResult, centroids DataFrame, scaling_factors or None)
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
+        >>> result, centroids, norm = f.cluster_embedding_stream(
+        ...     {'counter': [0]}, n_clusters=2)
+        >>> isinstance(centroids, pd.DataFrame)
+        True
+        >>> len(result) == len(f.data)
+        True
+
+        ```
+        """
+        from py3r.behaviour.features.features_collection import FeaturesCollection
+
+        fc = FeaturesCollection.from_list([self])
+        batch, centroids, scaling = fc.cluster_embedding_stream(
+            embedding_dict,
+            n_clusters,
+            random_state,
+            normalize=normalize,
+            feature_weights=feature_weights,
+            missing_policy=missing_policy,
+            chunk_size=chunk_size,
+            n_epochs=n_epochs,
+            batch_size=batch_size,
+        )
+        return batch[self.handle], centroids, scaling
 
     def assign_clusters_by_centroids(
         self,
         embedding: dict[str, list[int]],
         centroids_df: pd.DataFrame,
         *,
+        scaling_factors: dict[str, float] | None = None,
+        impute_medians: pd.Series | None = None,
+        # --- deprecated params (kept for backward compat) ---
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
-        impute_medians: pd.Series | None = None,
     ) -> FeaturesResult:
         """
-        new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
-        centroids_df: (n_clusters, n_features) DataFrame of cluster centers
-        Returns a Series of cluster IDs (0..n_clusters-1) indexed like new_embed_df.
+        Assign cluster labels to this Features object using pre-fitted centroids.
+
+        Parameters
+        ----------
+        embedding : dict[str, list[int]]
+            Same embedding dict used during fitting.
+        centroids_df : pd.DataFrame
+            (n_clusters, n_features) DataFrame of cluster centres.
+        scaling_factors : dict[str, float] | None
+            Per-embedding-column multipliers (the "dumb" scalars returned by
+            ``cluster_embedding_stream``).  Each raw embedding column is
+            multiplied by the corresponding value before distance computation.
+        impute_medians : pd.Series | None
+            Per-column fill values for NaN imputation (from training).
+        rescale_factors : dict | None
+            .. deprecated:: Use *scaling_factors* instead.
+        custom_scaling : dict[str, dict] | None
+            .. deprecated:: Use *scaling_factors* together with
+               :func:`~py3r.behaviour.util.series_utils.build_column_weights`.
+
+        Returns
+        -------
+        FeaturesResult
+            Series of cluster IDs (0 .. n_clusters-1).
 
         Examples
         --------
@@ -1385,19 +1489,35 @@ class Features:
         """
         from sklearn.metrics.pairwise import pairwise_distances_argmin
 
-        embed_df = self.embedding_df(embedding)
-        # Apply the same scaling/normalization used during centroid fitting, if provided
-        if rescale_factors is not None and custom_scaling is not None:
-            raise ValueError("rescale_factors and custom_scaling are mutually exclusive")
+        # --- handle deprecated params ------------------------------------
         if rescale_factors is not None:
+            warnings.warn(
+                "rescale_factors is deprecated; pass scaling_factors instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if custom_scaling is not None:
+            warnings.warn(
+                "custom_scaling is deprecated; use build_column_weights() "
+                "and pass scaling_factors instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        embed_df = self.embedding_df(embedding)
+
+        if scaling_factors is not None:
+            embed_df = embed_df * pd.Series(scaling_factors)
+        elif rescale_factors is not None and custom_scaling is not None:
+            raise ValueError("rescale_factors and custom_scaling are mutually exclusive")
+        elif rescale_factors is not None:
             embed_df = apply_normalization_to_df(embed_df, rescale_factors)
         elif custom_scaling is not None:
             embed_df = apply_custom_scaling(embed_df, custom_scaling)
-        # check that columns are the same
+
         if not embed_df.columns.equals(centroids_df.columns):
             raise ValueError("Columns in embedding and centroids do not match")
 
-        # Optionally impute using provided medians (from training)
         if impute_medians is not None:
             embed_df, _ = impute_frame(embed_df, impute_medians)
             mask = pd.Series(True, index=embed_df.index)
@@ -1415,9 +1535,7 @@ class Features:
         meta = {
             "function": "assign_clusters_by_centroids",
             "embedding": embedding,
-            "rescale_factors": rescale_factors,
-            "custom_scaling": custom_scaling,
-            "impute_medians": (impute_medians.to_dict() if impute_medians is not None else None),
+            "scaling_factors": scaling_factors,
         }
         return FeaturesResult(labels, self, name, meta)
 

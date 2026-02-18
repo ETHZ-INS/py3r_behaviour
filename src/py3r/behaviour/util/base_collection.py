@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import inspect
 import os
 import warnings
 from collections.abc import MutableMapping
+from typing import Any
 
 import pandas as pd
 
@@ -16,6 +18,51 @@ from py3r.behaviour.util.io_utils import (
     read_manifest,
     write_manifest,
 )
+
+
+class _EachProxy:
+    """Dynamic batch facade exposed as ``collection.each``."""
+
+    def __init__(self, parent: BaseCollection, *, force_batch: bool = False):
+        self._parent = parent
+        self._force_batch = force_batch
+
+    def __getattr__(self, name: str):
+        leaf_attr = self._parent._get_leaf_callable(name)
+
+        def _batch_wrapper(*args, **kwargs):
+            result = self._parent._invoke_batch(name, *args, **kwargs)
+            if self._force_batch:
+                return result
+            return self._parent._maybe_upcast_batch_result(result)
+
+        # Preserve hover docs/name as best effort for dynamic wrappers.
+        try:
+            _batch_wrapper.__name__ = name  # type: ignore[attr-defined]
+            _batch_wrapper.__doc__ = getattr(leaf_attr, "__doc__", None)  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        return _batch_wrapper
+
+    def __dir__(self):
+        base = set(super().__dir__())
+        try:
+            flat_parent = self._parent.flatten()
+            example_leaf = next(iter(flat_parent.values()))
+        except StopIteration:
+            return sorted(base)
+        names = set()
+        for n in dir(example_leaf):
+            if n.startswith("_"):
+                continue
+            try:
+                # Avoid invoking descriptors/properties during completion.
+                attr = inspect.getattr_static(example_leaf, n)
+            except Exception:
+                continue
+            if callable(attr):
+                names.add(n)
+        return sorted(base | names)
 
 
 class BaseCollection(MutableMapping):
@@ -56,6 +103,8 @@ class BaseCollection(MutableMapping):
         # Grouped-view metadata defaults: always start flat unless explicitly set later
         self._is_grouped = False
         self._groupby_tags = None
+        self._each_proxy: _EachProxy | None = None
+        self._each_forcebatch_proxy: _EachProxy | None = None
 
     def _batch_error_context(self, key):
         # If this is a grouped view, treat top-level keys as collection names
@@ -317,6 +366,80 @@ class BaseCollection(MutableMapping):
         """
         return self._obj_dict.keys()
 
+    def _get_leaf_callable(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
+
+        flat_self = self.flatten()
+        try:
+            example_leaf = next(iter(flat_self.values()))
+        except StopIteration:
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}") from None
+
+        leaf_attr = getattr(example_leaf, name, None)
+        if not callable(leaf_attr):
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
+        return leaf_attr
+
+    def _maybe_upcast_batch_result(self, result):
+        """
+        Convert a BatchResult into a collection when all leaves are element type.
+        Otherwise return the result unchanged.
+        """
+        if not isinstance(result, BatchResult):
+            return result
+
+        element_type = getattr(self, "_element_type", None)
+        if element_type is None:
+            return result
+
+        if getattr(self, "is_grouped", False):
+            if set(result.keys()) != set(self.keys()):
+                return result
+            grouped_new = {}
+            for gkey, subres in result.items():
+                if not isinstance(subres, dict):
+                    return result
+                subcoll = self[gkey]
+                if set(subres.keys()) != set(subcoll.keys()):
+                    return result
+                if not all(isinstance(v, element_type) for v in subres.values()):
+                    return result
+                grouped_new[gkey] = subcoll.__class__(dict(subres))
+            out = self.__class__(grouped_new)
+            out._is_grouped = True
+            out._groupby_tags = list(self._groupby_tags) if self._groupby_tags else None
+            return out
+
+        if set(result.keys()) != set(self.keys()):
+            return result
+        if not all(isinstance(v, element_type) for v in result.values()):
+            return result
+        return self.__class__(dict(result))
+
+    @property
+    def each(self):
+        """
+        Explicit leaf-batch facade.
+
+        ``collection.each.method(...)`` dispatches ``method`` to every leaf and
+        returns either:
+        - a collection (when all leaf returns are collection element type), or
+        - a BatchResult otherwise.
+        """
+        if self._each_proxy is None:
+            self._each_proxy = _EachProxy(self)
+        return self._each_proxy
+
+    @property
+    def each_forcebatch(self):
+        """
+        Explicit leaf-batch facade that always returns BatchResult.
+        """
+        if self._each_forcebatch_proxy is None:
+            self._each_forcebatch_proxy = _EachProxy(self, force_batch=True)
+        return self._each_forcebatch_proxy
+
     # ---- Dynamic fallback for user-extended leaf APIs ----
     def __getattr__(self, name):
         """
@@ -328,25 +451,18 @@ class BaseCollection(MutableMapping):
         - Keeps BatchProcessError wrapping semantics from _invoke_batch.
         - Avoids intercepting private/dunder names.
         """
-        if name.startswith("_"):
-            # Preserve normal AttributeError semantics for private/dunder
-            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
-
-        # Find a representative leaf to introspect available methods,
-        # even when this collection is grouped.
-        flat_self = self.flatten()
-        try:
-            example_leaf = next(iter(flat_self.values()))
-        except StopIteration:
-            # Empty collection: nothing to expose dynamically
-            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}") from None
-
-        leaf_attr = getattr(example_leaf, name, None)
-        if not callable(leaf_attr):
-            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
+        leaf_attr = self._get_leaf_callable(name)
 
         # Build a thin wrapper that routes to the batch dispatcher.
         def _batch_wrapper(*args, **kwargs):
+            warnings.warn(
+                (
+                    f"Direct batch passthrough via {self.__class__.__name__}.{name}() "
+                    f"is deprecated; use {self.__class__.__name__}.each.{name}() instead."
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
             return self._invoke_batch(name, *args, **kwargs)
 
         # Best-effort attach docstring/name for nicer help() / hover info

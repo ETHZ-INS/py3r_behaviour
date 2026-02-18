@@ -3,6 +3,8 @@
 # Regenerate with: PYTHONPATH=src python -m tools.gen_batch_mixins
 from __future__ import annotations
 
+import warnings
+
 from py3r.behaviour.util.collection_utils import BatchResult
 from typing import Any
 from typing import Literal
@@ -19,6 +21,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.save`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.save() is deprecated; "
+            "use SummaryCollection.each.save() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -37,6 +45,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.count_onset`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.count_onset() is deprecated; "
+            "use SummaryCollection.each.count_onset() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "count_onset")(column))
@@ -58,6 +72,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.calculate_latency_nth_onset`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.calculate_latency_nth_onset() is deprecated; "
+            "use SummaryCollection.each.calculate_latency_nth_onset() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -80,6 +100,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.time_true`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.time_true() is deprecated; "
+            "use SummaryCollection.each.time_true() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "time_true")(column))
@@ -91,6 +117,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.time_false`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.time_false() is deprecated; "
+            "use SummaryCollection.each.time_false() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "time_false")(column))
@@ -104,6 +136,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.total_distance`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.total_distance() is deprecated; "
+            "use SummaryCollection.each.total_distance() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -119,6 +157,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.sum_column`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.sum_column() is deprecated; "
+            "use SummaryCollection.each.sum_column() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "sum_column")(column))
@@ -132,6 +176,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.mean_column`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.mean_column() is deprecated; "
+            "use SummaryCollection.each.mean_column() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "mean_column")(column))
@@ -145,6 +195,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.median_column`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.median_column() is deprecated; "
+            "use SummaryCollection.each.median_column() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "median_column")(column))
@@ -158,6 +214,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.max_column`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.max_column() is deprecated; "
+            "use SummaryCollection.each.max_column() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "max_column")(column))
@@ -171,6 +233,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.min_column`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.min_column() is deprecated; "
+            "use SummaryCollection.each.min_column() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "min_column")(column))
@@ -186,6 +254,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.store`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.store() is deprecated; "
+            "use SummaryCollection.each.store() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -202,6 +276,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.make_bin`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.make_bin() is deprecated; "
+            "use SummaryCollection.each.make_bin() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "make_bin")(startframe, endframe))
@@ -218,6 +298,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.make_bins`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.make_bins() is deprecated; "
+            "use SummaryCollection.each.make_bins() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "make_bins")(numbins))
@@ -229,6 +315,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.transition_matrix`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.transition_matrix() is deprecated; "
+            "use SummaryCollection.each.transition_matrix() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -244,6 +336,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.count_state_onsets`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.count_state_onsets() is deprecated; "
+            "use SummaryCollection.each.count_state_onsets() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "count_state_onsets")(column))
@@ -255,6 +353,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.time_in_state`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.time_in_state() is deprecated; "
+            "use SummaryCollection.each.time_in_state() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "time_in_state")(column))
@@ -277,6 +381,12 @@ class SummaryCollectionBatchMixin:
 
         See leaf method ``Summary.plot_chord`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via SummaryCollectionBatchMixin.plot_chord() is deprecated; "
+            "use SummaryCollection.each.plot_chord() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
