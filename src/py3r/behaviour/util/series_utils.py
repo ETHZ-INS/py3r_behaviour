@@ -255,7 +255,7 @@ def build_column_weights(
     unused = set(rules) - used_rules
     if unused:
         raise ValueError(
-            f"weight_rules keys matched no columns: {sorted(unused)}. "
+            f"feature_weights keys matched no columns: {sorted(unused)}. "
             f"Check for typos. Available columns: {list(columns)}"
         )
     return weights

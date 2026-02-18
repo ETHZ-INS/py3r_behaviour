@@ -2,7 +2,7 @@
 Tests for the clustering API on FeaturesCollection.
 
 Checks:
-  - New pathway (normalize, column_weights) vs deprecated pathway
+  - New pathway (normalize, feature_weights) vs deprecated pathway
     (auto_normalize, rescale_factors, custom_scaling) produce identical
     results.
   - Streaming pathway (cluster_embedding_stream) vs standard pathway
@@ -151,19 +151,19 @@ class TestBuildColumnWeights:
 
 
 # ---------------------------------------------------------------------------
-# weight_rules convenience parameter
+# feature_weights convenience parameter
 # ---------------------------------------------------------------------------
 
 
-class TestWeightRules:
+class TestFeatureWeights:
     @pytest.fixture()
     def fc_and_embedding(self):
         return _make_fc(
             n_objects=2, n_frames=100, inject_nans=False, add_constant_feature=False, seed=44
         )
 
-    def test_weight_rules_equivalent_to_column_weights(self, fc_and_embedding):
-        """weight_rules and explicit column_weights should produce identical results."""
+    def test_feature_weights_equivalent_to_explicit_column_dict(self, fc_and_embedding):
+        """feature_weights should also accept explicit per-column dicts."""
         fc, emb = fc_and_embedding
         rules = {"speed": 3.0}
 
@@ -171,7 +171,7 @@ class TestWeightRules:
             emb,
             n_clusters=2,
             random_state=0,
-            weight_rules=rules,
+            feature_weights=rules,
         )
 
         first_feat = next(iter(fc.features_dict.values()))
@@ -181,7 +181,7 @@ class TestWeightRules:
             emb,
             n_clusters=2,
             random_state=0,
-            column_weights=explicit,
+            feature_weights=explicit,
         )
 
         pd.testing.assert_frame_equal(
@@ -194,14 +194,14 @@ class TestWeightRules:
                 pd.Series(batch_cw[key]),
             )
 
-    def test_weight_rules_stream(self, fc_and_embedding):
-        """weight_rules should work on the streaming path too."""
+    def test_feature_weights_stream(self, fc_and_embedding):
+        """feature_weights should work on the streaming path too."""
         fc, emb = fc_and_embedding
         batch, cents, sf = fc.cluster_embedding_stream(
             emb,
             n_clusters=2,
             random_state=0,
-            weight_rules={"speed": 3.0},
+            feature_weights={"speed": 3.0},
             chunk_size=30,
             n_epochs=5,
             batch_size=16,
@@ -216,17 +216,7 @@ class TestWeightRules:
             fc.cluster_embedding(
                 emb,
                 n_clusters=2,
-                weight_rules={"speeed": 3.0},
-            )
-
-    def test_weight_rules_and_column_weights_exclusive(self, fc_and_embedding):
-        fc, emb = fc_and_embedding
-        with pytest.raises(ValueError, match="mutually exclusive"):
-            fc.cluster_embedding(
-                emb,
-                n_clusters=2,
-                weight_rules={"speed": 3.0},
-                column_weights={"speed_t0": 3.0},
+                feature_weights={"speeed": 3.0},
             )
 
 
@@ -324,9 +314,9 @@ class TestNewVsDeprecated:
                 pd.Series(batch_dep[key]),
             )
 
-    def test_column_weights_vs_custom_scaling(self, fc_and_embedding):
+    def test_explicit_feature_weights_vs_custom_scaling(self, fc_and_embedding):
         """
-        column_weights={col: w} should produce the same scaled data as
+        feature_weights={col: w} should produce the same scaled data as
         custom_scaling={substring: {normalize: False, scale: w}} when
         normalize=False.
         """
@@ -338,7 +328,7 @@ class TestNewVsDeprecated:
             emb,
             n_clusters=3,
             random_state=7,
-            column_weights=weights,
+            feature_weights=weights,
         )
 
         cs = {
@@ -495,7 +485,7 @@ class TestStreamVsStandard:
             agreement = _label_agreement_permutation_invariant(lab_std, lab_str)
             assert agreement > 0.95, f"{key}: label agreement {agreement:.2%} < 95%"
 
-    def test_labels_agree_with_column_weights(self, fc_and_embedding):
+    def test_labels_agree_with_explicit_feature_weights(self, fc_and_embedding):
         fc, emb = fc_and_embedding
         first_feat = fc[list(fc.keys())[0]]
         weights = build_column_weights(
@@ -508,13 +498,13 @@ class TestStreamVsStandard:
             random_state=0,
             lowmem=True,
             decimation_factor=1,
-            column_weights=weights,
+            feature_weights=weights,
         )
         batch_str, _, _ = fc.cluster_embedding_stream(
             emb,
             n_clusters=2,
             random_state=0,
-            column_weights=weights,
+            feature_weights=weights,
             chunk_size=50,
             n_epochs=10,
             batch_size=32,
