@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from py3r.behaviour.util.collection_utils import BatchResult
+from typing import Literal
 import pandas as pd
 from typing import TYPE_CHECKING
 
@@ -446,21 +447,69 @@ class FeaturesCollectionBatchMixin:
             return self.map_leaves(lambda _obj: getattr(_obj, "embedding_df")(embedding))
         return self._invoke_batch("embedding_df", embedding)
 
+    def cluster_embedding_stream(
+        self,
+        embedding_dict: dict[str, list[int]],
+        n_clusters: int,
+        random_state: int = 0,
+        *,
+        normalize: bool = False,
+        feature_weights: dict[str, float] | None = None,
+        missing_policy: Literal["drop", "impute_weight"] = "drop",
+        chunk_size: int = 10_000,
+        n_epochs: int = 3,
+        batch_size: int = 1024,
+    ) -> BatchResult:
+        """
+        Batch-mode wrapper for Features.cluster_embedding_stream across the collection.
+
+        Memory-friendly clustering on a single Features object.
+
+        See leaf method ``Features.cluster_embedding_stream`` for examples.
+        """
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "cluster_embedding_stream")(
+                    embedding_dict,
+                    n_clusters,
+                    random_state,
+                    normalize=normalize,
+                    feature_weights=feature_weights,
+                    missing_policy=missing_policy,
+                    chunk_size=chunk_size,
+                    n_epochs=n_epochs,
+                    batch_size=batch_size,
+                )
+            )
+        return self._invoke_batch(
+            "cluster_embedding_stream",
+            embedding_dict,
+            n_clusters,
+            random_state,
+            normalize=normalize,
+            feature_weights=feature_weights,
+            missing_policy=missing_policy,
+            chunk_size=chunk_size,
+            n_epochs=n_epochs,
+            batch_size=batch_size,
+        )
+
     def assign_clusters_by_centroids(
         self,
         embedding: dict[str, list[int]],
         centroids_df: pd.DataFrame,
         *,
+        scaling_factors: dict[str, float] | None = None,
+        impute_medians: pd.Series | None = None,
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
-        impute_medians: pd.Series | None = None,
     ) -> BatchResult:
         """
         Batch-mode wrapper for Features.assign_clusters_by_centroids
         across the collection.
 
-        new_embed_df: (n_samples, n_features)  DataFrame of your new time-shifted embedding
-        centroids_df: (n_clusters, n_features) DataFrame of cluster centers
+        Assign cluster labels to this Features object using pre-fitted centroids.
 
         See leaf method ``Features.assign_clusters_by_centroids`` for examples.
         """
@@ -470,18 +519,20 @@ class FeaturesCollectionBatchMixin:
                 lambda _obj: getattr(_obj, "assign_clusters_by_centroids")(
                     embedding,
                     centroids_df,
+                    scaling_factors=scaling_factors,
+                    impute_medians=impute_medians,
                     rescale_factors=rescale_factors,
                     custom_scaling=custom_scaling,
-                    impute_medians=impute_medians,
                 )
             )
         return self._invoke_batch(
             "assign_clusters_by_centroids",
             embedding,
             centroids_df,
+            scaling_factors=scaling_factors,
+            impute_medians=impute_medians,
             rescale_factors=rescale_factors,
             custom_scaling=custom_scaling,
-            impute_medians=impute_medians,
         )
 
     def train_knn_regressor(
