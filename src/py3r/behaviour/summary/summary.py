@@ -862,8 +862,9 @@ class Summary:
     def plot_chord(
         self,
         column: str,
-        all_states: list[str | int],
+        all_states: list[str | int] | None = None,
         *,
+        fromkey: str | None = None,
         cmap: str | list | None = None,
         show: bool = True,
         save_dir: str | None = None,
@@ -877,7 +878,11 @@ class Summary:
         column:
             Name of the categorical column in `features.data` to compute transitions from.
         all_states:
-            explicit list/array of states to define row/column presence and order.
+            Optional explicit list/array of states to define row/column presence and order.
+            Required when `fromkey` is not provided.
+        fromkey:
+            Optional key in `summary.data` containing a precomputed transition DataFrame.
+            If provided, this is used directly instead of computing transitions from `column`.
         kwargs:
             Additional keyword arguments to pass to pycirclize.chordDiagram.
 
@@ -919,8 +924,24 @@ class Summary:
             ) from err
         import matplotlib.pyplot as plt
 
-        tm_res = self.transition_matrix(column, all_states=all_states)
-        df: pd.DataFrame = tm_res.value
+        if fromkey is not None:
+            if fromkey not in self.data:
+                raise KeyError(
+                    f"fromkey '{fromkey}' not found in summary.data for handle '{self.handle}'"
+                )
+            df = self.data[fromkey]
+            if not isinstance(df, pd.DataFrame):
+                raise TypeError(
+                    f"summary.data['{fromkey}'] must be a pandas DataFrame for plot_chord, "
+                    f"got {type(df).__name__}"
+                )
+            if all_states is None:
+                all_states = list(dict.fromkeys(list(df.index) + list(df.columns)))
+        else:
+            if all_states is None:
+                raise ValueError("all_states must be provided when fromkey is not used.")
+            tm_res = self.transition_matrix(column, all_states=all_states)
+            df = tm_res.value
         # If empty/zero, render placeholder
         if float(df.to_numpy().sum()) <= 0.0:
             fig, ax = plt.subplots(figsize=(4, 3))
