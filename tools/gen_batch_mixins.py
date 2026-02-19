@@ -377,6 +377,7 @@ def main() -> None:
             "snsviolin",
             "snspoint",
             "snssuperplot",
+            "plot_chord",
         }
     )
 

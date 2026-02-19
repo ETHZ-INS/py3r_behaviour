@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import pandas as pd
 
 from py3r.behaviour.features.features_collection import FeaturesCollection
@@ -882,8 +884,9 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
     def plot_chord(
         self,
         column: str,
-        all_states: list[str | int],
+        all_states: list[str | int] | None = None,
         *,
+        fromkey: str | None = None,
         plot_individual: bool = False,
         show: bool = True,
         save_dir: str | None = None,
@@ -905,7 +908,11 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
         column:
             Name of the categorical column used to compute transitions.
         all_states:
-            Explicit state ordering for transition matrices (required).
+            Optional explicit state ordering for transition matrices.
+            Required when `fromkey` is not provided.
+        fromkey:
+            Optional key in each `Summary.data` containing a precomputed transition DataFrame.
+            If provided, this key is used directly instead of computing transitions from `column`.
         plot_individual:
             If True, plot per recording; otherwise plot summed aggregate.
         show:
@@ -968,9 +975,6 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
                 "Please install: 'pip install pycirclize'."
             ) from err
 
-        if all_states is None:
-            raise ValueError("all_states must be provided to ensure aligned matrices.")
-
         def _sanitize(name: str) -> str:
             return "".join(ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name))
 
@@ -1007,6 +1011,52 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
         label_to_color = {
             str(lbl): base_colors[i % len(base_colors)] for i, lbl in enumerate(all_states)
         }
+
+        def _matrix_from_summary(summary: Summary, handle: str) -> pd.DataFrame:
+            if fromkey is None:
+                return summary.transition_matrix(column, all_states=all_states).value
+            if fromkey not in summary.data:
+                raise KeyError(
+                    f"fromkey '{fromkey}' not found in summary.data for handle '{handle}'"
+                )
+            matrix = summary.data[fromkey]
+            if not isinstance(matrix, pd.DataFrame):
+                raise TypeError(
+                    f"summary.data['{fromkey}'] must be a pandas DataFrame for plot_chord, "
+                    f"got {type(matrix).__name__} in handle '{handle}'"
+                )
+            return matrix
+
+        if fromkey is None and all_states is None:
+            raise ValueError("all_states must be provided when fromkey is not used.")
+        if fromkey is not None and all_states is None:
+            inferred_states = []
+            seen = set()
+            for handle, summary in self.flatten().items():
+                df = _matrix_from_summary(summary, handle)
+                for lbl in list(df.index) + list(df.columns):
+                    if lbl not in seen:
+                        seen.add(lbl)
+                        inferred_states.append(lbl)
+            all_states = inferred_states
+
+        def _warn_if_misaligned(per: dict[str, pd.DataFrame], context_label: str) -> None:
+            if len(per) <= 1:
+                return
+            first_handle, first_df = next(iter(per.items()))
+            ref_index = first_df.index
+            ref_columns = first_df.columns
+            mismatched = []
+            for h, df in per.items():
+                if not ref_index.equals(df.index) or not ref_columns.equals(df.columns):
+                    mismatched.append(h)
+            if mismatched:
+                warnings.warn(
+                    f"plot_chord found mismatched transition matrix labels in {context_label}. "
+                    f"Summing may align by labels and produce unexpected results. "
+                    f"Reference handle: '{first_handle}'. Mismatched handles: {mismatched}",
+                    stacklevel=2,
+                )
 
         def _render(df: pd.DataFrame, title: str | None, path: str | None):
             # guard: empty matrix (zero total) -> placeholder
@@ -1077,9 +1127,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
         # Flat collection
         if not is_grouped:
             # Compute per-recording matrices (aligned via all_states)
-            per = {
-                h: s.transition_matrix(column, all_states=all_states).value for h, s in self.items()
-            }
+            per = {h: _matrix_from_summary(s, h) for h, s in self.items()}
+            _warn_if_misaligned(per, "collection")
             if plot_individual:
                 out = {}
                 for h, df in per.items():
@@ -1101,10 +1150,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
         out: dict = {}
         for g, sub_sc in self.items():
             # sub_sc is a SummaryCollection for the group
-            per = {
-                h: s.transition_matrix(column, all_states=all_states).value
-                for h, s in sub_sc.items()
-            }
+            per = {h: _matrix_from_summary(s, h) for h, s in sub_sc.items()}
+            _warn_if_misaligned(per, f"group '{g}'")
             if plot_individual:
                 inner = {}
                 for h, df in per.items():
