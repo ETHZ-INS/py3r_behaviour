@@ -52,6 +52,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
     """
 
     _element_type = Summary
+    each: Summary
+    each_forcebatch: Summary
 
     def __init__(self, summary_dict: dict[str, Summary]):
         super().__init__(summary_dict)

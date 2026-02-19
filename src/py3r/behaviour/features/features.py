@@ -582,15 +582,16 @@ class Features:
         df = self.tracking.data
         px = df[point + ".x"].to_numpy(dtype=float)
         py = df[point + ".y"].to_numpy(dtype=float)
-        point_nan = np.isnan(px) | np.isnan(py)
+        valid = ~(np.isnan(px) | np.isnan(py))
 
         if boundary_has_nan:
             result = pd.Series(pd.array([pd.NA] * len(df), dtype="boolean"), index=df.index)
         else:
             poly = Polygon(boundary)
-            contained = shapely.contains(poly, shapely.points(px, py))
-            result = pd.Series(pd.array(contained, dtype="boolean"), index=df.index)
-            result[point_nan] = pd.NA
+            result = pd.Series(pd.array([pd.NA] * len(df), dtype="boolean"), index=df.index)
+            if valid.any():
+                pts = shapely.points(px[valid], py[valid])
+                result[valid] = shapely.contains(poly, pts)
 
         return FeaturesResult(result, self, name, meta)
 
@@ -719,15 +720,16 @@ class Features:
         df = self.tracking.data
         px = df[point + ".x"].to_numpy(dtype=float)
         py = df[point + ".y"].to_numpy(dtype=float)
-        point_nan = np.isnan(px) | np.isnan(py)
+        valid = ~(np.isnan(px) | np.isnan(py))
 
         if boundary_has_nan:
             result = pd.Series(np.nan, index=df.index)
         else:
             exterior = Polygon(boundary).exterior
-            distances = shapely.distance(exterior, shapely.points(px, py))
-            distances[point_nan] = np.nan
-            result = pd.Series(distances, index=df.index)
+            result = pd.Series(np.nan, index=df.index)
+            if valid.any():
+                pts = shapely.points(px[valid], py[valid])
+                result[valid] = shapely.distance(exterior, pts)
 
         return FeaturesResult(result, self, name, meta)
 

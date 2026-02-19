@@ -23,6 +23,8 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
     """
 
     _element_type = Tracking
+    each: Tracking
+    each_forcebatch: Tracking
 
     def __init__(self, tracking_dict: dict[str, Tracking]):
         # Only validate handle mapping when values are leaf Tracking objects.
@@ -77,6 +79,8 @@ class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
         for handle, fp in handles_and_filepaths.items():
             trackings[handle] = tracking_loader(fp, handle=handle, **loader_kwargs)
         return cls(trackings)
+
+    each: Tracking
 
     @classmethod
     def from_dlc(

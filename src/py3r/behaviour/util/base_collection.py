@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import inspect
 import os
 import warnings
 from collections.abc import MutableMapping
+from typing import Any
 
 import pandas as pd
 
@@ -16,6 +18,71 @@ from py3r.behaviour.util.io_utils import (
     read_manifest,
     write_manifest,
 )
+
+
+class _EachProxy:
+    """
+    Dynamic batch facade exposed as ``collection.each``.
+
+    This proxy always uses smart argument dispatch:
+    - ``BatchResult`` values are treated as per-handle maps only when keys
+      match exactly (flat handle keys, or grouped shape keys), and
+    - everything else is broadcast as a scalar value to all leaves.
+    """
+
+    def __init__(self, parent: BaseCollection, *, force_batch: bool = False):
+        self._parent = parent
+        self._force_batch = force_batch
+        self._forcebatch_proxy: _EachProxy | None = None
+
+    def __getattr__(self, name: str):
+        leaf_attr = self._parent._get_leaf_callable(name)
+
+        def _batch_wrapper(*args, **kwargs):
+            # Smart dispatch: exact-key mappings are mapped per-handle;
+            # all other args/kwargs are scalar-broadcast.
+            result = self._parent._invoke_batch_mapped(name, args=args, kwargs=kwargs)
+            if self._force_batch:
+                return result
+            return self._parent._maybe_upcast_batch_result(result)
+
+        # Preserve hover docs/name as best effort for dynamic wrappers.
+        try:
+            _batch_wrapper.__name__ = name  # type: ignore[attr-defined]
+            _batch_wrapper.__doc__ = getattr(leaf_attr, "__doc__", None)  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        return _batch_wrapper
+
+    @property
+    def forcebatch(self):
+        """Return a proxy that always returns BatchResult."""
+        if self._forcebatch_proxy is None:
+            self._forcebatch_proxy = _EachProxy(
+                self._parent,
+                force_batch=True,
+            )
+        return self._forcebatch_proxy
+
+    def __dir__(self):
+        base = set(super().__dir__())
+        try:
+            flat_parent = self._parent.flatten()
+            example_leaf = next(iter(flat_parent.values()))
+        except StopIteration:
+            return sorted(base)
+        names = set()
+        for n in dir(example_leaf):
+            if n.startswith("_"):
+                continue
+            try:
+                # Avoid invoking descriptors/properties during completion.
+                attr = inspect.getattr_static(example_leaf, n)
+            except Exception:
+                continue
+            if callable(attr):
+                names.add(n)
+        return sorted(base | names)
 
 
 class BaseCollection(MutableMapping):
@@ -56,6 +123,8 @@ class BaseCollection(MutableMapping):
         # Grouped-view metadata defaults: always start flat unless explicitly set later
         self._is_grouped = False
         self._groupby_tags = None
+        self._each_proxy: _EachProxy | None = None
+        self._each_forcebatch_proxy: _EachProxy | None = None
 
     def _batch_error_context(self, key):
         # If this is a grouped view, treat top-level keys as collection names
@@ -67,6 +136,9 @@ class BaseCollection(MutableMapping):
     def _invoke_batch(self, _method_name: str, *args, **kwargs) -> BatchResult:
         """
         Group-aware batch dispatcher for leaf methods (fail-fast).
+
+        This dispatcher does uniform broadcast only: every leaf receives the
+        same ``args``/``kwargs`` values unchanged.
 
         Applies the named method to each leaf object. If any leaf raises, a
         BatchProcessError is raised immediately. On complete success, returns a
@@ -109,33 +181,123 @@ class BaseCollection(MutableMapping):
         kwargs: dict | None = None,
     ) -> BatchResult:
         """
-        Strict batch dispatcher (fail-fast) that accepts positional and
-        keyword arguments where any argument may be either:
-          - a scalar (applied uniformly), or
-          - a mapping whose keys exactly mirror the collection's structure:
-            - flat: {handle: value}
-            - grouped: {group_key: {handle: value}}
+        Smart batch dispatcher (fail-fast) used by ``collection.each``.
 
-        The mapping shape must exactly match the collection; missing keys
-        raise KeyError. If any leaf raises, a BatchProcessError is raised
-        immediately. On complete success, returns a BatchResult of leaf
-        return values (or nested results).
+        For every positional/keyword argument, this method decides between
+        per-handle mapping and scalar broadcast:
+
+        - Non-mapping values are always scalar-broadcast.
+        - Only ``BatchResult`` values are eligible for mapped semantics.
+        - A ``BatchResult`` is treated as mapped only when it matches exactly:
+          - flat map: ``{handle: value}`` with keys equal to flattened handles
+          - grouped map: ``{group: {handle: value}}`` with exact current group
+            keys and exact nested handle keys for each group.
+        - For grouped collections, a grouped-shaped ``BatchResult`` from a
+          different grouping layout may still be accepted if it can be
+          flattened unambiguously to a complete flat handle map; in that case
+          a warning is emitted and handle-based mapping is used.
+        - If a ``BatchResult`` cannot be resolved to one of the above mapping
+          shapes, an error is raised.
+        - All non-``BatchResult`` values (including plain ``dict``) are
+          treated as scalar-broadcast values.
+
+        If any leaf raises, a ``BatchProcessError`` is raised immediately.
+        On complete success, returns a ``BatchResult`` of leaf return values
+        (nested by group when grouped).
         """
         if kwargs is None:
             kwargs = {}
 
-        def select(spec, group_key, obj_key):
-            # If spec is mapping-like, pick value using exact keys; otherwise use as-is
-            from collections.abc import Mapping
+        from collections.abc import Mapping
 
-            if isinstance(spec, Mapping):
-                if getattr(self, "is_grouped", False):
-                    return spec[group_key][obj_key]
-                return spec[obj_key]
-            return spec
+        grouped = getattr(self, "is_grouped", False)
+        group_keys = tuple(self.keys()) if grouped else tuple()
+        group_key_set = set(group_keys)
+        flat_keys = tuple(self.flatten().keys()) if grouped else tuple(self.keys())
+        flat_key_set = set(flat_keys)
+        grouped_handle_sets = {gk: set(self[gk].keys()) for gk in group_keys} if grouped else {}
+        mode_cache: dict[int, str] = {}
+        value_cache: dict[int, object] = {}
+
+        def _flatten_grouped_map(spec: Mapping) -> dict | None:
+            """Flatten {group: {handle: value}} to {handle: value} if unambiguous."""
+            flat = {}
+            for group_val in spec.values():
+                if not isinstance(group_val, Mapping):
+                    return None
+                for handle, v in group_val.items():
+                    if handle in flat:
+                        return None
+                    flat[handle] = v
+            return flat
+
+        def _resolve_mode(spec):
+            # Only BatchResult supports mapped argument semantics.
+            if not isinstance(spec, BatchResult):
+                return "scalar", spec
+
+            spec_id = id(spec)
+            if spec_id in mode_cache:
+                return mode_cache[spec_id], value_cache[spec_id]
+
+            keys = set(spec.keys())
+
+            # Handle map works regardless of grouped/flat current view.
+            if keys == flat_key_set:
+                mode, value = "flat", spec
+            elif grouped and keys == group_key_set:
+                # Current grouped shape map: require exact nested handle keys.
+                nested_ok = all(
+                    isinstance(spec[gk], Mapping)
+                    and set(spec[gk].keys()) == grouped_handle_sets[gk]
+                    for gk in group_keys
+                )
+                if nested_ok:
+                    mode, value = "grouped", spec
+                else:
+                    flattened = _flatten_grouped_map(spec)
+                    if flattened is not None and set(flattened.keys()) == flat_key_set:
+                        warnings.warn(
+                            "Mapped argument uses grouped keys that"
+                            "do not match the current grouping; "
+                            "falling back to handle-based mapping.",
+                            stacklevel=3,
+                        )
+                        mode, value = "flat", flattened
+                    else:
+                        raise KeyError(
+                            "BatchResult mapping keys do not match current grouped structure "
+                            "or flattened handle keys."
+                        )
+            else:
+                # Allow grouped-structured maps from a previous grouping by flattening by handle.
+                flattened = _flatten_grouped_map(spec)
+                if grouped and flattened is not None and set(flattened.keys()) == flat_key_set:
+                    warnings.warn(
+                        "Mapped argument grouping differs from the current grouped view; "
+                        "falling back to handle-based mapping.",
+                        stacklevel=3,
+                    )
+                    mode, value = "flat", flattened
+                else:
+                    raise KeyError(
+                        "BatchResult mapping keys do not match flattened collection handle keys."
+                    )
+
+            mode_cache[spec_id] = mode
+            value_cache[spec_id] = value
+            return mode, value
+
+        def select(spec, group_key, obj_key):
+            mode, resolved = _resolve_mode(spec)
+            if mode == "grouped":
+                return resolved[group_key][obj_key]
+            if mode == "flat":
+                return resolved[obj_key]
+            return resolved
 
         results = {}
-        if getattr(self, "is_grouped", False):
+        if grouped:
             for group_key, subcoll in self.items():
                 group_results = {}
                 for obj_key, obj in subcoll.items():
@@ -317,6 +479,88 @@ class BaseCollection(MutableMapping):
         """
         return self._obj_dict.keys()
 
+    def _get_leaf_callable(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
+
+        flat_self = self.flatten()
+        try:
+            example_leaf = next(iter(flat_self.values()))
+        except StopIteration:
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}") from None
+
+        leaf_attr = getattr(example_leaf, name, None)
+        if not callable(leaf_attr):
+            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
+        return leaf_attr
+
+    def _maybe_upcast_batch_result(self, result):
+        """
+        Convert a BatchResult into a collection when all leaves are element type.
+        Otherwise return the result unchanged.
+        """
+        if not isinstance(result, BatchResult):
+            return result
+
+        element_type = getattr(self, "_element_type", None)
+        if element_type is None:
+            return result
+
+        if getattr(self, "is_grouped", False):
+            if set(result.keys()) != set(self.keys()):
+                return result
+            grouped_new = {}
+            for gkey, subres in result.items():
+                if not isinstance(subres, dict):
+                    return result
+                subcoll = self[gkey]
+                if set(subres.keys()) != set(subcoll.keys()):
+                    return result
+                if not all(isinstance(v, element_type) for v in subres.values()):
+                    return result
+                grouped_new[gkey] = subcoll.__class__(dict(subres))
+            out = self.__class__(grouped_new)
+            out._is_grouped = True
+            out._groupby_tags = list(self._groupby_tags) if self._groupby_tags else None
+            return out
+
+        if set(result.keys()) != set(self.keys()):
+            return result
+        if not all(isinstance(v, element_type) for v in result.values()):
+            return result
+        return self.__class__(dict(result))
+
+    @property
+    def each(self):
+        """
+        Explicit leaf-batch facade with smart argument dispatch.
+
+        ``collection.each.method(...)`` dispatches ``method`` to every leaf and
+        uses smart argument handling:
+        - exact-key ``BatchResult`` mappings are applied per handle/group-handle
+          structure,
+        - all other values (including plain ``dict``) are broadcast as scalars.
+
+        Returns either:
+        - a collection (when all leaf returns are collection element type), or
+        - a BatchResult otherwise.
+        """
+        if self._each_proxy is None:
+            self._each_proxy = _EachProxy(self)
+        return self._each_proxy
+
+    @property
+    def each_forcebatch(self):
+        """
+        Explicit leaf-batch facade that always returns ``BatchResult``.
+
+        Dispatch semantics match ``each`` (smart mapping/broadcast); only the
+        return-shape behavior differs.
+        """
+        if self._each_forcebatch_proxy is None:
+            self._each_forcebatch_proxy = _EachProxy(self, force_batch=True)
+        return self._each_forcebatch_proxy
+
     # ---- Dynamic fallback for user-extended leaf APIs ----
     def __getattr__(self, name):
         """
@@ -324,29 +568,23 @@ class BaseCollection(MutableMapping):
         provided by generated batch mixins.
 
         - If `name` is a public callable on the leaf objects, return a callable
-          that dispatches via the grouped-aware batch dispatcher.
-        - Keeps BatchProcessError wrapping semantics from _invoke_batch.
+          that dispatches via the legacy grouped-aware batch dispatcher
+          (uniform broadcast semantics).
+        - Keeps BatchProcessError wrapping semantics from ``_invoke_batch``.
         - Avoids intercepting private/dunder names.
         """
-        if name.startswith("_"):
-            # Preserve normal AttributeError semantics for private/dunder
-            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
-
-        # Find a representative leaf to introspect available methods,
-        # even when this collection is grouped.
-        flat_self = self.flatten()
-        try:
-            example_leaf = next(iter(flat_self.values()))
-        except StopIteration:
-            # Empty collection: nothing to expose dynamically
-            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}") from None
-
-        leaf_attr = getattr(example_leaf, name, None)
-        if not callable(leaf_attr):
-            raise AttributeError(f"{self.__class__.__name__!s} has no attribute {name!r}")
+        leaf_attr = self._get_leaf_callable(name)
 
         # Build a thin wrapper that routes to the batch dispatcher.
         def _batch_wrapper(*args, **kwargs):
+            warnings.warn(
+                (
+                    f"Direct batch passthrough via {self.__class__.__name__}.{name}() "
+                    f"is deprecated; use {self.__class__.__name__}.each.{name}() instead."
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
             return self._invoke_batch(name, *args, **kwargs)
 
         # Best-effort attach docstring/name for nicer help() / hover info

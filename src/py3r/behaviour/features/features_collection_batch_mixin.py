@@ -3,6 +3,8 @@
 # Regenerate with: PYTHONPATH=src python -m tools.gen_batch_mixins
 from __future__ import annotations
 
+import warnings
+
 from py3r.behaviour.util.collection_utils import BatchResult
 import pandas as pd
 from typing import TYPE_CHECKING
@@ -24,6 +26,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.save`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.save() is deprecated; "
+            "use FeaturesCollection.each.save() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -39,6 +47,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.distance_between`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.distance_between() is deprecated; "
+            "use FeaturesCollection.each.distance_between() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -54,6 +68,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.within_distance`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.within_distance() is deprecated; "
+            "use FeaturesCollection.each.within_distance() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -69,6 +89,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.get_point_median`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.get_point_median() is deprecated; "
+            "use FeaturesCollection.each.get_point_median() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "get_point_median")(point, dims))
@@ -90,6 +116,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.define_boundary`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.define_boundary() is deprecated; "
+            "use FeaturesCollection.each.define_boundary() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -108,6 +140,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.within_boundary_static`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.within_boundary_static() is deprecated; "
+            "use FeaturesCollection.each.within_boundary_static() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -126,6 +164,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.within_boundary_dynamic`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.within_boundary_dynamic() is deprecated; "
+            "use FeaturesCollection.each.within_boundary_dynamic() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -149,6 +193,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.within_boundary`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.within_boundary() is deprecated; "
+            "use FeaturesCollection.each.within_boundary() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -168,6 +218,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.distance_to_boundary`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.distance_to_boundary() is deprecated; "
+            "use FeaturesCollection.each.distance_to_boundary() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -186,6 +242,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.distance_to_boundary_static`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.distance_to_boundary_static() is deprecated; "
+            "use FeaturesCollection.each.distance_to_boundary_static() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -204,6 +266,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.distance_to_boundary_dynamic`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.distance_to_boundary_dynamic() is deprecated; "
+            "use FeaturesCollection.each.distance_to_boundary_dynamic() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -219,6 +287,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.area_of_boundary`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.area_of_boundary() is deprecated; "
+            "use FeaturesCollection.each.area_of_boundary() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "area_of_boundary")(boundary, median))
@@ -230,6 +304,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.acceleration`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.acceleration() is deprecated; "
+            "use FeaturesCollection.each.acceleration() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "acceleration")(point, dims))
@@ -241,6 +321,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.azimuth`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.azimuth() is deprecated; "
+            "use FeaturesCollection.each.azimuth() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "azimuth")(point1, point2))
@@ -257,6 +343,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.azimuth_deviation`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.azimuth_deviation() is deprecated; "
+            "use FeaturesCollection.each.azimuth_deviation() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -278,6 +370,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.within_azimuth_deviation`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.within_azimuth_deviation() is deprecated; "
+            "use FeaturesCollection.each.within_azimuth_deviation() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -295,6 +393,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.speed`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.speed() is deprecated; "
+            "use FeaturesCollection.each.speed() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "speed")(point, dims))
@@ -309,6 +413,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.above_speed`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.above_speed() is deprecated; "
+            "use FeaturesCollection.each.above_speed() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "above_speed")(point, speed, dims))
@@ -323,6 +433,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.all_above_speed`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.all_above_speed() is deprecated; "
+            "use FeaturesCollection.each.all_above_speed() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -339,6 +455,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.below_speed`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.below_speed() is deprecated; "
+            "use FeaturesCollection.each.below_speed() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "below_speed")(point, speed, dims))
@@ -353,6 +475,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.all_below_speed`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.all_below_speed() is deprecated; "
+            "use FeaturesCollection.each.all_below_speed() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -368,6 +496,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.distance_change`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.distance_change() is deprecated; "
+            "use FeaturesCollection.each.distance_change() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "distance_change")(point, dims))
@@ -383,6 +517,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.store`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.store() is deprecated; "
+            "use FeaturesCollection.each.store() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -398,6 +538,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.classify`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.classify() is deprecated; "
+            "use FeaturesCollection.each.classify() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "classify")(classifier, **kwargs))
@@ -423,6 +569,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.smooth`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.smooth() is deprecated; "
+            "use FeaturesCollection.each.smooth() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -441,6 +593,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.embedding_df`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.embedding_df() is deprecated; "
+            "use FeaturesCollection.each.embedding_df() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(lambda _obj: getattr(_obj, "embedding_df")(embedding))
@@ -464,6 +622,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.assign_clusters_by_centroids`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.assign_clusters_by_centroids() is deprecated; "
+            "use FeaturesCollection.each.assign_clusters_by_centroids() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -502,6 +666,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.train_knn_regressor`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.train_knn_regressor() is deprecated; "
+            "use FeaturesCollection.each.train_knn_regressor() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -536,6 +706,12 @@ class FeaturesCollectionBatchMixin:
 
         See leaf method ``Features.predict_knn`` for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.predict_knn() is deprecated; "
+            "use FeaturesCollection.each.predict_knn() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -566,6 +742,12 @@ class FeaturesCollectionBatchMixin:
         See leaf method ``Features.define_elliptical_boundary_from_params``
         for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.define_elliptical_boundary_from_params() is deprecated; "
+            "use FeaturesCollection.each.define_elliptical_boundary_from_params() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
@@ -599,6 +781,12 @@ class FeaturesCollectionBatchMixin:
         See leaf method ``Features.define_elliptical_boundary_from_points``
         for examples.
         """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.define_elliptical_boundary_from_points() is deprecated; "
+            "use FeaturesCollection.each.define_elliptical_boundary_from_points() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(

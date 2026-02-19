@@ -113,7 +113,7 @@ tc.tags_info()
 tc.filter_likelihood(threshold=0.5)
 tc.interpolate(limit=5)
 tc.smooth_all(window=3, method="mean")
-tc.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.64)
+tc.each.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.64)
 # %% [markdown]
 # ### 2.4 Quality check — trajectory plots
 #
@@ -205,8 +205,8 @@ fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 # when the mouse (bodycentre) is inside it.
 
 # %%
-center_boundary = fc.define_boundary(["tl", "tr", "bl", "br"], scaling=0.5)
-in_center = fc.within_boundary_static(
+center_boundary = fc.each.define_boundary(["tl", "tr", "bl", "br"], scaling=0.5)
+in_center = fc.each.within_boundary_static(
     point="bodycentre", boundary=center_boundary, boundary_name="center"
 )
 in_center.store()
@@ -259,9 +259,9 @@ fc.area_of_boundary(["bcr", "earr", "earl", "bcl"], median=False).store()
 fc.area_of_boundary(["earr", "nose", "earl"], median=False).store()
 
 # Distance to arena boundary
-bdry = fc.define_boundary(["tl", "tr", "br", "bl"], scaling=1.0)
+bdry = fc.each.define_boundary(["tl", "tr", "br", "bl"], scaling=1.0)
 for pt in ["nose", "neck", "bodycentre", "tailbase"]:
-    fc.distance_to_boundary_static(pt, bdry, boundary_name="oft").store()
+    fc.each.distance_to_boundary_static(pt, bdry, boundary_name="oft").store()
 
 # %% [markdown]
 # ### 3.4 K-means clustering
