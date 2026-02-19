@@ -882,7 +882,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
     def plot_chord(
         self,
         column: str,
-        all_states: list[str | int],
+        all_states: list[str | int] | None = None,
         *,
         fromkey: str | None = None,
         plot_individual: bool = False,
@@ -906,7 +906,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
         column:
             Name of the categorical column used to compute transitions.
         all_states:
-            Explicit state ordering for transition matrices (required).
+            Optional explicit state ordering for transition matrices.
+            Required when `fromkey` is not provided.
         fromkey:
             Optional key in each `Summary.data` containing a precomputed transition DataFrame.
             If provided, this key is used directly instead of computing transitions from `column`.
@@ -972,9 +973,6 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
                 "Please install: 'pip install pycirclize'."
             ) from err
 
-        if all_states is None:
-            raise ValueError("all_states must be provided to ensure aligned matrices.")
-
         def _sanitize(name: str) -> str:
             return "".join(ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name))
 
@@ -1026,6 +1024,19 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
                     f"got {type(matrix).__name__} in handle '{handle}'"
                 )
             return matrix
+
+        if fromkey is None and all_states is None:
+            raise ValueError("all_states must be provided when fromkey is not used.")
+        if fromkey is not None and all_states is None:
+            inferred_states = []
+            seen = set()
+            for handle, summary in self.flatten().items():
+                df = _matrix_from_summary(summary, handle)
+                for lbl in list(df.index) + list(df.columns):
+                    if lbl not in seen:
+                        seen.add(lbl)
+                        inferred_states.append(lbl)
+            all_states = inferred_states
 
         def _warn_if_misaligned(per: dict[str, pd.DataFrame], context_label: str) -> None:
             if len(per) <= 1:
