@@ -1,21 +1,8 @@
 # %% [markdown]
-# # Open Field Test (OFT) — Full Analysis Pipeline
-#
-# This notebook demonstrates a complete OFT analysis workflow using
-# `py3r.behaviour`, from raw DeepLabCut tracking CSVs through to
-# publication-ready figures and behaviour flow analysis (BFA).
-#
-# **Sections**
-#
-# 1. Setup
-# 2. Load & Preprocess
-# 3. Compute Features
-# 4. Summarise
-# 5. Visualise
-# 6. Behaviour Flow Analysis
+# # Open Field Test (OFT) — Full analysis pipeline example
 
 # %% [markdown]
-# ## 1. Setup
+# ## Setup
 
 # %%
 import json
@@ -42,13 +29,16 @@ FPS = 30
 N_CLUSTERS = 25
 
 # %% [markdown]
-# ## 2. Load & Preprocess
+# ## Load & Preprocess
 
 # %% [markdown]
-# ### 2.1 Load tracking data
+# ### Load tracking data
 #
 # Load a `TrackingCollection` from a folder of DeepLabCut CSV files.
 # Each CSV becomes one `Tracking` object keyed by its filename stem.
+# The provided `fps` is written into each leaf's metadata for downstream methods.
+# Return type here is `TrackingCollection`.
+# Alternative loaders with the same pattern: `from_yolo3r_folder`, `from_dlcma_folder`.
 
 # %%
 tc = p3b.TrackingCollection.from_dlc_folder(
@@ -56,6 +46,9 @@ tc = p3b.TrackingCollection.from_dlc_folder(
     fps=FPS,
 )
 print(tc)
+# Main object types in `py3r.behaviour` implement `.copy()`.
+# We'll keep an untouched copy for didactic examples in this notebook.
+tc_raw_for_demo = tc.copy()
 
 # %%
 # norender
@@ -85,39 +78,84 @@ for handle, t in tc.items():
 print("Loading tests passed.")
 
 # %% [markdown]
-# ### 2.2 Add experimental tags
+# ### Add experimental tags
 #
 # A tags CSV maps recording handles to experimental metadata.
-# It must contain a `handle` column matching filenames (without extension);
+# It must contain a `handle` column matching filename stems;
 # every other column becomes a tag key–value pair.
+# `tags_info()` is a quick schema check: coverage and cardinality per tag.
+# `add_tags_from_csv(...)` mutates each `Tracking` in-place and returns `None`.
 
 # %%
 tc.add_tags_from_csv(csv_path=TAGS_CSV)
 tc.tags_info()
+# %% [markdown]
+# ### Didactic: batch processing
+#
+# With a `TrackingCollection`, `.each` delegates calls to every `Tracking`.
+# Think "batch call the same `Tracking` method for all recordings".
+#
+# Methods on `Tracking` are `inplace=True` by default, and `.each` will return a `BatchResult.
+# If `inplace=False` then `.each` returns a `TrackingCollection`.
+#
+# Passing a `BatchResult` argument back into `.each` maps values by handle
+
+# %%
+demo_inplace = tc_raw_for_demo.copy().each.filter_likelihood(threshold=0.9)
+demo_new_collection = tc_raw_for_demo.copy().each.filter_likelihood(
+    threshold=0.9,
+    inplace=False,
+)
+print(type(demo_inplace).__name__)  # expected: BatchResult
+print(type(demo_new_collection).__name__)  # expected: TrackingCollection
 
 # %% [markdown]
-# ### 2.3 Preprocess
+# ### Preprocess
 #
 # Standard preprocessing chain: remove low-confidence detections,
 # interpolate short gaps, smooth trajectories, and rescale coordinates
 # to real-world units.
+# This order is intentional: filter -> interpolate -> smooth -> rescale.
+#
+# In this main path we use in-place behavior (typical analysis workflow).
+# Equivalent non-in-place variants are shown above in the didactic batch section.
 
 # %%
-tc.filter_likelihood(threshold=0.9)
-tc.interpolate(limit=5)
-tc.smooth_all(window=3, method="mean")
-tc.each.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.64)
+# `filter_likelihood`: masks low-confidence coordinates as NaN.
+tc.each.filter_likelihood(threshold=0.9)
+tc.each.interpolate(limit=5)
+tc.each.smooth_all(window=3, method="mean")
+tc.each.rescale_by_known_distance(
+    point1="tl",
+    point2="br",
+    distance_in_metres=0.64,
+)
+
 # %% [markdown]
-# ### 2.4 Quality check — trajectory plots
+# Generally these preprocessing methods have guards against re-application,
+# so for parameter tuning, set `inplace=False`
+
+# %%
+try:
+    tc.each.interpolate(limit=5)
+except Exception as e:
+    print(e)
+
+
+# %% [markdown]
+# ### Quality check — trajectory plots
 #
 # Save trajectory plots for every recording and display one inline for QC.
+# Pattern used here:
+# - batch save all (`tc.each.plot(..., savedir=...)`)
+# - inspect one representative recording inline (`tc[0].plot(...)`)
 
 # %%
 trajectories = ["bodycentre"]
 static = ["tl", "tr", "bl", "br"]
 lines = [("tr", "tl"), ("tl", "bl"), ("bl", "br"), ("br", "tr")]
 
-tc.plot(trajectories=trajectories, static=static, lines=lines, show=False, savedir=OUT_DIR)
+tc.each.plot(trajectories=trajectories, static=static, lines=lines, show=False, savedir=OUT_DIR)
 
 # Single inline plot for visual QC
 tc[0].plot(trajectories=trajectories, static=static, lines=lines, show=True)
@@ -181,51 +219,86 @@ assert has_plot, f"No plot files in {OUT_DIR}"
 print("Tags, preprocessing, and trajectory plot tests passed.")
 
 # %% [markdown]
-# ## 3. Compute Features
+# ## Compute Features
 
 # %% [markdown]
-# ### 3.1 Create FeaturesCollection
+# ### Create FeaturesCollection
 #
 # A `FeaturesCollection` wraps every recording's tracking data with
 # methods for computing time-series features.
+# Most feature methods return `FeaturesResult`; call `.store()` to persist
+# to `Features.data` and register metadata in `Features.meta`.
 
 # %%
 fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 # %% [markdown]
-# ### 3.2 Spatial features — center zone
+# ### Spatial features — center zone
 #
-# Define the center boundary from the arena corners and detect
-# when the mouse (bodycentre) is inside it.
+# Define/store named boundaries on each `Features` leaf, then use either:
+# - mapped `BatchResult` boundary objects (smart per-handle passthrough), or
+# - boundary names (resolved from stored per-recording assets).
+# Here we use both and assert they match.
 
 # %%
-center_boundary = fc.each.define_boundary(["tl", "tr", "bl", "br"], scaling=0.5)
-in_center = fc.each.within_boundary_static(
-    point="bodycentre", boundary=center_boundary, boundary_name="center"
+oft_boundary = fc.each.define_static_boundary(
+    ["tl", "tr", "bl", "br"],
+    name="oft",
 )
+
+center_boundary = fc.each.define_static_boundary(
+    ["tl", "tr", "bl", "br"],
+    scale_dim1=0.5,
+    scale_dim2=0.5,
+    name="center",
+)
+
+# `center_boundary` is a BatchResult keyed by handle (one boundary per recording).
+# Passing it back into `.each` maps boundary arguments to matching handles.
+in_center = fc.each.within_boundary(point="bodycentre", boundary=center_boundary)
+# Alternative: use stored boundary names (`"center"`) instead of explicit objects.
+in_center_by_name = fc.each.within_boundary(point="bodycentre", boundary="center")
+for handle in fc.keys():
+    assert in_center[handle].equals(in_center_by_name[handle])
+
 in_center.store()
 
-dist_change = fc.distance_change("bodycentre")
+# `BatchResult` supports element-wise arithmetic across handles.
+# Here we gate distance moved by whether the animal is in center on each frame.
+dist_change = fc.each.distance_change("bodycentre")
 dist_change_in_center = in_center.astype("Int64") * dist_change
 dist_change_in_center.store(name="dist_change_bodycentre_in_center")
 
+# `BatchResult` also supports logical operations across handles.
+outside_center = ~in_center & (fc.each.within_boundary("bodycentre", boundary="oft"))
+
 # %% [markdown]
-# ### 3.3 Kinematic features for BFA
+# ### Kinematic features for BFA
 #
 # Speeds, angle deviations, inter-keypoint distances, body-part areas,
 # and distance to the arena boundary — the standard feature set for
 # behavioural flow analysis clustering.
+# The loop pattern below intentionally stores each feature as a named column,
+# so later clustering/summary code can reference columns deterministically.
+#
+# Specific choices used here:
+# - For kinematic polygons, we define named dynamic boundaries, then compute
+#   dynamic area (`median=False`) over their ordered points.
+# - For arena distance, we define named static boundaries and loop over points.
 
 # %%
 # Speeds
 for pt in ["nose", "neck", "earr", "earl", "bodycentre", "hipl", "hipr", "tailbase"]:
-    fc.speed(pt).store()
+    fc.each.speed(pt).store()
 
 # Angle deviations
-fc.azimuth_deviation("tailbase", "hipr", "hipl").store()
-fc.azimuth_deviation("bodycentre", "tailbase", "neck").store()
-fc.azimuth_deviation("neck", "bodycentre", "headcentre").store()
-fc.azimuth_deviation("headcentre", "earr", "earl").store()
+for basepoint, pointdirection1, pointdirection2 in [
+    ("tailbase", "hipr", "hipl"),
+    ("bodycentre", "tailbase", "neck"),
+    ("neck", "bodycentre", "headcentre"),
+    ("headcentre", "earr", "earl"),
+]:
+    fc.each.azimuth_deviation(basepoint, pointdirection1, pointdirection2).store()
 
 # Inter-keypoint distances
 for p1, p2 in [
@@ -244,24 +317,46 @@ for p1, p2 in [
     ("nose", "earr"),
     ("nose", "earl"),
 ]:
-    fc.distance_between(p1, p2).store()
+    fc.each.distance_between(p1, p2).store()
 
-# Body-part areas
-fc.area_of_boundary(["tailbase", "hipr", "hipl"], median=False).store()
-fc.area_of_boundary(["hipr", "hipl", "bcl", "bcr"], median=False).store()
-fc.area_of_boundary(["bcr", "earr", "earl", "bcl"], median=False).store()
-fc.area_of_boundary(["earr", "nose", "earl"], median=False).store()
+# Boundary definitions for BFA kinematic features.
+# Dynamic boundaries are stored per recording, then used for dynamic area.
+DYNAMIC_BODY_BOUNDARIES = [
+    ("tailbase_hipr_hipl", ["tailbase", "hipr", "hipl"]),
+    ("hipr_hipl_bcl_bcr", ["hipr", "hipl", "bcl", "bcr"]),
+    ("bcr_earr_earl_bcl", ["bcr", "earr", "earl", "bcl"]),
+    ("earr_nose_earl", ["earr", "nose", "earl"]),
+]
+for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
+    fc.each.define_dynamic_boundary(boundary_points, name=boundary_name)
+    fc.each.area_of_boundary(boundary_points, median=False).store()
 
-# Distance to arena boundary
-bdry = fc.each.define_boundary(["tl", "tr", "br", "bl"], scaling=1.0)
-for pt in ["nose", "neck", "bodycentre", "tailbase"]:
-    fc.each.distance_to_boundary_static(pt, bdry, boundary_name="oft").store()
+# Static arena boundaries + point list for distance-to-boundary features.
+STATIC_DISTANCE_BOUNDARIES = [
+    ("oft", ["tl", "tr", "br", "bl"], ["nose", "neck", "bodycentre", "tailbase"]),
+]
+for boundary_name, boundary_points, query_points in STATIC_DISTANCE_BOUNDARIES:
+    fc.each.define_static_boundary(boundary_points, name=boundary_name)
+    for pt in query_points:
+        fc.each.distance_to_boundary(pt, boundary_name).store()
+
+# Inspect stored boundary assets on one recording.
+# Return type: DataFrame with one row per stored boundary and columns like
+# `kind`, `n_points`, `has_vertices`.
+fc[0].list_boundaries()
 
 # %% [markdown]
-# ### 3.4 K-means clustering
+# ### K-means clustering
 #
 # Embed the feature time-series with temporal offsets, then cluster
 # the embedded space with k-means.
+# Returns `(cluster_labels, centroids, scaling_factors)`, where:
+# - `cluster_labels` is a per-handle `BatchResult` of label series
+# - `centroids` is a DataFrame with `n_clusters` rows
+#
+# Option notes:
+# - `offset` controls temporal context window.
+# - `cluster_embedding` also supports weighting/normalization knobs for advanced runs.
 
 # %%
 features = fc[0].data.columns
@@ -274,7 +369,11 @@ cluster_labels, centroids, _ = fc.cluster_embedding(
 cluster_labels.store("kmeans_25", overwrite=True)
 
 # %% [markdown]
-# ### 3.5 Save features to disk
+# ### Save features to disk
+#
+# `save()` writes a collection manifest plus per-handle element folders.
+# This makes downstream loading deterministic and auditable.
+# Later you can reconstruct with `p3b.FeaturesCollection.load(path)`.
 
 # %%
 fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
@@ -293,6 +392,10 @@ for handle, expected in GOLDEN_IN_CENTER.items():
 # --- Feature columns exist ---
 first_handle = list(fc.keys())[0]
 cols = fc[first_handle].data.columns.tolist()
+btab = fc[first_handle].list_boundaries()
+assert {"center", "oft"} <= set(btab.index), f"Missing stored boundaries on {first_handle}"
+assert (btab.loc[["center", "oft"], "kind"] == "static").all()
+
 expected_speed_cols = [
     "speed_of_nose_in_xy",
     "speed_of_neck_in_xy",
@@ -375,21 +478,27 @@ for handle in fc.keys():
 print("Feature computation, clustering, and save tests passed.")
 
 # %% [markdown]
-# ## 4. Summarise
+# ## Summarise
 
 # %% [markdown]
-# ### 4.1 Create SummaryCollection
+# ### Create SummaryCollection
 #
 # Each `Summary` object holds scalar (or Series) metrics computed from
 # a single recording's features.
+# Return type here is `SummaryCollection`.
 
 # %%
 sc = p3b.SummaryCollection.from_features_collection(fc)
 
 # %% [markdown]
-# ### 4.2 Compute summary measures
+# ### Compute summary measures
 #
 # Call summary methods and `.store()` the result to persist it.
+# Stored summary metrics become scalar columns in each `Summary.data` record.
+#
+# Same pattern as features:
+# - compute result (`sc.total_distance(...)`, etc.)
+# - then `.store(...)` to persist by metric name.
 
 # %%
 sc.total_distance("bodycentre").store()
@@ -397,7 +506,10 @@ sc.time_true("within_boundary_static_bodycentre_in_center").store("time_in_cente
 sc.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
 
 # %% [markdown]
-# ### 4.3 Export results to CSV
+# ### Export results to CSV
+#
+# `to_df(include_tags=True)` flattens summary metrics + selected tag columns
+# into one analysis-ready table (indexed by handle).
 
 # %%
 summary_df = sc.to_df(include_tags=True)
@@ -480,14 +592,20 @@ assert set(summary_df.index) == set(sc.keys())
 print("Summary computation and CSV tests passed.")
 
 # %% [markdown]
-# ## 5. Visualise
+# ## Visualise
 #
 # The `sns*` methods on `SummaryCollection` wrap seaborn categorical plots
 # with sensible defaults — auto titles, y-labels, filenames, and colour
 # palettes.
+# All `sns*` helpers return `(fig, ax, tidy_df)` to support both quick plotting
+# and explicit downstream checks/customization.
+#
+# In practice:
+# - pass a stored metric name (`"total_distance_bodycentre"`) for reuse
+# - or pass a live `SummaryResult` for one-off plotting.
 
 # %% [markdown]
-# ### 5.1 Plot types compared (ungrouped)
+# ### Plot types compared (ungrouped)
 #
 # Three views of the same metric — `total_distance_bodycentre` — to
 # compare what each plot type looks like.
@@ -513,7 +631,7 @@ fig, ax, df_super = sc.snssuperplot(
 )
 
 # %% [markdown]
-# ### 5.2 Single Summary delegation
+# ### Single Summary delegation
 #
 # Individual `Summary` objects can call the same `sns*` methods.
 # They delegate to a 1-item `SummaryCollection` internally.
@@ -528,10 +646,11 @@ fig, ax, df_single = single.snsbar(
 )
 
 # %% [markdown]
-# ### 5.3 Grouped plots
+# ### Grouped plots
 #
 # Group by experimental tags with `groupby()`.
 # Use `group_order` to control how groups are arranged on the x-axis.
+# `groupby(...)` returns a grouped `SummaryCollection` view with same plotting API.
 
 # %%
 sc_grouped = sc.groupby(tags=["treatment", "timepoint"])
@@ -572,7 +691,7 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 )
 
 # %% [markdown]
-# ### 5.3b sort_by — independent spatial ordering
+# ### sort_by — independent spatial ordering
 #
 # `sort_by` overrides the spatial arrangement on the x-axis without changing
 # colour assignment.  Here `groupby(tags=["treatment", "timepoint"])` means
@@ -609,7 +728,7 @@ plt.tight_layout()
 plt.show()
 
 # %% [markdown]
-# ### 5.4 Statistical annotations
+# ### Statistical annotations
 #
 # Use `annotate="help"` to discover available tests, corrections, and the
 # group labels in your data. Then pass `annotate={...}` with actual pairs.
@@ -642,7 +761,7 @@ fig_ann, ax_ann, df_ann = sc_grouped.snsbox(
 
 
 # %% [markdown]
-# ### 5.5 Metric input options
+# ### Metric input options
 #
 # Two ways to pass a metric to any `sns*` method:
 #
@@ -697,10 +816,14 @@ assert len(list(OUT_DIR.glob("*barplot.png"))) >= 1
 print("Visualisation tests passed.")
 
 # %% [markdown]
-# ## 6. Behaviour Flow Analysis (BFA)
+# ## Behaviour Flow Analysis (BFA)
 
 # %% [markdown]
-# ### 6.1 Compute BFA results and statistics
+# ### Compute BFA results and statistics
+#
+# `bfa()` returns a nested dict of observed/shuffled transition statistics,
+# and `bfa_stats()` derives effect-size-style summaries for reporting.
+# `all_states=np.arange(0, N_CLUSTERS)` makes the state space explicit.
 
 # %%
 bfa_results = sc_grouped.bfa(column="kmeans_25", all_states=np.arange(0, N_CLUSTERS))
@@ -712,9 +835,10 @@ with open(f"{OUT_DIR}/bfa_stats.json", "w") as f:
     json.dump(bfa_stats, f, indent=4)
 
 # %% [markdown]
-# ### 6.2 BFA histograms
+# ### BFA histograms
 #
 # Distribution of shuffled transition values vs observed, per group comparison.
+# Useful as a quick sanity check before interpreting chord/UMAP views.
 
 # %%
 p3b.SummaryCollection.plot_bfa_results(
@@ -728,7 +852,7 @@ p3b.SummaryCollection.plot_bfa_results(
 )
 
 # %% [markdown]
-# ### 6.3 Chord diagrams
+# ### Chord diagrams
 #
 # Requires `pycirclize` — install with `pip install py3r-behaviour[viz]`.
 
@@ -748,7 +872,7 @@ if not SKIP_HEAVY_VIZ:
     )
 
 # %% [markdown]
-# ### 6.4 UMAP embedding of transition matrices
+# ### UMAP embedding of transition matrices
 #
 # Requires `umap-learn` — install with `pip install py3r-behaviour[viz]`.
 
