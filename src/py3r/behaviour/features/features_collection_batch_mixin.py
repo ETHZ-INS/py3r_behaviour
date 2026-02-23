@@ -129,14 +129,177 @@ class FeaturesCollectionBatchMixin:
             )
         return self._invoke_batch("define_boundary", points, scaling, scaling_y, centre)
 
+    def define_static_boundary(
+        self,
+        points: list[str],
+        *,
+        dims: tuple[str, str] = ("x", "y"),
+        anchor: str | list[str] | None = None,
+        scale_dim1: float = 1.0,
+        scale_dim2: float = 1.0,
+        name: str | None = None,
+        overwrite: bool = False,
+    ) -> BatchResult:
+        """
+        Batch-mode wrapper for Features.define_static_boundary across the collection.
+
+        Define a static boundary from point medians and optional scaling.
+
+        See leaf method ``Features.define_static_boundary`` for examples.
+        """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.define_static_boundary() is deprecated; "
+            "use FeaturesCollection.each.define_static_boundary() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "define_static_boundary")(
+                    points,
+                    dims=dims,
+                    anchor=anchor,
+                    scale_dim1=scale_dim1,
+                    scale_dim2=scale_dim2,
+                    name=name,
+                    overwrite=overwrite,
+                )
+            )
+        return self._invoke_batch(
+            "define_static_boundary",
+            points,
+            dims=dims,
+            anchor=anchor,
+            scale_dim1=scale_dim1,
+            scale_dim2=scale_dim2,
+            name=name,
+            overwrite=overwrite,
+        )
+
+    def define_dynamic_boundary(
+        self,
+        points: list[str],
+        *,
+        dims: tuple[str, str] = ("x", "y"),
+        anchor: str | list[str] | None = None,
+        scale_dim1: float = 1.0,
+        scale_dim2: float = 1.0,
+        name: str | None = None,
+        overwrite: bool = False,
+    ) -> BatchResult:
+        """
+        Batch-mode wrapper for Features.define_dynamic_boundary across the collection.
+
+        Define a dynamic boundary from ordered point names and optional scaling.
+
+        See leaf method ``Features.define_dynamic_boundary`` for examples.
+        """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.define_dynamic_boundary() is deprecated; "
+            "use FeaturesCollection.each.define_dynamic_boundary() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "define_dynamic_boundary")(
+                    points,
+                    dims=dims,
+                    anchor=anchor,
+                    scale_dim1=scale_dim1,
+                    scale_dim2=scale_dim2,
+                    name=name,
+                    overwrite=overwrite,
+                )
+            )
+        return self._invoke_batch(
+            "define_dynamic_boundary",
+            points,
+            dims=dims,
+            anchor=anchor,
+            scale_dim1=scale_dim1,
+            scale_dim2=scale_dim2,
+            name=name,
+            overwrite=overwrite,
+        )
+
+    def import_static_boundary(
+        self,
+        vertices: list[tuple[float, float]],
+        *,
+        dims: tuple[str, str] = ("x", "y"),
+        name: str | None = None,
+        overwrite: bool = False,
+    ) -> BatchResult:
+        """
+        Batch-mode wrapper for Features.import_static_boundary across the collection.
+
+        Escape hatch: import a precomputed static polygon in selected dims.
+
+        See leaf method ``Features.import_static_boundary`` for examples.
+        """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.import_static_boundary() is deprecated; "
+            "use FeaturesCollection.each.import_static_boundary() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "import_static_boundary")(
+                    vertices, dims=dims, name=name, overwrite=overwrite
+                )
+            )
+        return self._invoke_batch(
+            "import_static_boundary", vertices, dims=dims, name=name, overwrite=overwrite
+        )
+
+    def get_boundary(self, name: str) -> BatchResult:
+        """
+        Batch-mode wrapper for Features.get_boundary across the collection.
+
+        Draft accessor for named boundary assets.
+
+        See leaf method ``Features.get_boundary`` for examples.
+        """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.get_boundary() is deprecated; "
+            "use FeaturesCollection.each.get_boundary() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, "get_boundary")(name))
+        return self._invoke_batch("get_boundary", name)
+
+    def list_boundaries(self) -> BatchResult:
+        """
+        Batch-mode wrapper for Features.list_boundaries across the collection.
+
+        Return a compact table of named boundaries on this Features object.
+
+        See leaf method ``Features.list_boundaries`` for examples.
+        """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.list_boundaries() is deprecated; "
+            "use FeaturesCollection.each.list_boundaries() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(lambda _obj: getattr(_obj, "list_boundaries")())
+        return self._invoke_batch("list_boundaries")
+
     def within_boundary_static(
-        self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
+        self, point: str, boundary, boundary_name: str = None
     ) -> BatchResult:
         """
         Batch-mode wrapper for Features.within_boundary_static across the collection.
-
-        checks whether point is inside polygon defined by ordered list of boundary points
-        boundary points must be specified as a list of numerical tuples
 
         See leaf method ``Features.within_boundary_static`` for examples.
         """
@@ -154,13 +317,10 @@ class FeaturesCollectionBatchMixin:
         return self._invoke_batch("within_boundary_static", point, boundary, boundary_name)
 
     def within_boundary_dynamic(
-        self, point: str, boundary: list[str], boundary_name: str = None
+        self, point: str, boundary, boundary_name: str = None
     ) -> BatchResult:
         """
         Batch-mode wrapper for Features.within_boundary_dynamic across the collection.
-
-        checks whether point is inside polygon defined by ordered list of boundary points
-        boundary points must be specified as a list of names of tracked points
 
         See leaf method ``Features.within_boundary_dynamic`` for examples.
         """
@@ -185,11 +345,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.within_boundary across the collection.
 
-        deprecated: use within_boundary_static or within_boundary_dynamic instead
-        checks whether point is inside polygon defined by ordered list of boundary points
-        boundary points may either be specified as a list of numerical tuples,
-        or as a list of names of tracked points.
-        Optionally, pass boundary_name for a custom short name in the feature name/meta.
+        Main boundary inclusion API.
 
         See leaf method ``Features.within_boundary`` for examples.
         """
@@ -214,7 +370,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.distance_to_boundary across the collection.
 
-        Deprecated: use distance_to_boundary_static or distance_to_boundary_dynamic instead
+        Main boundary distance API.
 
         See leaf method ``Features.distance_to_boundary`` for examples.
         """
@@ -234,7 +390,7 @@ class FeaturesCollectionBatchMixin:
         return self._invoke_batch("distance_to_boundary", point, boundary, median, boundary_name)
 
     def distance_to_boundary_static(
-        self, point: str, boundary: list[tuple[float, float]], boundary_name: str = None
+        self, point: str, boundary, boundary_name: str = None
     ) -> BatchResult:
         """
         Batch-mode wrapper for Features.distance_to_boundary_static
@@ -258,7 +414,7 @@ class FeaturesCollectionBatchMixin:
         return self._invoke_batch("distance_to_boundary_static", point, boundary, boundary_name)
 
     def distance_to_boundary_dynamic(
-        self, point: str, boundary: list[str], boundary_name: str | None = None
+        self, point: str, boundary, boundary_name: str | None = None
     ) -> BatchResult:
         """
         Batch-mode wrapper for Features.distance_to_boundary_dynamic
