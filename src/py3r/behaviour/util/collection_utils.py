@@ -185,6 +185,48 @@ class BatchResult(dict):
 
         return self._binary_op(other, operator.truediv)
 
+    # Reflected arithmetic operators
+    def __radd__(self, other):
+        import operator
+
+        return self._binary_op(other, lambda a, b: operator.add(b, a))
+
+    def __rsub__(self, other):
+        import operator
+
+        return self._binary_op(other, lambda a, b: operator.sub(b, a))
+
+    def __rmul__(self, other):
+        import operator
+
+        return self._binary_op(other, lambda a, b: operator.mul(b, a))
+
+    def __rtruediv__(self, other):
+        import operator
+
+        return self._binary_op(other, lambda a, b: operator.truediv(b, a))
+
+    # Comparisons
+    def __lt__(self, other):
+        import operator
+
+        return self._binary_op(other, operator.lt)
+
+    def __le__(self, other):
+        import operator
+
+        return self._binary_op(other, operator.le)
+
+    def __gt__(self, other):
+        import operator
+
+        return self._binary_op(other, operator.gt)
+
+    def __ge__(self, other):
+        import operator
+
+        return self._binary_op(other, operator.ge)
+
     # Logical operators (expect boolean leaves)
     def __or__(self, other):
         import operator
@@ -200,6 +242,22 @@ class BatchResult(dict):
         import operator
 
         return self._binary_op(other, operator.xor)
+
+    # Reflected logical operators (for scalar bool on the left)
+    def __ror__(self, other):
+        import operator
+
+        return self._binary_op(other, lambda a, b: operator.or_(b, a))
+
+    def __rand__(self, other):
+        import operator
+
+        return self._binary_op(other, lambda a, b: operator.and_(b, a))
+
+    def __rxor__(self, other):
+        import operator
+
+        return self._binary_op(other, lambda a, b: operator.xor(b, a))
 
     def __invert__(self):
         """

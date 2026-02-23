@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from py3r.behaviour.exceptions import BatchProcessError
@@ -138,3 +139,51 @@ def test_each_invalid_batchresult_mapping_raises():
     bad = BatchResult({"A": "left"}, coll)  # missing B
     with pytest.raises(BatchProcessError, match="BatchResult mapping keys"):
         coll.each.label(bad)
+
+
+def test_batchresult_scalar_arithmetic_and_comparison():
+    coll = _make_collection()
+    out = BatchResult(
+        {
+            "A": pd.Series([0.2, 0.7]),
+            "B": pd.Series([1.0, -1.0]),
+        },
+        coll,
+    )
+
+    plus = out + 3.0
+    gt = out > 0.5
+
+    assert plus["A"].tolist() == [3.2, 3.7]
+    assert plus["B"].tolist() == [4.0, 2.0]
+    assert gt["A"].tolist() == [False, True]
+    assert gt["B"].tolist() == [True, False]
+
+
+def test_batchresult_reflected_scalar_arithmetic_and_logical():
+    coll = _make_collection()
+    numeric = BatchResult(
+        {
+            "A": pd.Series([0.2, 0.7]),
+            "B": pd.Series([1.0, -1.0]),
+        },
+        coll,
+    )
+    mask = BatchResult(
+        {
+            "A": pd.Series([True, False]),
+            "B": pd.Series([False, True]),
+        },
+        coll,
+    )
+
+    left_add = 3.0 + numeric
+    left_sub = 3.0 - numeric
+    left_and = True & mask
+
+    assert left_add["A"].tolist() == [3.2, 3.7]
+    assert left_add["B"].tolist() == [4.0, 2.0]
+    assert left_sub["A"].tolist() == [2.8, 2.3]
+    assert left_sub["B"].tolist() == [2.0, 4.0]
+    assert left_and["A"].tolist() == [True, False]
+    assert left_and["B"].tolist() == [False, True]
