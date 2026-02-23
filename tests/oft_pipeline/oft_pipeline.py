@@ -241,11 +241,6 @@ fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 # Here we use both and assert they match.
 
 # %%
-oft_boundary = fc.each.define_static_boundary(
-    ["tl", "tr", "bl", "br"],
-    name="oft",
-)
-
 center_boundary = fc.each.define_static_boundary(
     ["tl", "tr", "bl", "br"],
     scale_dim1=0.5,
@@ -269,8 +264,9 @@ dist_change = fc.each.distance_change("bodycentre")
 dist_change_in_center = in_center.astype("Int64") * dist_change
 dist_change_in_center.store(name="dist_change_bodycentre_in_center")
 
-# `BatchResult` also supports logical operations across handles.
-outside_center = ~in_center & (fc.each.within_boundary("bodycentre", boundary="oft"))
+# `BatchResult` also supports general binary operations.
+fast_outside_center = ~in_center & ((fc.each.speed("bodycentre") * 100) > 10.0)
+# this is just an example -- we won't store it.
 
 # %% [markdown]
 # ### Kinematic features for BFA
@@ -322,23 +318,22 @@ for p1, p2 in [
 # Boundary definitions for BFA kinematic features.
 # Dynamic boundaries are stored per recording, then used for dynamic area.
 DYNAMIC_BODY_BOUNDARIES = [
-    ("tailbase_hipr_hipl", ["tailbase", "hipr", "hipl"]),
-    ("hipr_hipl_bcl_bcr", ["hipr", "hipl", "bcl", "bcr"]),
-    ("bcr_earr_earl_bcl", ["bcr", "earr", "earl", "bcl"]),
-    ("earr_nose_earl", ["earr", "nose", "earl"]),
+    ("mouse_rear", ["tailbase", "hipr", "hipl"]),
+    ("mouse_mid", ["hipr", "hipl", "bcl", "bcr"]),
+    ("mouse_front", ["bcr", "earr", "earl", "bcl"]),
+    ("mouse_face", ["earr", "nose", "earl"]),
 ]
+
 for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
     fc.each.define_dynamic_boundary(boundary_points, name=boundary_name)
-    fc.each.area_of_boundary(boundary_points, median=False).store()
+    fc.each.area_of_boundary()
 
 # Static arena boundaries + point list for distance-to-boundary features.
-STATIC_DISTANCE_BOUNDARIES = [
-    ("oft", ["tl", "tr", "br", "bl"], ["nose", "neck", "bodycentre", "tailbase"]),
-]
-for boundary_name, boundary_points, query_points in STATIC_DISTANCE_BOUNDARIES:
-    fc.each.define_static_boundary(boundary_points, name=boundary_name)
-    for pt in query_points:
-        fc.each.distance_to_boundary(pt, boundary_name).store()
+fc.each.define_static_boundary(points=["tl", "tr", "br", "bl"], name="oft")
+STATIC_DISTANCE_TO_BOUNDARY_POINTS = ["nose", "neck", "bodycentre", "tailbase"]
+
+for pt in STATIC_DISTANCE_TO_BOUNDARY_POINTS:
+    fc.each.distance_to_boundary(pt, "oft").store()
 
 # Inspect stored boundary assets on one recording.
 # Return type: DataFrame with one row per stored boundary and columns like
@@ -363,7 +358,7 @@ features = fc[0].data.columns
 offset = list(np.arange(-15, 16, 1))
 embedding_dict = {f: offset for f in features}
 
-cluster_labels, centroids, _ = fc.cluster_embedding(
+cluster_labels, centroids, _ = fc.cluster_embedding_stream(
     embedding_dict=embedding_dict, n_clusters=N_CLUSTERS
 )
 cluster_labels.store("kmeans_25", overwrite=True)
@@ -501,9 +496,9 @@ sc = p3b.SummaryCollection.from_features_collection(fc)
 # - then `.store(...)` to persist by metric name.
 
 # %%
-sc.total_distance("bodycentre").store()
-sc.time_true("within_boundary_static_bodycentre_in_center").store("time_in_center")
-sc.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
+sc.each.total_distance("bodycentre").store()
+sc.each.time_true("within_boundary_static_bodycentre_in_center").store("time_in_center")
+sc.each.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
 
 # %% [markdown]
 # ### Export results to CSV
