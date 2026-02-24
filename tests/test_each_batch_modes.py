@@ -141,6 +141,12 @@ def test_each_invalid_batchresult_mapping_raises():
         coll.each.label(bad)
 
 
+def test_direct_batch_passthrough_removed_with_clear_message():
+    coll = _make_collection()
+    with pytest.raises(NotImplementedError, match=r"DummyCollection\.each\.value\(\)"):
+        coll.value()
+
+
 def test_batchresult_scalar_arithmetic_and_comparison():
     coll = _make_collection()
     out = BatchResult(

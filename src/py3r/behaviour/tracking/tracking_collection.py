@@ -6,16 +6,13 @@ from typing import Literal
 import pandas as pd
 
 from py3r.behaviour.tracking.tracking import Tracking
-from py3r.behaviour.tracking.tracking_collection_batch_mixin import (
-    TrackingCollectionBatchMixin,
-)
 from py3r.behaviour.tracking.tracking_mv import TrackingMV
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
 
 
-class TrackingCollection(BaseCollection, TrackingCollectionBatchMixin):
+class TrackingCollection(BaseCollection):
     """
     Collection of Tracking objects, keyed by name (e.g. for grouping individuals)
     note: type-hints refer to Tracking, but factory methods allow for other classes

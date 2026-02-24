@@ -655,7 +655,7 @@ Also available: `snsbox`, `snsviolin`, `snspoint`, `snsswarm`.
 <div class="nb-cell-input" markdown>
 
 ```python
-sc.time_in_state("kmeans_25").store("time_in_cluster")
+sc.each.time_in_state("kmeans_25").store("time_in_cluster")
 fig, ax, df_strip = sc.snsstrip(
     "time_in_cluster",
     show=True,
@@ -673,11 +673,6 @@ fig, ax, df_super = sc.snssuperplot(
 )
 ```
 
-</div>
-
-<div class="nb-cell-output">
-<pre><code>/var/folders/c5/vcdvxhz16l1f6lh48b5851lw0000gp/T/ipykernel_37799/3478018569.py:1: DeprecationWarning: Direct batch passthrough via SummaryCollectionBatchMixin.time_in_state() is deprecated; use SummaryCollection.each.time_in_state() instead.
-  sc.time_in_state(&quot;kmeans_25&quot;).store(&quot;time_in_cluster&quot;)</code></pre>
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>

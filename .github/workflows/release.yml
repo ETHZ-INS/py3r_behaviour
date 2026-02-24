@@ -45,13 +45,6 @@ jobs:
             'mkdocstrings[python]' mkdocs-material mike mkdocs-autorefs \
             xdoctest pytest toml
 
-      - name: Generate batch mixins
-        run: python -m tools.gen_batch_mixins
-
-      - name: Enforce generated files committed
-        run: |
-          git diff --exit-code || (echo "Uncommitted changes after generation. Commit mixins." && exit 1)
-
       - name: Run tests
         run: pytest -q --xdoctest --xdoctest-modules
 

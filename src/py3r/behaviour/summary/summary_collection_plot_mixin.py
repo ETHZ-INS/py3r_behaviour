@@ -1003,7 +1003,7 @@ class SummaryCollectionPlotMixin:
         ...     f.store(pd.Series(([True, False] * 15)[:len(idx)], index=idx),
         ...             'active', meta={})
         >>> sc = SummaryCollection.from_features_collection(fc)
-        >>> fig, ax, df = sc.snsstrip(sc.time_in_state('active'), show=False)
+        >>> fig, ax, df = sc.snsstrip(sc.each.time_in_state('active'), show=False)
         >>> isinstance(df, pd.DataFrame)
         True
 
@@ -1374,7 +1374,7 @@ class SummaryCollectionPlotMixin:
         ...                        index=f.tracking.data.index)
         ...     f.store(states, 'zone', meta={})
         >>> sc = SummaryCollection.from_features_collection(fc)
-        >>> fig, ax, df = sc.snssuperplot(sc.time_in_state('zone'), show=False)
+        >>> fig, ax, df = sc.snssuperplot(sc.each.time_in_state('zone'), show=False)
         >>> isinstance(df, pd.DataFrame)
         True
 

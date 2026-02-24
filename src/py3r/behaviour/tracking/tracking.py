@@ -1126,75 +1126,17 @@ class Tracking:
         """
         deprecated, use smooth_all instead
         """
-        # deprecation warning
-        warnings.warn(
-            "generate_smoothdict is deprecated. use smooth_all instead.",
-            DeprecationWarning,
-            stacklevel=2,
+        raise NotImplementedError(
+            "Tracking.generate_smoothdict() was removed; use Tracking.smooth_all() instead."
         )
-        assert len(pointslists) == len(windows)
-        assert len(pointslists) == len(smoothtypes)
-
-        smoothdict = dict()
-        for i in range(len(pointslists)):
-            partial = self._generate_partial_smoothdict(pointslists[i], windows[i], smoothtypes[i])
-            if len(set(smoothdict.keys()).intersection(set(partial.keys()))) > 0:
-                raise Exception("duplicate points detected")
-            smoothdict = {**smoothdict, **partial}
-        return smoothdict
 
     def smooth(self, smoothing_params: dict) -> None:
         """
         deprecated, use smooth_all instead
         """
-        # deprecation warning
-        warnings.warn(
-            "smooth is deprecated. use smooth_all instead.",
-            DeprecationWarning,
-            stacklevel=2,
+        raise NotImplementedError(
+            "Tracking.smooth() was removed; use Tracking.smooth_all() instead."
         )
-
-        if "smoothing" in self.meta.keys():
-            raise Exception("data already smoothed. load again to use different smoothing")
-
-        all_points = self.get_point_names()
-
-        if len(set(all_points).difference(smoothing_params.keys())) > 0:
-            raise Exception("all tracked points must be specified for smoothing")
-
-        for point in smoothing_params.keys():
-            if smoothing_params[point]["type"] == "mean":
-                self.data[point + ".x"] = (
-                    self.data[point + ".x"].rolling(window=smoothing_params[point]["window"]).mean()
-                )
-                self.data[point + ".y"] = (
-                    self.data[point + ".y"].rolling(window=smoothing_params[point]["window"]).mean()
-                )
-                if point + ".z" in self.data.columns:
-                    self.data[point + ".z"] = (
-                        self.data[point + ".z"]
-                        .rolling(window=smoothing_params[point]["window"])
-                        .mean()
-                    )
-            if smoothing_params[point]["type"] == "median":
-                self.data[point + ".x"] = (
-                    self.data[point + ".x"]
-                    .rolling(window=smoothing_params[point]["window"])
-                    .median()
-                )
-                self.data[point + ".y"] = (
-                    self.data[point + ".y"]
-                    .rolling(window=smoothing_params[point]["window"])
-                    .median()
-                )
-                if point + ".z" in self.data.columns:
-                    self.data[point + ".z"] = (
-                        self.data[point + ".z"]
-                        .rolling(window=smoothing_params[point]["window"])
-                        .median()
-                    )
-
-        self.meta["smoothing"] = smoothing_params
 
     def smooth_all(
         self,

@@ -10,12 +10,3 @@ repos:
     hooks:
       - id: ruff-format
       - id: ruff-check
-
-  - repo: local
-    hooks:
-      - id: generate-batch-mixins
-        name: generate batch mixins
-        entry: python tools/gen_batch_mixins.py
-        language: system
-        pass_filenames: false
-        stages: [manual]

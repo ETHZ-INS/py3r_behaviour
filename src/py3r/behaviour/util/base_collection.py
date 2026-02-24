@@ -564,28 +564,21 @@ class BaseCollection(MutableMapping):
     # ---- Dynamic fallback for user-extended leaf APIs ----
     def __getattr__(self, name):
         """
-        Dynamic batch wrapper fallback for methods that are not explicitly
-        provided by generated batch mixins.
+        Hard-fail direct batch passthrough and point users to ``.each``.
 
-        - If `name` is a public callable on the leaf objects, return a callable
-          that dispatches via the legacy grouped-aware batch dispatcher
-          (uniform broadcast semantics).
-        - Keeps BatchProcessError wrapping semantics from ``_invoke_batch``.
-        - Avoids intercepting private/dunder names.
+        If ``name`` resolves to a public callable on leaf objects, return a
+        callable that raises a migration error when invoked:
+        ``collection.method(...)`` -> ``collection.each.method(...)``.
+        Private/dunder names are not intercepted.
         """
         leaf_attr = self._get_leaf_callable(name)
 
-        # Build a thin wrapper that routes to the batch dispatcher.
+        # Build a thin wrapper that raises with migration guidance.
         def _batch_wrapper(*args, **kwargs):
-            warnings.warn(
-                (
-                    f"Direct batch passthrough via {self.__class__.__name__}.{name}() "
-                    f"is deprecated; use {self.__class__.__name__}.each.{name}() instead."
-                ),
-                DeprecationWarning,
-                stacklevel=2,
+            raise NotImplementedError(
+                f"Direct batch passthrough via {self.__class__.__name__}.{name}() "
+                f"was removed; use {self.__class__.__name__}.each.{name}() instead."
             )
-            return self._invoke_batch(name, *args, **kwargs)
 
         # Best-effort attach docstring/name for nicer help() / hover info
         try:

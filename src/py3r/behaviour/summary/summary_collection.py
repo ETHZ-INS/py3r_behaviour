@@ -6,9 +6,6 @@ import pandas as pd
 
 from py3r.behaviour.features.features_collection import FeaturesCollection
 from py3r.behaviour.summary.summary import Summary
-from py3r.behaviour.summary.summary_collection_batch_mixin import (
-    SummaryCollectionBatchMixin,
-)
 from py3r.behaviour.summary.summary_collection_plot_mixin import (
     SummaryCollectionPlotMixin,
 )
@@ -16,7 +13,7 @@ from py3r.behaviour.summary.summary_result import SummaryResult
 from py3r.behaviour.util.base_collection import BaseCollection
 
 
-class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryCollectionPlotMixin):
+class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     """
     collection of Summary objects
     (e.g. for grouping individuals)
@@ -357,7 +354,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
         from itertools import combinations
 
         # batch calculate transition matrix for each summary object
-        transition_matrices_result = self.transition_matrix(column, all_states)
+        transition_matrices_result = self.each.transition_matrix(column, all_states)
         # Extract the .value from each SummaryResult in the nested dict
         transition_matrices = {
             group: {k: v.value for k, v in d.items()}
@@ -690,7 +687,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
             raise ValueError("UMAP plot requires a grouped SummaryCollection (call groupby first).")
 
         # Compute transition matrices per subject per group
-        matrices_result = self.transition_matrix(column, all_states)
+        matrices_result = self.each.transition_matrix(column, all_states)
         matrices = {
             group: {k: v.value for k, v in d.items()} for group, d in matrices_result.items()
         }

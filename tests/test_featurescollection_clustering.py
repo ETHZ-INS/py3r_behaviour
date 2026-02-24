@@ -221,157 +221,44 @@ class TestFeatureWeights:
 
 
 # ---------------------------------------------------------------------------
-# New pathway vs deprecated pathway — identical results
+# Removed deprecated params
 # ---------------------------------------------------------------------------
 
 
-class TestNewVsDeprecated:
-    """
-    The new and deprecated params should produce identical results under
-    equivalent configurations.
-    """
-
+class TestRemovedLegacyClusterParams:
     @pytest.fixture()
     def fc_and_embedding(self):
         return _make_fc(
             n_objects=3, n_frames=200, inject_nans=False, add_constant_feature=False, seed=99
         )
 
-    def test_no_scaling_identical(self, fc_and_embedding):
-        """No scaling at all — both paths must be bit-for-bit identical."""
+    def test_auto_normalize_removed(self, fc_and_embedding):
         fc, emb = fc_and_embedding
-        batch_new, cents_new, sf_new = fc.cluster_embedding(
-            emb,
-            n_clusters=3,
-            random_state=7,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            batch_dep, cents_dep, sf_dep = fc.cluster_embedding(
+        with pytest.raises(NotImplementedError, match="auto_normalize"):
+            fc.cluster_embedding(emb, n_clusters=3, auto_normalize=True)
+
+    def test_rescale_factors_removed(self, fc_and_embedding):
+        fc, emb = fc_and_embedding
+        with pytest.raises(NotImplementedError, match="rescale_factors"):
+            fc.cluster_embedding(emb, n_clusters=3, rescale_factors={"speed_t0": 1.0})
+
+    def test_custom_scaling_removed(self, fc_and_embedding):
+        fc, emb = fc_and_embedding
+        with pytest.raises(NotImplementedError, match="custom_scaling"):
+            fc.cluster_embedding(
                 emb,
                 n_clusters=3,
-                random_state=7,
-            )
-        assert sf_new is None and sf_dep is None
-        pd.testing.assert_frame_equal(
-            _sort_centroids(cents_new),
-            _sort_centroids(cents_dep),
-        )
-        for key in batch_new.keys():
-            pd.testing.assert_series_equal(
-                pd.Series(batch_new[key]),
-                pd.Series(batch_dep[key]),
+                custom_scaling={"speed": {"scale": 1.0}},
             )
 
-    def test_normalize_vs_auto_normalize_shift0(self, fc_and_embedding):
-        """
-        With shift=0 only, the new per-base-feature stds and the old
-        per-embedding-column stds are computed on the same values.  Both use
-        population std (ddof=0) but differ in accumulation dtype (float64
-        streaming vs float32 pandas).  We therefore compare with a modest
-        tolerance and verify that labels agree.
-
-        lowmem=False avoids decimation so both paths see the same rows.
-        """
-        fc, _ = fc_and_embedding
-        emb_zero = {"speed": [0], "accel": [0]}
-
-        batch_new, cents_new, sf_new = fc.cluster_embedding(
-            emb_zero,
-            n_clusters=3,
-            random_state=7,
-            normalize=True,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            batch_dep, cents_dep, sf_dep = fc.cluster_embedding(
-                emb_zero,
-                n_clusters=3,
-                random_state=7,
-                auto_normalize=True,
-            )
-
-        assert sf_new is not None and sf_dep is not None
-
-        # sf_new is multiply-style (1/std), sf_dep is divide-style (std)
-        for col in sf_dep:
-            np.testing.assert_allclose(
-                sf_new[col],
-                1.0 / sf_dep[col],
-                rtol=5e-3,
-                err_msg=f"Scaling factor mismatch on {col}",
-            )
-
-        # Centroids live in the normalised space; the tiny std difference
-        # feeds through, so allow a small tolerance.
-        c_new = _sort_centroids(cents_new).astype(np.float64)
-        c_dep = _sort_centroids(cents_dep).astype(np.float64)
-        np.testing.assert_allclose(c_new.values, c_dep.values, atol=0.1)
-
-        for key in batch_new.keys():
-            pd.testing.assert_series_equal(
-                pd.Series(batch_new[key]),
-                pd.Series(batch_dep[key]),
-            )
-
-    def test_explicit_feature_weights_vs_custom_scaling(self, fc_and_embedding):
-        """
-        feature_weights={col: w} should produce the same scaled data as
-        custom_scaling={substring: {normalize: False, scale: w}} when
-        normalize=False.
-        """
-        fc, _ = fc_and_embedding
-        emb = {"speed": [0], "accel": [0]}
-
-        weights = {"speed_t0": 4.0, "accel_t0": 2.0}
-        batch_new, cents_new, sf_new = fc.cluster_embedding(
-            emb,
-            n_clusters=3,
-            random_state=7,
-            feature_weights=weights,
-        )
-
-        cs = {
-            "speed": {"normalize": False, "scale": 4.0},
-            "accel": {"normalize": False, "scale": 2.0},
-        }
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            batch_dep, cents_dep, sf_dep = fc.cluster_embedding(
-                emb,
-                n_clusters=3,
-                random_state=7,
-                custom_scaling=cs,
-            )
-
-        c_new = _sort_centroids(cents_new).astype(np.float64)
-        c_dep = _sort_centroids(cents_dep).astype(np.float64)
-        pd.testing.assert_frame_equal(c_new, c_dep, atol=1e-4)
-
-        for key in batch_new.keys():
-            pd.testing.assert_series_equal(
-                pd.Series(batch_new[key]),
-                pd.Series(batch_dep[key]),
-            )
-
-    def test_mixing_new_and_deprecated_raises(self, fc_and_embedding):
+    def test_new_and_removed_params_combination_also_fails(self, fc_and_embedding):
         fc, emb = fc_and_embedding
-        with pytest.raises(ValueError, match="Cannot mix"):
+        with pytest.raises(NotImplementedError, match="auto_normalize"):
             fc.cluster_embedding(
                 emb,
                 n_clusters=3,
                 normalize=True,
                 auto_normalize=True,
-            )
-
-    def test_deprecated_params_warn(self, fc_and_embedding):
-        fc, emb = fc_and_embedding
-        with pytest.warns(DeprecationWarning, match="auto_normalize"):
-            fc.cluster_embedding(
-                emb,
-                n_clusters=3,
-                auto_normalize=True,
-                lowmem=True,
             )
 
 
@@ -544,17 +431,17 @@ class TestAssignClusters:
         assert len(result) == len(feat.data)
         assert pd.Series(result).notna().sum() > 0
 
-    def test_deprecated_rescale_warns(self, setup):
+    def test_removed_rescale_factors_raises(self, setup):
         feat, emb, cents, sf = setup
         # Build a valid rescale_factors dict covering all embedding columns
         embed_cols = feat.embedding_df(emb).columns
         rf = {c: 1.0 for c in embed_cols}
-        with pytest.warns(DeprecationWarning, match="rescale_factors"):
+        with pytest.raises(NotImplementedError, match="rescale_factors"):
             feat.assign_clusters_by_centroids(emb, cents, rescale_factors=rf)
 
-    def test_deprecated_custom_scaling_warns(self, setup):
+    def test_removed_custom_scaling_raises(self, setup):
         feat, emb, cents, _ = setup
-        with pytest.warns(DeprecationWarning, match="custom_scaling"):
+        with pytest.raises(NotImplementedError, match="custom_scaling"):
             feat.assign_clusters_by_centroids(
                 emb,
                 cents,
