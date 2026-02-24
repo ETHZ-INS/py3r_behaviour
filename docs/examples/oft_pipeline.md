@@ -358,23 +358,22 @@ for p1, p2 in [
 # Boundary definitions for BFA kinematic features.
 # Dynamic boundaries are stored per recording, then used for dynamic area.
 DYNAMIC_BODY_BOUNDARIES = [
-    ("tailbase_hipr_hipl", ["tailbase", "hipr", "hipl"]),
-    ("hipr_hipl_bcl_bcr", ["hipr", "hipl", "bcl", "bcr"]),
-    ("bcr_earr_earl_bcl", ["bcr", "earr", "earl", "bcl"]),
-    ("earr_nose_earl", ["earr", "nose", "earl"]),
+    ("mouse_rear", ["tailbase", "hipr", "hipl"]),
+    ("mouse_mid", ["hipr", "hipl", "bcl", "bcr"]),
+    ("mouse_front", ["bcr", "earr", "earl", "bcl"]),
+    ("mouse_face", ["earr", "nose", "earl"]),
 ]
+
 for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
     fc.each.define_dynamic_boundary(boundary_points, name=boundary_name)
-    fc.each.area_of_boundary(boundary_points, median=False).store()
+    fc.each.area_of_boundary(boundary_name).store()
 
 # Static arena boundaries + point list for distance-to-boundary features.
-STATIC_DISTANCE_BOUNDARIES = [
-    ("oft", ["tl", "tr", "br", "bl"], ["nose", "neck", "bodycentre", "tailbase"]),
-]
-for boundary_name, boundary_points, query_points in STATIC_DISTANCE_BOUNDARIES:
-    fc.each.define_static_boundary(boundary_points, name=boundary_name)
-    for pt in query_points:
-        fc.each.distance_to_boundary(pt, boundary_name).store()
+fc.each.define_static_boundary(points=["tl", "tr", "br", "bl"], name="oft")
+STATIC_DISTANCE_TO_BOUNDARY_POINTS = ["nose", "neck", "bodycentre", "tailbase"]
+
+for pt in STATIC_DISTANCE_TO_BOUNDARY_POINTS:
+    fc.each.distance_to_boundary(pt, "oft").store()
 
 # Inspect stored boundary assets on one recording.
 # Return type: DataFrame with one row per stored boundary and columns like
@@ -382,17 +381,6 @@ for boundary_name, boundary_points, query_points in STATIC_DISTANCE_BOUNDARIES:
 fc[0].list_boundaries()
 ```
 
-</div>
-
-<div class="nb-cell-output">
-<pre><code>/Users/work/Documents/GitHub/py3r_behaviour/src/py3r/behaviour/util/base_collection.py:323: UserWarning: using fully dynamic boundary
-  results[obj_key] = getattr(obj, _method_name)(*leaf_args, **leaf_kwargs)
-/Users/work/Documents/GitHub/py3r_behaviour/src/py3r/behaviour/util/base_collection.py:323: UserWarning: using fully dynamic boundary
-  results[obj_key] = getattr(obj, _method_name)(*leaf_args, **leaf_kwargs)
-/Users/work/Documents/GitHub/py3r_behaviour/src/py3r/behaviour/util/base_collection.py:323: UserWarning: using fully dynamic boundary
-  results[obj_key] = getattr(obj, _method_name)(*leaf_args, **leaf_kwargs)
-/Users/work/Documents/GitHub/py3r_behaviour/src/py3r/behaviour/util/base_collection.py:323: UserWarning: using fully dynamic boundary
-  results[obj_key] = getattr(obj, _method_name)(*leaf_args, **leaf_kwargs)</code></pre>
 </div>
 
 <div class="nb-cell-output nb-output-table">
@@ -433,25 +421,25 @@ fc[0].list_boundaries()
       <td>True</td>
     </tr>
     <tr>
-      <th>tailbase_hipr_hipl</th>
+      <th>mouse_rear</th>
       <td>dynamic</td>
       <td>3</td>
       <td>False</td>
     </tr>
     <tr>
-      <th>hipr_hipl_bcl_bcr</th>
+      <th>mouse_mid</th>
       <td>dynamic</td>
       <td>4</td>
       <td>False</td>
     </tr>
     <tr>
-      <th>bcr_earr_earl_bcl</th>
+      <th>mouse_front</th>
       <td>dynamic</td>
       <td>4</td>
       <td>False</td>
     </tr>
     <tr>
-      <th>earr_nose_earl</th>
+      <th>mouse_face</th>
       <td>dynamic</td>
       <td>3</td>
       <td>False</td>
@@ -688,7 +676,7 @@ fig, ax, df_super = sc.snssuperplot(
 </div>
 
 <div class="nb-cell-output">
-<pre><code>/var/folders/c5/vcdvxhz16l1f6lh48b5851lw0000gp/T/ipykernel_13044/3478018569.py:1: DeprecationWarning: Direct batch passthrough via SummaryCollectionBatchMixin.time_in_state() is deprecated; use SummaryCollection.each.time_in_state() instead.
+<pre><code>/var/folders/c5/vcdvxhz16l1f6lh48b5851lw0000gp/T/ipykernel_37799/3478018569.py:1: DeprecationWarning: Direct batch passthrough via SummaryCollectionBatchMixin.time_in_state() is deprecated; use SummaryCollection.each.time_in_state() instead.
   sc.time_in_state(&quot;kmeans_25&quot;).store(&quot;time_in_cluster&quot;)</code></pre>
 </div>
 
@@ -777,7 +765,7 @@ fig, ax, df_gsup = sc_grouped.snssuperplot(
 ```python
 # Multi-component metric — 25 clusters × 4 groups
 fig, ax, df_gbar = sc_grouped.snsbar(
-    sc_grouped.time_in_state("kmeans_25"),
+    sc_grouped.each.time_in_state("kmeans_25"),
     group_order=GROUP_ORDER,
     show=True,
     savedir=str(OUT_DIR),
@@ -786,14 +774,9 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 
 </div>
 
-<div class="nb-cell-output">
-<pre><code>/var/folders/c5/vcdvxhz16l1f6lh48b5851lw0000gp/T/ipykernel_13044/2921511720.py:3: DeprecationWarning: Direct batch passthrough via SummaryCollectionBatchMixin.time_in_state() is deprecated; use SummaryCollection.each.time_in_state() instead.
-  sc_grouped.time_in_state(&quot;kmeans_25&quot;),</code></pre>
-</div>
-
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_42_1.png)
+![output](oft_pipeline_files/output_42_0.png)
 
 </div>
 
@@ -985,16 +968,11 @@ fig, ax, _ = sc.snsstrip("total_distance_bodycentre", show=False)
 
 # 2. SummaryResult object (inline)
 fig, ax, df_mc = sc.snsbar(
-    sc.time_in_state("within_boundary_static_bodycentre_in_center"),
+    sc.each.time_in_state("within_boundary_static_bodycentre_in_center"),
     show=False,
 )
 ```
 
-</div>
-
-<div class="nb-cell-output">
-<pre><code>/var/folders/c5/vcdvxhz16l1f6lh48b5851lw0000gp/T/ipykernel_13044/2247942772.py:6: DeprecationWarning: Direct batch passthrough via SummaryCollectionBatchMixin.time_in_state() is deprecated; use SummaryCollection.each.time_in_state() instead.
-  sc.time_in_state(&quot;within_boundary_static_bodycentre_in_center&quot;),</code></pre>
 </div>
 
 ## Behaviour Flow Analysis (BFA)
@@ -1161,19 +1139,9 @@ if not SKIP_HEAVY_VIZ:
 
 </div>
 
-<div class="nb-cell-output">
-<pre><code>/Users/work/Documents/GitHub/py3r_behaviour/.venv/lib/python3.12/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
-  from .autonotebook import tqdm as notebook_tqdm</code></pre>
-</div>
-
-<div class="nb-cell-output">
-<pre><code>/Users/work/Documents/GitHub/py3r_behaviour/.venv/lib/python3.12/site-packages/umap/umap_.py:1952: UserWarning: n_jobs value 1 overridden to 1 by setting random_state. Use no seed for parallelism.
-  warn(</code></pre>
-</div>
-
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_61_2.png)
+![output](oft_pipeline_files/output_61_0.png)
 
 </div>
 

@@ -326,7 +326,7 @@ DYNAMIC_BODY_BOUNDARIES = [
 
 for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
     fc.each.define_dynamic_boundary(boundary_points, name=boundary_name)
-    fc.each.area_of_boundary()
+    fc.each.area_of_boundary(boundary_name).store()
 
 # Static arena boundaries + point list for distance-to-boundary features.
 fc.each.define_static_boundary(points=["tl", "tr", "br", "bl"], name="oft")
@@ -665,7 +665,7 @@ fig, ax, df_gsup = sc_grouped.snssuperplot(
 # %%
 # Multi-component metric — 25 clusters × 4 groups
 fig, ax, df_gbar = sc_grouped.snsbar(
-    sc_grouped.time_in_state("kmeans_25"),
+    sc_grouped.each.time_in_state("kmeans_25"),
     group_order=GROUP_ORDER,
     show=True,
     savedir=str(OUT_DIR),
@@ -770,7 +770,7 @@ fig, ax, _ = sc.snsstrip("total_distance_bodycentre", show=False)
 
 # 2. SummaryResult object (inline)
 fig, ax, df_mc = sc.snsbar(
-    sc.time_in_state("within_boundary_static_bodycentre_in_center"),
+    sc.each.time_in_state("within_boundary_static_bodycentre_in_center"),
     show=False,
 )
 
@@ -782,19 +782,24 @@ for label, df_check in [
     ("bar", df_bar),
     ("super", df_super),
 ]:
-    assert {"component", "value", "_handle"} <= set(df_check.columns), (
-        f"{label}: missing required columns"
-    )
+    cols = set(df_check.columns)
+    assert {"component", "_handle"} <= cols, f"{label}: missing required id columns"
+    y_cols = [c for c in df_check.columns if c not in {"component", "_handle", "_group"}]
+    assert len(y_cols) >= 1, f"{label}: missing y-value column(s)"
     assert len(df_check) > 0, f"{label}: empty DataFrame"
 
 # --- Single Summary delegation ---
-assert {"component", "value", "_handle"} <= set(df_single.columns)
+cols_single = set(df_single.columns)
+assert {"component", "_handle"} <= cols_single
+y_cols_single = [c for c in df_single.columns if c not in {"component", "_handle", "_group"}]
+assert len(y_cols_single) >= 1
 
 # --- Grouped tidy DataFrame structure ---
 for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
-    assert {"component", "value", "_handle", "_group"} <= set(df_check.columns), (
-        f"{label}: missing required columns"
-    )
+    cols = set(df_check.columns)
+    assert {"component", "_handle", "_group"} <= cols, f"{label}: missing required columns"
+    y_cols = [c for c in df_check.columns if c not in {"component", "_handle", "_group"}]
+    assert len(y_cols) >= 1, f"{label}: missing y-value column(s)"
     assert df_check["_group"].nunique() > 1, f"{label}: expected multiple groups"
     assert len(df_check) > 0, f"{label}: empty DataFrame"
 
@@ -913,3 +918,5 @@ if SKIP_HEAVY_VIZ:
     print("(Skipped: chord diagrams, UMAP — requires pycirclize/umap-learn)")
 print("=" * 60)
 print(f"\nOutputs saved to: {OUT_DIR}")
+
+# %%

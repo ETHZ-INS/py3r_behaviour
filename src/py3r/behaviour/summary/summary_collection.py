@@ -751,8 +751,22 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
             min_dist=min_dist,
             random_state=random_state,
         )
+        import warnings
+
+        # UMAP warns that random_state forces single-threaded execution.
+        # That is expected here for reproducibility, so suppress this one warning.
+        _umap_njobs_warn = (
+            r"n_jobs value .* overridden to 1 by setting random_state\. "
+            r"Use no seed for parallelism\."
+        )
         try:
-            embedding = reducer.fit_transform(X_scaled)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=_umap_njobs_warn,
+                    category=UserWarning,
+                )
+                embedding = reducer.fit_transform(X_scaled)
         except TypeError:
             # fallback to random init if spectral layout fails for very small graphs
             reducer = umap.UMAP(
@@ -761,7 +775,13 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin, SummaryColl
                 random_state=random_state,
                 init="random",
             )
-            embedding = reducer.fit_transform(X_scaled)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=_umap_njobs_warn,
+                    category=UserWarning,
+                )
+                embedding = reducer.fit_transform(X_scaled)
 
         # Plot
         fig, ax = plt.subplots(figsize=figsize, facecolor="white")
