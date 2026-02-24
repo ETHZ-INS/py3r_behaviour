@@ -1,25 +1,10 @@
 # %% [markdown]
-# # Open Field Test (OFT) — Full Analysis Pipeline
-#
-# This notebook demonstrates a complete OFT analysis workflow using
-# `py3r.behaviour`, from raw DeepLabCut tracking CSVs through to
-# publication-ready figures and behaviour flow analysis (BFA).
-#
-# **Sections**
-#
-# 1. Setup
-# 2. Load & Preprocess
-# 3. Compute Features
-# 4. Summarise
-# 5. Visualise
-# 6. Behaviour Flow Analysis
+# # Open Field Test (OFT) — Full analysis pipeline example
 
 # %% [markdown]
-# ## 1. Setup
+# ## Setup
 
 # %%
-TEST_MODE = True
-
 import json
 import os
 from pathlib import Path
@@ -32,206 +17,284 @@ import py3r.behaviour as p3b
 # Skip heavy visualisation deps (pycirclize, umap-learn) in CI
 SKIP_HEAVY_VIZ = os.environ.get("CI", "").lower() in ("true", "1", "yes")
 
-# Paths — point these at your own data outside test mode
-if TEST_MODE:
-    DATA_DIR = Path("data/tracking")
-    TAGS_CSV = Path("data/tags.csv")
-else:
-    raise NotImplementedError("Example dataset artifact not yet bundled with package")
+# Paths
+DATA_DIR = Path("data/tracking")
+TAGS_CSV = Path("data/tags.csv")
 
 OUT_DIR = Path(os.environ.get("NB_OUT_DIR", Path.cwd() / "_artifacts"))
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Constants
-FPS = 25
+FPS = 30
 N_CLUSTERS = 25
 
 # %% [markdown]
-# ## 2. Load & Preprocess
+# ## Load & Preprocess
 
 # %% [markdown]
-# ### 2.1 Load tracking data
+# ### Load tracking data
 #
 # Load a `TrackingCollection` from a folder of DeepLabCut CSV files.
 # Each CSV becomes one `Tracking` object keyed by its filename stem.
+# The provided `fps` is written into each leaf's metadata for downstream methods.
+# Return type here is `TrackingCollection`.
+# Alternative loaders with the same pattern: `from_yolo3r_folder`, `from_dlcma_folder`.
 
 # %%
 tc = p3b.TrackingCollection.from_dlc_folder(
     folder_path=DATA_DIR,
     fps=FPS,
-    aspectratio_correction=0.75,
 )
 print(tc)
+# Main object types in `py3r.behaviour` implement `.copy()`.
+# We'll keep an untouched copy for didactic examples in this notebook.
+tc_raw_for_demo = tc.copy()
 
 # %%
 # norender
-if TEST_MODE:
-    # Structural checks on raw data (before preprocessing alters values)
-    expected_handles = {p.stem for p in Path(DATA_DIR).glob("*.csv")}
-    assert len(expected_handles) > 0, "No CSVs found in DATA_DIR"
-    assert set(tc.keys()) == expected_handles
-    assert len(tc) == len(expected_handles)
+# Structural checks on raw data (before preprocessing alters values)
+expected_handles = {p.stem for p in Path(DATA_DIR).glob("*.csv")}
+assert len(expected_handles) > 0, "No CSVs found in DATA_DIR"
+assert set(tc.keys()) == expected_handles
+assert len(tc) == len(expected_handles)
 
-    for handle, t in tc.items():
-        assert t.handle == handle
-        assert "fps" in t.meta and float(t.meta["fps"]) == FPS
-        df = t.data
-        assert isinstance(df, pd.DataFrame)
-        assert df.index.name == "frame"
-        assert df.index.is_monotonic_increasing
-        assert np.issubdtype(df.index.dtype, np.integer)
-        cols = df.columns.astype(str)
-        assert any(c.endswith(".x") for c in cols), f"{handle} missing .x columns"
-        assert any(c.endswith(".y") for c in cols), f"{handle} missing .y columns"
-        like_cols = [c for c in cols if c.endswith(".likelihood")]
-        if like_cols:
-            lk = df[like_cols].to_numpy()
-            assert np.isfinite(lk).all()
-            assert (lk >= 0).all() and (lk <= 1).all()
+for handle, t in tc.items():
+    assert t.handle == handle
+    assert "fps" in t.meta and float(t.meta["fps"]) == FPS
+    df = t.data
+    assert isinstance(df, pd.DataFrame)
+    assert df.index.name == "frame"
+    assert df.index.is_monotonic_increasing
+    assert np.issubdtype(df.index.dtype, np.integer)
+    cols = df.columns.astype(str)
+    assert any(c.endswith(".x") for c in cols), f"{handle} missing .x columns"
+    assert any(c.endswith(".y") for c in cols), f"{handle} missing .y columns"
+    like_cols = [c for c in cols if c.endswith(".likelihood")]
+    if like_cols:
+        lk = df[like_cols].to_numpy()
+        assert np.isfinite(lk).all()
+        assert (lk >= 0).all() and (lk <= 1).all()
 
-    print("Loading tests passed.")
+print("Loading tests passed.")
 
 # %% [markdown]
-# ### 2.2 Add experimental tags
+# ### Add experimental tags
 #
 # A tags CSV maps recording handles to experimental metadata.
-# It must contain a `handle` column matching filenames (without extension);
+# It must contain a `handle` column matching filename stems;
 # every other column becomes a tag key–value pair.
+# `tags_info()` is a quick schema check: coverage and cardinality per tag.
+# `add_tags_from_csv(...)` mutates each `Tracking` in-place and returns `None`.
 
 # %%
 tc.add_tags_from_csv(csv_path=TAGS_CSV)
 tc.tags_info()
+# %% [markdown]
+# ### Didactic: batch processing
+#
+# With a `TrackingCollection`, `.each` delegates calls to every `Tracking`.
+# Think "batch call the same `Tracking` method for all recordings".
+#
+# Methods on `Tracking` are `inplace=True` by default, and `.each` will return a `BatchResult.
+# If `inplace=False` then `.each` returns a `TrackingCollection`.
+#
+# Passing a `BatchResult` argument back into `.each` maps values by handle
+
+# %%
+demo_inplace = tc_raw_for_demo.copy().each.filter_likelihood(threshold=0.9)
+demo_new_collection = tc_raw_for_demo.copy().each.filter_likelihood(
+    threshold=0.9,
+    inplace=False,
+)
+print(type(demo_inplace).__name__)  # expected: BatchResult
+print(type(demo_new_collection).__name__)  # expected: TrackingCollection
 
 # %% [markdown]
-# ### 2.3 Preprocess
+# ### Preprocess
 #
 # Standard preprocessing chain: remove low-confidence detections,
 # interpolate short gaps, smooth trajectories, and rescale coordinates
 # to real-world units.
+# This order is intentional: filter -> interpolate -> smooth -> rescale.
+#
+# In this main path we use in-place behavior (typical analysis workflow).
+# Equivalent non-in-place variants are shown above in the didactic batch section.
 
 # %%
-tc.filter_likelihood(threshold=0.5)
-tc.interpolate(limit=5)
-tc.smooth_all(window=3, method="mean")
-tc.each.rescale_by_known_distance(point1="tl", point2="br", distance_in_metres=0.64)
+# `filter_likelihood`: masks low-confidence coordinates as NaN.
+tc.each.filter_likelihood(threshold=0.9)
+tc.each.interpolate(limit=5)
+tc.each.smooth_all(window=3, method="mean")
+tc.each.rescale_by_known_distance(
+    point1="tl",
+    point2="br",
+    distance_in_metres=0.64,
+)
+
 # %% [markdown]
-# ### 2.4 Quality check — trajectory plots
+# Generally these preprocessing methods have guards against re-application,
+# so for parameter tuning, set `inplace=False`
+
+# %%
+try:
+    tc.each.interpolate(limit=5)
+except Exception as e:
+    print(e)
+
+
+# %% [markdown]
+# ### Quality check — trajectory plots
 #
 # Save trajectory plots for every recording and display one inline for QC.
+# Pattern used here:
+# - batch save all (`tc.each.plot(..., savedir=...)`)
+# - inspect one representative recording inline (`tc[0].plot(...)`)
 
 # %%
 trajectories = ["bodycentre"]
 static = ["tl", "tr", "bl", "br"]
 lines = [("tr", "tl"), ("tl", "bl"), ("bl", "br"), ("br", "tr")]
 
-tc.plot(trajectories=trajectories, static=static, lines=lines, show=False, savedir=OUT_DIR)
+tc.each.plot(trajectories=trajectories, static=static, lines=lines, show=False, savedir=OUT_DIR)
 
 # Single inline plot for visual QC
 tc[0].plot(trajectories=trajectories, static=static, lines=lines, show=True)
 
 # %%
 # norender
-if TEST_MODE:
-    # --- Tag checks ---
-    tags_df = pd.read_csv(TAGS_CSV)
-    present = tags_df[tags_df["handle"].isin(list(tc.keys()))]
-    assert not present.empty, "tags.csv has no handles matching loaded data"
-    required_cols = [c for c in tags_df.columns if c != "handle"]
-    assert "treatment" in required_cols
-    assert "timepoint" in required_cols
-    for _, row in present.iterrows():
-        h = row["handle"]
-        tags = tc[h].tags
-        for col in required_cols:
-            assert col in tags, f"missing tag {col} for {h}"
-            assert str(tags[col]) == str(row[col])
-    expected_treatments = set(present["treatment"].unique().tolist())
-    got_treatments = {tc[h].tags.get("treatment") for h in present["handle"]}
-    assert got_treatments == expected_treatments
+# --- Tag checks ---
+tags_df = pd.read_csv(TAGS_CSV)
+present = tags_df[tags_df["handle"].isin(list(tc.keys()))]
+assert not present.empty, "tags.csv has no handles matching loaded data"
+required_cols = [c for c in tags_df.columns if c != "handle"]
+assert "treatment" in required_cols
+assert "timepoint" in required_cols
+for _, row in present.iterrows():
+    h = row["handle"]
+    tags = tc[h].tags
+    for col in required_cols:
+        assert col in tags, f"missing tag {col} for {h}"
+        assert str(tags[col]) == str(row[col])
+expected_treatments = set(present["treatment"].unique().tolist())
+got_treatments = {tc[h].tags.get("treatment") for h in present["handle"]}
+assert got_treatments == expected_treatments
 
-    # --- Preprocessing metadata ---
-    for handle, t in tc.items():
-        meta = t.meta
-        assert float(meta["fps"]) == FPS
-        assert "interpolation" in meta, f"{handle}: missing interpolation meta"
-        assert "smoothing" in meta, f"{handle}: missing smoothing meta"
-        assert meta.get("distance_units") == "m"
+# --- Preprocessing metadata ---
+for handle, t in tc.items():
+    meta = t.meta
+    assert float(meta["fps"]) == FPS
+    assert "interpolation" in meta, f"{handle}: missing interpolation meta"
+    assert "smoothing" in meta, f"{handle}: missing smoothing meta"
+    assert meta.get("distance_units") == "m"
 
-    # --- Golden coordinate values (post-preprocessing) ---
-    H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    GOLDEN_COORDS = {
-        H1: {
-            (10, "bodycentre.x"): 0.42322453052345843,
-            (10, "bodycentre.y"): 0.47276440015430876,
-            (50, "bodycentre.x"): 0.4075528138290211,
-            (50, "bodycentre.y"): 0.46311350683685765,
-        },
-        H2: {
-            (10, "bodycentre.x"): 0.6458406837205221,
-            (10, "bodycentre.y"): 0.6093473239614059,
-        },
-    }
-    for handle, coords in GOLDEN_COORDS.items():
-        if handle in tc:
-            for (frame, col), expected in coords.items():
-                got = float(tc[handle].data.loc[frame, col])
-                assert np.isclose(got, expected, rtol=1e-5), (
-                    f"{handle} {col}@{frame}: {got} != {expected}"
-                )
+# --- Golden coordinate values (post-preprocessing) ---
+H1 = "OFT1_1"
+H2 = "OFT1_10"
+GOLDEN_COORDS = {
+    H1: {
+        (10, "bodycentre.x"): 0.5627381131700598,
+        (10, "bodycentre.y"): 0.2774778306233837,
+        (50, "bodycentre.x"): 0.700039705397047,
+        (50, "bodycentre.y"): 0.41430397632776833,
+    },
+    H2: {
+        (10, "bodycentre.x"): 0.6185524853964406,
+        (10, "bodycentre.y"): 0.24807079148985997,
+        (50, "bodycentre.x"): 0.7445399009882802,
+        (50, "bodycentre.y"): 0.24343088410270214,
+    },
+}
+for handle, coords in GOLDEN_COORDS.items():
+    if handle in tc:
+        for (frame, col), expected in coords.items():
+            got = float(tc[handle].data.loc[frame, col])
+            assert np.isclose(got, expected, rtol=1e-5), (
+                f"{handle} {col}@{frame}: {got} != {expected}"
+            )
 
-    # --- Trajectory plot files ---
-    has_plot = any(p.suffix.lower() in {".png", ".jpg", ".svg"} for p in OUT_DIR.glob("*"))
-    assert has_plot, f"No plot files in {OUT_DIR}"
+# --- Trajectory plot files ---
+has_plot = any(p.suffix.lower() in {".png", ".jpg", ".svg"} for p in OUT_DIR.glob("*"))
+assert has_plot, f"No plot files in {OUT_DIR}"
 
-    print("Tags, preprocessing, and trajectory plot tests passed.")
-
-# %% [markdown]
-# ## 3. Compute Features
+print("Tags, preprocessing, and trajectory plot tests passed.")
 
 # %% [markdown]
-# ### 3.1 Create FeaturesCollection
+# ## Compute Features
+
+# %% [markdown]
+# ### Create FeaturesCollection
 #
 # A `FeaturesCollection` wraps every recording's tracking data with
 # methods for computing time-series features.
+# Most feature methods return `FeaturesResult`; call `.store()` to persist
+# to `Features.data` and register metadata in `Features.meta`.
 
 # %%
 fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 # %% [markdown]
-# ### 3.2 Spatial features — center zone
+# ### Spatial features — center zone
 #
-# Define the center boundary from the arena corners and detect
-# when the mouse (bodycentre) is inside it.
+# Define/store named boundaries on each `Features` leaf, then use either:
+# - mapped `BatchResult` boundary objects (smart per-handle passthrough), or
+# - boundary names (resolved from stored per-recording assets).
+# Here we use both and assert they match.
 
 # %%
-center_boundary = fc.each.define_boundary(["tl", "tr", "bl", "br"], scaling=0.5)
-in_center = fc.each.within_boundary_static(
-    point="bodycentre", boundary=center_boundary, boundary_name="center"
+center_boundary = fc.each.define_static_boundary(
+    ["tl", "tr", "bl", "br"],
+    scale_dim1=0.5,
+    scale_dim2=0.5,
+    name="center",
 )
+
+# `center_boundary` is a BatchResult keyed by handle (one boundary per recording).
+# Passing it back into `.each` maps boundary arguments to matching handles.
+in_center = fc.each.within_boundary(point="bodycentre", boundary=center_boundary)
+# Alternative: use stored boundary names (`"center"`) instead of explicit objects.
+in_center_by_name = fc.each.within_boundary(point="bodycentre", boundary="center")
+for handle in fc.keys():
+    assert in_center[handle].equals(in_center_by_name[handle])
+
 in_center.store()
 
-dist_change = fc.distance_change("bodycentre")
+# `BatchResult` supports element-wise arithmetic across handles.
+# Here we gate distance moved by whether the animal is in center on each frame.
+dist_change = fc.each.distance_change("bodycentre")
 dist_change_in_center = in_center.astype("Int64") * dist_change
 dist_change_in_center.store(name="dist_change_bodycentre_in_center")
 
+# `BatchResult` also supports general binary operations.
+fast_outside_center = ~in_center & ((fc.each.speed("bodycentre") * 100) > 10.0)
+# this is just an example -- we won't store it.
+
 # %% [markdown]
-# ### 3.3 Kinematic features for BFA
+# ### Kinematic features for BFA
 #
 # Speeds, angle deviations, inter-keypoint distances, body-part areas,
 # and distance to the arena boundary — the standard feature set for
 # behavioural flow analysis clustering.
+# The loop pattern below intentionally stores each feature as a named column,
+# so later clustering/summary code can reference columns deterministically.
+#
+# Specific choices used here:
+# - For kinematic polygons, we define named dynamic boundaries, then compute
+#   dynamic area (`median=False`) over their ordered points.
+# - For arena distance, we define named static boundaries and loop over points.
 
 # %%
 # Speeds
 for pt in ["nose", "neck", "earr", "earl", "bodycentre", "hipl", "hipr", "tailbase"]:
-    fc.speed(pt).store()
+    fc.each.speed(pt).store()
 
 # Angle deviations
-fc.azimuth_deviation("tailbase", "hipr", "hipl").store()
-fc.azimuth_deviation("bodycentre", "tailbase", "neck").store()
-fc.azimuth_deviation("neck", "bodycentre", "headcentre").store()
-fc.azimuth_deviation("headcentre", "earr", "earl").store()
+for basepoint, pointdirection1, pointdirection2 in [
+    ("tailbase", "hipr", "hipl"),
+    ("bodycentre", "tailbase", "neck"),
+    ("neck", "bodycentre", "headcentre"),
+    ("headcentre", "earr", "earl"),
+]:
+    fc.each.azimuth_deviation(basepoint, pointdirection1, pointdirection2).store()
 
 # Inter-keypoint distances
 for p1, p2 in [
@@ -250,161 +313,198 @@ for p1, p2 in [
     ("nose", "earr"),
     ("nose", "earl"),
 ]:
-    fc.distance_between(p1, p2).store()
+    fc.each.distance_between(p1, p2).store()
 
-# Body-part areas
-fc.area_of_boundary(["tailbase", "hipr", "hipl"], median=False).store()
-fc.area_of_boundary(["hipr", "hipl", "bcl", "bcr"], median=False).store()
-fc.area_of_boundary(["bcr", "earr", "earl", "bcl"], median=False).store()
-fc.area_of_boundary(["earr", "nose", "earl"], median=False).store()
+# Boundary definitions for BFA kinematic features.
+# Dynamic boundaries are stored per recording, then used for dynamic area.
+DYNAMIC_BODY_BOUNDARIES = [
+    ("mouse_rear", ["tailbase", "hipr", "hipl"]),
+    ("mouse_mid", ["hipr", "hipl", "bcl", "bcr"]),
+    ("mouse_front", ["bcr", "earr", "earl", "bcl"]),
+    ("mouse_face", ["earr", "nose", "earl"]),
+]
 
-# Distance to arena boundary
-bdry = fc.each.define_boundary(["tl", "tr", "br", "bl"], scaling=1.0)
-for pt in ["nose", "neck", "bodycentre", "tailbase"]:
-    fc.each.distance_to_boundary_static(pt, bdry, boundary_name="oft").store()
+for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
+    fc.each.define_dynamic_boundary(boundary_points, name=boundary_name)
+    fc.each.area_of_boundary(boundary_name).store()
+
+# Static arena boundaries + point list for distance-to-boundary features.
+fc.each.define_static_boundary(points=["tl", "tr", "br", "bl"], name="oft")
+STATIC_DISTANCE_TO_BOUNDARY_POINTS = ["nose", "neck", "bodycentre", "tailbase"]
+
+for pt in STATIC_DISTANCE_TO_BOUNDARY_POINTS:
+    fc.each.distance_to_boundary(pt, "oft").store()
+
+# Inspect stored boundary assets on one recording.
+# Return type: DataFrame with one row per stored boundary and columns like
+# `kind`, `n_points`, `has_vertices`.
+fc[0].list_boundaries()
 
 # %% [markdown]
-# ### 3.4 K-means clustering
+# ### K-means clustering
 #
 # Embed the feature time-series with temporal offsets, then cluster
 # the embedded space with k-means.
+# Returns `(cluster_labels, centroids, scaling_factors)`, where:
+# - `cluster_labels` is a per-handle `BatchResult` of label series
+# - `centroids` is a DataFrame with `n_clusters` rows
+#
+# Option notes:
+# - `offset` controls temporal context window.
+# - `cluster_embedding` also supports weighting/normalization knobs for advanced runs.
 
 # %%
 features = fc[0].data.columns
 offset = list(np.arange(-15, 16, 1))
 embedding_dict = {f: offset for f in features}
 
-cluster_labels, centroids, _ = fc.cluster_embedding(
+cluster_labels, centroids, _ = fc.cluster_embedding_stream(
     embedding_dict=embedding_dict, n_clusters=N_CLUSTERS
 )
 cluster_labels.store("kmeans_25", overwrite=True)
 
 # %% [markdown]
-# ### 3.5 Save features to disk
+# ### Save features to disk
+#
+# `save()` writes a collection manifest plus per-handle element folders.
+# This makes downstream loading deterministic and auditable.
+# Later you can reconstruct with `p3b.FeaturesCollection.load(path)`.
 
 # %%
 fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
 
 # %%
 # norender
-if TEST_MODE:
-    # --- Center boundary golden values ---
-    H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    GOLDEN_IN_CENTER = {H1: 1, H2: 5}
-    for handle, expected in GOLDEN_IN_CENTER.items():
-        if handle in fc:
-            got = int(in_center[handle].sum())
-            assert got == expected, f"{handle} in_center: {got} != {expected}"
+# --- Center boundary golden values ---
+H1 = "OFT1_1"
+H2 = "OFT1_10"
+GOLDEN_IN_CENTER = {H1: 5, H2: 0}
+for handle, expected in GOLDEN_IN_CENTER.items():
+    if handle in fc:
+        got = int(in_center[handle].sum())
+        assert got == expected, f"{handle} in_center: {got} != {expected}"
 
-    # --- Feature columns exist ---
-    first_handle = list(fc.keys())[0]
-    cols = fc[first_handle].data.columns.tolist()
-    expected_speed_cols = [
-        "speed_of_nose_in_xy",
-        "speed_of_neck_in_xy",
-        "speed_of_earr_in_xy",
-        "speed_of_earl_in_xy",
-        "speed_of_bodycentre_in_xy",
-        "speed_of_hipl_in_xy",
-        "speed_of_hipr_in_xy",
-        "speed_of_tailbase_in_xy",
-    ]
-    expected_azimuth_cols = [
-        "azimuth_deviation_tailbase_to_hipr_and_hipl",
-        "azimuth_deviation_bodycentre_to_tailbase_and_neck",
-        "azimuth_deviation_neck_to_bodycentre_and_headcentre",
-        "azimuth_deviation_headcentre_to_earr_and_earl",
-    ]
-    expected_boundary_cols = [
-        "distance_to_boundary_static_nose_in_oft",
-        "distance_to_boundary_static_neck_in_oft",
-        "distance_to_boundary_static_bodycentre_in_oft",
-        "distance_to_boundary_static_tailbase_in_oft",
-    ]
-    for col in expected_speed_cols + expected_azimuth_cols + expected_boundary_cols:
-        assert col in cols, f"Missing column: {col}"
-    distance_cols = [c for c in cols if c.startswith("distance_between_")]
-    assert len(distance_cols) >= 14, f"Expected >= 14 distance columns, got {len(distance_cols)}"
-    area_cols = [c for c in cols if "area_of_boundary" in c]
-    assert len(area_cols) >= 4, f"Expected >= 4 area columns, got {len(area_cols)}"
+# --- Feature columns exist ---
+first_handle = list(fc.keys())[0]
+cols = fc[first_handle].data.columns.tolist()
+btab = fc[first_handle].list_boundaries()
+assert {"center", "oft"} <= set(btab.index), f"Missing stored boundaries on {first_handle}"
+assert (btab.loc[["center", "oft"], "kind"] == "static").all()
 
-    # --- Speed golden values ---
-    GOLDEN_SPEED_SUM = {
-        H1: 8.59331427489955,
-        H2: 53.870505758473946,
-    }
-    for handle, expected_sum in GOLDEN_SPEED_SUM.items():
-        if handle in fc:
-            got_sum = float(fc[handle].data["speed_of_bodycentre_in_xy"].sum())
-            assert np.isclose(got_sum, expected_sum, rtol=1e-5), (
-                f"{handle} speed sum: {got_sum} != {expected_sum}"
+expected_speed_cols = [
+    "speed_of_nose_in_xy",
+    "speed_of_neck_in_xy",
+    "speed_of_earr_in_xy",
+    "speed_of_earl_in_xy",
+    "speed_of_bodycentre_in_xy",
+    "speed_of_hipl_in_xy",
+    "speed_of_hipr_in_xy",
+    "speed_of_tailbase_in_xy",
+]
+expected_azimuth_cols = [
+    "azimuth_deviation_tailbase_to_hipr_and_hipl",
+    "azimuth_deviation_bodycentre_to_tailbase_and_neck",
+    "azimuth_deviation_neck_to_bodycentre_and_headcentre",
+    "azimuth_deviation_headcentre_to_earr_and_earl",
+]
+expected_boundary_cols = [
+    "distance_to_boundary_static_nose_in_oft",
+    "distance_to_boundary_static_neck_in_oft",
+    "distance_to_boundary_static_bodycentre_in_oft",
+    "distance_to_boundary_static_tailbase_in_oft",
+]
+for col in expected_speed_cols + expected_azimuth_cols + expected_boundary_cols:
+    assert col in cols, f"Missing column: {col}"
+distance_cols = [c for c in cols if c.startswith("distance_between_")]
+assert len(distance_cols) >= 14, f"Expected >= 14 distance columns, got {len(distance_cols)}"
+area_cols = [c for c in cols if "area_of_boundary" in c]
+assert len(area_cols) >= 4, f"Expected >= 4 area columns, got {len(area_cols)}"
+
+# --- Speed golden values ---
+GOLDEN_SPEED_SUM = {
+    H1: 13.430283546187345,
+    H2: 7.708798105663596,
+}
+for handle, expected_sum in GOLDEN_SPEED_SUM.items():
+    if handle in fc:
+        got_sum = float(fc[handle].data["speed_of_bodycentre_in_xy"].sum())
+        assert np.isclose(got_sum, expected_sum, rtol=1e-5), (
+            f"{handle} speed sum: {got_sum} != {expected_sum}"
+        )
+
+GOLDEN_FRAME_VALUES = {
+    H1: {
+        (10, "speed_of_bodycentre_in_xy"): 0.053635888585183436,
+        (50, "speed_of_bodycentre_in_xy"): 0.029256103508145354,
+        (10, "distance_between_nose_and_headcentre_in_xy"): 0.01306663873926128,
+    },
+}
+for handle, frame_vals in GOLDEN_FRAME_VALUES.items():
+    if handle in fc:
+        for (frame, col), expected in frame_vals.items():
+            got = float(fc[handle].data.loc[frame, col])
+            assert np.isclose(got, expected, rtol=1e-5), (
+                f"{handle} {col}@{frame}: {got} != {expected}"
             )
 
-    GOLDEN_FRAME_VALUES = {
-        H1: {
-            (10, "speed_of_bodycentre_in_xy"): 0.0554176299795388,
-            (50, "speed_of_bodycentre_in_xy"): 0.299759367213119,
-            (10, "distance_between_nose_and_headcentre_in_xy"): 0.013693473948303931,
-        },
-    }
-    for handle, frame_vals in GOLDEN_FRAME_VALUES.items():
-        if handle in fc:
-            for (frame, col), expected in frame_vals.items():
-                got = float(fc[handle].data.loc[frame, col])
-                assert np.isclose(got, expected, rtol=1e-5), (
-                    f"{handle} {col}@{frame}: {got} != {expected}"
-                )
+# --- Clustering ---
+assert set(cluster_labels.keys()) == set(fc.keys())
+for handle in fc.keys():
+    assert "kmeans_25" in fc[handle].data.columns, f"{handle}: kmeans_25 not stored"
+    valid = cluster_labels[handle].dropna()
+    if len(valid) > 0:
+        assert valid.min() >= 0, f"{handle}: negative cluster label"
+        assert valid.max() < N_CLUSTERS, f"{handle}: label >= {N_CLUSTERS}"
+assert centroids.shape[0] == N_CLUSTERS, (
+    f"Expected {N_CLUSTERS} centroids, got {centroids.shape[0]}"
+)
 
-    # --- Clustering ---
-    assert set(cluster_labels.keys()) == set(fc.keys())
-    for handle in fc.keys():
-        assert "kmeans_25" in fc[handle].data.columns, f"{handle}: kmeans_25 not stored"
-        valid = cluster_labels[handle].dropna()
-        if len(valid) > 0:
-            assert valid.min() >= 0, f"{handle}: negative cluster label"
-            assert valid.max() < N_CLUSTERS, f"{handle}: label >= {N_CLUSTERS}"
-    assert centroids.shape[0] == N_CLUSTERS, (
-        f"Expected {N_CLUSTERS} centroids, got {centroids.shape[0]}"
-    )
+# --- Save / manifest ---
+features_dir = Path(OUT_DIR) / "features"
+manifest_path = features_dir / "manifest.json"
+assert manifest_path.exists(), f"manifest.json not found in {features_dir}"
+with open(manifest_path) as f:
+    manifest = json.load(f)
+assert set(manifest["elements_index"].keys()) == set(fc.keys())
+elements_dir = features_dir / "elements"
+for handle in fc.keys():
+    assert (elements_dir / handle / "data.csv").exists(), f"Missing data.csv for {handle}"
 
-    # --- Save / manifest ---
-    features_dir = Path(OUT_DIR) / "features"
-    manifest_path = features_dir / "manifest.json"
-    assert manifest_path.exists(), f"manifest.json not found in {features_dir}"
-    with open(manifest_path) as f:
-        manifest = json.load(f)
-    assert set(manifest["elements_index"].keys()) == set(fc.keys())
-    elements_dir = features_dir / "elements"
-    for handle in fc.keys():
-        assert (elements_dir / handle / "data.csv").exists(), f"Missing data.csv for {handle}"
-
-    print("Feature computation, clustering, and save tests passed.")
+print("Feature computation, clustering, and save tests passed.")
 
 # %% [markdown]
-# ## 4. Summarise
+# ## Summarise
 
 # %% [markdown]
-# ### 4.1 Create SummaryCollection
+# ### Create SummaryCollection
 #
 # Each `Summary` object holds scalar (or Series) metrics computed from
 # a single recording's features.
+# Return type here is `SummaryCollection`.
 
 # %%
 sc = p3b.SummaryCollection.from_features_collection(fc)
 
 # %% [markdown]
-# ### 4.2 Compute summary measures
+# ### Compute summary measures
 #
 # Call summary methods and `.store()` the result to persist it.
+# Stored summary metrics become scalar columns in each `Summary.data` record.
+#
+# Same pattern as features:
+# - compute result (`sc.total_distance(...)`, etc.)
+# - then `.store(...)` to persist by metric name.
 
 # %%
-sc.total_distance("bodycentre").store()
-sc.time_true("within_boundary_static_bodycentre_in_center").store("time_in_center")
-sc.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
+sc.each.total_distance("bodycentre").store()
+sc.each.time_true("within_boundary_static_bodycentre_in_center").store("time_in_center")
+sc.each.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
 
 # %% [markdown]
-# ### 4.3 Export results to CSV
+# ### Export results to CSV
+#
+# `to_df(include_tags=True)` flattens summary metrics + selected tag columns
+# into one analysis-ready table (indexed by handle).
 
 # %%
 summary_df = sc.to_df(include_tags=True)
@@ -413,91 +513,94 @@ summary_df.head()
 
 # %%
 # norender
-if TEST_MODE:
-    from py3r.behaviour.summary.summary import Summary
+from py3r.behaviour.summary.summary import Summary
 
-    # --- SummaryCollection structure ---
-    assert set(sc.keys()) == set(fc.keys())
-    assert len(sc) == len(fc)
-    for handle, s in sc.items():
-        assert isinstance(s, Summary), f"{handle} is not a Summary"
-        assert s.handle == handle
-        assert s.tags == fc[handle].tags
+# --- SummaryCollection structure ---
+assert set(sc.keys()) == set(fc.keys())
+assert len(sc) == len(fc)
+for handle, s in sc.items():
+    assert isinstance(s, Summary), f"{handle} is not a Summary"
+    assert s.handle == handle
+    assert s.tags == fc[handle].tags
 
-    # --- Stored summary metrics ---
-    summary_stored = [
-        "total_distance_bodycentre",
-        "time_in_center",
-        "distance_moved_in_center",
-    ]
-    for handle in sc.keys():
-        for name in summary_stored:
-            assert name in sc[handle].data, f"{handle}: missing '{name}'"
-            val = sc[handle].data[name]
-            assert isinstance(val, (int, float, bool, np.integer, np.floating)), (
-                f"{handle}: '{name}' should be scalar, got {type(val)}"
-            )
+# --- Stored summary metrics ---
+summary_stored = [
+    "total_distance_bodycentre",
+    "time_in_center",
+    "distance_moved_in_center",
+]
+for handle in sc.keys():
+    for name in summary_stored:
+        assert name in sc[handle].data, f"{handle}: missing '{name}'"
+        val = sc[handle].data[name]
+        assert isinstance(val, (int, float, bool, np.integer, np.floating)), (
+            f"{handle}: '{name}' should be scalar, got {type(val)}"
+        )
 
-    # --- Golden summary values ---
-    H1 = "USSOFT1_1DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    H2 = "USSOFT2_11DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    H3 = "USSOFT1_8DeepCut_resnet50_Blockcourse1May9shuffle1_1030000"
-    GOLDEN_SUMMARY = {
-        H1: {
-            "total_distance_bodycentre": 0.3437325709959821,
-            "time_in_center": 0.04,
-            "distance_moved_in_center": 0.023400103796424813,
-        },
-        H2: {
-            "total_distance_bodycentre": 2.154820230338958,
-            "time_in_center": 0.2,
-            "distance_moved_in_center": 0.383824548159979,
-        },
-        H3: {
-            "total_distance_bodycentre": 0.7647580838539083,
-            "time_in_center": 0.0,
-            "distance_moved_in_center": 0.0,
-        },
-    }
-    for handle, expected_vals in GOLDEN_SUMMARY.items():
-        if handle in sc:
-            for metric, expected in expected_vals.items():
-                got = float(sc[handle].data[metric])
-                assert np.isclose(got, expected, rtol=1e-5), (
-                    f"{handle} {metric}: {got} != {expected}"
-                )
+# --- Golden summary values ---
+H1 = "OFT1_1"
+H2 = "OFT1_10"
+H3 = "OFT1_11"
+GOLDEN_SUMMARY = {
+    H1: {
+        "total_distance_bodycentre": 0.44767611820624487,
+        "time_in_center": 0.16666666666666666,
+        "distance_moved_in_center": 0.03422028501882547,
+    },
+    H2: {
+        "total_distance_bodycentre": 0.25695993685545326,
+        "time_in_center": 0.0,
+        "distance_moved_in_center": 0.0,
+    },
+    H3: {
+        "total_distance_bodycentre": 0.16675110816606706,
+        "time_in_center": 0.0,
+        "distance_moved_in_center": 0.0,
+    },
+}
+for handle, expected_vals in GOLDEN_SUMMARY.items():
+    if handle in sc:
+        for metric, expected in expected_vals.items():
+            got = float(sc[handle].data[metric])
+            assert np.isclose(got, expected, rtol=1e-5), f"{handle} {metric}: {got} != {expected}"
 
-    # --- Sanity checks ---
-    for handle in sc.keys():
-        s = sc[handle].data
-        assert s["time_in_center"] >= 0
-        assert s["total_distance_bodycentre"] >= 0
-        assert s["distance_moved_in_center"] >= 0 or np.isnan(s["distance_moved_in_center"])
+# --- Sanity checks ---
+for handle in sc.keys():
+    s = sc[handle].data
+    assert s["time_in_center"] >= 0
+    assert s["total_distance_bodycentre"] >= 0
+    assert s["distance_moved_in_center"] >= 0 or np.isnan(s["distance_moved_in_center"])
 
-    # --- CSV round-trip ---
-    csv_path = Path(OUT_DIR) / "OFT_results.csv"
-    assert csv_path.exists()
-    loaded = pd.read_csv(csv_path, index_col=0)
-    assert len(loaded) == len(summary_df)
-    for col in summary_stored:
-        assert col in loaded.columns, f"CSV missing '{col}'"
+# --- CSV round-trip ---
+csv_path = Path(OUT_DIR) / "OFT_results.csv"
+assert csv_path.exists()
+loaded = pd.read_csv(csv_path, index_col=0)
+assert len(loaded) == len(summary_df)
+for col in summary_stored:
+    assert col in loaded.columns, f"CSV missing '{col}'"
 
-    # --- summary_df structure ---
-    assert isinstance(summary_df, pd.DataFrame)
-    assert summary_df.index.name == "handle"
-    assert set(summary_df.index) == set(sc.keys())
+# --- summary_df structure ---
+assert isinstance(summary_df, pd.DataFrame)
+assert summary_df.index.name == "handle"
+assert set(summary_df.index) == set(sc.keys())
 
-    print("Summary computation and CSV tests passed.")
+print("Summary computation and CSV tests passed.")
 
 # %% [markdown]
-# ## 5. Visualise
+# ## Visualise
 #
 # The `sns*` methods on `SummaryCollection` wrap seaborn categorical plots
 # with sensible defaults — auto titles, y-labels, filenames, and colour
 # palettes.
+# All `sns*` helpers return `(fig, ax, tidy_df)` to support both quick plotting
+# and explicit downstream checks/customization.
+#
+# In practice:
+# - pass a stored metric name (`"total_distance_bodycentre"`) for reuse
+# - or pass a live `SummaryResult` for one-off plotting.
 
 # %% [markdown]
-# ### 5.1 Plot types compared (ungrouped)
+# ### Plot types compared (ungrouped)
 #
 # Three views of the same metric — `total_distance_bodycentre` — to
 # compare what each plot type looks like.
@@ -523,7 +626,7 @@ fig, ax, df_super = sc.snssuperplot(
 )
 
 # %% [markdown]
-# ### 5.2 Single Summary delegation
+# ### Single Summary delegation
 #
 # Individual `Summary` objects can call the same `sns*` methods.
 # They delegate to a 1-item `SummaryCollection` internally.
@@ -538,16 +641,17 @@ fig, ax, df_single = single.snsbar(
 )
 
 # %% [markdown]
-# ### 5.3 Grouped plots
+# ### Grouped plots
 #
 # Group by experimental tags with `groupby()`.
 # Use `group_order` to control how groups are arranged on the x-axis.
+# `groupby(...)` returns a grouped `SummaryCollection` view with same plotting API.
 
 # %%
 sc_grouped = sc.groupby(tags=["treatment", "timepoint"])
 
 # Keys = tag names (must match groupby tags), values = desired display order
-GROUP_ORDER = {"treatment": ["control", "FST"], "timepoint": ["45m", "1d"]}
+GROUP_ORDER = {"treatment": ["control", "stressor"], "timepoint": ["pre", "post"]}
 
 # %%
 # Scalar metric — grouped superplot
@@ -561,7 +665,7 @@ fig, ax, df_gsup = sc_grouped.snssuperplot(
 # %%
 # Multi-component metric — 25 clusters × 4 groups
 fig, ax, df_gbar = sc_grouped.snsbar(
-    sc_grouped.time_in_state("kmeans_25"),
+    sc_grouped.each.time_in_state("kmeans_25"),
     group_order=GROUP_ORDER,
     show=True,
     savedir=str(OUT_DIR),
@@ -582,7 +686,7 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 )
 
 # %% [markdown]
-# ### 5.3b sort_by — independent spatial ordering
+# ### sort_by — independent spatial ordering
 #
 # `sort_by` overrides the spatial arrangement on the x-axis without changing
 # colour assignment.  Here `groupby(tags=["treatment", "timepoint"])` means
@@ -619,7 +723,7 @@ plt.tight_layout()
 plt.show()
 
 # %% [markdown]
-# ### 5.4 Statistical annotations
+# ### Statistical annotations
 #
 # Use `annotate="help"` to discover available tests, corrections, and the
 # group labels in your data. Then pass `annotate={...}` with actual pairs.
@@ -639,7 +743,7 @@ fig_ann, ax_ann, df_ann = sc_grouped.snsbox(
     "total_distance_bodycentre",
     group_order=GROUP_ORDER,
     annotate={
-        "pairs": [("control, 45m", "FST, 45m"), ("control, 1d", "FST, 1d")],
+        "pairs": [("control, pre", "stressor, pre"), ("control, post", "stressor, post")],
         "test": "Mann-Whitney",
         "correction": None,
         "text_format": "star",
@@ -650,8 +754,9 @@ fig_ann, ax_ann, df_ann = sc_grouped.snsbox(
     show=True,
 )
 
+
 # %% [markdown]
-# ### 5.5 Metric input options
+# ### Metric input options
 #
 # Two ways to pass a metric to any `sns*` method:
 #
@@ -665,54 +770,60 @@ fig, ax, _ = sc.snsstrip("total_distance_bodycentre", show=False)
 
 # 2. SummaryResult object (inline)
 fig, ax, df_mc = sc.snsbar(
-    sc.time_in_state("within_boundary_static_bodycentre_in_center"),
+    sc.each.time_in_state("within_boundary_static_bodycentre_in_center"),
     show=False,
 )
 
 # %%
 # norender
-if TEST_MODE:
-    # --- Flat tidy DataFrame structure ---
-    # The y-column is renamed from "value" to the ylabel by prepare_plot,
-    # so we check for the structural columns only.
-    for label, df_check in [
-        ("strip", df_strip),
-        ("bar", df_bar),
-        ("super", df_super),
-    ]:
-        assert {"component", "_handle"} <= set(df_check.columns), (
-            f"{label}: missing required columns"
-        )
-        assert len(df_check) > 0, f"{label}: empty DataFrame"
+# --- Flat tidy DataFrame structure ---
+for label, df_check in [
+    ("strip", df_strip),
+    ("bar", df_bar),
+    ("super", df_super),
+]:
+    cols = set(df_check.columns)
+    assert {"component", "_handle"} <= cols, f"{label}: missing required id columns"
+    y_cols = [c for c in df_check.columns if c not in {"component", "_handle", "_group"}]
+    assert len(y_cols) >= 1, f"{label}: missing y-value column(s)"
+    assert len(df_check) > 0, f"{label}: empty DataFrame"
 
-    # --- Single Summary delegation ---
-    assert {"component", "_handle"} <= set(df_single.columns)
+# --- Single Summary delegation ---
+cols_single = set(df_single.columns)
+assert {"component", "_handle"} <= cols_single
+y_cols_single = [c for c in df_single.columns if c not in {"component", "_handle", "_group"}]
+assert len(y_cols_single) >= 1
 
-    # --- Grouped tidy DataFrame structure ---
-    for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
-        assert {"component", "_handle", "_group"} <= set(df_check.columns), (
-            f"{label}: missing required columns"
-        )
-        assert df_check["_group"].nunique() > 1, f"{label}: expected multiple groups"
-        assert len(df_check) > 0, f"{label}: empty DataFrame"
+# --- Grouped tidy DataFrame structure ---
+for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
+    cols = set(df_check.columns)
+    assert {"component", "_handle", "_group"} <= cols, f"{label}: missing required columns"
+    y_cols = [c for c in df_check.columns if c not in {"component", "_handle", "_group"}]
+    assert len(y_cols) >= 1, f"{label}: missing y-value column(s)"
+    assert df_check["_group"].nunique() > 1, f"{label}: expected multiple groups"
+    assert len(df_check) > 0, f"{label}: empty DataFrame"
 
-    # Multi-component grouped bar: 25 clusters × 4 groups
-    assert df_gbar["component"].nunique() == N_CLUSTERS, (
-        f"Expected {N_CLUSTERS} components, got {df_gbar['component'].nunique()}"
-    )
+# Multi-component grouped bar: 25 clusters × 4 groups
+assert df_gbar["component"].nunique() == N_CLUSTERS, (
+    f"Expected {N_CLUSTERS} components, got {df_gbar['component'].nunique()}"
+)
 
-    # --- Auto-named plot files ---
-    assert len(list(OUT_DIR.glob("*stripplot.png"))) >= 1
-    assert len(list(OUT_DIR.glob("*superplot.png"))) >= 1
-    assert len(list(OUT_DIR.glob("*barplot.png"))) >= 1
+# --- Auto-named plot files ---
+assert len(list(OUT_DIR.glob("*stripplot.png"))) >= 1
+assert len(list(OUT_DIR.glob("*superplot.png"))) >= 1
+assert len(list(OUT_DIR.glob("*barplot.png"))) >= 1
 
-    print("Visualisation tests passed.")
+print("Visualisation tests passed.")
 
 # %% [markdown]
-# ## 6. Behaviour Flow Analysis (BFA)
+# ## Behaviour Flow Analysis (BFA)
 
 # %% [markdown]
-# ### 6.1 Compute BFA results and statistics
+# ### Compute BFA results and statistics
+#
+# `bfa()` returns a nested dict of observed/shuffled transition statistics,
+# and `bfa_stats()` derives effect-size-style summaries for reporting.
+# `all_states=np.arange(0, N_CLUSTERS)` makes the state space explicit.
 
 # %%
 bfa_results = sc_grouped.bfa(column="kmeans_25", all_states=np.arange(0, N_CLUSTERS))
@@ -724,9 +835,10 @@ with open(f"{OUT_DIR}/bfa_stats.json", "w") as f:
     json.dump(bfa_stats, f, indent=4)
 
 # %% [markdown]
-# ### 6.2 BFA histograms
+# ### BFA histograms
 #
 # Distribution of shuffled transition values vs observed, per group comparison.
+# Useful as a quick sanity check before interpreting chord/UMAP views.
 
 # %%
 p3b.SummaryCollection.plot_bfa_results(
@@ -740,7 +852,7 @@ p3b.SummaryCollection.plot_bfa_results(
 )
 
 # %% [markdown]
-# ### 6.3 Chord diagrams
+# ### Chord diagrams
 #
 # Requires `pycirclize` — install with `pip install py3r-behaviour[viz]`.
 
@@ -760,7 +872,7 @@ if not SKIP_HEAVY_VIZ:
     )
 
 # %% [markdown]
-# ### 6.4 UMAP embedding of transition matrices
+# ### UMAP embedding of transition matrices
 #
 # Requires `umap-learn` — install with `pip install py3r-behaviour[viz]`.
 
@@ -779,32 +891,32 @@ if not SKIP_HEAVY_VIZ:
 
 # %%
 # norender
-if TEST_MODE:
-    # --- BFA results structure ---
-    assert isinstance(bfa_results, dict), "BFA results should be a dict"
-    assert Path(f"{OUT_DIR}/bfa_results.json").exists()
-    assert isinstance(bfa_stats, dict), "BFA stats should be a dict"
-    assert Path(f"{OUT_DIR}/bfa_stats.json").exists()
+# --- BFA results structure ---
+assert isinstance(bfa_results, dict), "BFA results should be a dict"
+assert Path(f"{OUT_DIR}/bfa_results.json").exists()
+assert isinstance(bfa_stats, dict), "BFA stats should be a dict"
+assert Path(f"{OUT_DIR}/bfa_stats.json").exists()
 
-    # --- Heavy viz files (if run) ---
-    if not SKIP_HEAVY_VIZ:
-        chord_files = list(OUT_DIR.glob("*chord*")) + list(OUT_DIR.glob("*bfa*"))
-        assert any(p.suffix.lower() in {".png", ".jpg", ".svg", ".pdf"} for p in chord_files), (
-            "No chord plot files found"
-        )
-        assert Path(f"{OUT_DIR}/transition_umap.png").exists()
+# --- Heavy viz files (if run) ---
+if not SKIP_HEAVY_VIZ:
+    chord_files = list(OUT_DIR.glob("*chord*")) + list(OUT_DIR.glob("*bfa*"))
+    assert any(p.suffix.lower() in {".png", ".jpg", ".svg", ".pdf"} for p in chord_files), (
+        "No chord plot files found"
+    )
+    assert Path(f"{OUT_DIR}/transition_umap.png").exists()
 
-    print("BFA tests passed.")
+print("BFA tests passed.")
 
 # %% [markdown]
 # ## Done
 
 # %%
 # norender
-if TEST_MODE:
-    print("\n" + "=" * 60)
-    print("ALL OFT PIPELINE TESTS PASSED")
-    if SKIP_HEAVY_VIZ:
-        print("(Skipped: chord diagrams, UMAP — requires pycirclize/umap-learn)")
-    print("=" * 60)
-    print(f"\nOutputs saved to: {OUT_DIR}")
+print("\n" + "=" * 60)
+print("ALL OFT PIPELINE TESTS PASSED")
+if SKIP_HEAVY_VIZ:
+    print("(Skipped: chord diagrams, UMAP — requires pycirclize/umap-learn)")
+print("=" * 60)
+print(f"\nOutputs saved to: {OUT_DIR}")
+
+# %%

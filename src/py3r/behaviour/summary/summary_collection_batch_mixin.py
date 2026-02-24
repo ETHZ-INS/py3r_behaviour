@@ -8,6 +8,10 @@ import warnings
 from py3r.behaviour.util.collection_utils import BatchResult
 from typing import Any
 from typing import Literal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any, Literal
 
 
 class SummaryCollectionBatchMixin:

@@ -495,11 +495,15 @@ class Features:
         centre: str | list[str] = None,
     ) -> list[tuple[float, float]]:
         """
-        Static rescaled boundary from point medians.
-        'centre' can be str or list[str]; median of those points or of boundary if None.
-        'scaling' scales boundary; 'scaling_y' scales y-axis (default: same as scaling).
+        Deprecated: use define_static_boundary or define_dynamic_boundary instead.
         """
-
+        # deprecation warning
+        warnings.warn(
+            "define_boundary is deprecated; "
+            "use define_static_boundary or define_dynamic_boundary instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         # get point medians
         pointmedians = [self.get_point_median(point) for point in points]
         # get centre
@@ -755,20 +759,16 @@ class Features:
         dims: tuple[str, str],
         boundary_label: str,
         boundary_meta,
-        boundary_name: str | None,
     ) -> FeaturesResult:
         if len(boundary_vertices) < 3:
             raise Exception("boundary encloses no area")
         boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary_vertices)
         name = f"within_boundary_static_{point}_in_{boundary_label}"
         meta = {
-            "function": "within_boundary_static",
+            "function": "within_boundary",
             "point": point,
             "boundary": boundary_meta,
-            "dims": dims,
         }
-        if boundary_name is not None:
-            meta["boundary_name"] = boundary_name
 
         df = self.tracking.data
         px = df[point + "." + dims[0]].to_numpy(dtype=float)
@@ -796,20 +796,16 @@ class Features:
         anchor_points: list[str] | None,
         boundary_label: str,
         boundary_meta,
-        boundary_name: str | None,
     ) -> FeaturesResult:
         if len(boundary_points) < 3:
             raise Exception("boundary encloses no area")
 
         name = f"within_boundary_dynamic_{point}_in_{boundary_label}"
         meta = {
-            "function": "within_boundary_dynamic",
+            "function": "within_boundary",
             "point": point,
             "boundary": boundary_meta,
-            "dims": dims,
         }
-        if boundary_name is not None:
-            meta["boundary_name"] = boundary_name
 
         df = self.tracking.data
         px = df[point + "." + dims[0]].to_numpy(dtype=float)
@@ -861,18 +857,6 @@ class Features:
                 dims=resolved.dims,
                 boundary_label=boundary_label,
                 boundary_meta=resolved.to_dict(),
-                boundary_name=boundary_name,
-            )
-        if isinstance(boundary, StaticBoundary):
-            return self._within_boundary_static_impl(
-                point,
-                boundary_vertices=list(boundary.vertices),
-                dims=boundary.dims,
-                boundary_label=boundary_name
-                or boundary.name
-                or self._short_boundary_id(list(boundary.vertices)),
-                boundary_meta=boundary.to_dict(),
-                boundary_name=boundary_name,
             )
         if self._is_legacy_vertex_list(boundary):
             return self._within_boundary_static_impl(
@@ -881,12 +865,8 @@ class Features:
                 dims=("x", "y"),
                 boundary_label=boundary_name or self._short_boundary_id(boundary),
                 boundary_meta=boundary,
-                boundary_name=boundary_name,
             )
-        raise TypeError(
-            "within_boundary_static expects a StaticBoundary, "
-            "boundary name, or static vertices list."
-        )
+        raise TypeError("within_boundary_static expects a boundary name, or static vertices list.")
 
     def within_boundary_dynamic(
         self, point: str, boundary, boundary_name: str = None
@@ -912,23 +892,6 @@ class Features:
                 else None,
                 boundary_label=boundary_label,
                 boundary_meta=resolved.to_dict(),
-                boundary_name=boundary_name,
-            )
-        if isinstance(boundary, DynamicBoundary):
-            return self._within_boundary_dynamic_impl(
-                point,
-                boundary_points=list(boundary.points),
-                dims=boundary.dims,
-                scale_dim1=boundary.scale_dim1,
-                scale_dim2=boundary.scale_dim2,
-                anchor_points=list(boundary.anchor_points)
-                if boundary.anchor_points is not None
-                else None,
-                boundary_label=boundary_name
-                or boundary.name
-                or self._short_boundary_id(list(boundary.points)),
-                boundary_meta=boundary.to_dict(),
-                boundary_name=boundary_name,
             )
         if self._is_legacy_point_name_list(boundary):
             return self._within_boundary_dynamic_impl(
@@ -940,31 +903,42 @@ class Features:
                 anchor_points=None,
                 boundary_label=boundary_name or self._short_boundary_id(boundary),
                 boundary_meta=boundary,
-                boundary_name=boundary_name,
             )
-        raise TypeError(
-            "within_boundary_dynamic expects a DynamicBoundary, boundary name, or point-name list."
-        )
+        raise TypeError("within_boundary_dynamic expects a boundary name, or point-name list.")
 
-    def within_boundary(
-        self, point: str, boundary: list, median: bool = True, boundary_name: str = None
-    ) -> FeaturesResult:
+    def within_boundary(self, point: str, boundary) -> FeaturesResult:
         """
         Main boundary inclusion API.
 
-        Preferred usage is to pass a ``StaticBoundary`` or ``DynamicBoundary``
-        (or a stored boundary name). Legacy list inputs are still accepted.
+        Accepts a ``StaticBoundary`` or ``DynamicBoundary`` (or a stored boundary name).
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> b = f.define_dynamic_boundary(['p1','p2','p3'], name='tri')
+        >>> mask = f.within_boundary('p1', b)
+        >>> bool(isinstance(mask, pd.Series))
+        True
+        >>> mask2 = f.within_boundary('p1', 'tri')
+        >>> bool(isinstance(mask2, pd.Series))
+        True
+
+        ```
         """
         if isinstance(boundary, StaticBoundary):
             return self._within_boundary_static_impl(
                 point,
                 boundary_vertices=list(boundary.vertices),
                 dims=boundary.dims,
-                boundary_label=boundary_name
-                or boundary.name
-                or self._short_boundary_id(list(boundary.vertices)),
+                boundary_label=boundary.name or self._short_boundary_id(list(boundary.vertices)),
                 boundary_meta=boundary.to_dict(),
-                boundary_name=boundary_name,
             )
         if isinstance(boundary, DynamicBoundary):
             return self._within_boundary_dynamic_impl(
@@ -976,76 +950,54 @@ class Features:
                 anchor_points=list(boundary.anchor_points)
                 if boundary.anchor_points is not None
                 else None,
-                boundary_label=boundary_name
-                or boundary.name
-                or self._short_boundary_id(list(boundary.points)),
+                boundary_label=boundary.name or self._short_boundary_id(list(boundary.points)),
                 boundary_meta=boundary.to_dict(),
-                boundary_name=boundary_name,
             )
         if isinstance(boundary, str):
             stored = self._resolve_boundary_ref(boundary)
-            return self.within_boundary(
-                point, stored, median=median, boundary_name=boundary_name or boundary
-            )
-        if self._is_legacy_point_name_list(boundary):
-            if not median:
-                return self._within_boundary_dynamic_impl(
-                    point,
-                    boundary_points=boundary,
-                    dims=("x", "y"),
-                    scale_dim1=1.0,
-                    scale_dim2=1.0,
-                    anchor_points=None,
-                    boundary_label=boundary_name or self._short_boundary_id(boundary),
-                    boundary_meta=boundary,
-                    boundary_name=boundary_name,
-                )
-            static_boundary = self.define_boundary(boundary, 1.0)
-            return self._within_boundary_static_impl(
-                point,
-                boundary_vertices=static_boundary,
-                dims=("x", "y"),
-                boundary_label=boundary_name or self._short_boundary_id(static_boundary),
-                boundary_meta=static_boundary,
-                boundary_name=boundary_name,
-            )
-        if self._is_legacy_vertex_list(boundary):
-            return self._within_boundary_static_impl(
-                point,
-                boundary_vertices=boundary,
-                dims=("x", "y"),
-                boundary_label=boundary_name or self._short_boundary_id(boundary),
-                boundary_meta=boundary,
-                boundary_name=boundary_name,
-            )
+            return self.within_boundary(point, stored)
         raise TypeError(
             "Unsupported boundary value. Expected StaticBoundary, DynamicBoundary, "
-            "boundary name, point-name list, or vertex list."
+            "or stored boundary name."
         )
 
     def distance_to_boundary(
         self,
         point: str,
-        boundary: list[str],
-        median: bool = True,
-        boundary_name: str = None,
+        boundary: str | DynamicBoundary | StaticBoundary,
     ) -> FeaturesResult:
         """
         Main boundary distance API.
 
-        Preferred usage is to pass a ``StaticBoundary`` or ``DynamicBoundary``
-        (or a stored boundary name). Legacy list inputs are still accepted.
+        Accepts a ``StaticBoundary`` or ``DynamicBoundary`` (or a stored boundary name).
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> b = f.define_static_boundary(['p1','p2','p3'], name='tri')
+        >>> d = f.distance_to_boundary('p1', b)
+        >>> bool(isinstance(d, pd.Series))
+        True
+        >>> d2 = f.distance_to_boundary('p1', 'tri')
+        >>> bool(isinstance(d2, pd.Series))
+        True
+
+        ```
         """
         if isinstance(boundary, StaticBoundary):
             return self._distance_to_boundary_static_impl(
                 point,
                 boundary_vertices=list(boundary.vertices),
                 dims=boundary.dims,
-                boundary_label=boundary_name
-                or boundary.name
-                or self._short_boundary_id(list(boundary.vertices)),
+                boundary_label=boundary.name or self._short_boundary_id(list(boundary.vertices)),
                 boundary_meta=boundary.to_dict(),
-                boundary_name=boundary_name,
             )
         if isinstance(boundary, DynamicBoundary):
             return self._distance_to_boundary_dynamic_impl(
@@ -1057,51 +1009,15 @@ class Features:
                 anchor_points=list(boundary.anchor_points)
                 if boundary.anchor_points is not None
                 else None,
-                boundary_label=boundary_name
-                or boundary.name
-                or self._short_boundary_id(list(boundary.points)),
+                boundary_label=boundary.name or self._short_boundary_id(list(boundary.points)),
                 boundary_meta=boundary.to_dict(),
-                boundary_name=boundary_name,
             )
         if isinstance(boundary, str):
             stored = self._resolve_boundary_ref(boundary)
-            return self.distance_to_boundary(
-                point, stored, median=median, boundary_name=boundary_name or boundary
-            )
-        if self._is_legacy_point_name_list(boundary):
-            if median:
-                static_boundary = self.define_boundary(boundary, 1.0)
-                return self._distance_to_boundary_static_impl(
-                    point,
-                    boundary_vertices=static_boundary,
-                    dims=("x", "y"),
-                    boundary_label=boundary_name or self._short_boundary_id(static_boundary),
-                    boundary_meta=static_boundary,
-                    boundary_name=boundary_name,
-                )
-            return self._distance_to_boundary_dynamic_impl(
-                point,
-                boundary_points=boundary,
-                dims=("x", "y"),
-                scale_dim1=1.0,
-                scale_dim2=1.0,
-                anchor_points=None,
-                boundary_label=boundary_name or self._short_boundary_id(boundary),
-                boundary_meta=boundary,
-                boundary_name=boundary_name,
-            )
-        if self._is_legacy_vertex_list(boundary):
-            return self._distance_to_boundary_static_impl(
-                point,
-                boundary_vertices=boundary,
-                dims=("x", "y"),
-                boundary_label=boundary_name or self._short_boundary_id(boundary),
-                boundary_meta=boundary,
-                boundary_name=boundary_name,
-            )
+            return self.distance_to_boundary(point, stored)
         raise TypeError(
             "Unsupported boundary value. Expected StaticBoundary, DynamicBoundary, "
-            "boundary name, point-name list, or vertex list."
+            "or stored boundary name."
         )
 
     def _distance_to_boundary_static_impl(
@@ -1112,20 +1028,16 @@ class Features:
         dims: tuple[str, str],
         boundary_label: str,
         boundary_meta,
-        boundary_name: str | None,
     ) -> FeaturesResult:
         if len(boundary_vertices) < 3:
             raise Exception("boundary encloses no area")
         boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary_vertices)
         name = f"distance_to_boundary_static_{point}_in_{boundary_label}"
         meta = {
-            "function": "distance_to_boundary_static",
+            "function": "distance_to_boundary",
             "point": point,
             "boundary": boundary_meta,
-            "dims": dims,
         }
-        if boundary_name is not None:
-            meta["boundary_name"] = boundary_name
 
         df = self.tracking.data
         px = df[point + "." + dims[0]].to_numpy(dtype=float)
@@ -1153,19 +1065,15 @@ class Features:
         anchor_points: list[str] | None,
         boundary_label: str,
         boundary_meta,
-        boundary_name: str | None,
     ) -> FeaturesResult:
         if len(boundary_points) < 3:
             raise Exception("boundary encloses no area")
         name = f"distance_to_boundary_dynamic_{point}_in_{boundary_label}"
         meta = {
-            "function": "distance_to_boundary_dynamic",
+            "function": "distance_to_boundary",
             "point": point,
             "boundary": boundary_meta,
-            "dims": dims,
         }
-        if boundary_name is not None:
-            meta["boundary_name"] = boundary_name
 
         df = self.tracking.data
         px = df[point + "." + dims[0]].to_numpy(dtype=float)
@@ -1218,18 +1126,6 @@ class Features:
                 dims=resolved.dims,
                 boundary_label=boundary_name or resolved.name or boundary,
                 boundary_meta=resolved.to_dict(),
-                boundary_name=boundary_name,
-            )
-        if isinstance(boundary, StaticBoundary):
-            return self._distance_to_boundary_static_impl(
-                point,
-                boundary_vertices=list(boundary.vertices),
-                dims=boundary.dims,
-                boundary_label=boundary_name
-                or boundary.name
-                or self._short_boundary_id(list(boundary.vertices)),
-                boundary_meta=boundary.to_dict(),
-                boundary_name=boundary_name,
             )
         if self._is_legacy_vertex_list(boundary):
             return self._distance_to_boundary_static_impl(
@@ -1238,11 +1134,9 @@ class Features:
                 dims=("x", "y"),
                 boundary_label=boundary_name or self._short_boundary_id(boundary),
                 boundary_meta=boundary,
-                boundary_name=boundary_name,
             )
         raise TypeError(
-            "distance_to_boundary_static expects a StaticBoundary, "
-            "boundary name, or static vertices list."
+            "distance_to_boundary_static expects a boundary name, or static vertices list."
         )
 
     def distance_to_boundary_dynamic(
@@ -1269,23 +1163,6 @@ class Features:
                 else None,
                 boundary_label=boundary_name or resolved.name or boundary,
                 boundary_meta=resolved.to_dict(),
-                boundary_name=boundary_name,
-            )
-        if isinstance(boundary, DynamicBoundary):
-            return self._distance_to_boundary_dynamic_impl(
-                point,
-                boundary_points=list(boundary.points),
-                dims=boundary.dims,
-                scale_dim1=boundary.scale_dim1,
-                scale_dim2=boundary.scale_dim2,
-                anchor_points=list(boundary.anchor_points)
-                if boundary.anchor_points is not None
-                else None,
-                boundary_label=boundary_name
-                or boundary.name
-                or self._short_boundary_id(list(boundary.points)),
-                boundary_meta=boundary.to_dict(),
-                boundary_name=boundary_name,
             )
         if self._is_legacy_point_name_list(boundary):
             return self._distance_to_boundary_dynamic_impl(
@@ -1297,16 +1174,16 @@ class Features:
                 anchor_points=None,
                 boundary_label=boundary_name or self._short_boundary_id(boundary),
                 boundary_meta=boundary,
-                boundary_name=boundary_name,
             )
-        raise TypeError(
-            "distance_to_boundary_dynamic expects a DynamicBoundary, "
-            "boundary name, or point-name list."
-        )
+        raise TypeError("distance_to_boundary_dynamic expects a boundary name, or point-name list.")
 
-    def area_of_boundary(self, boundary: list[str], median: bool = True) -> FeaturesResult:
+    def area_of_boundary(
+        self, boundary: str | StaticBoundary | DynamicBoundary, **kwargs
+    ) -> FeaturesResult:
         """
-        returns area of boundary as a FeaturesResult (constant for static, per-frame for dynamic)
+        Return boundary area as a FeaturesResult.
+
+        Accepts a ``StaticBoundary`` or ``DynamicBoundary`` (or a stored boundary name).
 
         Examples
         --------
@@ -1318,21 +1195,117 @@ class Features:
         >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
-        >>> res = f.area_of_boundary(['p1','p2','p3'], median=True)
-        >>> isinstance(res, pd.Series) and res.nunique() == 1
+        >>> b = f.define_dynamic_boundary(['p1','p2','p3'], name='tri')
+        >>> a = f.area_of_boundary(b)
+        >>> bool(isinstance(a, pd.Series))
+        True
+        >>> a2 = f.area_of_boundary('tri')
+        >>> bool(isinstance(a2, pd.Series))
         True
 
         ```
         """
+        if "median" in kwargs or "boundary_name" in kwargs:
+            raise TypeError(
+                "area_of_boundary accepts only `boundary`. "
+                "Use area_of_boundary_deprecated(boundary, median=...) for legacy behavior."
+            )
+        if len(kwargs) > 0:
+            keys = ", ".join(sorted(kwargs.keys()))
+            raise TypeError(f"Unexpected keyword argument(s): {keys}")
+
+        if isinstance(boundary, str):
+            stored = self._resolve_boundary_ref(boundary)
+            return self.area_of_boundary(stored)
+
+        if isinstance(boundary, StaticBoundary):
+            boundary_label = boundary.name or self._short_boundary_id(list(boundary.vertices))
+            name = f"area_of_boundary_{boundary_label}_static"
+            meta = {"function": "area_of_boundary", "boundary": boundary.to_dict()}
+            local_poly = Polygon(boundary.vertices)
+            area = local_poly.area
+            result = pd.Series(area, index=self.tracking.data.index)
+            return FeaturesResult(result, self, name, meta)
+
+        if isinstance(boundary, DynamicBoundary):
+            boundary_label = boundary.name or self._short_boundary_id(list(boundary.points))
+            name = f"area_of_boundary_{boundary_label}_dynamic"
+            meta = {"function": "area_of_boundary", "boundary": boundary.to_dict()}
+            df = self.tracking.data
+            bx = np.column_stack(
+                [df[b + "." + boundary.dims[0]].to_numpy(dtype=float) for b in boundary.points]
+            )
+            by = np.column_stack(
+                [df[b + "." + boundary.dims[1]].to_numpy(dtype=float) for b in boundary.points]
+            )
+
+            if boundary.scale_dim1 != 1.0 or boundary.scale_dim2 != 1.0:
+                if boundary.anchor_points is None:
+                    ax = np.nanmean(bx, axis=1)
+                    ay = np.nanmean(by, axis=1)
+                else:
+                    ax = np.column_stack(
+                        [
+                            df[a + "." + boundary.dims[0]].to_numpy(dtype=float)
+                            for a in boundary.anchor_points
+                        ]
+                    )
+                    ay = np.column_stack(
+                        [
+                            df[a + "." + boundary.dims[1]].to_numpy(dtype=float)
+                            for a in boundary.anchor_points
+                        ]
+                    )
+                    ax = np.nanmean(ax, axis=1)
+                    ay = np.nanmean(ay, axis=1)
+                bx = ax[:, None] + (bx - ax[:, None]) * boundary.scale_dim1
+                by = ay[:, None] + (by - ay[:, None]) * boundary.scale_dim2
+
+            bx_next = np.roll(bx, -1, axis=1)
+            by_next = np.roll(by, -1, axis=1)
+            result = pd.Series(
+                0.5 * np.abs(np.sum(bx * by_next - bx_next * by, axis=1)),
+                index=df.index,
+            )
+            return FeaturesResult(result, self, name, meta)
+
+        if self._is_legacy_point_name_list(boundary):
+            raise TypeError(
+                "area_of_boundary no longer accepts point-name lists. "
+                "Use area_of_boundary_deprecated(boundary, median=...) for legacy behavior."
+            )
+
+        raise TypeError(
+            "Unsupported boundary value. Expected boundary name, "
+            "StaticBoundary, or DynamicBoundary."
+        )
+
+    def area_of_boundary_deprecated(
+        self, boundary: list[str], median: bool = True
+    ) -> FeaturesResult:
+        """
+        Deprecated legacy area API.
+
+        Parameters
+        ----------
+        boundary
+            Ordered point names defining the polygon.
+        median
+            ``True`` for static-median area, ``False`` for per-frame dynamic area.
+        """
+        warnings.warn(
+            "area_of_boundary_deprecated is deprecated and will be removed in a future release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         kind = "static" if median else "dynamic"
         name = f"area_of_boundary_{self._short_boundary_id(boundary)}_{kind}"
-        meta = {"function": "area_of_boundary", "boundary": boundary, "median": median}
+        meta = {"function": "area_of_boundary_deprecated", "boundary": boundary, "median": median}
         if median:
             warnings.warn("using median (static) boundary", stacklevel=2)
             static_boundary = [self.get_point_median(i) for i in boundary]
             local_poly = Polygon(static_boundary)
             area = local_poly.area
-            # Create a constant Series with the same index as self.tracking.data
             result = pd.Series(area, index=self.tracking.data.index)
         else:
             warnings.warn("using fully dynamic boundary", stacklevel=2)
