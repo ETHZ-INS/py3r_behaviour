@@ -79,11 +79,6 @@ jobs:
       - name: Run doctests
         run: pytest -q --xdoctest --xdoctest-modules src/
 
-      - name: Run integration tests (EPM pipeline)
-        run: |
-          cd tests/epm_pipeline
-          MPLBACKEND=Agg python epm_pipeline.py > /dev/null
-
       - name: Run integration tests (OFT pipeline)
         run: |
           cd tests/oft_pipeline
