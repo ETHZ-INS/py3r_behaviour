@@ -253,10 +253,10 @@ for p1, p2 in [
     fc.distance_between(p1, p2).store()
 
 # Body-part areas
-fc.area_of_boundary(["tailbase", "hipr", "hipl"], median=False).store()
-fc.area_of_boundary(["hipr", "hipl", "bcl", "bcr"], median=False).store()
-fc.area_of_boundary(["bcr", "earr", "earl", "bcl"], median=False).store()
-fc.area_of_boundary(["earr", "nose", "earl"], median=False).store()
+fc.area_of_boundary_deprecated(["tailbase", "hipr", "hipl"], median=False).store()
+fc.area_of_boundary_deprecated(["hipr", "hipl", "bcl", "bcr"], median=False).store()
+fc.area_of_boundary_deprecated(["bcr", "earr", "earl", "bcl"], median=False).store()
+fc.area_of_boundary_deprecated(["earr", "nose", "earl"], median=False).store()
 
 # Distance to arena boundary
 bdry = fc.each.define_boundary(["tl", "tr", "br", "bl"], scaling=1.0)
