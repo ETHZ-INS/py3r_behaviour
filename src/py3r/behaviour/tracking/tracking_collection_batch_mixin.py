@@ -9,6 +9,11 @@ from py3r.behaviour.util.collection_utils import BatchResult
 from typing import Literal
 from collections.abc import Iterable
 import pandas as pd
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Literal
 
 
 class TrackingCollectionBatchMixin:
