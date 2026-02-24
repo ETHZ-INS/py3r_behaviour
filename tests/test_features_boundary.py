@@ -1,10 +1,8 @@
 """
-Edge-case tests for the vectorized boundary methods in Features:
-  - within_boundary_static
-  - within_boundary_dynamic
-  - distance_to_boundary_static
-  - distance_to_boundary_dynamic
-  - area_of_boundary (dynamic branch)
+Edge-case tests for boundary methods in Features:
+  - New API: within_boundary / distance_to_boundary / area_of_boundary
+  - Deprecated API: within_boundary_static/dynamic, distance_to_boundary_static/dynamic,
+    area_of_boundary_deprecated
 
 The test DataFrame has 8 rows, each designed to probe a specific scenario:
   row 0: query point clearly inside the boundary — all coords valid
@@ -214,35 +212,125 @@ class TestDistanceToBoundaryDynamic:
         assert np.isnan(res.iloc[6])
 
 
-# ── area_of_boundary (dynamic) ──────────────────────────────────────
+# ── area_of_boundary ────────────────────────────────────────────────
 
 
-class TestAreaOfBoundaryDynamic:
-    def test_valid_area(self, features):
+class TestAreaOfBoundary:
+    def test_valid_area_dynamic_boundary(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            res = features.area_of_boundary(BOUNDARY_NAMES, median=False)
+            res = features.area_of_boundary(boundary)
         assert res.iloc[0] == pytest.approx(EXPECTED_AREA)
         assert res.iloc[1] == pytest.approx(EXPECTED_AREA)
 
-    def test_nan_boundary_vertex_propagates(self, features):
-        """Row 5 has NaN in b3 → area should be NaN via arithmetic propagation."""
+    def test_valid_area_static_boundary(self, features):
+        boundary = features.define_static_boundary(BOUNDARY_NAMES)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            res = features.area_of_boundary(BOUNDARY_NAMES, median=False)
+            res = features.area_of_boundary(boundary)
+        assert res.iloc[0] == pytest.approx(EXPECTED_AREA)
+        assert res.iloc[1] == pytest.approx(EXPECTED_AREA)
+        assert res.nunique(dropna=False) == 1
+
+    def test_valid_area_named_dynamic_boundary(self, features):
+        features.define_dynamic_boundary(BOUNDARY_NAMES, name="tri_dyn", overwrite=True)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            res = features.area_of_boundary("tri_dyn")
+        assert res.iloc[0] == pytest.approx(EXPECTED_AREA)
+        assert res.iloc[1] == pytest.approx(EXPECTED_AREA)
+
+    def test_nan_boundary_vertex_propagates_dynamic_boundary(self, features):
+        """Row 5 has NaN in b3 → area should be NaN via arithmetic propagation."""
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            res = features.area_of_boundary(boundary)
         assert np.isnan(res.iloc[5])
 
-    def test_all_nan_row(self, features):
+    def test_all_nan_row_dynamic_boundary(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            res = features.area_of_boundary(BOUNDARY_NAMES, median=False)
+            res = features.area_of_boundary(boundary)
         assert np.isnan(res.iloc[6])
 
     def test_result_length(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            res = features.area_of_boundary(BOUNDARY_NAMES, median=False)
+            res = features.area_of_boundary(boundary)
         assert len(res) == 8
+
+    def test_legacy_point_list_rejected_by_new_api(self, features):
+        with pytest.raises(TypeError, match="no longer accepts point-name lists"):
+            features.area_of_boundary(BOUNDARY_NAMES)
+
+    def test_new_api_rejects_legacy_kwargs(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
+        with pytest.raises(TypeError, match="accepts only `boundary`"):
+            features.area_of_boundary(boundary, median=False)
+        with pytest.raises(TypeError, match="accepts only `boundary`"):
+            features.area_of_boundary(boundary, boundary_name="x")
+
+    def test_legacy_function_still_available(self, features):
+        with pytest.deprecated_call(match="area_of_boundary_deprecated"):
+            res = features.area_of_boundary_deprecated(BOUNDARY_NAMES, median=False)
+        assert res.iloc[0] == pytest.approx(EXPECTED_AREA)
+
+
+# ── new API strictness and behavior ─────────────────────────────────
+
+
+class TestWithinBoundaryNewApi:
+    def test_accepts_static_boundary_object(self, features):
+        boundary = features.define_static_boundary(BOUNDARY_NAMES)
+        res = features.within_boundary("q", boundary)
+        assert bool(res.iloc[0])
+
+    def test_accepts_dynamic_boundary_object(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
+        res = features.within_boundary("q", boundary)
+        assert bool(res.iloc[0])
+
+    def test_accepts_stored_boundary_name(self, features):
+        features.define_dynamic_boundary(BOUNDARY_NAMES, name="tri_dyn", overwrite=True)
+        res = features.within_boundary("q", "tri_dyn")
+        assert bool(res.iloc[0])
+
+    def test_rejects_legacy_point_name_list(self, features):
+        with pytest.raises(TypeError, match="Unsupported boundary value"):
+            features.within_boundary("q", BOUNDARY_NAMES)
+
+    def test_rejects_legacy_vertex_list(self, features):
+        with pytest.raises(TypeError, match="Unsupported boundary value"):
+            features.within_boundary("q", STATIC_BOUNDARY)
+
+
+class TestDistanceToBoundaryNewApi:
+    def test_accepts_static_boundary_object(self, features):
+        boundary = features.define_static_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary)
+        assert res.iloc[0] == pytest.approx(2 * np.sqrt(2))
+
+    def test_accepts_dynamic_boundary_object(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary)
+        assert res.iloc[0] == pytest.approx(2 * np.sqrt(2))
+
+    def test_accepts_stored_boundary_name(self, features):
+        features.define_dynamic_boundary(BOUNDARY_NAMES, name="tri_dyn", overwrite=True)
+        res = features.distance_to_boundary("q", "tri_dyn")
+        assert res.iloc[0] == pytest.approx(2 * np.sqrt(2))
+
+    def test_rejects_legacy_point_name_list(self, features):
+        with pytest.raises(TypeError, match="Unsupported boundary value"):
+            features.distance_to_boundary("q", BOUNDARY_NAMES)
+
+    def test_rejects_legacy_vertex_list(self, features):
+        with pytest.raises(TypeError, match="Unsupported boundary value"):
+            features.distance_to_boundary("q", STATIC_BOUNDARY)
 
 
 # ── cross-method consistency ────────────────────────────────────────

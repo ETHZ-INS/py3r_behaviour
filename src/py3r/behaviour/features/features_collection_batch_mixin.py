@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from sklearn.neighbors import KNeighborsRegressor
     from py3r.behaviour.classifier import BaseClassifier
+    from py3r.behaviour.features.boundary import DynamicBoundary, StaticBoundary
 
 
 class FeaturesCollectionBatchMixin:
@@ -110,9 +111,7 @@ class FeaturesCollectionBatchMixin:
         """
         Batch-mode wrapper for Features.define_boundary across the collection.
 
-        Static rescaled boundary from point medians.
-        'centre' can be str or list[str]; median of those points or of boundary if None.
-        'scaling' scales boundary; 'scaling_y' scales y-axis (default: same as scaling).
+        Deprecated: use define_static_boundary or define_dynamic_boundary instead.
 
         See leaf method ``Features.define_boundary`` for examples.
         """
@@ -339,9 +338,7 @@ class FeaturesCollectionBatchMixin:
             )
         return self._invoke_batch("within_boundary_dynamic", point, boundary, boundary_name)
 
-    def within_boundary(
-        self, point: str, boundary: list, median: bool = True, boundary_name: str = None
-    ) -> BatchResult:
+    def within_boundary(self, point: str, boundary) -> BatchResult:
         """
         Batch-mode wrapper for Features.within_boundary across the collection.
 
@@ -357,15 +354,11 @@ class FeaturesCollectionBatchMixin:
         )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(
-                lambda _obj: getattr(_obj, "within_boundary")(
-                    point, boundary, median, boundary_name
-                )
-            )
-        return self._invoke_batch("within_boundary", point, boundary, median, boundary_name)
+            return self.map_leaves(lambda _obj: getattr(_obj, "within_boundary")(point, boundary))
+        return self._invoke_batch("within_boundary", point, boundary)
 
     def distance_to_boundary(
-        self, point: str, boundary: list[str], median: bool = True, boundary_name: str = None
+        self, point: str, boundary: str | DynamicBoundary | StaticBoundary
     ) -> BatchResult:
         """
         Batch-mode wrapper for Features.distance_to_boundary across the collection.
@@ -383,11 +376,9 @@ class FeaturesCollectionBatchMixin:
         _inplace = locals().get("inplace", True)
         if _inplace is False:
             return self.map_leaves(
-                lambda _obj: getattr(_obj, "distance_to_boundary")(
-                    point, boundary, median, boundary_name
-                )
+                lambda _obj: getattr(_obj, "distance_to_boundary")(point, boundary)
             )
-        return self._invoke_batch("distance_to_boundary", point, boundary, median, boundary_name)
+        return self._invoke_batch("distance_to_boundary", point, boundary)
 
     def distance_to_boundary_static(
         self, point: str, boundary, boundary_name: str = None
@@ -437,9 +428,13 @@ class FeaturesCollectionBatchMixin:
             )
         return self._invoke_batch("distance_to_boundary_dynamic", point, boundary, boundary_name)
 
-    def area_of_boundary(self, boundary: list[str], median: bool = True) -> BatchResult:
+    def area_of_boundary(
+        self, boundary: str | StaticBoundary | DynamicBoundary, **kwargs
+    ) -> BatchResult:
         """
         Batch-mode wrapper for Features.area_of_boundary across the collection.
+
+        Return boundary area as a FeaturesResult.
 
         See leaf method ``Features.area_of_boundary`` for examples.
         """
@@ -451,8 +446,32 @@ class FeaturesCollectionBatchMixin:
         )
         _inplace = locals().get("inplace", True)
         if _inplace is False:
-            return self.map_leaves(lambda _obj: getattr(_obj, "area_of_boundary")(boundary, median))
-        return self._invoke_batch("area_of_boundary", boundary, median)
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "area_of_boundary")(boundary, **kwargs)
+            )
+        return self._invoke_batch("area_of_boundary", boundary, **kwargs)
+
+    def area_of_boundary_deprecated(self, boundary: list[str], median: bool = True) -> BatchResult:
+        """
+        Batch-mode wrapper for Features.area_of_boundary_deprecated
+        across the collection.
+
+        Deprecated legacy area API.
+
+        See leaf method ``Features.area_of_boundary_deprecated`` for examples.
+        """
+        warnings.warn(
+            "Direct batch passthrough via FeaturesCollectionBatchMixin.area_of_boundary_deprecated() is deprecated; "
+            "use FeaturesCollection.each.area_of_boundary_deprecated() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        _inplace = locals().get("inplace", True)
+        if _inplace is False:
+            return self.map_leaves(
+                lambda _obj: getattr(_obj, "area_of_boundary_deprecated")(boundary, median)
+            )
+        return self._invoke_batch("area_of_boundary_deprecated", boundary, median)
 
     def acceleration(self, point: str, dims=("x", "y")) -> BatchResult:
         """
