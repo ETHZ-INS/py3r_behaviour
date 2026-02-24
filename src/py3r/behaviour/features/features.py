@@ -923,12 +923,13 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> b = f.define_dynamic_boundary(['p1','p2','p3'], name='tri')
-        >>> mask = f.within_boundary('p4', b)
+        >>> mask = f.within_boundary('p1', b)
         >>> bool(isinstance(mask, pd.Series))
         True
-        >>> mask2 = f.within_boundary('p4', 'tri')
+        >>> mask2 = f.within_boundary('p1', 'tri')
         >>> bool(isinstance(mask2, pd.Series))
         True
+
         ```
         """
         if isinstance(boundary, StaticBoundary):
@@ -981,12 +982,13 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> b = f.define_static_boundary(['p1','p2','p3'], name='tri')
-        >>> d = f.distance_to_boundary('p4', b)
+        >>> d = f.distance_to_boundary('p1', b)
         >>> bool(isinstance(d, pd.Series))
         True
-        >>> d2 = f.distance_to_boundary('p4', 'tri')
+        >>> d2 = f.distance_to_boundary('p1', 'tri')
         >>> bool(isinstance(d2, pd.Series))
         True
+
         ```
         """
         if isinstance(boundary, StaticBoundary):
@@ -1200,6 +1202,7 @@ class Features:
         >>> a2 = f.area_of_boundary('tri')
         >>> bool(isinstance(a2, pd.Series))
         True
+
         ```
         """
         if "median" in kwargs or "boundary_name" in kwargs:
