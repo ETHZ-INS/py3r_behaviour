@@ -677,6 +677,12 @@ fig, ax, df_super = sc.snssuperplot(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
+![output](oft_pipeline_files/output_36_0.png)
+
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
 ![output](oft_pipeline_files/output_36_1.png)
 
 </div>
@@ -684,12 +690,6 @@ fig, ax, df_super = sc.snssuperplot(
 <div class="nb-cell-output nb-output-figure" markdown>
 
 ![output](oft_pipeline_files/output_36_2.png)
-
-</div>
-
-<div class="nb-cell-output nb-output-figure" markdown>
-
-![output](oft_pipeline_files/output_36_3.png)
 
 </div>
 
