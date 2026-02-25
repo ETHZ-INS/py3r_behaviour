@@ -819,7 +819,7 @@ class Summary:
         >>> res.value.index.tolist()
         ['B', 'C', 'A']
         >>> res.value.tolist()
-        [1, 0, 1]
+        [1, 0, 2]
         >>> res._params['all_states']
         ['B', 'C', 'A']
         >>> res = s.count_state_onsets('state', all_states=['A'])
