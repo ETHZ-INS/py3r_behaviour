@@ -658,6 +658,7 @@ Also available: `snsbox`, `snsviolin`, `snspoint`, `snsswarm`.
 sc.each.time_in_state("kmeans_25").store("time_in_cluster")
 fig, ax, df_strip = sc.snsstrip(
     "time_in_cluster",
+    random_state=42,  # optional, for point jitter
     show=True,
     savedir=OUT_DIR,
 )
@@ -668,6 +669,7 @@ fig, ax, df_bar = sc.snsbar(
 )
 fig, ax, df_super = sc.snssuperplot(
     "time_in_cluster",
+    random_state=42,  # optional, for point jitter
     show=True,
     savedir=OUT_DIR,
 )
@@ -742,6 +744,7 @@ GROUP_ORDER = {"treatment": ["control", "stressor"], "timepoint": ["pre", "post"
 fig, ax, df_gsup = sc_grouped.snssuperplot(
     "total_distance_bodycentre",
     group_order=GROUP_ORDER,
+    random_state=42,  # optional, for point jitter
     show=True,
     savedir=str(OUT_DIR),
 )
@@ -814,6 +817,7 @@ fig, ax, df_interleaved = sc_grouped.snssuperplot(
     "total_distance_bodycentre",
     group_order=GROUP_ORDER,
     sort_by="timepoint",
+    random_state=42,  # optional, for point jitter
     show=True,
     savedir=str(OUT_DIR),
     filename="total_distance_interleaved_superplot.png",
@@ -870,6 +874,7 @@ fig_ann, ax_ann, df_ann = sc_grouped.snssuperplot(
     "total_distance_bodycentre",
     group_order=GROUP_ORDER,
     annotate="help",
+    random_state=42,  # optional, for point jitter
     show=False,
 )
 ```
@@ -959,7 +964,11 @@ Two ways to pass a metric to any `sns*` method:
 
 ```python
 # 1. String key
-fig, ax, _ = sc.snsstrip("total_distance_bodycentre", show=False)
+fig, ax, _ = sc.snsstrip(
+    "total_distance_bodycentre",
+    random_state=42,  # optional, for point jitter
+    show=False,
+)
 
 # 2. SummaryResult object (inline)
 fig, ax, df_mc = sc.snsbar(
@@ -981,7 +990,11 @@ and `bfa_stats()` derives effect-size-style summaries for reporting.
 <div class="nb-cell-input" markdown>
 
 ```python
-bfa_results = sc_grouped.bfa(column="kmeans_25", all_states=np.arange(0, N_CLUSTERS))
+bfa_results = sc_grouped.bfa(
+    column="kmeans_25",
+    all_states=np.arange(0, N_CLUSTERS),
+    random_state=42,
+)
 bfa_stats = p3b.SummaryCollection.bfa_stats(bfa_results)
 
 with open(f"{OUT_DIR}/bfa_results.json", "w") as f:

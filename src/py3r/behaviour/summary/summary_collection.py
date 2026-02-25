@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import random
 import warnings
+from itertools import combinations
 
 import pandas as pd
 
@@ -302,6 +304,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         all_states=None,
         numshuffles: int = 1000,
         pairs: list[tuple[str, str]] | None = None,
+        random_state: int | None = 0,
     ):
         """
         Behaviour Flow Analysis between groups for a grouped SummaryCollection.
@@ -312,6 +315,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
         If `pairs` is provided, only those group pairs are analyzed; otherwise all
         unique pairs in `self.group_keys` are evaluated.
+
+        Parameters
+        ----------
+        random_state:
+            Optional seed for deterministic surrogate shuffling. ``None`` keeps
+            non-deterministic behavior.
 
         Examples
         --------
@@ -351,7 +360,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         if not getattr(self, "is_grouped", False):
             raise ValueError("bfa requires a grouped SummaryCollection (call groupby first)")
 
-        from itertools import combinations
+        rng = random.Random(random_state)
 
         # batch calculate transition matrix for each summary object
         transition_matrices_result = self.each.transition_matrix(column, all_states)
@@ -394,9 +403,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
             list2 = list(transition_matrices[group2].values())
             _["observed"] = self._manhattan_distance_twogroups(list1, list2)
             _["surrogates"] = [
-                self._shuffle_lists(*self._shuffle_lists(list1, list2))
-                and self._manhattan_distance_twogroups(*self._shuffle_lists(list1, list2))
-                for i in range(numshuffles)
+                self._manhattan_distance_twogroups(*self._shuffle_lists(list1, list2, rng))
+                for _ in range(numshuffles)
             ]
             # use formatted labels for result key
             distances[f"{_fmt_group(group1)}_vs_{_fmt_group(group2)}"] = _
@@ -887,12 +895,10 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         return distance
 
     @staticmethod
-    def _shuffle_lists(group1: list, group2: list) -> tuple[list, list]:
-        import random
-
+    def _shuffle_lists(group1: list, group2: list, rng) -> tuple[list, list]:
         n1 = len(group1)
         combined = group1 + group2
-        random.shuffle(combined)
+        rng.shuffle(combined)
         new_group1 = combined[:n1]
         new_group2 = combined[n1:]
         return new_group1, new_group2

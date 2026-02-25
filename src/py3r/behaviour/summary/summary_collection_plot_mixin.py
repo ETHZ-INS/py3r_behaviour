@@ -7,6 +7,9 @@ This mixin is mixed into :class:`SummaryCollection` and provides all
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+
+import numpy as np
 import pandas as pd
 
 
@@ -358,6 +361,20 @@ class SummaryCollectionPlotMixin:
     # -------------------------------------------------------------------------
     # Misc static helpers
     # -------------------------------------------------------------------------
+
+    @staticmethod
+    @contextmanager
+    def _temporary_numpy_seed(random_state: int | None):
+        """Temporarily seed NumPy global RNG for deterministic plotting jitter."""
+        if random_state is None:
+            yield
+            return
+        state = np.random.get_state()
+        np.random.seed(random_state)
+        try:
+            yield
+        finally:
+            np.random.set_state(state)
 
     @staticmethod
     def _smart_sort_labels(labels):
@@ -777,8 +794,10 @@ class SummaryCollectionPlotMixin:
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
+        random_state = kwargs.pop("random_state", None)
         spec.sns_kwargs.update(kwargs)
-        plot_func(**spec.sns_kwargs)
+        with self._temporary_numpy_seed(random_state):
+            plot_func(**spec.sns_kwargs)
 
         # Build seaborn params dict for statannotations passthrough
         sns_kw = {
@@ -977,6 +996,7 @@ class SummaryCollectionPlotMixin:
             Plot title.
         **kwargs
             Passed to seaborn.stripplot (e.g., jitter, alpha, size, palette).
+            Also accepts ``random_state`` for deterministic jitter placement.
 
         Returns
         -------
@@ -1347,6 +1367,7 @@ class SummaryCollectionPlotMixin:
             Extra kwargs for stripplot (e.g., alpha, size, jitter).
         **kwargs
             Common kwargs passed to both plots (e.g., palette, dodge).
+            Also accepts ``random_state`` for deterministic jitter placement.
 
         Returns
         -------
@@ -1389,16 +1410,17 @@ class SummaryCollectionPlotMixin:
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
+        random_state = kwargs.pop("random_state", None)
 
         # Bar plot (mean + error bars) — base layer
         bar_defaults = {"errorbar": None, "capsize": 0.1, "alpha": 0.7, "zorder": 1}
         bar_kw = {**spec.sns_kwargs, **bar_defaults, **(bar_kwargs or {}), **kwargs}
-        sns.barplot(**bar_kw, legend=False)
-
         # Strip plot (individual dots) — overlay
         strip_defaults = {"alpha": 0.8, "jitter": True, "size": 4, "zorder": 2}
         strip_kw = {**spec.sns_kwargs, **strip_defaults, **(strip_kwargs or {}), **kwargs}
-        sns.stripplot(**strip_kw)
+        with self._temporary_numpy_seed(random_state):
+            sns.barplot(**bar_kw, legend=False)
+            sns.stripplot(**strip_kw)
 
         # Build seaborn params dict for statannotations passthrough
         sns_kw = {
