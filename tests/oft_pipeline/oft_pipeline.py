@@ -826,7 +826,11 @@ print("Visualisation tests passed.")
 # `all_states=np.arange(0, N_CLUSTERS)` makes the state space explicit.
 
 # %%
-bfa_results = sc_grouped.bfa(column="kmeans_25", all_states=np.arange(0, N_CLUSTERS))
+bfa_results = sc_grouped.bfa(
+    column="kmeans_25",
+    all_states=np.arange(0, N_CLUSTERS),
+    random_state=42,
+)
 bfa_stats = p3b.SummaryCollection.bfa_stats(bfa_results)
 
 with open(f"{OUT_DIR}/bfa_results.json", "w") as f:
