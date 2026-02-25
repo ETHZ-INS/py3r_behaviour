@@ -62,20 +62,6 @@ jobs:
           python -m ruff format --check .
           python -m ruff check .
 
-      - name: Generate batch mixins
-        run: python -m tools.gen_batch_mixins
-
-      - name: Format generated mixins
-        run: |
-          python -m ruff format \
-            src/py3r/behaviour/tracking/tracking_collection_batch_mixin.py \
-            src/py3r/behaviour/features/features_collection_batch_mixin.py \
-            src/py3r/behaviour/summary/summary_collection_batch_mixin.py
-
-      - name: Enforce generated files committed
-        run: |
-          git diff --exit-code || (echo "Uncommitted changes after generation. Commit mixins." && exit 1)
-
       - name: Run doctests
         run: pytest -q --xdoctest --xdoctest-modules src/
 

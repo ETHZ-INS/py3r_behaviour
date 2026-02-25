@@ -33,7 +33,6 @@ from py3r.behaviour.util.io_utils import (
 )
 from py3r.behaviour.util.missing_tolerance import impute_frame
 from py3r.behaviour.util.series_utils import (
-    apply_custom_scaling,
     apply_normalization_to_df,
     normalize_df,
 )
@@ -497,53 +496,10 @@ class Features:
         """
         Deprecated: use define_static_boundary or define_dynamic_boundary instead.
         """
-        # deprecation warning
-        warnings.warn(
-            "define_boundary is deprecated; "
-            "use define_static_boundary or define_dynamic_boundary instead.",
-            DeprecationWarning,
-            stacklevel=2,
+        raise NotImplementedError(
+            "Features.define_boundary() was removed; use Features.define_static_boundary() "
+            "or Features.define_dynamic_boundary() instead."
         )
-        # get point medians
-        pointmedians = [self.get_point_median(point) for point in points]
-        # get centre
-        if centre is not None:
-            if isinstance(centre, str):
-                boundarycentre = self.get_point_median(centre)
-            elif isinstance(centre, list):
-                centrepointmedians = [self.get_point_median(point) for point in centre]
-                xcoords = np.array([point[0] for point in centrepointmedians])
-                ycoords = np.array([point[1] for point in centrepointmedians])
-                boundarycentre = (xcoords.mean(), ycoords.mean())
-            else:
-                raise ValueError(f"centre must be a string or list of strings, not {type(centre)}")
-        else:
-            xcoords = np.array([point[0] for point in pointmedians])
-            ycoords = np.array([point[1] for point in pointmedians])
-            boundarycentre = (xcoords.mean(), ycoords.mean())
-
-        def rescale(val1: float, val2: float, factor: float) -> float:
-            output = val1 + (val2 - val1) * (1 - factor)
-            return output
-
-        if scaling_y is not None:
-            rescaledpoints = [
-                (
-                    rescale(point[0], boundarycentre[0], scaling),
-                    rescale(point[1], boundarycentre[1], scaling_y),
-                )
-                for point in pointmedians
-            ]
-        else:
-            rescaledpoints = [
-                (
-                    rescale(point[0], boundarycentre[0], scaling),
-                    rescale(point[1], boundarycentre[1], scaling),
-                )
-                for point in pointmedians
-            ]
-
-        return rescaledpoints
 
     def _get_boundaries(self) -> dict[str, StaticBoundary | DynamicBoundary]:
         boundaries = self._assets.get("boundaries")
@@ -841,70 +797,20 @@ class Features:
     def within_boundary_static(
         self, point: str, boundary, boundary_name: str = None
     ) -> FeaturesResult:
-        warnings.warn(
-            "within_boundary_static is deprecated; use within_boundary with a StaticBoundary.",
-            DeprecationWarning,
-            stacklevel=2,
+        raise NotImplementedError(
+            "Features.within_boundary_static() was removed; use "
+            "Features.within_boundary(point, boundary) with a StaticBoundary "
+            "or stored boundary name instead."
         )
-        if isinstance(boundary, str):
-            resolved = self._resolve_boundary_ref(boundary)
-            if not isinstance(resolved, StaticBoundary):
-                raise TypeError("Boundary name resolves to a DynamicBoundary, not StaticBoundary.")
-            boundary_label = boundary_name or resolved.name or boundary
-            return self._within_boundary_static_impl(
-                point,
-                boundary_vertices=list(resolved.vertices),
-                dims=resolved.dims,
-                boundary_label=boundary_label,
-                boundary_meta=resolved.to_dict(),
-            )
-        if self._is_legacy_vertex_list(boundary):
-            return self._within_boundary_static_impl(
-                point,
-                boundary_vertices=boundary,
-                dims=("x", "y"),
-                boundary_label=boundary_name or self._short_boundary_id(boundary),
-                boundary_meta=boundary,
-            )
-        raise TypeError("within_boundary_static expects a boundary name, or static vertices list.")
 
     def within_boundary_dynamic(
         self, point: str, boundary, boundary_name: str = None
     ) -> FeaturesResult:
-        warnings.warn(
-            "within_boundary_dynamic is deprecated; use within_boundary with a DynamicBoundary.",
-            DeprecationWarning,
-            stacklevel=2,
+        raise NotImplementedError(
+            "Features.within_boundary_dynamic() was removed; use "
+            "Features.within_boundary(point, boundary) with a DynamicBoundary "
+            "or stored boundary name instead."
         )
-        if isinstance(boundary, str):
-            resolved = self._resolve_boundary_ref(boundary)
-            if not isinstance(resolved, DynamicBoundary):
-                raise TypeError("Boundary name resolves to a StaticBoundary, not DynamicBoundary.")
-            boundary_label = boundary_name or resolved.name or boundary
-            return self._within_boundary_dynamic_impl(
-                point,
-                boundary_points=list(resolved.points),
-                dims=resolved.dims,
-                scale_dim1=resolved.scale_dim1,
-                scale_dim2=resolved.scale_dim2,
-                anchor_points=list(resolved.anchor_points)
-                if resolved.anchor_points is not None
-                else None,
-                boundary_label=boundary_label,
-                boundary_meta=resolved.to_dict(),
-            )
-        if self._is_legacy_point_name_list(boundary):
-            return self._within_boundary_dynamic_impl(
-                point,
-                boundary_points=boundary,
-                dims=("x", "y"),
-                scale_dim1=1.0,
-                scale_dim2=1.0,
-                anchor_points=None,
-                boundary_label=boundary_name or self._short_boundary_id(boundary),
-                boundary_meta=boundary,
-            )
-        raise TypeError("within_boundary_dynamic expects a boundary name, or point-name list.")
 
     def within_boundary(self, point: str, boundary) -> FeaturesResult:
         """
@@ -1110,72 +1016,20 @@ class Features:
     def distance_to_boundary_static(
         self, point: str, boundary, boundary_name: str = None
     ) -> FeaturesResult:
-        warnings.warn(
-            "distance_to_boundary_static is deprecated; use distance_to_boundary "
-            "with a StaticBoundary.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        if isinstance(boundary, str):
-            resolved = self._resolve_boundary_ref(boundary)
-            if not isinstance(resolved, StaticBoundary):
-                raise TypeError("Boundary name resolves to a DynamicBoundary, not StaticBoundary.")
-            return self._distance_to_boundary_static_impl(
-                point,
-                boundary_vertices=list(resolved.vertices),
-                dims=resolved.dims,
-                boundary_label=boundary_name or resolved.name or boundary,
-                boundary_meta=resolved.to_dict(),
-            )
-        if self._is_legacy_vertex_list(boundary):
-            return self._distance_to_boundary_static_impl(
-                point,
-                boundary_vertices=boundary,
-                dims=("x", "y"),
-                boundary_label=boundary_name or self._short_boundary_id(boundary),
-                boundary_meta=boundary,
-            )
-        raise TypeError(
-            "distance_to_boundary_static expects a boundary name, or static vertices list."
+        raise NotImplementedError(
+            "Features.distance_to_boundary_static() was removed; use "
+            "Features.distance_to_boundary(point, boundary) with a StaticBoundary "
+            "or stored boundary name instead."
         )
 
     def distance_to_boundary_dynamic(
         self, point: str, boundary, boundary_name: str | None = None
     ) -> FeaturesResult:
-        warnings.warn(
-            "distance_to_boundary_dynamic is deprecated; use distance_to_boundary "
-            "with a DynamicBoundary.",
-            DeprecationWarning,
-            stacklevel=2,
+        raise NotImplementedError(
+            "Features.distance_to_boundary_dynamic() was removed; use "
+            "Features.distance_to_boundary(point, boundary) with a DynamicBoundary "
+            "or stored boundary name instead."
         )
-        if isinstance(boundary, str):
-            resolved = self._resolve_boundary_ref(boundary)
-            if not isinstance(resolved, DynamicBoundary):
-                raise TypeError("Boundary name resolves to a StaticBoundary, not DynamicBoundary.")
-            return self._distance_to_boundary_dynamic_impl(
-                point,
-                boundary_points=list(resolved.points),
-                dims=resolved.dims,
-                scale_dim1=resolved.scale_dim1,
-                scale_dim2=resolved.scale_dim2,
-                anchor_points=list(resolved.anchor_points)
-                if resolved.anchor_points is not None
-                else None,
-                boundary_label=boundary_name or resolved.name or boundary,
-                boundary_meta=resolved.to_dict(),
-            )
-        if self._is_legacy_point_name_list(boundary):
-            return self._distance_to_boundary_dynamic_impl(
-                point,
-                boundary_points=boundary,
-                dims=("x", "y"),
-                scale_dim1=1.0,
-                scale_dim2=1.0,
-                anchor_points=None,
-                boundary_label=boundary_name or self._short_boundary_id(boundary),
-                boundary_meta=boundary,
-            )
-        raise TypeError("distance_to_boundary_dynamic expects a boundary name, or point-name list.")
 
     def area_of_boundary(
         self, boundary: str | StaticBoundary | DynamicBoundary, **kwargs
@@ -1208,7 +1062,8 @@ class Features:
         if "median" in kwargs or "boundary_name" in kwargs:
             raise TypeError(
                 "area_of_boundary accepts only `boundary`. "
-                "Use area_of_boundary_deprecated(boundary, median=...) for legacy behavior."
+                "Use area_of_boundary(boundary) with a StaticBoundary, "
+                "DynamicBoundary, or stored boundary name."
             )
         if len(kwargs) > 0:
             keys = ", ".join(sorted(kwargs.keys()))
@@ -1272,7 +1127,8 @@ class Features:
         if self._is_legacy_point_name_list(boundary):
             raise TypeError(
                 "area_of_boundary no longer accepts point-name lists. "
-                "Use area_of_boundary_deprecated(boundary, median=...) for legacy behavior."
+                "Create a boundary with define_static_boundary()/define_dynamic_boundary() "
+                "and pass that boundary (or its stored name)."
             )
 
         raise TypeError(
@@ -1293,32 +1149,10 @@ class Features:
         median
             ``True`` for static-median area, ``False`` for per-frame dynamic area.
         """
-        warnings.warn(
-            "area_of_boundary_deprecated is deprecated and will be removed in a future release.",
-            DeprecationWarning,
-            stacklevel=2,
+        raise NotImplementedError(
+            "Features.area_of_boundary_deprecated() was removed; use "
+            "Features.area_of_boundary(boundary) instead."
         )
-        kind = "static" if median else "dynamic"
-        name = f"area_of_boundary_{self._short_boundary_id(boundary)}_{kind}"
-        meta = {"function": "area_of_boundary_deprecated", "boundary": boundary, "median": median}
-        if median:
-            warnings.warn("using median (static) boundary", stacklevel=2)
-            static_boundary = [self.get_point_median(i) for i in boundary]
-            local_poly = Polygon(static_boundary)
-            area = local_poly.area
-            result = pd.Series(area, index=self.tracking.data.index)
-        else:
-            warnings.warn("using fully dynamic boundary", stacklevel=2)
-            data = self.tracking.data
-            bx = np.column_stack([data[b + ".x"].to_numpy(dtype=float) for b in boundary])
-            by = np.column_stack([data[b + ".y"].to_numpy(dtype=float) for b in boundary])
-            bx_next = np.roll(bx, -1, axis=1)
-            by_next = np.roll(by, -1, axis=1)
-            result = pd.Series(
-                0.5 * np.abs(np.sum(bx * by_next - bx_next * by, axis=1)),
-                index=data.index,
-            )
-        return FeaturesResult(result, self, name, meta)
 
     def acceleration(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
@@ -1825,7 +1659,7 @@ class Features:
         lowmem: bool = False,
         decimation_factor: int = 10,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
-        # --- deprecated params (kept for backward compat) ---
+        # Removed legacy params; retained for explicit migration errors.
         auto_normalize: bool = False,
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
@@ -1859,6 +1693,14 @@ class Features:
 
         ```
         """
+        if auto_normalize:
+            raise NotImplementedError("auto_normalize was removed; use normalize=True instead.")
+        if rescale_factors is not None:
+            raise NotImplementedError(
+                "rescale_factors was removed; use normalize and/or feature_weights instead."
+            )
+        if custom_scaling is not None:
+            raise NotImplementedError("custom_scaling was removed; use feature_weights instead.")
         from py3r.behaviour.features.features_collection import FeaturesCollection
 
         fc = FeaturesCollection.from_list([self])
@@ -1943,7 +1785,7 @@ class Features:
         *,
         scaling_factors: dict[str, float] | None = None,
         impute_medians: pd.Series | None = None,
-        # --- deprecated params (kept for backward compat) ---
+        # Removed legacy params; retained for explicit migration errors.
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
     ) -> FeaturesResult:
@@ -1962,12 +1804,6 @@ class Features:
             multiplied by the corresponding value before distance computation.
         impute_medians : pd.Series | None
             Per-column fill values for NaN imputation (from training).
-        rescale_factors : dict | None
-            .. deprecated:: Use *scaling_factors* instead.
-        custom_scaling : dict[str, dict] | None
-            .. deprecated:: Use *scaling_factors* together with
-               :func:`~py3r.behaviour.util.series_utils.build_column_weights`.
-
         Returns
         -------
         FeaturesResult
@@ -1997,31 +1833,18 @@ class Features:
         """
         from sklearn.metrics.pairwise import pairwise_distances_argmin
 
-        # --- handle deprecated params ------------------------------------
         if rescale_factors is not None:
-            warnings.warn(
-                "rescale_factors is deprecated; pass scaling_factors instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise NotImplementedError("rescale_factors was removed; pass scaling_factors instead.")
         if custom_scaling is not None:
-            warnings.warn(
-                "custom_scaling is deprecated; use build_column_weights() "
-                "and pass scaling_factors instead.",
-                DeprecationWarning,
-                stacklevel=2,
+            raise NotImplementedError(
+                "custom_scaling was removed; use build_column_weights() "
+                "and pass scaling_factors instead."
             )
 
         embed_df = self.embedding_df(embedding)
 
         if scaling_factors is not None:
             embed_df = embed_df * pd.Series(scaling_factors)
-        elif rescale_factors is not None and custom_scaling is not None:
-            raise ValueError("rescale_factors and custom_scaling are mutually exclusive")
-        elif rescale_factors is not None:
-            embed_df = apply_normalization_to_df(embed_df, rescale_factors)
-        elif custom_scaling is not None:
-            embed_df = apply_custom_scaling(embed_df, custom_scaling)
 
         if not embed_df.columns.equals(centroids_df.columns):
             raise ValueError("Columns in embedding and centroids do not match")

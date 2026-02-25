@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 from typing import Literal, NamedTuple, Protocol
 
@@ -70,7 +69,6 @@ class Assigner(Protocol):
         centroids: pd.DataFrame,
         *,
         scaling_factors: dict | None,
-        custom_scaling: dict[str, dict] | None,
         impute_medians: pd.Series | None,
     ) -> dict: ...
 
@@ -188,7 +186,6 @@ class DefaultAssigner:
         centroids: pd.DataFrame,
         *,
         scaling_factors: dict | None,
-        custom_scaling: dict[str, dict] | None,
         impute_medians: pd.Series | None,
     ) -> dict:
         is_grouped = getattr(fc, "is_grouped", False)
@@ -203,15 +200,12 @@ class DefaultAssigner:
             else ((None, fn, f) for fn, f in fc.features_dict.items())
         )
         for gkey, feat_name, feat in items:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                fr = feat.assign_clusters_by_centroids(
-                    embedding_dict,
-                    centroids,
-                    rescale_factors=scaling_factors,
-                    custom_scaling=custom_scaling,
-                    impute_medians=impute_medians,
-                )
+            fr = feat.assign_clusters_by_centroids(
+                embedding_dict,
+                centroids,
+                scaling_factors=scaling_factors,
+                impute_medians=impute_medians,
+            )
             if is_grouped:
                 result_dict.setdefault(gkey, {})[feat_name] = fr
             else:
@@ -252,33 +246,15 @@ class ClusteringPipeline:
         embedding_dict: dict[str, list[int]],
         cfg: ClusteringConfig,
     ) -> tuple[dict, pd.DataFrame, dict | None, dict]:
-        using_legacy = (
-            cfg.auto_normalize or cfg.rescale_factors is not None or cfg.custom_scaling is not None
-        )
         using_new = cfg.normalize or cfg.feature_weights is not None
-        if using_legacy and using_new:
-            raise ValueError(
-                "Cannot mix new params (normalize, feature_weights) with "
-                "deprecated params (auto_normalize, rescale_factors, custom_scaling)."
-            )
         if cfg.auto_normalize:
-            warnings.warn(
-                "auto_normalize is deprecated; use normalize=True instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise NotImplementedError("auto_normalize was removed; use normalize=True instead.")
         if cfg.rescale_factors is not None:
-            warnings.warn(
-                "rescale_factors is deprecated; use normalize and/or feature_weights instead.",
-                DeprecationWarning,
-                stacklevel=2,
+            raise NotImplementedError(
+                "rescale_factors was removed; use normalize and/or feature_weights instead."
             )
         if cfg.custom_scaling is not None:
-            warnings.warn(
-                "custom_scaling is deprecated; use feature_weights instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+            raise NotImplementedError("custom_scaling was removed; use feature_weights instead.")
 
         build = self.pre.build(
             fc,
@@ -344,13 +320,11 @@ class ClusteringPipeline:
                     else:
                         result_dict[feat_name] = fr
             else:
-                factors_for_assign = norm if cfg.auto_normalize else cfg.rescale_factors
                 result_dict = self.assigner.assign_lowmem(
                     fc,
                     embedding_dict,
                     centroids,
-                    scaling_factors=factors_for_assign,
-                    custom_scaling=cfg.custom_scaling,
+                    scaling_factors=norm,
                     impute_medians=impute_medians,
                 )
             return result_dict, centroids, norm, meta

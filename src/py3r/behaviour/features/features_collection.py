@@ -12,9 +12,6 @@ from py3r.behaviour.features.cluster_pipeline import (
     StreamingConfig,
 )
 from py3r.behaviour.features.features import Features
-from py3r.behaviour.features.features_collection_batch_mixin import (
-    FeaturesCollectionBatchMixin,
-)
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import BatchResult, _Indexer
@@ -25,7 +22,7 @@ from py3r.behaviour.util.series_utils import (
 )
 
 
-class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
+class FeaturesCollection(BaseCollection):
     """
     Collection of Features objects, keyed by name.
     note: type-hints refer to Features, but factory methods allow for other classes
@@ -254,133 +251,6 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
             return cls(result_dict)
 
-    def within_boundary_static(
-        self,
-        point: str,
-        boundary,
-        boundary_name: str = None,
-    ):
-        """
-        Collection-aware wrapper that supports:
-          - a single static `boundary` (list[(x,y)]) applied to all items, or
-          - a per-handle mapping of boundaries produced by batch `define_boundary`:
-            - flat: {handle: list[(x,y)]}
-            - grouped: {group_key: {handle: list[(x,y)]}}
-            - BatchResult in either of the above shapes
-
-        Examples
-        --------
-        ```pycon
-        >>> import tempfile, shutil
-        >>> from pathlib import Path
-        >>> import pandas as pd
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        >>> fc = FeaturesCollection.from_tracking_collection(tc)
-        >>> boundaries = fc.define_boundary(['p1','p2','p3'], scaling=1.0)
-        >>> res = fc.within_boundary_static('p1', boundaries)
-        >>> isinstance(res, dict)
-        True
-        >>> any(isinstance(v, pd.Series) for v in res.values())
-        True
-
-        >>> # Grouped case: add tags on Tracking, group, then build grouped FeaturesCollection
-        >>> # (boundaries BatchResult structure matches grouped layout)
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        ...     tc['A'].add_tag('group', 'G1'); tc['B'].add_tag('group', 'G2')
-        ...     gtc = tc.groupby('group')
-        ...     gfc = FeaturesCollection.from_tracking_collection(gtc)
-        ...     g_boundaries = gfc.define_boundary(['p1','p2','p3'], scaling=1.0)
-        ...     g_res = gfc.within_boundary_static('p1', g_boundaries)
-        >>> isinstance(g_res, dict)
-        True
-        >>> any(any(isinstance(s, pd.Series) for s in sub.values()) for sub in g_res.values())
-        True
-
-        ```
-        """
-        # Case 1: one boundary applied to all leaves -> use standard batch path
-        if isinstance(boundary, list):
-            return self._invoke_batch("within_boundary_static", point, boundary, boundary_name)
-
-        # Case 2: mapping or BatchResult providing per-handle boundaries
-        return self._invoke_batch_mapped(
-            "within_boundary_static",
-            args=(point,),
-            kwargs={"boundary": boundary, "boundary_name": boundary_name},
-        )
-
-    def distance_to_boundary_static(
-        self,
-        point: str,
-        boundary,
-        boundary_name: str = None,
-    ):
-        """
-        Collection-aware wrapper that supports:
-          - a single static `boundary` (list[(x,y)]) applied to all items, or
-          - a per-handle mapping of boundaries produced by batch `define_boundary`:
-            - flat: {handle: list[(x,y)]}
-            - grouped: {group_key: {handle: list[(x,y)]}}
-            - BatchResult in either of the above shapes
-
-        Examples
-        --------
-        ```pycon
-        >>> import tempfile, shutil
-        >>> from pathlib import Path
-        >>> import pandas as pd
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        >>> fc = FeaturesCollection.from_tracking_collection(tc)
-        >>> boundaries = fc.define_boundary(['p1','p2','p3'], scaling=1.0)
-        >>> res = fc.distance_to_boundary_static('p1', boundaries)
-        >>> isinstance(res, dict)
-        True
-        >>> any(isinstance(v, pd.Series) for v in res.values())
-        True
-
-        >>> # Grouped case
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        ...     tc['A'].add_tag('group', 'G1'); tc['B'].add_tag('group', 'G2')
-        ...     gtc = tc.groupby('group')
-        ...     gfc = FeaturesCollection.from_tracking_collection(gtc)
-        ...     g_boundaries = gfc.define_boundary(['p1','p2','p3'], scaling=1.0)
-        ...     g_res = gfc.distance_to_boundary_static('p1', g_boundaries)
-        >>> isinstance(g_res, dict)
-        True
-        >>> any(any(isinstance(s, pd.Series) for s in sub.values()) for sub in g_res.values())
-        True
-
-        ```
-        """
-        if isinstance(boundary, list):
-            return self._invoke_batch("distance_to_boundary_static", point, boundary, boundary_name)
-
-        return self._invoke_batch_mapped(
-            "distance_to_boundary_static",
-            args=(point,),
-            kwargs={"boundary": boundary, "boundary_name": boundary_name},
-        )
-
     @classmethod
     def from_list(cls, features_list: list[Features]):
         """
@@ -418,7 +288,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         lowmem: bool = False,
         decimation_factor: int = 10,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
-        # --- deprecated params (kept for backward compat) ---
+        # removed legacy params; retained for a clear migration error
         auto_normalize: bool = False,
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
@@ -440,13 +310,6 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
             matched columns are multiplied by the value.  Resolved internally
             via :func:`~py3r.behaviour.util.series_utils.build_column_weights`.
             Raises if a rule matches no column (likely typo).
-        auto_normalize : bool
-            .. deprecated:: Use *normalize* instead.
-        rescale_factors : dict | None
-            .. deprecated:: Use *normalize* and/or *feature_weights*.
-        custom_scaling : dict[str, dict] | None
-            .. deprecated:: Use *feature_weights*.
-
         Examples
         --------
         ```pycon
@@ -482,6 +345,14 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
         ```
         """
+        if auto_normalize:
+            raise NotImplementedError("auto_normalize was removed; use normalize=True instead.")
+        if rescale_factors is not None:
+            raise NotImplementedError(
+                "rescale_factors was removed; use normalize and/or feature_weights instead."
+            )
+        if custom_scaling is not None:
+            raise NotImplementedError("custom_scaling was removed; use feature_weights instead.")
         pipeline = ClusteringPipeline()
         cfg = ClusteringConfig(
             n_clusters=n_clusters,

@@ -42,12 +42,10 @@ from nbclient import NotebookClient
 # ---------------------------------------------------------------------------
 PIPELINES: dict[str, Path] = {
     "oft_pipeline": Path("tests/oft_pipeline/oft_pipeline.py"),
-    "epm_pipeline": Path("tests/epm_pipeline/epm_pipeline.py"),
 }
 
 ARTIFACTS: dict[str, Path] = {
     "oft_pipeline": Path("_artifacts/oft_pipeline/oft_pipeline.ipynb"),
-    "epm_pipeline": Path("_artifacts/epm_pipeline/epm_pipeline.ipynb"),
 }
 
 # GitHub release download URL template for example asset links in docs

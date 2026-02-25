@@ -608,7 +608,7 @@ print("Summary computation and CSV tests passed.")
 # Also available: `snsbox`, `snsviolin`, `snspoint`, `snsswarm`.
 
 # %%
-sc.time_in_state("kmeans_25").store("time_in_cluster")
+sc.each.time_in_state("kmeans_25").store("time_in_cluster")
 fig, ax, df_strip = sc.snsstrip(
     "time_in_cluster",
     show=True,

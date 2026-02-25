@@ -64,12 +64,6 @@ pre-commit install
 After this, commits will run the hooks; you can also run them manually with `pre-commit run --all-files`.
 
 ## Before you push
-### Generate batch mixins and make sure no uncommitted changes remain after generation:
-```bash
-PYTHONPATH=src python -m tools.gen_batch_mixins
-git diff --exit-code || (echo "Please commit updated generated files" && exit 1)
-```
-
 ### Run tests (including doctests in docstrings):
 ```bash
 pytest -q --xdoctest --xdoctest-modules
