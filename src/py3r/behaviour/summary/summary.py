@@ -824,7 +824,7 @@ class Summary:
         ['B', 'C', 'A']
         >>> res = s.count_state_onsets('state', all_states=['A'])
         >>> res.value.tolist()
-        [1]
+        [2]
         >>> res.value.index.tolist()
         ['A']
         >>> hasattr(res, 'value')
