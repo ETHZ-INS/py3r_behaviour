@@ -789,9 +789,18 @@ class Summary:
         }
         return SummaryResult(transition_matrix, self, f"transition_matrix_{column}", meta)
 
-    def count_state_onsets(self, column: str) -> SummaryResult:
+    def count_state_onsets(self, column: str, all_states: list | None = None) -> SummaryResult:
         """
         counts the number of times a state is entered in a given column
+
+        Parameters
+        ----------
+        column:
+            Name of the state column in ``features.data``.
+        all_states:
+            Optional explicit state ordering to control index presence/order in the
+            returned Series. When provided, the output is reindexed to ``all_states``
+            and missing states are filled with ``0``.
         Examples
         --------
         ```pycon
@@ -806,7 +815,18 @@ class Summary:
         >>> states = pd.Series(['A','A','B','B','A'][:len(t.data)], index=t.data.index)
         >>> f.store(states, 'state', meta={})
         >>> s = Summary(f)
-        >>> res = s.count_state_onsets('state')
+        >>> res = s.count_state_onsets('state', all_states=['B', 'C', 'A'])
+        >>> res.value.index.tolist()
+        ['B', 'C', 'A']
+        >>> res.value.tolist()
+        [1, 0, 1]
+        >>> res._params['all_states']
+        ['B', 'C', 'A']
+        >>> res = s.count_state_onsets('state', all_states=['A'])
+        >>> res.value.tolist()
+        [1]
+        >>> res.value.index.tolist()
+        ['A']
         >>> hasattr(res, 'value')
         True
 
@@ -818,14 +838,25 @@ class Summary:
         transitions = states != states.shift()
         transition_states = states[transitions]
         state_counts = transition_states.value_counts()
-        meta = {"function": "count_state_onsets", "column": column}
+        if all_states is not None:
+            state_counts = state_counts.reindex(all_states, fill_value=0)
+        meta = {"function": "count_state_onsets", "column": column, "all_states": all_states}
         return SummaryResult(
             state_counts, self, f"count_state_onsets_{column}", meta, ylabel="Count"
         )
 
-    def time_in_state(self, column: str) -> SummaryResult:
+    def time_in_state(self, column: str, all_states: list | None = None) -> SummaryResult:
         """
         returns the time spent in each state in a given column
+
+        Parameters
+        ----------
+        column:
+            Name of the state column in ``features.data``.
+        all_states:
+            Optional explicit state ordering to control index presence/order in the
+            returned Series. When provided, the output is reindexed to ``all_states``
+            and missing states are filled with ``0``.
         Examples
         --------
         ```pycon
@@ -840,7 +871,18 @@ class Summary:
         >>> states = pd.Series(['A','A','B','B','A'][:len(t.data)], index=t.data.index)
         >>> f.store(states, 'state', meta={})
         >>> s = Summary(f)
-        >>> res = s.time_in_state('state')
+        >>> res = s.time_in_state('state', all_states=['B', 'C', 'A'])
+        >>> res.value.index.tolist()
+        ['B', 'C', 'A']
+        >>> [round(v, 4) for v in res.value.tolist()]
+        [0.0667, 0.0, 0.1]
+        >>> res._params['all_states']
+        ['B', 'C', 'A']
+        >>> res = s.time_in_state('state', all_states=['A'])
+        >>> [round(v, 4) for v in res.value.tolist()]
+        [0.1]
+        >>> res.value.index.tolist()
+        ['A']
         >>> hasattr(res, 'value')
         True
 
@@ -850,7 +892,9 @@ class Summary:
             raise ValueError(f"Column '{column}' not found in features.data")
         states = self.features.data[column]
         time_in_state = states.value_counts() / self.features.tracking.meta["fps"]
-        meta = {"function": "time_in_state", "column": column}
+        if all_states is not None:
+            time_in_state = time_in_state.reindex(all_states, fill_value=0)
+        meta = {"function": "time_in_state", "column": column, "all_states": all_states}
         return SummaryResult(
             time_in_state, self, f"time_in_state_{column}", meta, ylabel="Time (s)"
         )
