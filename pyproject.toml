@@ -4,20 +4,51 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "py3r-behaviour"
-version = "2.5.0"
+version = "3.0.0"
 description = "Behaviour analysis tools for the py3r namespace package"
 authors = [{ name = "Tom Lorimer" }]
 dependencies = [
-    "numpy",
-    "pandas",
-    "matplotlib",
-    "seaborn",
-    "scikit-learn",
-    "scipy",
-    "scikit-image",
-    "shapely",
-    "opencv-python",
-    "pyarrow"
+    "numpy>=2.3,<3.0.0",
+    "pandas>=2.3,<3.0.0",
+    "matplotlib>=3.10,<4.0.0",
+    "seaborn>=0.13,<1.0.0",
+    "scikit-learn>=1.7,<2.0.0",
+    "scipy>=1.16,<2.0.0",
+    "scikit-image>=0.25,<1.0.0",
+    "shapely>=2.1,<3.0.0",
+    "opencv-python>=4.11,<5.0.0",
+    "pyarrow>=20.0,<21.0.0",
+    "statannotations>=0.7,<1.0.0",
+    "tqdm>=4.60,<5.0.0",
+]
+
+[project.optional-dependencies]
+# Optional heavy visualization dependencies
+viz = [
+    "pycirclize>=1,<2.0.0",
+    "umap-learn>=0.5,<1.0.0",
+]
+# Developer tooling: testing, notebooks-as-tests, and documentation build
+dev = [
+    # testing
+    "pytest>=8,<9.0.0",
+    "xdoctest>=1,<2.0.0",
+    "nbmake>=1,<2.0.0",
+    # docs
+    "mkdocs-material>=9,<10.0.0",
+    "mkdocs-autorefs>=1,<2.0.0",
+    "mkdocstrings[python]>=0.25,<1.0.0",
+    "mkdocs-glightbox>=0.4,<1.0.0",
+    "mike>=2,<3.0.0",
+    # notebooks workflow and diffs
+    "nbdime>=3,<4.0.0",
+    "nbstripout>=0.7,<1.0.0",
+    "jupytext>=1,<2.0.0",
+    # notebook rendering (tools/render_notebooks.py)
+    "nbformat>=5,<6.0.0",
+    "nbclient>=0.10,<1.0.0",
+    "ruff==0.14.14",
+    "pre-commit==3.8.0",  # optional but strongly recommended
 ]
 
 [tool.setuptools.packages.find]
@@ -29,3 +60,22 @@ addopts = "-q"
 testpaths = ["src", "tests"]
 doctest_optionflags = ["ELLIPSIS", "IGNORE_EXCEPTION_DETAIL", "NORMALIZE_WHITESPACE"]
 filterwarnings = ["ignore::UserWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["build", "dist", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+# E/F  = pycodestyle + pyflakes
+# I    = import sorting (replaces isort)
+# B    = bugbear (common footguns)
+# UP   = pyupgrade (modern syntax)
+
+# pipeline notebook .py files: E402 because imports not at top of file by design
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/**/oft_pipeline.py" = ["E402"]
+
+[tool.ruff.format]
+# defaults intentionally left alone

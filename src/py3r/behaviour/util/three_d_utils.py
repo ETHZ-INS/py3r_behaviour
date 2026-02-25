@@ -1,12 +1,14 @@
-import cv2
-import numpy as np
-import os
 import glob
 import json
+import os
+
+import cv2
+import numpy as np
 
 
 def find_chessboard_corners(image_paths, chessboard_size):
-    """Find chessboard corners in a list of images. Returns (objpoints, imgpoints, valid_indices)."""
+    """Find chessboard corners in a list of images.
+    Returns (objpoints, imgpoints, valid_indices)."""
     objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
     objp[:, :2] = np.indices(chessboard_size).T.reshape(-1, 2)
     objpoints = []
@@ -25,9 +27,7 @@ def find_chessboard_corners(image_paths, chessboard_size):
     return objpoints, imgpoints, valid_indices
 
 
-def calibrate_stereo_system(
-    view1_folder, view2_folder, chessboard_size, square_size, output_json
-):
+def calibrate_stereo_system(view1_folder, view2_folder, chessboard_size, square_size, output_json):
     """
     Calibrate a stereo camera system using chessboard images from two folders.
     """
@@ -120,13 +120,9 @@ def extract_calibration_images(
     os.makedirs(out_dir2, exist_ok=True)
     cap1 = cv2.VideoCapture(video1_path)
     cap2 = cv2.VideoCapture(video2_path)
-    n_frames = int(
-        min(cap1.get(cv2.CAP_PROP_FRAME_COUNT), cap2.get(cv2.CAP_PROP_FRAME_COUNT))
-    )
+    n_frames = int(min(cap1.get(cv2.CAP_PROP_FRAME_COUNT), cap2.get(cv2.CAP_PROP_FRAME_COUNT)))
     if n_frames < num_images:
-        raise ValueError(
-            f"Not enough frames in the videos to extract {num_images} images."
-        )
+        raise ValueError(f"Not enough frames in the videos to extract {num_images} images.")
     indices = np.linspace(0, n_frames - 1, num_images, dtype=int)
     saved = 0
     for idx in indices:
@@ -156,9 +152,7 @@ def extract_calibration_images(
             # check not blurred
             if not is_blurred(
                 gray1, min_sharpness, max_anisotropy, min_edge_density
-            ) and not is_blurred(
-                gray2, min_sharpness, max_anisotropy, min_edge_density
-            ):
+            ) and not is_blurred(gray2, min_sharpness, max_anisotropy, min_edge_density):
                 print(f"Not blurred in frame {idx} of {video1_path} and {video2_path}")
                 out1 = os.path.join(out_dir1, f"calib_{saved:03d}.png")
                 out2 = os.path.join(out_dir2, f"calib_{saved:03d}.png")

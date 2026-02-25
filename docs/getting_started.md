@@ -50,11 +50,10 @@ This guide explains the end‑to‑end workflow and links to the relevant APIs. 
         - [`Features.speed`][py3r.behaviour.features.features.Features.speed]
         - [`Features.acceleration`][py3r.behaviour.features.features.Features.acceleration]
     - Boundaries and locations:
-        - Define static boundary from tracked points: [`Features.define_boundary`][py3r.behaviour.features.features.Features.define_boundary]
-        - Static membership: [`Features.within_boundary_static`][py3r.behaviour.features.features.Features.within_boundary_static]
-        - Dynamic membership: [`Features.within_boundary_dynamic`][py3r.behaviour.features.features.Features.within_boundary_dynamic]
+        - Define static/dynamic boundaries: [`Features.define_static_boundary`][py3r.behaviour.features.features.Features.define_static_boundary], [`Features.define_dynamic_boundary`][py3r.behaviour.features.features.Features.define_dynamic_boundary]
+        - Boundary membership: [`Features.within_boundary`][py3r.behaviour.features.features.Features.within_boundary]
         - Boundary area: [`Features.area_of_boundary`][py3r.behaviour.features.features.Features.area_of_boundary]
-        - Distance to boundary (static/dynamic): [`Features.distance_to_boundary_static`][py3r.behaviour.features.features.Features.distance_to_boundary_static], [`Features.distance_to_boundary_dynamic`][py3r.behaviour.features.features.Features.distance_to_boundary_dynamic]
+        - Distance to boundary: [`Features.distance_to_boundary`][py3r.behaviour.features.features.Features.distance_to_boundary]
     - Orientation:
         - [`Features.azimuth`][py3r.behaviour.features.features.Features.azimuth]
         - [`Features.azimuth_deviation`][py3r.behaviour.features.features.Features.azimuth_deviation]

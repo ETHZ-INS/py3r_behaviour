@@ -50,13 +50,20 @@ python -m pip install -U pip
 pip install -e ".[dev]" "mkdocstrings[python]" mkdocs-material mike mkdocs-autorefs xdoctest pytest packaging
 ```
 
-## Before you push
-### Generate batch mixins and make sure no uncommitted changes remain after generation:
+### Optional: install heavier visualisation dependencies
+Some plotting methods (chord diagrams, UMAP embeddings) require `pycirclize` and `umap-learn`. These are not included in `.[dev]`:
 ```bash
-PYTHONPATH=src python -m tools.gen_batch_mixins
-git diff --exit-code || (echo "Please commit updated generated files" && exit 1)
+pip install -e ".[viz]"
 ```
 
+### Pre-commit hooks
+Pre-commit is included in the `.[dev]` extra. Install the git hooks so ruff (format + check) runs automatically on each commit:
+```bash
+pre-commit install
+```
+After this, commits will run the hooks; you can also run them manually with `pre-commit run --all-files`.
+
+## Before you push
 ### Run tests (including doctests in docstrings):
 ```bash
 pytest -q --xdoctest --xdoctest-modules
@@ -85,6 +92,7 @@ mkdocs build --strict
 ## Coding style and docstrings
 - Python 3.12+ with type hints on public APIs.
 - Keep control-flow shallow; avoid deep nesting; prefer early returns; avoid broad try/except.
+- Code is formatted and linted by ruff (see `pyproject.toml`) with pre-commit checks
 - Docstrings:
   - Use `pycon` fenced blocks for examples with a blank line before the closing fence.
   - Examples should be lightweight and runnable under CI (avoid heavy dependencies).

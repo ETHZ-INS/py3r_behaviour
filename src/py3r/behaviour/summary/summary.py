@@ -1,8 +1,9 @@
 from __future__ import annotations
+
+import os
 import warnings
 from copy import deepcopy
-import os
-from typing import Any, List
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -12,11 +13,12 @@ from py3r.behaviour.summary.summary_result import SummaryResult
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
     begin_save,
-    write_manifest,
+    read_dataframe,
     read_manifest,
     write_dataframe,
-    read_dataframe,
+    write_manifest,
 )
+from py3r.behaviour.util.series_utils import latencies_from_series
 
 
 class Summary:
@@ -81,9 +83,7 @@ class Summary:
                 spec = write_dataframe(
                     data_dir,
                     value,
-                    filename=f"{name}.parquet"
-                    if data_format == "parquet"
-                    else f"{name}.csv",
+                    filename=f"{name}.parquet" if data_format == "parquet" else f"{name}.csv",
                     format=data_format,
                 )
                 frames[name] = {"type": "dataframe", **spec, "subdir": "data"}
@@ -91,9 +91,7 @@ class Summary:
                 spec = write_dataframe(
                     data_dir,
                     value,
-                    filename=f"{name}.parquet"
-                    if data_format == "parquet"
-                    else f"{name}.csv",
+                    filename=f"{name}.parquet" if data_format == "parquet" else f"{name}.csv",
                     format=data_format,
                 )
                 frames[name] = {"type": "series", **spec, "subdir": "data"}
@@ -113,7 +111,7 @@ class Summary:
         write_manifest(target, manifest)
 
     @classmethod
-    def load(cls, dirpath: str) -> "Summary":
+    def load(cls, dirpath: str) -> Summary:
         """
         Load a Summary previously saved with save().
 
@@ -161,8 +159,9 @@ class Summary:
 
     def count_onset(self, column: str) -> SummaryResult:
         """
-        counts number of times boolean series in the given column changes from False to True, ignoring nan values
-        if first non nan value in series is true, this counts as an onset
+        Count times boolean series changes False->True, ignoring nans.
+        If first non-nan value is True, that counts as an onset.
+
         Examples
         --------
         ```pycon
@@ -191,7 +190,166 @@ class Summary:
             raise Exception("count_onset requires boolean series as input")
         count = (nonan & (nonan != nonan.shift(-1))).sum()
         meta = {"function": "count_onset", "column": column}
-        return SummaryResult(count, self, f"count_onset_{column}", meta)
+        return SummaryResult(count, self, f"count_onset_{column}", meta, ylabel="Count")
+
+    def calculate_latency_nth_onset(
+        self,
+        column: str,
+        target_value: str | float | int = None,
+        threshold_op: Literal[">", ">=", "<=", "<", "==", "!="] = "==",
+        nth_event: int = 1,
+        integration_window=1,
+    ):
+        """
+        Compute the latency (in seconds) of the N-th onset event in a feature column.
+
+        This method extracts a column from `features.data`,
+        passes it on to `latencies_from_series`, and returns the index
+        of the N-th False → True transition. If fewer than `nth_event`
+        events are present, NaN is returned.
+
+        The column may already be boolean or may be thresholded against
+        `target_value` using `threshold_op`. Optional temporal integration
+        (boolean smoothing) can be applied prior to onset detection.
+
+        Parameters
+        ----------
+        column : str
+            Name of the column in `features.data` to analyze.
+        target_value : str | float | int | None, optional
+            Value to compare against for non-boolean columns.
+            Required unless the column is already boolean.
+        threshold_op : {">", ">=","<=", "<", "==", "!="}, default "=="
+            Comparison operator used to generate the boolean condition.
+            Only "==" and "!=" are valid for string-valued columns.
+        nth_event : int, default 1
+            Index of the onset event to return (1 = first, note).
+        integration_window : int, default 1 = no smoothing
+            Window size for boolean integration/smoothing prior to latency
+            extraction.
+
+        Returns
+        -------
+        SummaryResult
+            A SummaryResult whose value is the index of the selected onset
+            event, or NaN if the event does not exist.
+
+        Raises
+        ------
+        ValueError
+            If `column` is not found in `features.data`.
+        ValueError
+            Propagated from `latencies_from_series` if thresholding arguments
+            are invalid.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=1)
+        >>> f = Features(t)
+        >>> mask = pd.Series([False, True, False, True, False], dtype = bool)
+        >>> f.store(mask, 'mask', meta={})
+        >>> s = Summary(f)
+        >>> res = s.calculate_latency_nth_onset('mask')
+        >>> res.value
+        1.0
+
+        >>> print(res._func_name)
+        latency_mask_==_True_int1_n1
+
+        ```
+
+        Selecting a later onset:
+
+        ```pycon
+        >>> res = s.calculate_latency_nth_onset('mask', nth_event=2)
+        >>> res.value
+        3.0
+
+        ```
+
+        Selecting a later onset (i.e non existing) creates nan:
+
+        ```pycon
+        >>> res = s.calculate_latency_nth_onset('mask', nth_event=3)
+        >>> res.value
+        nan
+
+        ```
+
+        Using thresholding on numeric data:
+
+        ```pycon
+        >>> speed = pd.Series([0.1, 0.2, 0.8, 0.9, 0.1], dtype = float)
+        >>> f.store(speed, 'speed', meta={})
+        >>> res = s.calculate_latency_nth_onset('speed', target_value=0.5, threshold_op='>')
+        >>> res.value
+        2.0
+
+        ```
+
+        Using thresholding on int data:
+
+        ```pycon
+        >>> id = pd.Series([2, 1, 3, 2, 1], dtype = int)
+        >>> f.store(id, 'id', meta={})
+        >>> res = s.calculate_latency_nth_onset('id', target_value=2, threshold_op='<')
+        >>> res.value
+        1.0
+
+        ```
+
+        Using thresholding on string value:
+
+        ```pycon
+        >>> cluster = pd.Series(['A', 'A', 'B', 'A', 'A'], dtype = str)
+        >>> f.store(cluster, 'cluster', meta={})
+        >>> res = s.calculate_latency_nth_onset('cluster', target_value='B')
+        >>> res.value
+        2.0
+
+        ```
+        """
+
+        if column not in self.features.data.columns:
+            raise ValueError(f"Column '{column}' not found in features.data")
+
+        series = self.features.data[column]
+
+        latencies = latencies_from_series(
+            series=series,
+            target_value=target_value,
+            threshold_op=threshold_op,
+            integration_window=integration_window,
+        )
+
+        target_value = True if target_value is None else target_value  # for reporting True if bool
+
+        if nth_event < 1:
+            raise IndexError(
+                f"Set nth_event to {nth_event}."
+                + "nth event is not python indexing based and always needs to be >= 1"
+            )
+
+        latency = latencies[nth_event - 1] if len(latencies) >= nth_event else np.nan
+
+        meta = {
+            "function": "latencies_from_series",
+            "column": column,
+            "target_value": target_value,
+            "threshold_op": threshold_op,
+            "integration_window": integration_window,
+            "nth_event": nth_event,
+        }
+        col = f"latency_{column}_{threshold_op}_{target_value}_int{integration_window}_n{nth_event}"
+        latency_s = latency / self.features.tracking.meta["fps"]
+        return SummaryResult(latency_s, self, col, meta, ylabel="Latency (s)")
 
     def time_true(self, column: str) -> SummaryResult:
         """
@@ -223,11 +381,11 @@ class Summary:
         # Accept pandas nullable boolean and treat NaN as False
         try:
             bool_series = pd.Series(series, copy=False).astype("boolean")
-        except Exception:
-            raise Exception("time_true requires boolean-convertible series as input")
+        except Exception as err:
+            raise Exception("time_true requires boolean-convertible series as input") from err
         time = bool_series.fillna(False).sum() / self.features.tracking.meta["fps"]
         meta = {"function": "time_true", "column": column}
-        return SummaryResult(time, self, f"time_true_{column}", meta)
+        return SummaryResult(time, self, f"time_true_{column}", meta, ylabel="Time (s)")
 
     def time_false(self, column: str) -> SummaryResult:
         """
@@ -259,11 +417,11 @@ class Summary:
         # Accept pandas nullable boolean and treat NaN as True (i.e., not counted as False time)
         try:
             bool_series = pd.Series(series, copy=False).astype("boolean")
-        except Exception:
-            raise Exception("time_false requires boolean-convertible series as input")
+        except Exception as err:
+            raise Exception("time_false requires boolean-convertible series as input") from err
         time = (~bool_series.fillna(True)).sum() / self.features.tracking.meta["fps"]
         meta = {"function": "time_false", "column": column}
-        return SummaryResult(time, self, f"time_false_{column}", meta)
+        return SummaryResult(time, self, f"time_false_{column}", meta, ylabel="Time (s)")
 
     def total_distance(
         self, point: str, startframe: int | None = None, endframe: int | None = None
@@ -307,7 +465,9 @@ class Summary:
             "startframe": startframe,
             "endframe": endframe,
         }
-        return SummaryResult(value, self, name, meta)
+        units = self.features.tracking.meta.get("distance_units")
+        ylabel = f"Distance ({units})" if units else "Distance (a.u.)"
+        return SummaryResult(value, self, name, meta, ylabel=ylabel)
 
     def _apply_column(self, column: str, func, **kwargs) -> SummaryResult:
         """
@@ -453,9 +613,7 @@ class Summary:
         """
         return self._apply_column(column, pd.Series.min, skipna=True)
 
-    def store(
-        self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None
-    ) -> None:
+    def store(self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None) -> None:
         """
         stores a summary statistic and optional metadata, with optional overwrite protection
         Examples
@@ -478,7 +636,7 @@ class Summary:
         if name in self.data:
             if overwrite:
                 self.data[name] = summarystat
-                warnings.warn(f"summarystat {name} overwritten")
+                warnings.warn(f"summarystat {name} overwritten", stacklevel=2)
             else:
                 raise Exception(
                     f"summarystat with name {name} already stored. set overwrite=True to overwrite"
@@ -487,7 +645,40 @@ class Summary:
             self.data[name] = summarystat
         self.meta[name] = meta
 
-    def make_bin(self, startframe: int, endframe: int) -> "Summary":
+    def copy(self) -> Summary:
+        """Creates an independent copy of this Summary object.
+
+        The returned object shares no mutable state with the original:
+        Features is copied via Features.copy(), and data/meta/tags
+        via deepcopy.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> s = Summary(f)
+        >>> s_copy = s.copy()
+        >>> s_copy.handle == s.handle
+        True
+        >>> s_copy.features.tracking.data is not s.features.tracking.data
+        True
+
+        ```
+        """
+        result = type(self)(self.features.copy())
+        result.data = deepcopy(self.data)
+        result.meta = deepcopy(self.meta)
+        result.handle = self.handle
+        result.tags = deepcopy(self.tags)
+        return result
+
+    def make_bin(self, startframe: int, endframe: int) -> Summary:
         """
         creates a copy of the Summary object with the dataframes
         restricted from startframe to endframe, inclusive
@@ -508,13 +699,11 @@ class Summary:
 
         ```
         """
-        # make deep copy of the Summary object
-        bin_out = deepcopy(self)
+        # make independent copy of the Summary object
+        bin_out = self.copy()
 
         # trim the tracking dataframe
-        bin_out.features.tracking.data = self.features.tracking.data.loc[
-            startframe:endframe
-        ].copy()
+        bin_out.features.tracking.data = self.features.tracking.data.loc[startframe:endframe].copy()
 
         # trim the features dataframe
         bin_out.features.data = self.features.data.loc[startframe:endframe].copy()
@@ -525,7 +714,7 @@ class Summary:
 
         return bin_out
 
-    def make_bins(self, numbins: int) -> List[Summary]:
+    def make_bins(self, numbins: int) -> list[Summary]:
         """
         creates a list of Summary objects, with frames restricted into
         numbins even intervals.
@@ -553,10 +742,7 @@ class Summary:
 
         binboundaries = np.linspace(startframe, endframe, numbins + 1).astype(int)
 
-        out = [
-            self.make_bin(binboundaries[i], binboundaries[i + 1])
-            for i in range(numbins)
-        ]
+        out = [self.make_bin(binboundaries[i], binboundaries[i + 1]) for i in range(numbins)]
 
         return out
 
@@ -590,9 +776,7 @@ class Summary:
         transitions = states != states.shift()
         prev_states = states.shift()[transitions]
         curr_states = states[transitions]
-        trans_df = pd.DataFrame(
-            {"previous": prev_states, "current": curr_states}
-        ).dropna()
+        trans_df = pd.DataFrame({"previous": prev_states, "current": curr_states}).dropna()
         if all_states is None:
             all_states = pd.unique(states.dropna())
         transition_matrix = pd.crosstab(
@@ -603,9 +787,7 @@ class Summary:
             "column": column,
             "all_states": all_states,
         }
-        return SummaryResult(
-            transition_matrix, self, f"transition_matrix_{column}", meta
-        )
+        return SummaryResult(transition_matrix, self, f"transition_matrix_{column}", meta)
 
     def count_state_onsets(self, column: str) -> SummaryResult:
         """
@@ -637,7 +819,9 @@ class Summary:
         transition_states = states[transitions]
         state_counts = transition_states.value_counts()
         meta = {"function": "count_state_onsets", "column": column}
-        return SummaryResult(state_counts, self, f"count_state_onsets_{column}", meta)
+        return SummaryResult(
+            state_counts, self, f"count_state_onsets_{column}", meta, ylabel="Count"
+        )
 
     def time_in_state(self, column: str) -> SummaryResult:
         """
@@ -667,7 +851,9 @@ class Summary:
         states = self.features.data[column]
         time_in_state = states.value_counts() / self.features.tracking.meta["fps"]
         meta = {"function": "time_in_state", "column": column}
-        return SummaryResult(time_in_state, self, f"time_in_state_{column}", meta)
+        return SummaryResult(
+            time_in_state, self, f"time_in_state_{column}", meta, ylabel="Time (s)"
+        )
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} with {len(self.data)} summary statistics>"
@@ -676,8 +862,9 @@ class Summary:
     def plot_chord(
         self,
         column: str,
-        all_states: list[str | int],
+        all_states: list[str | int] | None = None,
         *,
+        fromkey: str | None = None,
         cmap: str | list | None = None,
         show: bool = True,
         save_dir: str | None = None,
@@ -691,7 +878,11 @@ class Summary:
         column:
             Name of the categorical column in `features.data` to compute transitions from.
         all_states:
-            explicit list/array of states to define row/column presence and order.
+            Optional explicit list/array of states to define row/column presence and order.
+            Required when `fromkey` is not provided.
+        fromkey:
+            Optional key in `summary.data` containing a precomputed transition DataFrame.
+            If provided, this is used directly instead of computing transitions from `column`.
         kwargs:
             Additional keyword arguments to pass to pycirclize.chordDiagram.
 
@@ -727,14 +918,30 @@ class Summary:
         """
         try:
             from pycirclize import Circos
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
-                "pycirclize is required for chord diagram plotting. Please install: 'pip install pycirclize'."
-            )
+                "pycirclize is required for chord diagrams. Install: pip install pycirclize"
+            ) from err
         import matplotlib.pyplot as plt
 
-        tm_res = self.transition_matrix(column, all_states=all_states)
-        df: pd.DataFrame = tm_res.value
+        if fromkey is not None:
+            if fromkey not in self.data:
+                raise KeyError(
+                    f"fromkey '{fromkey}' not found in summary.data for handle '{self.handle}'"
+                )
+            df = self.data[fromkey]
+            if not isinstance(df, pd.DataFrame):
+                raise TypeError(
+                    f"summary.data['{fromkey}'] must be a pandas DataFrame for plot_chord, "
+                    f"got {type(df).__name__}"
+                )
+            if all_states is None:
+                all_states = list(dict.fromkeys(list(df.index) + list(df.columns)))
+        else:
+            if all_states is None:
+                raise ValueError("all_states must be provided when fromkey is not used.")
+            tm_res = self.transition_matrix(column, all_states=all_states)
+            df = tm_res.value
         # If empty/zero, render placeholder
         if float(df.to_numpy().sum()) <= 0.0:
             fig, ax = plt.subplots(figsize=(4, 3))
@@ -788,17 +995,14 @@ class Summary:
         else:
             base_colors = _base_colors_for_n(len(all_states))
         label_to_color = {
-            str(lbl): base_colors[i % len(base_colors)]
-            for i, lbl in enumerate(all_states)
+            str(lbl): base_colors[i % len(base_colors)] for i, lbl in enumerate(all_states)
         }
 
         # Drop zero-only states and enforce global order
         row_sums = df.sum(axis=1)
         col_sums = df.sum(axis=0)
         keep = (row_sums + col_sums) > 0
-        present = [
-            lbl for lbl in all_states if lbl in df.index and keep.get(lbl, False)
-        ]
+        present = [lbl for lbl in all_states if lbl in df.index and keep.get(lbl, False)]
         if len(present) == 0:
             fig, ax = plt.subplots(figsize=(4, 3))
             ax.axis("off")
@@ -868,3 +1072,53 @@ class Summary:
             plt.show()
         plt.close(fig)
         return fig
+
+    # -------------------------------------------------------------------------
+    # Seaborn plotting wrappers (delegate to SummaryCollection)
+    # -------------------------------------------------------------------------
+
+    def _as_collection(self):
+        """Wrap this Summary in a single-item SummaryCollection for plotting."""
+        from py3r.behaviour.summary.summary_collection import SummaryCollection
+
+        return SummaryCollection({self.handle: self})
+
+    def _delegate_plot(self, method_name, metric, **kwargs):
+        """Forward a plotting call to SummaryCollection.
+
+        Wraps a bare ``SummaryResult`` in the dict format that
+        :meth:`SummaryCollection._metric_to_tidy` expects, then delegates.
+        """
+        from py3r.behaviour.summary.summary_result import SummaryResult
+
+        if isinstance(metric, SummaryResult):
+            metric = {self.handle: metric}
+        return getattr(self._as_collection(), method_name)(metric, **kwargs)
+
+    def snsstrip(self, metric, **kwargs):
+        """Strip plot -- see :meth:`SummaryCollection.snsstrip`."""
+        return self._delegate_plot("snsstrip", metric, **kwargs)
+
+    def snsswarm(self, metric, **kwargs):
+        """Swarm plot -- see :meth:`SummaryCollection.snsswarm`."""
+        return self._delegate_plot("snsswarm", metric, **kwargs)
+
+    def snsbar(self, metric, **kwargs):
+        """Bar plot -- see :meth:`SummaryCollection.snsbar`."""
+        return self._delegate_plot("snsbar", metric, **kwargs)
+
+    def snsbox(self, metric, **kwargs):
+        """Box plot -- see :meth:`SummaryCollection.snsbox`."""
+        return self._delegate_plot("snsbox", metric, **kwargs)
+
+    def snsviolin(self, metric, **kwargs):
+        """Violin plot -- see :meth:`SummaryCollection.snsviolin`."""
+        return self._delegate_plot("snsviolin", metric, **kwargs)
+
+    def snspoint(self, metric, **kwargs):
+        """Point plot -- see :meth:`SummaryCollection.snspoint`."""
+        return self._delegate_plot("snspoint", metric, **kwargs)
+
+    def snssuperplot(self, metric, **kwargs):
+        """Superplot -- see :meth:`SummaryCollection.snssuperplot`."""
+        return self._delegate_plot("snssuperplot", metric, **kwargs)

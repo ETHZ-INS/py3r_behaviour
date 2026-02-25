@@ -1,17 +1,21 @@
 from __future__ import annotations
 
+import random
+import warnings
+from itertools import combinations
+
 import pandas as pd
 
-from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.features.features_collection import FeaturesCollection
+from py3r.behaviour.summary.summary import Summary
+from py3r.behaviour.summary.summary_collection_plot_mixin import (
+    SummaryCollectionPlotMixin,
+)
 from py3r.behaviour.summary.summary_result import SummaryResult
 from py3r.behaviour.util.base_collection import BaseCollection
-from py3r.behaviour.summary.summary_collection_batch_mixin import (
-    SummaryCollectionBatchMixin,
-)
 
 
-class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
+class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     """
     collection of Summary objects
     (e.g. for grouping individuals)
@@ -47,6 +51,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
     """
 
     _element_type = Summary
+    each: Summary
+    each_forcebatch: Summary
 
     def __init__(self, summary_dict: dict[str, Summary]):
         super().__init__(summary_dict)
@@ -56,9 +62,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         return self._obj_dict
 
     @classmethod
-    def from_features_collection(
-        cls, features_collection: FeaturesCollection, summary_cls=Summary
-    ):
+    def from_features_collection(cls, features_collection: FeaturesCollection, summary_cls=Summary):
         """
         creates a SummaryCollection from a FeaturesCollection (flat or grouped)
 
@@ -81,7 +85,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         >>> # add numeric scalar per Features via a quick summary to test to_df later
         >>> for f in fc.values():
         ...     import numpy as np, pandas as pd
-        ...     f.store(pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index), 'counter', meta={})
+        ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
+        ...     f.store(s, 'counter', meta={})
         >>> sc = SummaryCollection.from_features_collection(fc)
         >>> isinstance(sc['A'], Summary) and isinstance(sc['B'], Summary)
         True
@@ -89,9 +94,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         ```
         """
         if not issubclass(summary_cls, Summary):
-            raise TypeError(
-                f"summary_cls must be Summary or a subclass, got {summary_cls}"
-            )
+            raise TypeError(f"summary_cls must be Summary or a subclass, got {summary_cls}")
         # Grouped case: preserve grouping
         if getattr(features_collection, "is_grouped", False):
             grouped_dict = {}
@@ -102,28 +105,18 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                             f"Key '{handle}' does not match object's handle '{f.handle}'"
                         )
                 grouped_dict[gkey] = cls(
-                    {
-                        handle: summary_cls(f)
-                        for handle, f in sub_fc.features_dict.items()
-                    }
+                    {handle: summary_cls(f) for handle, f in sub_fc.features_dict.items()}
                 )
             grouped_sc = cls(grouped_dict)
             grouped_sc._is_grouped = True
-            grouped_sc._groupby_tags = getattr(
-                features_collection, "groupby_tags", None
-            )
+            grouped_sc._groupby_tags = getattr(features_collection, "groupby_tags", None)
             return grouped_sc
         # Flat case
         for handle, f in features_collection.features_dict.items():
             if handle != f.handle:
-                raise ValueError(
-                    f"Key '{handle}' does not match object's handle '{f.handle}'"
-                )
+                raise ValueError(f"Key '{handle}' does not match object's handle '{f.handle}'")
         return cls(
-            {
-                handle: summary_cls(f)
-                for handle, f in features_collection.features_dict.items()
-            }
+            {handle: summary_cls(f) for handle, f in features_collection.features_dict.items()}
         )
 
     @classmethod
@@ -161,7 +154,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
     def to_df(self, include_tags: bool = False, tag_prefix: str = "tag_"):
         """
-        Collate scalar values (numeric, string, bool) from each Summary.data into a pandas DataFrame.
+        Collate scalar values (numeric, string, bool) from each Summary.data into
+        a pandas DataFrame.
 
         - Index: handles of the Summary objects
         - Columns: keys from each Summary.data (simple scalar values)
@@ -228,9 +222,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         ```
         """
-        binned = {
-            k: v.make_bin(startframe, endframe) for k, v in self.summary_dict.items()
-        }
+        binned = {k: v.make_bin(startframe, endframe) for k, v in self.summary_dict.items()}
         return SummaryCollection(binned)
 
     def make_bins(self, numbins):
@@ -312,6 +304,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         all_states=None,
         numshuffles: int = 1000,
         pairs: list[tuple[str, str]] | None = None,
+        random_state: int | None = 0,
     ):
         """
         Behaviour Flow Analysis between groups for a grouped SummaryCollection.
@@ -322,6 +315,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
 
         If `pairs` is provided, only those group pairs are analyzed; otherwise all
         unique pairs in `self.group_keys` are evaluated.
+
+        Parameters
+        ----------
+        random_state:
+            Optional seed for deterministic surrogate shuffling. ``None`` keeps
+            non-deterministic behavior.
 
         Examples
         --------
@@ -341,8 +340,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         >>> fc = FeaturesCollection.from_tracking_collection(tc)
         >>> # inject simple 2-state labels and tags to build groups
         >>> for i, (h, f) in enumerate(fc.items()):
-        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
-        ...     states.index = f.tracking.data.index
+        ...     pat = ['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1)
+        ...     states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
         ...     f.store(states, 'state', meta={})
         ...     f.tracking.add_tag('group', f'G{i+1}')
         >>> gfc = fc.groupby('group')
@@ -359,14 +358,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         ```
         """
         if not getattr(self, "is_grouped", False):
-            raise ValueError(
-                "bfa requires a grouped SummaryCollection (call groupby first)"
-            )
+            raise ValueError("bfa requires a grouped SummaryCollection (call groupby first)")
 
-        from itertools import combinations
+        rng = random.Random(random_state)
 
         # batch calculate transition matrix for each summary object
-        transition_matrices_result = self.transition_matrix(column, all_states)
+        transition_matrices_result = self.each.transition_matrix(column, all_states)
         # Extract the .value from each SummaryResult in the nested dict
         transition_matrices = {
             group: {k: v.value for k, v in d.items()}
@@ -393,9 +390,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 _g1 = g1 if g1 in group_set else label_to_key.get(g1, None)
                 _g2 = g2 if g2 in group_set else label_to_key.get(g2, None)
                 if _g1 is None or _g2 is None:
-                    raise ValueError(
-                        f"Invalid group pair ({g1}, {g2}); valid groups: {sorted(map(_fmt_group, self.group_keys))}"
-                    )
+                    valid = sorted(map(_fmt_group, self.group_keys))
+                    raise ValueError(f"Invalid group pair ({g1}, {g2}); valid groups: {valid}")
                 normalized_pairs.append((_g1, _g2))
             pair_iter = normalized_pairs
 
@@ -407,11 +403,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             list2 = list(transition_matrices[group2].values())
             _["observed"] = self._manhattan_distance_twogroups(list1, list2)
             _["surrogates"] = [
-                self._shuffle_lists(*self._shuffle_lists(list1, list2))
-                and self._manhattan_distance_twogroups(
-                    *self._shuffle_lists(list1, list2)
-                )
-                for i in range(numshuffles)
+                self._manhattan_distance_twogroups(*self._shuffle_lists(list1, list2, rng))
+                for _ in range(numshuffles)
             ]
             # use formatted labels for result key
             distances[f"{_fmt_group(group1)}_vs_{_fmt_group(group2)}"] = _
@@ -441,8 +434,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
         >>> fc = FeaturesCollection.from_tracking_collection(tc)
         >>> for i, (h, f) in enumerate(fc.items()):
-        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
-        ...     states.index = f.tracking.data.index
+        ...     pat = ['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1)
+        ...     states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
         ...     f.store(states, 'state', meta={})
         ...     f.tracking.add_tag('group', f'G{i+1}')
         >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
@@ -521,27 +514,27 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         >>> fc = FeaturesCollection.from_tracking_collection(tc)
         >>> # add simple 2-state labels and tags to build two groups
         >>> for i, (h, f) in enumerate(fc.items()):
-        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
-        ...     states.index = f.tracking.data.index
+        ...     pat = ['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1)
+        ...     states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
         ...     f.store(states, 'state', meta={})
         ...     f.tracking.add_tag('group', f'G{i+1}')
         >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
         >>> bfa_out = sc.bfa('state', all_states=['A','B'], numshuffles=5)
         >>> # plot a single comparison and save it
         >>> with tempfile.TemporaryDirectory() as outdir:
-        ...     fig, ax = SummaryCollection.plot_bfa_results(bfa_out, compare='G1_vs_G2', show=False, save_dir=outdir)
+        ...     fig, ax = SummaryCollection.plot_bfa_results(
+        ...         bfa_out, compare='G1_vs_G2', show=False, save_dir=outdir)
         ...     os.path.exists(os.path.join(outdir, 'G1_vs_G2.png'))
         True
 
         ```
         """
-        import matplotlib.pyplot as plt
         import os
 
+        import matplotlib.pyplot as plt
+
         def _sanitize(name: str) -> str:
-            return "".join(
-                ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name)
-            )
+            return "".join(ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name))
 
         # selection
         if compares is None and compare is not None:
@@ -644,8 +637,9 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         groups:
             - Optional list of group keys (strings) to include; defaults to all.
             - Or a list of lists for sequential groups, e.g.
-              `[['control_pre','control_45min','control_90min'], ['treatment_pre','treatment_45min','treatment_90min']]`
-              In this case, each sequence is plotted with a monochrome gradient of a distinct base color.
+              ``[['control_pre','control_45min','control_90min'],
+              ['treatment_pre','treatment_45min','treatment_90min']]``.
+              Each sequence is plotted with a monochrome gradient.
         n_neighbors, min_dist, random_state:
             UMAP hyperparameters.
         figsize, show:
@@ -672,40 +666,38 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
         >>> fc = FeaturesCollection.from_tracking_collection(tc)
         >>> for i, (h, f) in enumerate(fc.items()):
-        ...     states = pd.Series(['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
-        ...     states.index = f.tracking.data.index
+        ...     pat = ['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1)
+        ...     states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
         ...     f.store(states, 'state', meta={})
         ...     f.tracking.add_tag('group', f'G{i+1}')
         >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
         >>> with tempfile.TemporaryDirectory() as outdir:
-        ...     fig, ax = sc.plot_transition_umap(column='state', all_states=['A','B'], groups=['G1','G2'], show=False, save_dir=outdir)
+        ...     fig, ax = sc.plot_transition_umap(
+        ...         column='state', all_states=['A','B'], groups=['G1','G2'],
+        ...         show=False, save_dir=outdir)
         ...     os.path.exists(os.path.join(outdir, 'transition_umap.png'))
         True
 
         ```
         """
         import os
-        import numpy as np
+
         import matplotlib.pyplot as plt
+        import numpy as np
         from sklearn.preprocessing import StandardScaler
 
         try:
             import umap  # type: ignore
         except Exception as e:
-            raise ImportError(
-                "UMAP is required for this plot. Please install 'umap-learn'."
-            ) from e
+            raise ImportError("UMAP is required for this plot. Please install 'umap-learn'.") from e
 
         if not getattr(self, "is_grouped", False):
-            raise ValueError(
-                "UMAP plot requires a grouped SummaryCollection (call groupby first)."
-            )
+            raise ValueError("UMAP plot requires a grouped SummaryCollection (call groupby first).")
 
         # Compute transition matrices per subject per group
-        matrices_result = self.transition_matrix(column, all_states)
+        matrices_result = self.each.transition_matrix(column, all_states)
         matrices = {
-            group: {k: v.value for k, v in d.items()}
-            for group, d in matrices_result.items()
+            group: {k: v.value for k, v in d.items()} for group, d in matrices_result.items()
         }
 
         # Helpers to format group labels for nicer display/selection
@@ -764,8 +756,22 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             min_dist=min_dist,
             random_state=random_state,
         )
+        import warnings
+
+        # UMAP warns that random_state forces single-threaded execution.
+        # That is expected here for reproducibility, so suppress this one warning.
+        _umap_njobs_warn = (
+            r"n_jobs value .* overridden to 1 by setting random_state\. "
+            r"Use no seed for parallelism\."
+        )
         try:
-            embedding = reducer.fit_transform(X_scaled)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=_umap_njobs_warn,
+                    category=UserWarning,
+                )
+                embedding = reducer.fit_transform(X_scaled)
         except TypeError:
             # fallback to random init if spectral layout fails for very small graphs
             reducer = umap.UMAP(
@@ -774,7 +780,13 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                 random_state=random_state,
                 init="random",
             )
-            embedding = reducer.fit_transform(X_scaled)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message=_umap_njobs_warn,
+                    category=UserWarning,
+                )
+                embedding = reducer.fit_transform(X_scaled)
 
         # Plot
         fig, ax = plt.subplots(figsize=figsize, facecolor="white")
@@ -784,10 +796,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         color_map = {}
         if not sequence_mode:
             base_colors = plt.cm.tab10.colors
-            color_map = {
-                g: base_colors[i % len(base_colors)]
-                for i, g in enumerate(unique_groups)
-            }
+            color_map = {g: base_colors[i % len(base_colors)] for i, g in enumerate(unique_groups)}
         else:
             base_colors = list(plt.cm.tab10.colors)
             # build a mapping from label -> color shade based on its position in its sequence
@@ -864,13 +873,9 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
     ) -> float:
         # check that transition_matrix1 and transition_matrix2 have the same index and columns
         if not transition_matrix1.index.equals(transition_matrix2.index):
-            raise ValueError(
-                "transition_matrix1 and transition_matrix2 must have the same index"
-            )
+            raise ValueError("transition_matrix1 and transition_matrix2 must have the same index")
         if not transition_matrix1.columns.equals(transition_matrix2.columns):
-            raise ValueError(
-                "transition_matrix1 and transition_matrix2 must have the same columns"
-            )
+            raise ValueError("transition_matrix1 and transition_matrix2 must have the same columns")
         difference = transition_matrix1 - transition_matrix2
         return difference.abs().sum(axis=1).sum()
 
@@ -890,12 +895,10 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         return distance
 
     @staticmethod
-    def _shuffle_lists(group1: list, group2: list) -> tuple[list, list]:
-        import random
-
+    def _shuffle_lists(group1: list, group2: list, rng) -> tuple[list, list]:
         n1 = len(group1)
         combined = group1 + group2
-        random.shuffle(combined)
+        rng.shuffle(combined)
         new_group1 = combined[:n1]
         new_group2 = combined[n1:]
         return new_group1, new_group2
@@ -904,8 +907,9 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
     def plot_chord(
         self,
         column: str,
-        all_states: list[str | int],
+        all_states: list[str | int] | None = None,
         *,
+        fromkey: str | None = None,
         plot_individual: bool = False,
         show: bool = True,
         save_dir: str | None = None,
@@ -927,7 +931,11 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         column:
             Name of the categorical column used to compute transitions.
         all_states:
-            Explicit state ordering for transition matrices (required).
+            Optional explicit state ordering for transition matrices.
+            Required when `fromkey` is not provided.
+        fromkey:
+            Optional key in each `Summary.data` containing a precomputed transition DataFrame.
+            If provided, this key is used directly instead of computing transitions from `column`.
         plot_individual:
             If True, plot per recording; otherwise plot summed aggregate.
         show:
@@ -965,35 +973,33 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         ...     # build features and inject a simple 3-state sequence
         ...     fc = FeaturesCollection.from_tracking_collection(tc)
         ...     for _, f in fc.items():
-        ...         seq = pd.Series(['0','1','2','1','0'] * (len(f.tracking.data)//5 + 1))[:len(f.tracking.data)]
-        ...         seq.index = f.tracking.data.index
+        ...         pat = ['0','1','2','1','0'] * (len(f.tracking.data)//5 + 1)
+        ...         seq = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
         ...         f.store(seq, 'state', meta={})
         ...     sc = SummaryCollection.from_features_collection(fc)
         ...     # plot flat aggregate and save it
         ...     with tempfile.TemporaryDirectory() as outdir:
-        ...         _ = sc.plot_chord('state', all_states=['0','1','2'], show=False, save_dir=outdir)
+        ...         _ = sc.plot_chord(
+        ...             'state', all_states=['0','1','2'], show=False, save_dir=outdir)
         ...         os.path.exists(os.path.join(outdir, 'chord_state.png'))
         True
 
         ```
         """
         import os
+
         import matplotlib.pyplot as plt
 
         try:
             from pycirclize import Circos
-        except ImportError:
+        except ImportError as err:
             raise ImportError(
-                "pycirclize is required for chord diagram plotting. Please install: 'pip install pycirclize'."
-            )
-
-        if all_states is None:
-            raise ValueError("all_states must be provided to ensure aligned matrices.")
+                "pycirclize is required for chord diagram plotting. "
+                "Please install: 'pip install pycirclize'."
+            ) from err
 
         def _sanitize(name: str) -> str:
-            return "".join(
-                ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name)
-            )
+            return "".join(ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name))
 
         # Build stable global label -> color mapping from chosen palette
         def _base_colors_for_n(n_states: int):
@@ -1026,9 +1032,54 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             base_colors = _base_colors_for_n(len(all_states))
 
         label_to_color = {
-            str(lbl): base_colors[i % len(base_colors)]
-            for i, lbl in enumerate(all_states)
+            str(lbl): base_colors[i % len(base_colors)] for i, lbl in enumerate(all_states)
         }
+
+        def _matrix_from_summary(summary: Summary, handle: str) -> pd.DataFrame:
+            if fromkey is None:
+                return summary.transition_matrix(column, all_states=all_states).value
+            if fromkey not in summary.data:
+                raise KeyError(
+                    f"fromkey '{fromkey}' not found in summary.data for handle '{handle}'"
+                )
+            matrix = summary.data[fromkey]
+            if not isinstance(matrix, pd.DataFrame):
+                raise TypeError(
+                    f"summary.data['{fromkey}'] must be a pandas DataFrame for plot_chord, "
+                    f"got {type(matrix).__name__} in handle '{handle}'"
+                )
+            return matrix
+
+        if fromkey is None and all_states is None:
+            raise ValueError("all_states must be provided when fromkey is not used.")
+        if fromkey is not None and all_states is None:
+            inferred_states = []
+            seen = set()
+            for handle, summary in self.flatten().items():
+                df = _matrix_from_summary(summary, handle)
+                for lbl in list(df.index) + list(df.columns):
+                    if lbl not in seen:
+                        seen.add(lbl)
+                        inferred_states.append(lbl)
+            all_states = inferred_states
+
+        def _warn_if_misaligned(per: dict[str, pd.DataFrame], context_label: str) -> None:
+            if len(per) <= 1:
+                return
+            first_handle, first_df = next(iter(per.items()))
+            ref_index = first_df.index
+            ref_columns = first_df.columns
+            mismatched = []
+            for h, df in per.items():
+                if not ref_index.equals(df.index) or not ref_columns.equals(df.columns):
+                    mismatched.append(h)
+            if mismatched:
+                warnings.warn(
+                    f"plot_chord found mismatched transition matrix labels in {context_label}. "
+                    f"Summing may align by labels and produce unexpected results. "
+                    f"Reference handle: '{first_handle}'. Mismatched handles: {mismatched}",
+                    stacklevel=2,
+                )
 
         def _render(df: pd.DataFrame, title: str | None, path: str | None):
             # guard: empty matrix (zero total) -> placeholder
@@ -1051,9 +1102,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             row_sums = df.sum(axis=1)
             col_sums = df.sum(axis=0)
             keep = (row_sums + col_sums) > 0
-            present = [
-                lbl for lbl in all_states if lbl in df.index and keep.get(lbl, False)
-            ]
+            present = [lbl for lbl in all_states if lbl in df.index and keep.get(lbl, False)]
             if len(present) == 0:
                 fig, ax = plt.subplots(figsize=(4, 3))
                 ax.axis("off")
@@ -1101,17 +1150,13 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
         # Flat collection
         if not is_grouped:
             # Compute per-recording matrices (aligned via all_states)
-            per = {
-                h: s.transition_matrix(column, all_states=all_states).value
-                for h, s in self.items()
-            }
+            per = {h: _matrix_from_summary(s, h) for h, s in self.items()}
+            _warn_if_misaligned(per, "collection")
             if plot_individual:
                 out = {}
                 for h, df in per.items():
                     path = (
-                        os.path.join(
-                            save_dir, f"{_sanitize(h)}_chord_{_sanitize(column)}.png"
-                        )
+                        os.path.join(save_dir, f"{_sanitize(h)}_chord_{_sanitize(column)}.png")
                         if save_dir
                         else None
                     )
@@ -1121,21 +1166,15 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
             if len(per) == 0:
                 raise ValueError("No recordings found.")
             agg = sum(per.values())
-            path = (
-                os.path.join(save_dir, f"chord_{_sanitize(column)}.png")
-                if save_dir
-                else None
-            )
+            path = os.path.join(save_dir, f"chord_{_sanitize(column)}.png") if save_dir else None
             return _render(agg, f"Sum transitions: {column}", path)
 
         # Grouped collection
         out: dict = {}
         for g, sub_sc in self.items():
             # sub_sc is a SummaryCollection for the group
-            per = {
-                h: s.transition_matrix(column, all_states=all_states).value
-                for h, s in sub_sc.items()
-            }
+            per = {h: _matrix_from_summary(s, h) for h, s in sub_sc.items()}
+            _warn_if_misaligned(per, f"group '{g}'")
             if plot_individual:
                 inner = {}
                 for h, df in per.items():
@@ -1154,9 +1193,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionBatchMixin):
                     continue
                 agg = sum(per.values())
                 path = (
-                    os.path.join(
-                        save_dir, f"{_sanitize(g)}_chord_{_sanitize(column)}.png"
-                    )
+                    os.path.join(save_dir, f"{_sanitize(g)}_chord_{_sanitize(column)}.png")
                     if save_dir
                     else None
                 )

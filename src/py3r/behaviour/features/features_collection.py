@@ -1,25 +1,28 @@
 from __future__ import annotations
-import pandas as pd
-import numpy as np
-from sklearn.cluster import KMeans
 
-from py3r.behaviour.features.features import Features, FeaturesResult
+from typing import Literal
+
+import numpy as np
+import pandas as pd
+
+from py3r.behaviour.features.cluster_pipeline import (
+    ClusteringConfig,
+    ClusteringPipeline,
+    StreamingClusteringPipeline,
+    StreamingConfig,
+)
+from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.util.base_collection import BaseCollection
-from py3r.behaviour.util.collection_utils import _Indexer
+from py3r.behaviour.util.collection_utils import BatchResult, _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.series_utils import (
-    normalize_df,
     apply_normalization_to_df,
-    apply_custom_scaling,
-)
-from py3r.behaviour.util.collection_utils import BatchResult
-from py3r.behaviour.features.features_collection_batch_mixin import (
-    FeaturesCollectionBatchMixin,
+    normalize_df,
 )
 
 
-class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
+class FeaturesCollection(BaseCollection):
     """
     Collection of Features objects, keyed by name.
     note: type-hints refer to Features, but factory methods allow for other classes
@@ -45,6 +48,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
     """
 
     _element_type = Features
+    each: Features
+    each_forcebatch: Features
 
     def __init__(self, features_dict: dict[str, Features]):
         super().__init__(features_dict)
@@ -79,9 +84,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         ```
         """
         if not issubclass(feature_cls, Features):
-            raise TypeError(
-                f"feature_cls must be Features or a subclass, got {feature_cls}"
-            )
+            raise TypeError(f"feature_cls must be Features or a subclass, got {feature_cls}")
         # If grouped, build a grouped FeaturesCollection preserving grouping
         if getattr(tracking_collection, "is_grouped", False):
             grouped_dict = {}
@@ -97,153 +100,156 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 )
             grouped_fc = cls(grouped_dict)
             grouped_fc._is_grouped = True
-            grouped_fc._groupby_tags = getattr(
-                tracking_collection, "groupby_tags", None
-            )
+            grouped_fc._groupby_tags = getattr(tracking_collection, "groupby_tags", None)
             return grouped_fc
         # Flat case
         for handle, t in tracking_collection._obj_dict.items():
             if handle != t.handle:
+                raise ValueError(f"Key '{handle}' does not match object's handle '{t.handle}'")
+        return cls({handle: feature_cls(t) for handle, t in tracking_collection._obj_dict.items()})
+
+    @classmethod
+    def concat(
+        cls,
+        collections: list[FeaturesCollection],
+        *,
+        reindex: Literal["rezero", "follow_previous", "keep_original"] = "follow_previous",
+    ) -> FeaturesCollection:
+        """
+        Concatenate multiple FeaturesCollections along the time (frame) axis.
+
+        Each collection must have the same handles (keys). For each handle,
+        the corresponding Features objects are concatenated in order.
+        Supports both flat and grouped collections.
+
+        Parameters
+        ----------
+        collections : list[FeaturesCollection]
+            List of FeaturesCollection objects to concatenate, in temporal order.
+            All must have matching keys (handles) and feature columns.
+        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
+            How to handle frame indices:
+            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
+            - "follow_previous": Each chunk continues from where the previous
+              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
+            - "keep_original": Leave indices untouched; duplicates are allowed.
+
+        Returns
+        -------
+        FeaturesCollection
+            A new collection with concatenated Features objects for each handle.
+
+        Raises
+        ------
+        ValueError
+            If collections is empty, keys don't match, or grouping structure differs.
+
+        Notes
+        -----
+        For context-dependent features (normalization, embeddings with temporal
+        windows, etc.), consider whether you need to recompute features on
+        concatenated Tracking data rather than concatenating pre-computed features.
+
+        Examples
+        --------
+        Concatenate two flat collections:
+
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc1 = TrackingCollection.from_dlc({'A': str(d/'A.csv'),
+        ...                                       'B': str(d/'B.csv')}, fps=30)
+        ...     tc2 = TrackingCollection.from_dlc({'A': str(d/'A.csv'),
+        ...                                        'B': str(d/'B.csv')}, fps=30)
+        >>> fc1 = FeaturesCollection.from_tracking_collection(tc1)
+        >>> fc2 = FeaturesCollection.from_tracking_collection(tc2)
+        >>> # Add a feature to all
+        >>> for f in list(fc1.values()) + list(fc2.values()):
+        ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
+        ...     f.store(s, 'counter', meta={})
+        >>> combined = FeaturesCollection.concat([fc1, fc2])
+        >>> len(combined['A'].data) == len(fc1['A'].data) + len(fc2['A'].data)
+        True
+        >>> 'concat' in combined['A'].meta
+        True
+
+        ```
+        """
+        if not collections:
+            raise ValueError("Cannot concatenate empty list of FeaturesCollections")
+
+        if len(collections) == 1:
+            # Return a copy (delegates to Features.copy() on each leaf)
+            return collections[0].copy()
+
+        # Check grouping consistency
+        is_grouped = [getattr(c, "is_grouped", False) for c in collections]
+        if len(set(is_grouped)) > 1:
+            raise ValueError(
+                "Cannot concatenate mixed grouped/ungrouped collections. "
+                f"Grouping states: {is_grouped}"
+            )
+
+        first = collections[0]
+
+        if first.is_grouped:
+            # Grouped collections: validate group keys match
+            group_keys = [set(c.keys()) for c in collections]
+            if not all(gk == group_keys[0] for gk in group_keys):
                 raise ValueError(
-                    f"Key '{handle}' does not match object's handle '{t.handle}'"
+                    f"Group key mismatch across collections. "
+                    f"First has {group_keys[0]}, others have {group_keys[1:]}"
                 )
-        return cls(
-            {
-                handle: feature_cls(t)
-                for handle, t in tracking_collection._obj_dict.items()
-            }
-        )
 
-    def within_boundary_static(
-        self,
-        point: str,
-        boundary,
-        boundary_name: str = None,
-    ):
-        """
-        Collection-aware wrapper that supports:
-          - a single static `boundary` (list[(x,y)]) applied to all items, or
-          - a per-handle mapping of boundaries produced by batch `define_boundary`:
-            - flat: {handle: list[(x,y)]}
-            - grouped: {group_key: {handle: list[(x,y)]}}
-            - BatchResult in either of the above shapes
+            # For each group, validate handles match and concatenate
+            result_dict = {}
+            for group_key in first.keys():
+                sub_collections = [c[group_key] for c in collections]
+                # Validate handles within group
+                handle_sets = [set(sc.keys()) for sc in sub_collections]
+                if not all(hs == handle_sets[0] for hs in handle_sets):
+                    raise ValueError(
+                        f"Handle mismatch in group '{group_key}'. "
+                        f"First has {handle_sets[0]}, others differ."
+                    )
+                # Concatenate each handle within this group
+                group_result = {}
+                for handle in sub_collections[0].keys():
+                    features_list = [sc[handle] for sc in sub_collections]
+                    group_result[handle] = Features.concat(
+                        features_list, handle=handle, reindex=reindex
+                    )
+                result_dict[group_key] = cls(group_result)
 
-        Examples
-        --------
-        ```pycon
-        >>> import tempfile, shutil
-        >>> from pathlib import Path
-        >>> import pandas as pd
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        >>> fc = FeaturesCollection.from_tracking_collection(tc)
-        >>> boundaries = fc.define_boundary(['p1','p2','p3'], scaling=1.0)
-        >>> res = fc.within_boundary_static('p1', boundaries)
-        >>> isinstance(res, dict)
-        True
-        >>> any(isinstance(v, pd.Series) for v in res.values())
-        True
+            result = cls(result_dict)
+            result._is_grouped = True
+            result._groupby_tags = getattr(first, "_groupby_tags", None)
+            return result
 
-        >>> # Grouped case: add tags on Tracking, group, then build grouped FeaturesCollection
-        >>> # (boundaries BatchResult structure matches grouped layout)
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        ...     tc['A'].add_tag('group', 'G1'); tc['B'].add_tag('group', 'G2')
-        ...     gtc = tc.groupby('group')
-        ...     gfc = FeaturesCollection.from_tracking_collection(gtc)
-        ...     g_boundaries = gfc.define_boundary(['p1','p2','p3'], scaling=1.0)
-        ...     g_res = gfc.within_boundary_static('p1', g_boundaries)
-        >>> isinstance(g_res, dict)
-        True
-        >>> any(any(isinstance(s, pd.Series) for s in sub.values()) for sub in g_res.values())
-        True
+        else:
+            # Flat collections: validate handles match
+            handle_sets = [set(c.keys()) for c in collections]
+            if not all(hs == handle_sets[0] for hs in handle_sets):
+                raise ValueError(
+                    f"Handle mismatch across collections. "
+                    f"First has {handle_sets[0]}, others have {handle_sets[1:]}"
+                )
 
-        ```
-        """
-        # Case 1: one boundary applied to all leaves -> use standard batch path
-        if isinstance(boundary, list):
-            return self._invoke_batch(
-                "within_boundary_static", point, boundary, boundary_name
-            )
+            # Concatenate each handle
+            result_dict = {}
+            for handle in first.keys():
+                features_list = [c[handle] for c in collections]
+                result_dict[handle] = Features.concat(features_list, handle=handle, reindex=reindex)
 
-        # Case 2: mapping or BatchResult providing per-handle boundaries
-        return self._invoke_batch_mapped(
-            "within_boundary_static",
-            args=(point,),
-            kwargs={"boundary": boundary, "boundary_name": boundary_name},
-        )
-
-    def distance_to_boundary_static(
-        self,
-        point: str,
-        boundary,
-        boundary_name: str = None,
-    ):
-        """
-        Collection-aware wrapper that supports:
-          - a single static `boundary` (list[(x,y)]) applied to all items, or
-          - a per-handle mapping of boundaries produced by batch `define_boundary`:
-            - flat: {handle: list[(x,y)]}
-            - grouped: {group_key: {handle: list[(x,y)]}}
-            - BatchResult in either of the above shapes
-
-        Examples
-        --------
-        ```pycon
-        >>> import tempfile, shutil
-        >>> from pathlib import Path
-        >>> import pandas as pd
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        >>> fc = FeaturesCollection.from_tracking_collection(tc)
-        >>> boundaries = fc.define_boundary(['p1','p2','p3'], scaling=1.0)
-        >>> res = fc.distance_to_boundary_static('p1', boundaries)
-        >>> isinstance(res, dict)
-        True
-        >>> any(isinstance(v, pd.Series) for v in res.values())
-        True
-
-        >>> # Grouped case
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        ...     tc['A'].add_tag('group', 'G1'); tc['B'].add_tag('group', 'G2')
-        ...     gtc = tc.groupby('group')
-        ...     gfc = FeaturesCollection.from_tracking_collection(gtc)
-        ...     g_boundaries = gfc.define_boundary(['p1','p2','p3'], scaling=1.0)
-        ...     g_res = gfc.distance_to_boundary_static('p1', g_boundaries)
-        >>> isinstance(g_res, dict)
-        True
-        >>> any(any(isinstance(s, pd.Series) for s in sub.values()) for sub in g_res.values())
-        True
-
-        ```
-        """
-        if isinstance(boundary, list):
-            return self._invoke_batch(
-                "distance_to_boundary_static", point, boundary, boundary_name
-            )
-
-        return self._invoke_batch_mapped(
-            "distance_to_boundary_static",
-            args=(point,),
-            kwargs={"boundary": boundary, "boundary_name": boundary_name},
-        )
+            return cls(result_dict)
 
     @classmethod
     def from_list(cls, features_list: list[Features]):
@@ -277,21 +283,33 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         n_clusters: int,
         random_state: int = 0,
         *,
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
+        normalize: bool = False,
+        feature_weights: dict[str, float] | None = None,
         lowmem: bool = False,
         decimation_factor: int = 10,
+        missing_policy: Literal["drop", "impute_weight"] = "drop",
+        # removed legacy params; retained for a clear migration error
+        auto_normalize: bool = False,
+        rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
     ):
         """
         Perform k-means clustering using the specified embedding.
 
-        Unified behaviour for flat and grouped collections.
-        Returns a BatchResult mapping:
-          - grouped: {group_key: {feature_handle: FeaturesResult}}
-          - flat:    {feature_handle: FeaturesResult}
-        along with (centroids, normalization_factors or None).
+        Returns ``(BatchResult, centroids, scaling_factors)`` where
+        *scaling_factors* is a dict of one float per embedding column —
+        the combined effect of normalisation and feature weights.
 
+        Parameters
+        ----------
+        normalize : bool
+            Divide each base feature by its global std before embedding.
+        feature_weights : dict[str, float] | None
+            Substring → weight mapping, e.g. ``{"speed": 4.0, "accel": 2.0}``.
+            Each key is matched against embedding column names by substring;
+            matched columns are multiplied by the value.  Resolved internally
+            via :func:`~py3r.behaviour.util.series_utils.build_column_weights`.
+            Raises if a rule matches no column (likely typo).
         Examples
         --------
         ```pycon
@@ -310,125 +328,138 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         >>> for f in fc.values():
         ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
         ...     f.store(s, 'counter')
-        >>> batch, centroids, norm = fc.cluster_embedding({'counter':[0]}, n_clusters=2, lowmem=True)
+        >>> batch, centroids, norm = fc.cluster_embedding(
+        ...     {'counter':[0]}, n_clusters=2, lowmem=True)
+        >>> isinstance(centroids, pd.DataFrame)
+        True
+        >>> batch, centroids, norm = fc.cluster_embedding(
+        ...     {'counter':[0]}, n_clusters=2, lowmem=True,
+        ...     missing_policy='impute_weight')
+        >>> isinstance(centroids, pd.DataFrame)
+        True
+        >>> batch, centroids, norm = fc.cluster_embedding(
+        ...     {'counter':[0]}, n_clusters=2, lowmem=True,
+        ...     missing_policy='drop')
         >>> isinstance(centroids, pd.DataFrame)
         True
 
         ```
         """
-
-        # 1) Build embeddings map keyed by (group, feature)
-        is_grouped = getattr(self, "is_grouped", False)
-        flat_group_key = "__flat__"
-        group_iter = self.items() if is_grouped else [(flat_group_key, self)]
-        all_embeddings = {}
-        for gkey, sub in group_iter:
-            for feat_name, features in sub.features_dict.items():
-                embed_df = features.embedding_df(embedding_dict).astype(np.float32)
-                if lowmem:
-                    embed_df = embed_df.iloc[::decimation_factor]
-                all_embeddings[(gkey, feat_name)] = embed_df
-
-        combined = pd.concat(
-            all_embeddings.values(),
-            keys=all_embeddings.keys(),
-            names=["group", "feature", "frame"],
-        )
-
-        # 2) Optional scaling/normalization
-        if custom_scaling is not None and (
-            auto_normalize or rescale_factors is not None
-        ):
-            raise ValueError(
-                "custom_scaling is mutually exclusive with auto_normalize or rescale_factors"
-            )
         if auto_normalize:
-            combined, normalization_factors = normalize_df(combined)
-        elif rescale_factors is not None:
-            combined = apply_normalization_to_df(combined, rescale_factors)
-            normalization_factors = None
-        elif custom_scaling is not None:
-            combined = apply_custom_scaling(combined, custom_scaling)
-            normalization_factors = None
-        else:
-            normalization_factors = None
-
-        # 3) Cluster
-        valid_mask = combined.notna().all(axis=1)
-        valid_combined = combined[valid_mask]
-        model = KMeans(n_clusters=n_clusters, random_state=random_state).fit(
-            valid_combined
-        )
-        centroids = pd.DataFrame(model.cluster_centers_, columns=combined.columns)
-
-        # 4) Assign labels
-        combined_labels = pd.Series(np.nan, index=combined.index)
-        combined_labels.loc[valid_mask] = model.labels_
-
-        # 5) Reconstruct results (nested for grouped, flat dict for flat)
-        meta = {
-            "embedding_dict": embedding_dict,
-            "n_clusters": n_clusters,
-            "random_state": random_state,
-            "auto_normalize": auto_normalize,
-            "rescale_factors": rescale_factors,
-            "lowmem": lowmem,
-            "decimation_factor": decimation_factor,
-        }
-
-        if lowmem:
-            # Assign by nearest centroid, item-by-item (apply same scaling as training)
-            # Determine factors to apply during assignment
-            factors_for_assign = (
-                normalization_factors if auto_normalize else rescale_factors
+            raise NotImplementedError("auto_normalize was removed; use normalize=True instead.")
+        if rescale_factors is not None:
+            raise NotImplementedError(
+                "rescale_factors was removed; use normalize and/or feature_weights instead."
             )
-            if is_grouped:
-                result_dict = {}
-                for gkey, sub in self.items():
-                    group_map = {}
-                    for feat_name, feat in sub.features_dict.items():
-                        fr = feat.assign_clusters_by_centroids(
-                            embedding_dict,
-                            centroids,
-                            rescale_factors=factors_for_assign,
-                            custom_scaling=custom_scaling,
-                        )
-                        group_map[feat_name] = fr
-                    result_dict[gkey] = group_map
-            else:
-                result_dict = {}
-                for feat_name, feat in self.features_dict.items():
-                    fr = feat.assign_clusters_by_centroids(
-                        embedding_dict,
-                        centroids,
-                        rescale_factors=factors_for_assign,
-                        custom_scaling=custom_scaling,
-                    )
-                    result_dict[feat_name] = fr
-        else:
-            if is_grouped:
-                result_dict = {}
-                for gkey, sub in self.items():
-                    group_map = {}
-                    for feat_name, feat in sub.features_dict.items():
-                        labels = combined_labels.xs(
-                            (gkey, feat_name), level=["group", "feature"]
-                        ).astype("Int64")
-                        group_map[feat_name] = FeaturesResult(
-                            labels, feat, f"kmeans_{n_clusters}", meta
-                        )
-                    result_dict[gkey] = group_map
-            else:
-                result_dict = {}
-                for feat_name, feat in self.features_dict.items():
-                    labels = combined_labels.xs(
-                        (flat_group_key, feat_name), level=["group", "feature"]
-                    ).astype("Int64")
-                    result_dict[feat_name] = FeaturesResult(
-                        labels, feat, f"kmeans_{n_clusters}", meta
-                    )
+        if custom_scaling is not None:
+            raise NotImplementedError("custom_scaling was removed; use feature_weights instead.")
+        pipeline = ClusteringPipeline()
+        cfg = ClusteringConfig(
+            n_clusters=n_clusters,
+            random_state=random_state,
+            normalize=normalize,
+            feature_weights=feature_weights,
+            auto_normalize=auto_normalize,
+            rescale_factors=rescale_factors,
+            lowmem=lowmem,
+            decimation_factor=decimation_factor,
+            custom_scaling=custom_scaling,
+            missing_policy=missing_policy,
+        )
+        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
+        return BatchResult(result_dict, self), centroids, scaling_factors
 
-        return BatchResult(result_dict, self), centroids, normalization_factors
+    def cluster_embedding_stream(
+        self,
+        embedding_dict: dict[str, list[int]],
+        n_clusters: int,
+        random_state: int = 0,
+        *,
+        normalize: bool = False,
+        feature_weights: dict[str, float] | None = None,
+        missing_policy: Literal["drop", "impute_weight"] = "drop",
+        chunk_size: int = 10_000,
+        n_epochs: int = 3,
+        batch_size: int = 1024,
+    ):
+        """
+        Memory-friendly clustering via streaming MiniBatchKMeans.
+
+        Unlike ``cluster_embedding``, this never builds a combined DataFrame.
+        Embeddings are extracted one Features at a time, sliced into
+        fixed-size chunks, and fed to ``MiniBatchKMeans.partial_fit``.
+        Multiple epochs improve convergence; uniform chunk sizes prevent
+        large recordings from dominating centroid updates.
+
+        Normalisation is computed on base feature columns (before embedding)
+        so that all time-shifts of the same feature share the same std.
+        The returned ``scaling_factors`` is a dict of one float per
+        *embedding column* — the combined effect of normalisation and
+        feature weights.  Multiply raw embedding values by these to reproduce
+        the transform.
+
+        Returns ``(BatchResult, centroids, scaling_factors)``.
+
+        Parameters
+        ----------
+        embedding_dict : dict[str, list[int]]
+            Feature columns and their time shifts for the embedding.
+        n_clusters : int
+            Number of clusters.
+        random_state : int
+            Seed for reproducibility.
+        normalize : bool
+            Divide each base feature by its global std before embedding.
+        feature_weights : dict[str, float] | None
+            Substring → weight mapping, e.g. ``{"speed": 4.0}``.
+            Resolved internally into per-column weights.  Raises if a
+            rule matches no column (likely typo).
+        missing_policy : {"drop", "impute_weight"}
+            How to handle NaN rows.
+        chunk_size : int
+            Max rows per partial_fit call.
+        n_epochs : int
+            Number of full passes over the data.
+        batch_size : int
+            MiniBatchKMeans internal mini-batch size.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> for f in fc.values():
+        ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
+        ...     f.store(s, 'counter')
+        >>> batch, centroids, norm = fc.cluster_embedding_stream(
+        ...     {'counter': [0]}, n_clusters=2)
+        >>> isinstance(centroids, pd.DataFrame) and centroids.shape[0] == 2
+        True
+
+        ```
+        """
+        pipeline = StreamingClusteringPipeline()
+        cfg = StreamingConfig(
+            n_clusters=n_clusters,
+            random_state=random_state,
+            normalize=normalize,
+            feature_weights=feature_weights,
+            missing_policy=missing_policy,
+            chunk_size=chunk_size,
+            n_epochs=n_epochs,
+            batch_size=batch_size,
+        )
+        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
+        return BatchResult(result_dict, self), centroids, scaling_factors
 
     def cluster_diagnostics(
         self,
@@ -458,7 +489,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         -------
         dict with:
             - 'global': {'cluster_prevalence': {label: frac, ...}, 'percent_nan': frac}
-            - 'per_recording': pandas.DataFrame with rows per recording and columns: ['percent_nan', 'num_missing', 'num_low', 'num_high']
+            - 'per_recording': DataFrame, rows per recording, cols
+              ['percent_nan', 'num_missing', 'num_low', 'num_high']
             - 'summary': min/median/max for the per_recording columns
             - if grouped: 'per_group': {group_key: {'per_recording': df, 'summary': {...}}}
         """
@@ -529,14 +561,10 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
             # per recording prevalence using total frames (incl NaN)
             missing = sum(1 for c in cluster_labels if counts.get(c, 0) == 0)
             low_cnt = sum(
-                1
-                for c in cluster_labels
-                if (counts.get(c, 0) / max(1, count_total)) < low
+                1 for c in cluster_labels if (counts.get(c, 0) / max(1, count_total)) < low
             )
             high_cnt = sum(
-                1
-                for c in cluster_labels
-                if (counts.get(c, 0) / max(1, count_total)) > high
+                1 for c in cluster_labels if (counts.get(c, 0) / max(1, count_total)) > high
             )
             rec = {
                 "id": key,
@@ -651,11 +679,10 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
             starts = np.cumsum([0] + lengths[:-1])
             train_X = [
                 train_X_concat.iloc[start : start + length].values
-                for start, length in zip(starts, lengths)
+                for start, length in zip(starts, lengths, strict=True)
             ]
             test_X = [
-                apply_normalization_to_df(pd.DataFrame(x), rescale_factors).values
-                for x in test_X
+                apply_normalization_to_df(pd.DataFrame(x), rescale_factors).values for x in test_X
             ]
         else:
             rescale_factors = None
@@ -672,14 +699,12 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
         # Predict for each test handle and compute RMS
         rms_list = []
-        for x, y, h in zip(test_X, test_y, test_handles):
+        for x, y, h in zip(test_X, test_y, test_handles, strict=True):
             x_df = pd.DataFrame(x, columns=get_source_columns(h))
             y_df = pd.DataFrame(y, columns=get_target_columns(h))
             preds = predictor.predict(x_df)
             preds = preds.reindex(index=y_df.index, columns=y_df.columns)
-            rms = Features.rms_error_between_embeddings(
-                y_df, preds, rescale=normalize_pred
-            )
+            rms = Features.rms_error_between_embeddings(y_df, preds, rescale=normalize_pred)
             rms_list.append(rms)
         return rms_list
 
@@ -801,12 +826,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 for g2 in set2:
                     if g1 == g2:
                         continue
-                    source_handles = [
-                        (g1, h) for h in self._obj_dict[g1].features_dict.keys()
-                    ]
-                    target_handles = [
-                        (g2, h) for h in self._obj_dict[g2].features_dict.keys()
-                    ]
+                    source_handles = [(g1, h) for h in self._obj_dict[g1].features_dict.keys()]
+                    target_handles = [(g2, h) for h in self._obj_dict[g2].features_dict.keys()]
                     rms_list = self._train_and_predict_rms(
                         train_handles=source_handles,
                         test_handles=target_handles,
@@ -824,7 +845,9 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                     rms_dict = {
                         name: rms
                         for name, rms in zip(
-                            self._obj_dict[g2].features_dict.keys(), rms_list
+                            self._obj_dict[g2].features_dict.keys(),
+                            rms_list,
+                            strict=True,
                         )
                     }
                     key = f"from{g1}_to_{g2}"
@@ -838,8 +861,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         """
         Dev mode only: not available in public release yet.
         """
-        import numpy as np
         import matplotlib.pyplot as plt
+        import numpy as np
 
         # Keys
         between_key = f"from{from_group}_to_{to_group}"
@@ -848,12 +871,10 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         within_dict = results["within"].get(within_key, {})
         handles = sorted(set(between_dict.keys()) & set(within_dict.keys()))
         if not handles:
-            raise ValueError(
-                f"No overlapping handles between {between_key} and {within_key}"
-            )
+            raise ValueError(f"No overlapping handles between {between_key} and {within_key}")
         between_means = [between_dict[h].mean(skipna=True) for h in handles]
         within_means = [within_dict[h].mean(skipna=True) for h in handles]
-        diff_means = [b - w for b, w in zip(between_means, within_means)]
+        diff_means = [b - w for b, w in zip(between_means, within_means, strict=True)]
         x = np.arange(len(handles))
         width = 0.3
         fig, ax = plt.subplots(figsize=(max(8, len(handles) * 0.7), 5))
@@ -900,8 +921,8 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         """
         Dev mode only: not available in public release yet.
         """
-        import pandas as pd
         import matplotlib.pyplot as plt
+        import pandas as pd
         import seaborn as sns
 
         records = []
@@ -910,9 +931,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 for feat, series in results["within"].get(coll, {}).items():
                     arr = series.dropna().values
                     for v in arr:
-                        records.append(
-                            {"Category": f"within_{coll}", "Feature": feat, "RMS": v}
-                        )
+                        records.append({"Category": f"within_{coll}", "Feature": feat, "RMS": v})
         if between_keys is not None:
             for comp in between_keys:
                 for feat, series in results["between"].get(comp, {}).items():
@@ -942,9 +961,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 sharex=True,
                 gridspec_kw={"height_ratios": [2, 1]},
             )
-            sns.pointplot(
-                data=means, x="Feature", y="RMS", hue="Category", dodge=True, ax=ax1
-            )
+            sns.pointplot(data=means, x="Feature", y="RMS", hue="Category", dodge=True, ax=ax1)
             ax1.set_ylabel("mean RMS error")
             ax1.set_title("Cross-predict summary")
             ax1.tick_params(axis="x", rotation=90)
@@ -970,14 +987,12 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
 
     @dev_mode
     @staticmethod
-    def dumbbell_plot_cross_predict(
-        results, within_key, between_key, figsize=(3, 3), show=True
-    ):
+    def dumbbell_plot_cross_predict(results, within_key, between_key, figsize=(3, 3), show=True):
         """
         Dev mode only: not available in public release yet.
         """
-        import pandas as pd
         import matplotlib.pyplot as plt
+        import pandas as pd
 
         features = sorted(
             set(
@@ -988,28 +1003,18 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         data = []
         for feat in features:
             mean_within = (
-                results["within"]
-                .get(within_key, {})
-                .get(feat, pd.Series(dtype=float))
-                .mean()
+                results["within"].get(within_key, {}).get(feat, pd.Series(dtype=float)).mean()
             )
             mean_between = (
-                results["between"]
-                .get(between_key, {})
-                .get(feat, pd.Series(dtype=float))
-                .mean()
+                results["between"].get(between_key, {}).get(feat, pd.Series(dtype=float)).mean()
             )
-            data.append(
-                {"Feature": feat, "Within": mean_within, "Between": mean_between}
-            )
+            data.append({"Feature": feat, "Within": mean_within, "Between": mean_between})
         df = pd.DataFrame(data)
         x = [0, 1]
         plt.figure(figsize=figsize)
         for _, row in df.iterrows():
             plt.plot(x, [row["Within"], row["Between"]], color="gray", lw=2, zorder=1)
-            plt.scatter(
-                x, [row["Within"], row["Between"]], s=60, color="black", zorder=2
-            )
+            plt.scatter(x, [row["Within"], row["Between"]], s=60, color="black", zorder=2)
         plt.xticks(x, ["Within", "Between"])
         plt.ylabel("Mean RMS")
         plt.title(f"Dumbbell Plot: {within_key} vs {between_key}")
@@ -1067,9 +1072,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         target_embed = self.embedding_df(target_embedding)
         preds = model.predict(test_embed)
         # Ensure the output DataFrame has the same index and columns as target_embed
-        preds = pd.DataFrame(
-            preds, index=target_embed.index, columns=target_embed.columns
-        )
+        preds = pd.DataFrame(preds, index=target_embed.index, columns=target_embed.columns)
         return preds
 
     def plot(self, arg=None, figsize=(8, 2), show: bool = True, title: str = None):
@@ -1085,16 +1088,12 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         if getattr(self, "is_grouped", False):
             figs_axes = {}
             for gkey, sub in self.items():
-                figs_axes[gkey] = sub.plot(
-                    arg, figsize=figsize, show=show, title=str(gkey)
-                )
+                figs_axes[gkey] = sub.plot(arg, figsize=figsize, show=show, title=str(gkey))
             return figs_axes
 
         if arg is None:
             # Plot all columns for each Features object
-            features_dict = {
-                handle: obj.data for handle, obj in self.features_dict.items()
-            }
+            features_dict = {handle: obj.data for handle, obj in self.features_dict.items()}
             plot_type = "all"
         elif isinstance(arg, (str, list)):
             # Plot specified column(s) for each Features object
@@ -1121,12 +1120,10 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
         n = len(features_dict)
         if n == 0:
             raise ValueError("No features to plot.")
-        fig, axes = plt.subplots(
-            n, 1, figsize=(figsize[0], figsize[1] * n), sharex=True
-        )
+        fig, axes = plt.subplots(n, 1, figsize=(figsize[0], figsize[1] * n), sharex=True)
         if n == 1:
             axes = [axes]
-        for ax, (handle, data) in zip(axes, features_dict.items()):
+        for ax, (handle, data) in zip(axes, features_dict.items(), strict=True):
             if plot_type == "batch":
                 # FeaturesResult: plot as a single series
                 ax.plot(data.index, data.values, label=getattr(data, "name", "value"))
@@ -1202,9 +1199,7 @@ class FeaturesCollection(BaseCollection, FeaturesCollectionBatchMixin):
                 v.store(name=name, meta=meta, overwrite=overwrite)
             else:
                 if isinstance(v, pd.Series):
-                    self.features_dict[handle].store(
-                        v, name, overwrite=overwrite, meta=meta or {}
-                    )
+                    self.features_dict[handle].store(v, name, overwrite=overwrite, meta=meta or {})
                 else:
                     raise ValueError(f"{v} is not a FeaturesResult or Series")
 

@@ -1,4 +1,5 @@
 .venv
+.venv_temp
 .DS_Store
 __pycache__/
 *.egg-info/
@@ -6,3 +7,8 @@ dev/
 .pytest_cache/
 site/
 .cache/
+output
+development_testing/
+**/_artifacts/
+.ruff_cache/
+**/_rendered/

@@ -19,9 +19,6 @@ nav:
   - Getting Started: getting_started.md
   - Examples:
     - OFT pipeline: examples/oft_pipeline.md
-    - OFT pipeline with BehaviourFlow: examples/oft_bfa_pipeline.md
-    - EPM pipeline: examples/epm_pipeline.md
-    - GrimACE pipeline with BehaviourFlow: examples/grimace_pipeline_behaviourflow.md
   - API:
     - Tracking: api/tracking.md
     - TrackingMV: api/tracking_mv.md
@@ -33,6 +30,15 @@ nav:
 plugins:
   - search
   - autorefs
+  - glightbox:
+      touchNavigation: true
+      loop: false
+      effect: zoom
+      slide_effect: slide
+      width: "100%"
+      height: auto
+      zoomable: true
+      draggable: true
   - mkdocstrings:
       handlers:
         python:
@@ -60,6 +66,7 @@ plugins:
               show_inheritance: true
 markdown_extensions:
   - admonition
+  - md_in_html
   - pymdownx.highlight:
       anchor_linenums: false
       pygments_lang_class: true
