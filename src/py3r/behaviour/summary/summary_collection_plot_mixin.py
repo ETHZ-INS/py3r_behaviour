@@ -327,7 +327,7 @@ class SummaryCollectionPlotMixin:
 
         return df, metric_name, palette, sorted_groups, auto_ylabel
 
-    def _prepare_metric_for_plot(self, metric, *, merge_by: str | None = "metric"):
+    def _prepare_metric_for_plot(self, metric, *, merge_metrics: bool = True):
         """
         Prepare metric input for plotting.
 
@@ -338,24 +338,6 @@ class SummaryCollectionPlotMixin:
         """
         from py3r.behaviour.summary.summary_result import SummaryResult
         from py3r.behaviour.util.collection_utils import BatchResult
-
-        if merge_by not in {"metric", "component", None}:
-            raise ValueError("merge_by must be 'metric', 'component', or None.")
-
-        # Alias-map mode: {"alias": metric_spec, ...} for multi-metric plotting.
-        if isinstance(metric, dict):
-            flat_handles = set(self.flatten().keys())
-            grouped_keys = set(self.keys()) if getattr(self, "is_grouped", False) else set()
-            looks_like_alias_map = (
-                len(metric) > 1
-                and set(metric.keys()) != flat_handles
-                and set(metric.keys()) != grouped_keys
-                and all(isinstance(v, (str, dict, BatchResult)) for v in metric.values())
-            )
-            if looks_like_alias_map:
-                metric = list(metric.items())
-            else:
-                return metric, None
 
         if not isinstance(metric, list):
             return metric, None
@@ -370,10 +352,6 @@ class SummaryCollectionPlotMixin:
         # Resolve each metric item to {handle -> value} with a display label/ylabel.
         resolved_items = []
         for idx, item in enumerate(metric):
-            alias = None
-            if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str):
-                alias, item = item
-
             if isinstance(item, str):
                 item_label = item
                 values_by_handle = {}
@@ -457,9 +435,6 @@ class SummaryCollectionPlotMixin:
                     f"Got {type(item).__name__} at index {idx}."
                 )
 
-            if alias is not None:
-                item_label = alias
-
             resolved_items.append(
                 {
                     "label": str(item_label),
@@ -490,14 +465,11 @@ class SummaryCollectionPlotMixin:
                 if isinstance(value, pd.Series):
                     for comp, v in value.items():
                         comp_label = str(comp)
-                        if merge_by is None:
-                            key = f"{label}{merge_sep}{comp_label}"
-                        elif merge_by == "metric":
+                        if merge_metrics:
                             primary, secondary = label, comp_label
                             key = f"{primary}{merge_sep}{secondary}"
                         else:
-                            primary, secondary = comp_label, label
-                            key = f"{primary}{merge_sep}{secondary}"
+                            key = f"{label}{merge_sep}{comp_label}"
                         if key in merged_data:
                             raise ValueError(
                                 f"Duplicate merged component key '{key}' for handle '{handle}'."
@@ -508,11 +480,11 @@ class SummaryCollectionPlotMixin:
                             merged_component_order.append(key)
                 else:
                     # Scalar metrics use outer-label-only semantics in two-level
-                    # mode (empty inner label), regardless of merge_by.
-                    if merge_by is None:
-                        key = label
-                    else:
+                    # mode (empty inner label) when merge_metrics=True.
+                    if merge_metrics:
                         key = f"{label}{merge_sep}"
+                    else:
+                        key = label
                     if key in merged_data:
                         raise ValueError(
                             f"Duplicate merged component key '{key}' for handle '{handle}'."
@@ -531,9 +503,8 @@ class SummaryCollectionPlotMixin:
             )
 
         multi_axis_meta = None
-        if merge_by is not None:
+        if merge_metrics:
             multi_axis_meta = {
-                "merge_by": merge_by,
                 "merge_sep": merge_sep,
                 "component_order": merged_component_order,
                 "gap_token_prefix": "__py3r_gap__",
@@ -758,10 +729,17 @@ class SummaryCollectionPlotMixin:
             return
 
         secondary_labels = [label_to_parts.get(t, ("", t))[1] for t in tick_texts]
+        visible_pairs = [
+            (x, lbl)
+            for t, x, lbl in zip(tick_texts, tick_positions, secondary_labels, strict=True)
+            if not str(t).startswith(gap_token_prefix)
+        ]
+        visible_tick_positions = [x for x, _ in visible_pairs]
+        visible_tick_labels = [lbl for _, lbl in visible_pairs]
 
-        # Set fixed ticks first to avoid matplotlib warnings when replacing labels.
-        ax.set_xticks(tick_positions)
-        ax.set_xticklabels(secondary_labels)
+        # Set fixed visible ticks only (hide spacer ticks entirely).
+        ax.set_xticks(visible_tick_positions)
+        ax.set_xticklabels(visible_tick_labels)
 
         # Remove prior custom artists if present (e.g., redrawing on same axis).
         for artist in getattr(ax, "_py3r_twolevel_x_artists", []):
@@ -1117,12 +1095,12 @@ class SummaryCollectionPlotMixin:
         -------
         tuple[Figure, Axes, DataFrame]
         """
-        merge_by = kwargs.pop("merge_by", "metric")
+        merge_metrics = kwargs.pop("merge_metrics", True)
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
             sort_by=sort_by,
-            merge_by=merge_by,
+            merge_metrics=merge_metrics,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
@@ -1172,7 +1150,7 @@ class SummaryCollectionPlotMixin:
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
-        merge_by: str | None = "metric",
+        merge_metrics: bool = True,
         ax=None,
         figsize=None,
     ):
@@ -1194,11 +1172,10 @@ class SummaryCollectionPlotMixin:
             sort dimension).  Colours are unaffected — they always follow
             the ``groupby(tags=...)`` order.  Accepts a single tag name or a
             list.  See :meth:`_sns_plot_common` for details.
-        merge_by : {"metric", "component"} | None
-            Used only when *metric* is a list with more than one item. Controls
-            whether merged component labels are grouped by metric first or by
-            component first in x-axis ordering/annotation. Pass ``None`` to
-            disable grouped two-level x-axis labeling and use flat merged labels.
+        merge_metrics : bool
+            Used only when *metric* is a list with more than one item.
+            When True (default), apply grouped merged labels and two-level
+            x-axis formatting. When False, keep flat merged labels.
         ax : matplotlib.axes.Axes, optional
             Axes to plot on.  If *None*, a new figure is created with
             auto-calculated size.
@@ -1252,7 +1229,7 @@ class SummaryCollectionPlotMixin:
 
         import matplotlib.pyplot as plt
 
-        metric, multi_axis_meta = self._prepare_metric_for_plot(metric, merge_by=merge_by)
+        metric, multi_axis_meta = self._prepare_metric_for_plot(metric, merge_metrics=merge_metrics)
         df, metric_name, palette, sorted_groups, auto_ylabel = self._metric_to_tidy(
             metric, group_order, sort_by=sort_by
         )
@@ -1752,12 +1729,12 @@ class SummaryCollectionPlotMixin:
         """
         import seaborn as sns
 
-        merge_by = kwargs.pop("merge_by", "metric")
+        merge_metrics = kwargs.pop("merge_metrics", True)
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
             sort_by=sort_by,
-            merge_by=merge_by,
+            merge_metrics=merge_metrics,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
