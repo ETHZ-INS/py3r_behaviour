@@ -327,7 +327,7 @@ class SummaryCollectionPlotMixin:
 
         return df, metric_name, palette, sorted_groups, auto_ylabel
 
-    def _prepare_metric_for_plot(self, metric, *, merge_metrics: bool = True):
+    def _prepare_metric_for_plot(self, metric, *, merge_by: str | None = "metric"):
         """
         Prepare metric input for plotting.
 
@@ -338,6 +338,24 @@ class SummaryCollectionPlotMixin:
         """
         from py3r.behaviour.summary.summary_result import SummaryResult
         from py3r.behaviour.util.collection_utils import BatchResult
+
+        if merge_by not in {"metric", "component", None}:
+            raise ValueError("merge_by must be 'metric', 'component', or None.")
+
+        # Alias-map mode: {"alias": metric_spec, ...} for multi-metric plotting.
+        if isinstance(metric, dict):
+            flat_handles = set(self.flatten().keys())
+            grouped_keys = set(self.keys()) if getattr(self, "is_grouped", False) else set()
+            looks_like_alias_map = (
+                len(metric) > 1
+                and set(metric.keys()) != flat_handles
+                and set(metric.keys()) != grouped_keys
+                and all(isinstance(v, (str, dict, BatchResult)) for v in metric.values())
+            )
+            if looks_like_alias_map:
+                metric = list(metric.items())
+            else:
+                return metric, None
 
         if not isinstance(metric, list):
             return metric, None
@@ -351,7 +369,13 @@ class SummaryCollectionPlotMixin:
 
         # Resolve each metric item to {handle -> value} with a display label/ylabel.
         resolved_items = []
+        merge_sep = "::"
+
         for idx, item in enumerate(metric):
+            alias = None
+            if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str):
+                alias, item = item
+
             if isinstance(item, str):
                 item_label = item
                 values_by_handle = {}
@@ -435,6 +459,13 @@ class SummaryCollectionPlotMixin:
                     f"Got {type(item).__name__} at index {idx}."
                 )
 
+            if alias is not None:
+                item_label = alias
+            if merge_sep in str(item_label):
+                raise ValueError(
+                    f"Metric label '{item_label}' contains reserved separator '{merge_sep}'."
+                )
+
             resolved_items.append(
                 {
                     "label": str(item_label),
@@ -456,7 +487,6 @@ class SummaryCollectionPlotMixin:
         merged_flat = {}
         merged_component_order = []
         seen_components = set()
-        merge_sep = "::"
         for handle, summary in flat_self.items():
             merged_data = {}
             for ri in resolved_items:
@@ -465,9 +495,15 @@ class SummaryCollectionPlotMixin:
                 if isinstance(value, pd.Series):
                     for comp, v in value.items():
                         comp_label = str(comp)
-                        if merge_metrics:
-                            primary, secondary = label, comp_label
-                            key = f"{primary}{merge_sep}{secondary}"
+                        if merge_sep in comp_label:
+                            raise ValueError(
+                                f"Component label '{comp_label}' contains reserved separator "
+                                f"'{merge_sep}'."
+                            )
+                        if merge_by == "metric":
+                            key = f"{label}{merge_sep}{comp_label}"
+                        elif merge_by == "component":
+                            key = f"{comp_label}{merge_sep}{label}"
                         else:
                             key = f"{label}{merge_sep}{comp_label}"
                         if key in merged_data:
@@ -480,11 +516,8 @@ class SummaryCollectionPlotMixin:
                             merged_component_order.append(key)
                 else:
                     # Scalar metrics use outer-label-only semantics in two-level
-                    # mode (empty inner label) when merge_metrics=True.
-                    if merge_metrics:
-                        key = f"{label}{merge_sep}"
-                    else:
-                        key = label
+                    # mode by remaining plain metric labels.
+                    key = label
                     if key in merged_data:
                         raise ValueError(
                             f"Duplicate merged component key '{key}' for handle '{handle}'."
@@ -503,7 +536,7 @@ class SummaryCollectionPlotMixin:
             )
 
         multi_axis_meta = None
-        if merge_metrics:
+        if merge_by is not None:
             multi_axis_meta = {
                 "merge_sep": merge_sep,
                 "component_order": merged_component_order,
@@ -1095,12 +1128,12 @@ class SummaryCollectionPlotMixin:
         -------
         tuple[Figure, Axes, DataFrame]
         """
-        merge_metrics = kwargs.pop("merge_metrics", True)
+        merge_by = kwargs.pop("merge_by", "metric")
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
             sort_by=sort_by,
-            merge_metrics=merge_metrics,
+            merge_by=merge_by,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
@@ -1150,7 +1183,7 @@ class SummaryCollectionPlotMixin:
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
-        merge_metrics: bool = True,
+        merge_by: str | None = "metric",
         ax=None,
         figsize=None,
     ):
@@ -1172,10 +1205,11 @@ class SummaryCollectionPlotMixin:
             sort dimension).  Colours are unaffected — they always follow
             the ``groupby(tags=...)`` order.  Accepts a single tag name or a
             list.  See :meth:`_sns_plot_common` for details.
-        merge_metrics : bool
-            Used only when *metric* is a list with more than one item.
-            When True (default), apply grouped merged labels and two-level
-            x-axis formatting. When False, keep flat merged labels.
+        merge_by : {"metric", "component"} | None
+            Used only when *metric* is a list with more than one item. Controls
+            whether merged labels are arranged as ``metric::component``
+            (``"metric"``), ``component::metric`` (``"component"``), or kept
+            as flat merged labels without two-level axis formatting (``None``).
         ax : matplotlib.axes.Axes, optional
             Axes to plot on.  If *None*, a new figure is created with
             auto-calculated size.
@@ -1229,7 +1263,7 @@ class SummaryCollectionPlotMixin:
 
         import matplotlib.pyplot as plt
 
-        metric, multi_axis_meta = self._prepare_metric_for_plot(metric, merge_metrics=merge_metrics)
+        metric, multi_axis_meta = self._prepare_metric_for_plot(metric, merge_by=merge_by)
         df, metric_name, palette, sorted_groups, auto_ylabel = self._metric_to_tidy(
             metric, group_order, sort_by=sort_by
         )
@@ -1729,12 +1763,12 @@ class SummaryCollectionPlotMixin:
         """
         import seaborn as sns
 
-        merge_metrics = kwargs.pop("merge_metrics", True)
+        merge_by = kwargs.pop("merge_by", "metric")
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
             sort_by=sort_by,
-            merge_metrics=merge_metrics,
+            merge_by=merge_by,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )

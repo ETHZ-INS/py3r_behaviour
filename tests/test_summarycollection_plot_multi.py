@@ -122,6 +122,9 @@ def test_snsbar_accepts_list_metrics_for_multi_path():
     components = set(df["component"].astype(str).tolist())
     assert any(c.startswith("time_state::") for c in components)
     assert any(c.startswith("time_state_alt::") for c in components)
+    tick_labels = [t.get_text() for t in ax.get_xticklabels()]
+    assert "__py3r_gap__" not in "".join(tick_labels)
+    assert "" not in tick_labels
     assert fig is not None and ax is not None
 
 
@@ -149,7 +152,7 @@ def test_snsbar_multi_accepts_mixed_str_and_batchresult_items():
 
     components = set(df["component"].astype(str).tolist())
     assert any(c.startswith("time_state::") for c in components)
-    assert "time_true_flag::" in components
+    assert "time_true_flag" in components
 
 
 def test_grouped_multi_metric_returns_one_plot_per_group():
@@ -164,15 +167,42 @@ def test_grouped_multi_metric_returns_one_plot_per_group():
     assert any(c.startswith("time_state_alt::") for c in components)
 
 
-def test_snsbar_merge_metrics_false_disables_two_level_grouping():
+def test_snsbar_merge_by_none_disables_two_level_grouping():
     sc = _make_ungrouped_sc()
 
-    _, _, df = sc.snsbar(["time_state", "time_state_alt"], merge_metrics=False, show=False)
+    _, _, df = sc.snsbar(["time_state", "time_state_alt"], merge_by=None, show=False)
 
     components = set(df["component"].astype(str).tolist())
     assert "time_state::A" in components
     assert "time_state_alt::A" in components
     assert "A::time_state" not in components
+
+
+def test_snsbar_merge_by_component_reverses_merged_labels():
+    sc = _make_ungrouped_sc()
+
+    _, _, df = sc.snsbar(["time_state", "time_state_alt"], merge_by="component", show=False)
+
+    components = set(df["component"].astype(str).tolist())
+    assert "A::time_state" in components
+    assert "A::time_state_alt" in components
+
+
+def test_snsbar_accepts_alias_dict_metric_input():
+    sc = _make_ungrouped_sc()
+
+    _, _, df = sc.snsbar({"centre": "time_state", "cluster": "time_state_alt"}, show=False)
+
+    components = set(df["component"].astype(str).tolist())
+    assert "centre::A" in components
+    assert "cluster::A" in components
+
+
+def test_snsbar_separator_collision_raises_clear_error():
+    sc = _make_ungrouped_sc()
+
+    with pytest.raises(ValueError, match="reserved separator"):
+        sc.snsbar({"bad::name": "time_state", "cluster": "time_state_alt"}, show=False)
 
 
 def test_snsbar_scalar_metric_has_outer_only_label_in_twolevel_mode():
