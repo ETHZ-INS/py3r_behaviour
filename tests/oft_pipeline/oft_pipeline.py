@@ -783,6 +783,32 @@ fig, ax, df_mc = sc.snsbar(
     show=False,
 )
 
+# %% [markdown]
+# ### Multi-metric plotting demo (design evaluation)
+#
+# Demonstrates list-based metric input for both flat and grouped collections.
+# This uses one scalar metric (`time_in_center`) and one multi-component metric
+# (`time_in_cluster`) to surface any practical design limitations.
+
+# %%
+# Ungrouped multi-metric demo
+fig, ax, df_multi_flat = sc.snsbar(
+    ["time_in_center", "time_in_cluster"],
+    show=True,
+    savedir=OUT_DIR,
+    filename="demo_multi_metric_flat_barplot.png",
+)
+
+# %%
+# Grouped multi-metric demo
+fig, ax, df_multi_grouped = sc_grouped.snsbar(
+    ["time_in_center", "time_in_cluster"],
+    group_order=GROUP_ORDER,
+    show=True,
+    savedir=OUT_DIR,
+    filename="demo_multi_metric_grouped_barplot.png",
+)
+
 # %%
 # norender
 # --- Flat tidy DataFrame structure ---
@@ -816,6 +842,18 @@ for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
 assert df_gbar["component"].nunique() == N_CLUSTERS, (
     f"Expected {N_CLUSTERS} components, got {df_gbar['component'].nunique()}"
 )
+
+# --- Multi-metric demos ---
+# Flat case should include merged namespaced components from both metrics.
+components_multi_flat = set(df_multi_flat["component"].astype(str).tolist())
+assert any(c.startswith("time_in_cluster::") for c in components_multi_flat)
+assert "time_in_center" in components_multi_flat
+
+# Grouped case should still return one grouped tidy DataFrame via standard path.
+assert "_group" in df_multi_grouped.columns
+components_multi_grouped = set(df_multi_grouped["component"].astype(str).tolist())
+assert any(c.startswith("time_in_cluster::") for c in components_multi_grouped)
+assert "time_in_center" in components_multi_grouped
 
 # --- Auto-named plot files ---
 assert len(list(OUT_DIR.glob("*stripplot.png"))) >= 1

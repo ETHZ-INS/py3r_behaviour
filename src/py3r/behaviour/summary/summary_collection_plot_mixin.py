@@ -327,6 +327,170 @@ class SummaryCollectionPlotMixin:
 
         return df, metric_name, palette, sorted_groups, auto_ylabel
 
+    def _prepare_metric_for_plot(self, metric):
+        """
+        Prepare metric input for plotting.
+
+        Accepts ``str``, ``BatchResult``/``dict``, or a list containing any mix
+        of those. For multi-item lists, merges all items into a single per-handle
+        Series with namespaced component labels, then returns a dict structure
+        compatible with :meth:`_metric_to_tidy`.
+        """
+        from py3r.behaviour.summary.summary_result import SummaryResult
+        from py3r.behaviour.util.collection_utils import BatchResult
+
+        if not isinstance(metric, list):
+            return metric
+        if len(metric) == 0:
+            raise ValueError("metric list cannot be empty.")
+        if len(metric) == 1:
+            return metric[0]
+
+        flat_self = self.flatten()
+        all_handles = list(flat_self.keys())
+
+        # Resolve each metric item to {handle -> value} with a display label/ylabel.
+        resolved_items = []
+        for idx, item in enumerate(metric):
+            if isinstance(item, str):
+                item_label = item
+                values_by_handle = {}
+                ylabels = set()
+                missing = []
+                for handle, summary in flat_self.items():
+                    if item not in summary.data:
+                        missing.append(handle)
+                        continue
+                    values_by_handle[handle] = summary.data[item]
+                    stored_meta = summary.meta.get(item)
+                    if isinstance(stored_meta, dict):
+                        yl = stored_meta.get("_ylabel")
+                        if yl:
+                            ylabels.add(yl)
+                if missing:
+                    shown = missing[:5]
+                    suffix = "..." if len(missing) > 5 else ""
+                    raise KeyError(
+                        f"Metric '{item}' not found in Summary.data for handles {shown}{suffix}"
+                    )
+                item_ylabel = next(iter(ylabels)) if ylabels else "Value"
+            elif isinstance(item, (dict, BatchResult)):
+                raw = dict(item) if isinstance(item, BatchResult) else item
+                if not raw:
+                    raise ValueError(f"metric[{idx}] is an empty mapping.")
+                first_val = next(iter(raw.values()))
+                values_by_handle = {}
+                ylabels = set()
+
+                if isinstance(first_val, dict):
+                    # Grouped shape: {group: {handle: value_or_SummaryResult}}
+                    for group_key, subdict in raw.items():
+                        if not isinstance(subdict, dict):
+                            raise TypeError(
+                                "metric[{idx}] grouped mapping for key "
+                                f"{group_key!r} must be a dict."
+                            )
+                        for handle, sr_or_val in subdict.items():
+                            if handle in values_by_handle:
+                                raise ValueError(
+                                    f"metric[{idx}] contains duplicate handle '{handle}'."
+                                )
+                            values_by_handle[handle] = (
+                                sr_or_val.value if hasattr(sr_or_val, "value") else sr_or_val
+                            )
+                            if hasattr(sr_or_val, "_ylabel") and sr_or_val._ylabel:
+                                ylabels.add(sr_or_val._ylabel)
+                else:
+                    # Flat shape: {handle: value_or_SummaryResult}
+                    for handle, sr_or_val in raw.items():
+                        values_by_handle[handle] = (
+                            sr_or_val.value if hasattr(sr_or_val, "value") else sr_or_val
+                        )
+                        if hasattr(sr_or_val, "_ylabel") and sr_or_val._ylabel:
+                            ylabels.add(sr_or_val._ylabel)
+
+                missing = sorted(set(all_handles) - set(values_by_handle.keys()))
+                extra = sorted(set(values_by_handle.keys()) - set(all_handles))
+                if missing or extra:
+                    raise ValueError(
+                        f"metric[{idx}] mapping keys do not match collection handles. "
+                        f"Missing: {missing[:5]}{'...' if len(missing) > 5 else ''}; "
+                        f"Extra: {extra[:5]}{'...' if len(extra) > 5 else ''}"
+                    )
+
+                item_label = f"metric_{idx + 1}"
+                if isinstance(item, BatchResult):
+                    flat_vals = list(values_by_handle.values())
+                    if flat_vals:
+                        first_sr = next(
+                            (v for v in dict(item).values() if hasattr(v, "_func_name")),
+                            None,
+                        )
+                        if first_sr is not None:
+                            item_label = first_sr._func_name
+                item_ylabel = next(iter(ylabels)) if ylabels else "Value"
+            else:
+                raise TypeError(
+                    "metric list entries must be str or BatchResult/dict. "
+                    f"Got {type(item).__name__} at index {idx}."
+                )
+
+            resolved_items.append(
+                {
+                    "label": str(item_label),
+                    "values_by_handle": values_by_handle,
+                    "ylabel": item_ylabel,
+                }
+            )
+
+        ylabels = {ri["ylabel"] for ri in resolved_items}
+        if len(ylabels) != 1:
+            raise ValueError(
+                "All metrics must have identical y-axis labels for multi-metric plotting. "
+                f"Got labels: {[ri['label'] + '=' + str(ri['ylabel']) for ri in resolved_items]}"
+            )
+        common_ylabel = next(iter(ylabels))
+        merged_name = "_and_".join(ri["label"] for ri in resolved_items)
+
+        # Build merged flat mapping handle -> SummaryResult(Series)
+        merged_flat = {}
+        for handle, summary in flat_self.items():
+            merged_data = {}
+            for ri in resolved_items:
+                label = ri["label"]
+                value = ri["values_by_handle"][handle]
+                if isinstance(value, pd.Series):
+                    for comp, v in value.items():
+                        key = f"{label}::{comp}"
+                        if key in merged_data:
+                            raise ValueError(
+                                f"Duplicate merged component key '{key}' for handle '{handle}'."
+                            )
+                        merged_data[key] = v
+                else:
+                    key = label
+                    if key in merged_data:
+                        raise ValueError(
+                            f"Duplicate merged component key '{key}' for handle '{handle}'."
+                        )
+                    merged_data[key] = float(value)
+            merged_series = pd.Series(merged_data)
+            merged_flat[handle] = SummaryResult(
+                merged_series,
+                summary,
+                merged_name,
+                {"function": "merged_metrics", "metrics": [ri["label"] for ri in resolved_items]},
+                ylabel=common_ylabel,
+            )
+
+        if getattr(self, "is_grouped", False):
+            grouped = {}
+            for gkey, subcoll in self.items():
+                grouped[gkey] = {handle: merged_flat[handle] for handle in subcoll.keys()}
+            return grouped
+
+        return merged_flat
+
     # -------------------------------------------------------------------------
     # Figure sizing
     # -------------------------------------------------------------------------
@@ -912,6 +1076,7 @@ class SummaryCollectionPlotMixin:
 
         import matplotlib.pyplot as plt
 
+        metric = self._prepare_metric_for_plot(metric)
         df, metric_name, palette, sorted_groups, auto_ylabel = self._metric_to_tidy(
             metric, group_order, sort_by=sort_by
         )
