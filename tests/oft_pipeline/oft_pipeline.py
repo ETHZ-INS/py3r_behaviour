@@ -794,7 +794,7 @@ fig, ax, df_mc = sc.snsbar(
 # Ungrouped multi-metric demo
 fig, ax, df_multi_flat = sc.snsbar(
     ["time_in_center", "time_in_cluster"],
-    group_by="metric",
+    merge_by="metric",
     show=True,
     savedir=OUT_DIR,
     filename="demo_multi_metric_flat_barplot.png",
@@ -804,6 +804,7 @@ fig, ax, df_multi_flat = sc.snsbar(
 # Grouped multi-metric demo
 fig, ax, df_multi_grouped = sc_grouped.snsbar(
     ["time_in_center", "time_in_cluster"],
+    merge_by="component",
     group_order=GROUP_ORDER,
     show=True,
     savedir=OUT_DIR,
@@ -847,13 +848,13 @@ assert df_gbar["component"].nunique() == N_CLUSTERS, (
 # --- Multi-metric demos ---
 # Flat case should include merged namespaced components from both metrics.
 components_multi_flat = set(df_multi_flat["component"].astype(str).tolist())
-assert any(c.startswith("time_in_cluster::") for c in components_multi_flat)
+assert any("time_in_cluster" in c for c in components_multi_flat)
 assert "time_in_center" in components_multi_flat
 
 # Grouped case should still return one grouped tidy DataFrame via standard path.
 assert "_group" in df_multi_grouped.columns
 components_multi_grouped = set(df_multi_grouped["component"].astype(str).tolist())
-assert any(c.startswith("time_in_cluster::") for c in components_multi_grouped)
+assert any("time_in_cluster" in c for c in components_multi_grouped)
 assert "time_in_center" in components_multi_grouped
 
 # --- Auto-named plot files ---

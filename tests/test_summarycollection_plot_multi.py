@@ -47,6 +47,8 @@ def _store_plot_metrics(sc: SummaryCollection):
     for summary in sc.flatten().values():
         summary.time_in_state("state", all_states=["A", "B"]).store("time_state")
         summary.time_in_state("state_alt", all_states=["A", "B"]).store("time_state_alt")
+        summary.time_in_state("state", all_states=["A", "B"]).store("time_in_centre")
+        summary.time_in_state("state_alt", all_states=["A", "B"]).store("time_in_cluster")
         summary.time_true("flag").store("time_true")
         summary.count_state_onsets("state", all_states=["A", "B"]).store("onsets_state")
 
@@ -147,7 +149,7 @@ def test_snsbar_multi_accepts_mixed_str_and_batchresult_items():
 
     components = set(df["component"].astype(str).tolist())
     assert any(c.startswith("time_state::") for c in components)
-    assert "time_true_flag::value" in components
+    assert "time_true_flag" in components
 
 
 def test_grouped_multi_metric_returns_one_plot_per_group():
@@ -177,3 +179,46 @@ def test_snsbar_merge_by_invalid_value_raises():
 
     with pytest.raises(ValueError, match="merge_by must be"):
         sc.snsbar(["time_state", "time_state_alt"], merge_by="bad_value", show=False)
+
+
+def test_snsbar_merge_by_none_escape_hatch_disables_two_level_grouping():
+    sc = _make_ungrouped_sc()
+
+    _, _, df = sc.snsbar(["time_state", "time_state_alt"], merge_by=None, show=False)
+
+    components = set(df["component"].astype(str).tolist())
+    assert "time_state::A" in components
+    assert "time_state_alt::A" in components
+    assert "A::time_state" not in components
+
+
+def test_snsbar_abbreviates_inner_ticks_and_prints_mapping(capsys):
+    sc = _make_ungrouped_sc()
+
+    _, ax, _ = sc.snsbar(
+        ["time_in_centre", "time_in_cluster"],
+        merge_by="component",
+        abbreviate_inner_ticks=True,
+        show=False,
+    )
+
+    labels = [t.get_text() for t in ax.get_xticklabels()]
+    assert any("." in txt for txt in labels if txt)
+    out = capsys.readouterr().out
+    assert "Inner tick abbreviations:" in out
+
+
+def test_snsbar_no_inner_tick_abbreviation_when_disabled(capsys):
+    sc = _make_ungrouped_sc()
+
+    _, ax, _ = sc.snsbar(
+        ["time_in_centre", "time_in_cluster"],
+        merge_by="component",
+        abbreviate_inner_ticks=False,
+        show=False,
+    )
+
+    labels = [t.get_text() for t in ax.get_xticklabels()]
+    assert "time_in_centre" in labels or "time_in_cluster" in labels
+    out = capsys.readouterr().out
+    assert "Inner tick abbreviations:" not in out
