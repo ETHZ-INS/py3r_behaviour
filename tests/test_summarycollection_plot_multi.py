@@ -128,6 +128,25 @@ def test_snsbar_accepts_list_metrics_for_multi_path():
     assert fig is not None and ax is not None
 
 
+def test_snsbar_metric_merge_sorts_numeric_components():
+    sc = _make_ungrouped_sc()
+    for summary in sc.flatten().values():
+        summary.store(
+            pd.Series({"10": 1.0, "2": 2.0, "1": 3.0}),
+            "m_num1",
+            meta={"_ylabel": "Time (s)"},
+        )
+        summary.store(
+            pd.Series({"10": 4.0, "2": 5.0, "1": 6.0}),
+            "m_num2",
+            meta={"_ylabel": "Time (s)"},
+        )
+
+    _, _, df = sc.snsbar(["m_num1", "m_num2"], merge_by="metric", show=False)
+    ordered = list(df["component"].cat.categories)
+    assert ordered[:3] == ["m_num1::1", "m_num1::2", "m_num1::10"]
+
+
 def test_snsbar_single_item_metric_list_delegates_to_single_path():
     sc = _make_ungrouped_sc()
 
@@ -186,6 +205,26 @@ def test_snsbar_merge_by_component_reverses_merged_labels():
     components = set(df["component"].astype(str).tolist())
     assert "A::time_state" in components
     assert "A::time_state_alt" in components
+
+
+def test_snsbar_component_merge_sorts_numeric_components():
+    sc = _make_ungrouped_sc()
+    for summary in sc.flatten().values():
+        summary.store(
+            pd.Series({"10": 1.0, "2": 2.0, "1": 3.0}),
+            "m_num1",
+            meta={"_ylabel": "Time (s)"},
+        )
+        summary.store(
+            pd.Series({"10": 4.0, "2": 5.0, "1": 6.0}),
+            "m_num2",
+            meta={"_ylabel": "Time (s)"},
+        )
+
+    _, _, df = sc.snsbar(["m_num1", "m_num2"], merge_by="component", show=False)
+    ordered = list(df["component"].cat.categories)
+    # First block should be component "1", then "2", then "10"
+    assert ordered[0:2] == ["1::m_num1", "1::m_num2"]
 
 
 def test_snsbar_accepts_alias_dict_metric_input():

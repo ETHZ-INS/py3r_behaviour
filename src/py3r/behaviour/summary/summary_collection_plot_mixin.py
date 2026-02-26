@@ -483,10 +483,53 @@ class SummaryCollectionPlotMixin:
         common_ylabel = next(iter(ylabels))
         merged_name = "_and_".join(ri["label"] for ri in resolved_items)
 
+        # Build merged component order with numeric-aware component sorting.
+        metric_labels = [ri["label"] for ri in resolved_items]
+        components_by_metric = {lbl: set() for lbl in metric_labels}
+        for handle in all_handles:
+            for ri in resolved_items:
+                lbl = ri["label"]
+                value = ri["values_by_handle"][handle]
+                if isinstance(value, pd.Series):
+                    for comp in value.index:
+                        components_by_metric[lbl].add(str(comp))
+
+        if merge_by == "metric":
+            merged_component_order = []
+            for lbl in metric_labels:
+                sorted_components = self._smart_sort_labels(components_by_metric[lbl])
+                if sorted_components:
+                    merged_component_order.extend(
+                        f"{lbl}{merge_sep}{comp}" for comp in sorted_components
+                    )
+                else:
+                    merged_component_order.append(lbl)
+        elif merge_by == "component":
+            all_components = set()
+            for comps in components_by_metric.values():
+                all_components.update(comps)
+            sorted_components = self._smart_sort_labels(all_components)
+            merged_component_order = []
+            for comp in sorted_components:
+                for lbl in metric_labels:
+                    if comp in components_by_metric[lbl]:
+                        merged_component_order.append(f"{comp}{merge_sep}{lbl}")
+            for lbl in metric_labels:
+                if len(components_by_metric[lbl]) == 0:
+                    merged_component_order.append(lbl)
+        else:
+            merged_component_order = []
+            for lbl in metric_labels:
+                sorted_components = self._smart_sort_labels(components_by_metric[lbl])
+                if sorted_components:
+                    merged_component_order.extend(
+                        f"{lbl}{merge_sep}{comp}" for comp in sorted_components
+                    )
+                else:
+                    merged_component_order.append(lbl)
+
         # Build merged flat mapping handle -> SummaryResult(Series)
         merged_flat = {}
-        merged_component_order = []
-        seen_components = set()
         for handle, summary in flat_self.items():
             merged_data = {}
             for ri in resolved_items:
@@ -511,9 +554,6 @@ class SummaryCollectionPlotMixin:
                                 f"Duplicate merged component key '{key}' for handle '{handle}'."
                             )
                         merged_data[key] = v
-                        if key not in seen_components:
-                            seen_components.add(key)
-                            merged_component_order.append(key)
                 else:
                     # Scalar metrics use outer-label-only semantics in two-level
                     # mode by remaining plain metric labels.
@@ -523,9 +563,6 @@ class SummaryCollectionPlotMixin:
                             f"Duplicate merged component key '{key}' for handle '{handle}'."
                         )
                     merged_data[key] = float(value)
-                    if key not in seen_components:
-                        seen_components.add(key)
-                        merged_component_order.append(key)
             merged_series = pd.Series(merged_data)
             merged_flat[handle] = SummaryResult(
                 merged_series,

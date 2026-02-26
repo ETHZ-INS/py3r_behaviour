@@ -793,8 +793,7 @@ fig, ax, df_mc = sc.snsbar(
 # %%
 # Ungrouped multi-metric demo
 fig, ax, df_multi_flat = sc.snsbar(
-    ["time_in_center", "time_in_cluster"],
-    merge_by="metric",
+    {"centre": "time_in_center", "cluster": "time_in_cluster"},
     show=True,
     savedir=OUT_DIR,
     filename="demo_multi_metric_flat_barplot.png",
