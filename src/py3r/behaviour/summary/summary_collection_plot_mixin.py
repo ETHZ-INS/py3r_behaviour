@@ -342,6 +342,21 @@ class SummaryCollectionPlotMixin:
         if merge_by not in {"metric", "component", None}:
             raise ValueError("merge_by must be 'metric', 'component', or None.")
 
+        # Alias-map mode: {"alias": metric_spec, ...} for multi-metric plotting.
+        if isinstance(metric, dict):
+            flat_handles = set(self.flatten().keys())
+            grouped_keys = set(self.keys()) if getattr(self, "is_grouped", False) else set()
+            looks_like_alias_map = (
+                len(metric) > 1
+                and set(metric.keys()) != flat_handles
+                and set(metric.keys()) != grouped_keys
+                and all(isinstance(v, (str, dict, BatchResult)) for v in metric.values())
+            )
+            if looks_like_alias_map:
+                metric = list(metric.items())
+            else:
+                return metric, None
+
         if not isinstance(metric, list):
             return metric, None
         if len(metric) == 0:
@@ -355,6 +370,10 @@ class SummaryCollectionPlotMixin:
         # Resolve each metric item to {handle -> value} with a display label/ylabel.
         resolved_items = []
         for idx, item in enumerate(metric):
+            alias = None
+            if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str):
+                alias, item = item
+
             if isinstance(item, str):
                 item_label = item
                 values_by_handle = {}
@@ -438,6 +457,9 @@ class SummaryCollectionPlotMixin:
                     f"Got {type(item).__name__} at index {idx}."
                 )
 
+            if alias is not None:
+                item_label = alias
+
             resolved_items.append(
                 {
                     "label": str(item_label),
@@ -485,10 +507,12 @@ class SummaryCollectionPlotMixin:
                             seen_components.add(key)
                             merged_component_order.append(key)
                 else:
-                    # For scalar metrics, keep the metric label itself as the
-                    # merged component key. This stays readable and avoids the
-                    # non-informative synthetic component name "value".
-                    key = label
+                    # Scalar metrics use outer-label-only semantics in two-level
+                    # mode (empty inner label), regardless of merge_by.
+                    if merge_by is None:
+                        key = label
+                    else:
+                        key = f"{label}{merge_sep}"
                     if key in merged_data:
                         raise ValueError(
                             f"Duplicate merged component key '{key}' for handle '{handle}'."
@@ -512,6 +536,7 @@ class SummaryCollectionPlotMixin:
                 "merge_by": merge_by,
                 "merge_sep": merge_sep,
                 "component_order": merged_component_order,
+                "gap_token_prefix": "__py3r_gap__",
             }
 
         if getattr(self, "is_grouped", False):
@@ -603,6 +628,26 @@ class SummaryCollectionPlotMixin:
         slug = re.sub(r"[^a-zA-Z0-9]+", "_", metric_name)
         return slug.strip("_").lower()
 
+    @staticmethod
+    def _insert_primary_block_gaps(
+        component_order: list[str], merge_sep: str, gap_token_prefix: str
+    ):
+        """Insert spacer categories between primary-label blocks."""
+        if len(component_order) <= 1:
+            return component_order
+
+        out = []
+        prev_primary = None
+        gap_idx = 0
+        for comp in component_order:
+            primary = comp.split(merge_sep, 1)[0] if merge_sep in comp else comp
+            if prev_primary is not None and primary != prev_primary:
+                out.append(f"{gap_token_prefix}{gap_idx}")
+                gap_idx += 1
+            out.append(comp)
+            prev_primary = primary
+        return out
+
     # -------------------------------------------------------------------------
     # Seaborn kwargs builder
     # -------------------------------------------------------------------------
@@ -687,24 +732,25 @@ class SummaryCollectionPlotMixin:
     @staticmethod
     def _apply_two_level_x_labels(ax, df, multi_axis_meta):
         """Render two-level x-axis labels for merged multi-metric ticks."""
-        import re
-
         if not multi_axis_meta:
             return
         merge_sep = multi_axis_meta.get("merge_sep", "::")
         order = multi_axis_meta.get("component_order", None)
+        gap_token_prefix = multi_axis_meta.get("gap_token_prefix", "__py3r_gap__")
         if not order:
             return
-        abbreviate_inner_ticks = multi_axis_meta.get("abbreviate_inner_ticks", True)
-        min_abbrev_len = 6
 
         label_to_parts = {}
         for comp in order:
+            comp_str = str(comp)
+            if comp_str.startswith(gap_token_prefix):
+                label_to_parts[comp_str] = (None, "")
+                continue
             if merge_sep in comp:
                 primary, secondary = comp.split(merge_sep, 1)
             else:
-                primary, secondary = comp, comp
-            label_to_parts[str(comp)] = (str(primary), str(secondary))
+                primary, secondary = comp, ""
+            label_to_parts[comp_str] = (str(primary), str(secondary))
 
         tick_texts = [tick.get_text() for tick in ax.get_xticklabels()]
         tick_positions = list(ax.get_xticks())
@@ -712,83 +758,6 @@ class SummaryCollectionPlotMixin:
             return
 
         secondary_labels = [label_to_parts.get(t, ("", t))[1] for t in tick_texts]
-
-        def _abbreviate(labels):
-            unique_labels = list(dict.fromkeys(labels))
-            long_labels = [lbl for lbl in unique_labels if len(lbl) > min_abbrev_len]
-            if not long_labels:
-                return {lbl: lbl for lbl in unique_labels}, {}
-
-            token_map = {
-                lbl: [tok for tok in re.split(r"[^A-Za-z0-9]+", lbl) if tok] for lbl in long_labels
-            }
-            token_map = {lbl: toks if len(toks) > 0 else [lbl] for lbl, toks in token_map.items()}
-            prefix_lens = {lbl: [1] * len(token_map[lbl]) for lbl in long_labels}
-
-            def _build(lbl):
-                toks = token_map[lbl]
-                lens = prefix_lens[lbl]
-                return ".".join(tok[:n] for tok, n in zip(toks, lens, strict=True)) + "."
-
-            for _ in range(50):
-                groups = {}
-                for lbl in long_labels:
-                    groups.setdefault(_build(lbl), []).append(lbl)
-                collisions = [g for g in groups.values() if len(g) > 1]
-                if not collisions:
-                    break
-                progressed = False
-                for grp in collisions:
-                    for lbl in grp:
-                        toks = token_map[lbl]
-                        lens = prefix_lens[lbl]
-                        chosen_idx = None
-                        for i, tok in enumerate(toks):
-                            if lens[i] >= len(tok):
-                                continue
-                            differs = any(
-                                i >= len(token_map[other]) or token_map[other][i] != tok
-                                for other in grp
-                                if other != lbl
-                            )
-                            if differs:
-                                chosen_idx = i
-                                break
-                        if chosen_idx is None:
-                            for i, tok in enumerate(toks):
-                                if lens[i] < len(tok):
-                                    chosen_idx = i
-                                    break
-                        if chosen_idx is not None:
-                            prefix_lens[lbl][chosen_idx] += 1
-                            progressed = True
-                if not progressed:
-                    break
-
-            out = {lbl: lbl for lbl in unique_labels}
-            changed = {}
-            used = set()
-            for lbl in long_labels:
-                abbr = _build(lbl)
-                if abbr in used:
-                    k = 2
-                    while f"{abbr}{k}" in used:
-                        k += 1
-                    abbr = f"{abbr}{k}"
-                used.add(abbr)
-                out[lbl] = abbr
-                if abbr != lbl:
-                    changed[lbl] = abbr
-            return out, changed
-
-        changed = {}
-        if abbreviate_inner_ticks:
-            abbr_map, changed = _abbreviate(secondary_labels)
-            secondary_labels = [abbr_map.get(lbl, lbl) for lbl in secondary_labels]
-            if changed:
-                print("Inner tick abbreviations:")
-                for original, abbr in sorted(changed.items()):
-                    print(f"  {abbr} = {original}")
 
         # Set fixed ticks first to avoid matplotlib warnings when replacing labels.
         ax.set_xticks(tick_positions)
@@ -802,20 +771,30 @@ class SummaryCollectionPlotMixin:
                 pass
         custom_artists = []
 
-        # Add one primary label centered under each contiguous block.
+        # Add one primary label centered under each contiguous non-gap block.
         blocks = []
-        start = 0
-        for i in range(1, len(tick_texts)):
-            prev_primary = label_to_parts.get(tick_texts[i - 1], ("", ""))[0]
-            curr_primary = label_to_parts.get(tick_texts[i], ("", ""))[0]
-            if curr_primary != prev_primary:
-                blocks.append((start, i - 1, prev_primary))
+        start = None
+        current_primary = None
+        for i, tick in enumerate(tick_texts):
+            primary = label_to_parts.get(tick, (None, ""))[0]
+            if primary is None:
+                if start is not None:
+                    blocks.append((start, i - 1, current_primary))
+                    start = None
+                    current_primary = None
+                continue
+            if start is None:
                 start = i
-        if tick_texts:
-            last_primary = label_to_parts.get(tick_texts[-1], ("", ""))[0]
-            blocks.append((start, len(tick_texts) - 1, last_primary))
+                current_primary = primary
+                continue
+            if primary != current_primary:
+                blocks.append((start, i - 1, current_primary))
+                start = i
+                current_primary = primary
+        if start is not None:
+            blocks.append((start, len(tick_texts) - 1, current_primary))
 
-        for b_idx, (i0, i1, primary) in enumerate(blocks):
+        for i0, i1, primary in blocks:
             x0 = tick_positions[i0]
             x1 = tick_positions[i1]
             x_center = (x0 + x1) / 2
@@ -828,10 +807,11 @@ class SummaryCollectionPlotMixin:
                 va="top",
             )
             custom_artists.append(txt)
-            if b_idx < len(blocks) - 1:
-                next_i0 = blocks[b_idx + 1][0]
-                sep_x = (tick_positions[i1] + tick_positions[next_i0]) / 2
-                line = ax.axvline(sep_x, color="0.88", linewidth=0.8, zorder=0)
+
+        # Visual separator lines at explicit gap ticks.
+        for tick, xpos in zip(tick_texts, tick_positions, strict=True):
+            if str(tick).startswith(gap_token_prefix):
+                line = ax.axvline(xpos, color="0.88", linewidth=0.8, zorder=0)
                 custom_artists.append(line)
 
         ax._py3r_twolevel_x_artists = custom_artists
@@ -1138,7 +1118,6 @@ class SummaryCollectionPlotMixin:
         tuple[Figure, Axes, DataFrame]
         """
         merge_by = kwargs.pop("merge_by", "metric")
-        abbreviate_inner_ticks = kwargs.pop("abbreviate_inner_ticks", True)
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
@@ -1152,8 +1131,6 @@ class SummaryCollectionPlotMixin:
         with self._temporary_numpy_seed(random_state):
             plot_func(**spec.sns_kwargs)
 
-        if spec.multi_axis_meta is not None:
-            spec.multi_axis_meta["abbreviate_inner_ticks"] = bool(abbreviate_inner_ticks)
         self._apply_two_level_x_labels(spec.ax, spec.df, spec.multi_axis_meta)
 
         # Build seaborn params dict for statannotations passthrough
@@ -1289,6 +1266,9 @@ class SummaryCollectionPlotMixin:
         df = df.rename(columns={"value": ylabel})
         if multi_axis_meta is not None and multi_axis_meta.get("component_order"):
             order = [c for c in multi_axis_meta["component_order"] if c in set(df["component"])]
+            merge_sep = multi_axis_meta.get("merge_sep", "::")
+            gap_token_prefix = multi_axis_meta.get("gap_token_prefix", "__py3r_gap__")
+            order = self._insert_primary_block_gaps(order, merge_sep, gap_token_prefix)
             if order:
                 df["component"] = pd.Categorical(df["component"], categories=order, ordered=True)
 
@@ -1773,7 +1753,6 @@ class SummaryCollectionPlotMixin:
         import seaborn as sns
 
         merge_by = kwargs.pop("merge_by", "metric")
-        abbreviate_inner_ticks = kwargs.pop("abbreviate_inner_ticks", True)
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
@@ -1794,8 +1773,6 @@ class SummaryCollectionPlotMixin:
             sns.barplot(**bar_kw, legend=False)
             sns.stripplot(**strip_kw)
 
-        if spec.multi_axis_meta is not None:
-            spec.multi_axis_meta["abbreviate_inner_ticks"] = bool(abbreviate_inner_ticks)
         self._apply_two_level_x_labels(spec.ax, spec.df, spec.multi_axis_meta)
 
         # Build seaborn params dict for statannotations passthrough

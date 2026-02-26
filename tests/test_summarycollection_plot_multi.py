@@ -149,7 +149,7 @@ def test_snsbar_multi_accepts_mixed_str_and_batchresult_items():
 
     components = set(df["component"].astype(str).tolist())
     assert any(c.startswith("time_state::") for c in components)
-    assert "time_true_flag" in components
+    assert "time_true_flag::" in components
 
 
 def test_grouped_multi_metric_returns_one_plot_per_group():
@@ -192,33 +192,25 @@ def test_snsbar_merge_by_none_escape_hatch_disables_two_level_grouping():
     assert "A::time_state" not in components
 
 
-def test_snsbar_abbreviates_inner_ticks_and_prints_mapping(capsys):
+def test_snsbar_accepts_alias_dict_metric_input():
+    sc = _make_ungrouped_sc()
+
+    _, _, df = sc.snsbar({"centre": "time_in_centre", "cluster": "time_in_cluster"}, show=False)
+
+    components = set(df["component"].astype(str).tolist())
+    assert any(c.startswith("centre::") for c in components)
+    assert any(c.startswith("cluster::") for c in components)
+
+
+def test_snsbar_scalar_metric_has_outer_only_label_in_twolevel_mode():
     sc = _make_ungrouped_sc()
 
     _, ax, _ = sc.snsbar(
-        ["time_in_centre", "time_in_cluster"],
-        merge_by="component",
-        abbreviate_inner_ticks=True,
+        ["time_true", "time_state"],
+        merge_by="metric",
         show=False,
     )
 
     labels = [t.get_text() for t in ax.get_xticklabels()]
-    assert any("." in txt for txt in labels if txt)
-    out = capsys.readouterr().out
-    assert "Inner tick abbreviations:" in out
-
-
-def test_snsbar_no_inner_tick_abbreviation_when_disabled(capsys):
-    sc = _make_ungrouped_sc()
-
-    _, ax, _ = sc.snsbar(
-        ["time_in_centre", "time_in_cluster"],
-        merge_by="component",
-        abbreviate_inner_ticks=False,
-        show=False,
-    )
-
-    labels = [t.get_text() for t in ax.get_xticklabels()]
-    assert "time_in_centre" in labels or "time_in_cluster" in labels
-    out = capsys.readouterr().out
-    assert "Inner tick abbreviations:" not in out
+    # Scalar metric appears as outer block label only (blank inner label).
+    assert "" in labels
