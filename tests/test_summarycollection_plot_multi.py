@@ -147,7 +147,7 @@ def test_snsbar_multi_accepts_mixed_str_and_batchresult_items():
 
     components = set(df["component"].astype(str).tolist())
     assert any(c.startswith("time_state::") for c in components)
-    assert "time_true_flag" in components
+    assert "time_true_flag::value" in components
 
 
 def test_grouped_multi_metric_returns_one_plot_per_group():
@@ -160,3 +160,20 @@ def test_grouped_multi_metric_returns_one_plot_per_group():
     components = set(df["component"].astype(str).tolist())
     assert any(c.startswith("time_state::") for c in components)
     assert any(c.startswith("time_state_alt::") for c in components)
+
+
+def test_snsbar_merge_by_component_reorders_merged_labels():
+    sc = _make_ungrouped_sc()
+
+    _, _, df = sc.snsbar(["time_state", "time_state_alt"], merge_by="component", show=False)
+
+    components = set(df["component"].astype(str).tolist())
+    assert any(c.startswith("A::time_state") for c in components)
+    assert any(c.startswith("A::time_state_alt") for c in components)
+
+
+def test_snsbar_merge_by_invalid_value_raises():
+    sc = _make_ungrouped_sc()
+
+    with pytest.raises(ValueError, match="merge_by must be"):
+        sc.snsbar(["time_state", "time_state_alt"], merge_by="bad_value", show=False)

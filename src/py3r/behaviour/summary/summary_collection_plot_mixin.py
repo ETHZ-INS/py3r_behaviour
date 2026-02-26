@@ -327,7 +327,7 @@ class SummaryCollectionPlotMixin:
 
         return df, metric_name, palette, sorted_groups, auto_ylabel
 
-    def _prepare_metric_for_plot(self, metric):
+    def _prepare_metric_for_plot(self, metric, *, merge_by: str = "metric"):
         """
         Prepare metric input for plotting.
 
@@ -339,12 +339,15 @@ class SummaryCollectionPlotMixin:
         from py3r.behaviour.summary.summary_result import SummaryResult
         from py3r.behaviour.util.collection_utils import BatchResult
 
+        if merge_by not in {"metric", "component"}:
+            raise ValueError("merge_by must be 'metric' or 'component'.")
+
         if not isinstance(metric, list):
-            return metric
+            return metric, None
         if len(metric) == 0:
             raise ValueError("metric list cannot be empty.")
         if len(metric) == 1:
-            return metric[0]
+            return metric[0], None
 
         flat_self = self.flatten()
         all_handles = list(flat_self.keys())
@@ -454,6 +457,9 @@ class SummaryCollectionPlotMixin:
 
         # Build merged flat mapping handle -> SummaryResult(Series)
         merged_flat = {}
+        merged_component_order = []
+        seen_components = set()
+        merge_sep = "::"
         for handle, summary in flat_self.items():
             merged_data = {}
             for ri in resolved_items:
@@ -461,19 +467,35 @@ class SummaryCollectionPlotMixin:
                 value = ri["values_by_handle"][handle]
                 if isinstance(value, pd.Series):
                     for comp, v in value.items():
-                        key = f"{label}::{comp}"
+                        comp_label = str(comp)
+                        if merge_by == "metric":
+                            primary, secondary = label, comp_label
+                        else:
+                            primary, secondary = comp_label, label
+                        key = f"{primary}{merge_sep}{secondary}"
                         if key in merged_data:
                             raise ValueError(
                                 f"Duplicate merged component key '{key}' for handle '{handle}'."
                             )
                         merged_data[key] = v
+                        if key not in seen_components:
+                            seen_components.add(key)
+                            merged_component_order.append(key)
                 else:
-                    key = label
+                    comp_label = "value"
+                    if merge_by == "metric":
+                        primary, secondary = label, comp_label
+                    else:
+                        primary, secondary = comp_label, label
+                    key = f"{primary}{merge_sep}{secondary}"
                     if key in merged_data:
                         raise ValueError(
                             f"Duplicate merged component key '{key}' for handle '{handle}'."
                         )
                     merged_data[key] = float(value)
+                    if key not in seen_components:
+                        seen_components.add(key)
+                        merged_component_order.append(key)
             merged_series = pd.Series(merged_data)
             merged_flat[handle] = SummaryResult(
                 merged_series,
@@ -483,13 +505,19 @@ class SummaryCollectionPlotMixin:
                 ylabel=common_ylabel,
             )
 
+        multi_axis_meta = {
+            "merge_by": merge_by,
+            "merge_sep": merge_sep,
+            "component_order": merged_component_order,
+        }
+
         if getattr(self, "is_grouped", False):
             grouped = {}
             for gkey, subcoll in self.items():
                 grouped[gkey] = {handle: merged_flat[handle] for handle in subcoll.keys()}
-            return grouped
+            return grouped, multi_axis_meta
 
-        return merged_flat
+        return merged_flat, multi_axis_meta
 
     # -------------------------------------------------------------------------
     # Figure sizing
@@ -603,8 +631,12 @@ class SummaryCollectionPlotMixin:
         is_grouped = "_group" in df.columns
         n_components = df["component"].nunique()
 
-        if not is_grouped:
+        if isinstance(df["component"].dtype, pd.CategoricalDtype) and df["component"].cat.ordered:
+            components = list(df["component"].cat.categories)
+        else:
             components = SummaryCollectionPlotMixin._smart_sort_labels(df["component"].unique())
+
+        if not is_grouped:
             return {
                 "data": df,
                 "x": "component",
@@ -635,7 +667,6 @@ class SummaryCollectionPlotMixin:
             return kwargs, True  # legend redundant (info in tick labels)
 
         # Multi-component grouped: seaborn dodge handles spacing natively
-        components = SummaryCollectionPlotMixin._smart_sort_labels(df["component"].unique())
         kwargs = {
             "data": df,
             "x": "component",
@@ -649,6 +680,74 @@ class SummaryCollectionPlotMixin:
         if palette:
             kwargs["palette"] = palette
         return kwargs, False
+
+    @staticmethod
+    def _apply_two_level_x_labels(ax, df, multi_axis_meta):
+        """Render two-level x-axis labels for merged multi-metric ticks."""
+        if not multi_axis_meta:
+            return
+        merge_sep = multi_axis_meta.get("merge_sep", "::")
+        order = multi_axis_meta.get("component_order", None)
+        if not order:
+            return
+
+        label_to_parts = {}
+        for comp in order:
+            if merge_sep in comp:
+                primary, secondary = comp.split(merge_sep, 1)
+            else:
+                primary, secondary = comp, comp
+            label_to_parts[str(comp)] = (str(primary), str(secondary))
+
+        tick_texts = [tick.get_text() for tick in ax.get_xticklabels()]
+        tick_positions = list(ax.get_xticks())
+        if len(tick_texts) != len(tick_positions):
+            return
+
+        secondary_labels = [label_to_parts.get(t, ("", t))[1] for t in tick_texts]
+        ax.set_xticklabels(secondary_labels)
+
+        # Remove prior custom artists if present (e.g., redrawing on same axis).
+        for artist in getattr(ax, "_py3r_twolevel_x_artists", []):
+            try:
+                artist.remove()
+            except Exception:
+                pass
+        custom_artists = []
+
+        # Add one primary label centered under each contiguous block.
+        blocks = []
+        start = 0
+        for i in range(1, len(tick_texts)):
+            prev_primary = label_to_parts.get(tick_texts[i - 1], ("", ""))[0]
+            curr_primary = label_to_parts.get(tick_texts[i], ("", ""))[0]
+            if curr_primary != prev_primary:
+                blocks.append((start, i - 1, prev_primary))
+                start = i
+        if tick_texts:
+            last_primary = label_to_parts.get(tick_texts[-1], ("", ""))[0]
+            blocks.append((start, len(tick_texts) - 1, last_primary))
+
+        for b_idx, (i0, i1, primary) in enumerate(blocks):
+            x0 = tick_positions[i0]
+            x1 = tick_positions[i1]
+            x_center = (x0 + x1) / 2
+            txt = ax.text(
+                x_center,
+                -0.20,
+                primary,
+                transform=ax.get_xaxis_transform(),
+                ha="center",
+                va="top",
+            )
+            custom_artists.append(txt)
+            if b_idx < len(blocks) - 1:
+                next_i0 = blocks[b_idx + 1][0]
+                sep_x = (tick_positions[i1] + tick_positions[next_i0]) / 2
+                line = ax.axvline(sep_x, color="0.88", linewidth=0.8, zorder=0)
+                custom_artists.append(line)
+
+        ax._py3r_twolevel_x_artists = custom_artists
 
     @staticmethod
     def _sns_post_plot(
@@ -951,10 +1050,12 @@ class SummaryCollectionPlotMixin:
         -------
         tuple[Figure, Axes, DataFrame]
         """
+        merge_by = kwargs.pop("merge_by", "metric")
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
             sort_by=sort_by,
+            merge_by=merge_by,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
@@ -962,6 +1063,8 @@ class SummaryCollectionPlotMixin:
         spec.sns_kwargs.update(kwargs)
         with self._temporary_numpy_seed(random_state):
             plot_func(**spec.sns_kwargs)
+
+        self._apply_two_level_x_labels(spec.ax, spec.df, spec.multi_axis_meta)
 
         # Build seaborn params dict for statannotations passthrough
         sns_kw = {
@@ -1002,6 +1105,7 @@ class SummaryCollectionPlotMixin:
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
+        merge_by: str = "metric",
         ax=None,
         figsize=None,
     ):
@@ -1014,8 +1118,8 @@ class SummaryCollectionPlotMixin:
 
         Parameters
         ----------
-        metric : str or BatchResult
-            Metric to prepare.
+        metric : str or BatchResult or list[str | BatchResult]
+            Metric to prepare. Lists are merged into a single plot-ready metric.
         group_order : dict[str, list] | None
             ``{tag_name: [value, ...]}`` controlling within-tag value ordering.
         sort_by : list[str] | str | None
@@ -1023,6 +1127,10 @@ class SummaryCollectionPlotMixin:
             sort dimension).  Colours are unaffected — they always follow
             the ``groupby(tags=...)`` order.  Accepts a single tag name or a
             list.  See :meth:`_sns_plot_common` for details.
+        merge_by : {"metric", "component"}
+            Used only when *metric* is a list with more than one item. Controls
+            whether merged component labels are grouped by metric first or by
+            component first in x-axis ordering/annotation.
         ax : matplotlib.axes.Axes, optional
             Axes to plot on.  If *None*, a new figure is created with
             auto-calculated size.
@@ -1076,7 +1184,7 @@ class SummaryCollectionPlotMixin:
 
         import matplotlib.pyplot as plt
 
-        metric = self._prepare_metric_for_plot(metric)
+        metric, multi_axis_meta = self._prepare_metric_for_plot(metric, merge_by=merge_by)
         df, metric_name, palette, sorted_groups, auto_ylabel = self._metric_to_tidy(
             metric, group_order, sort_by=sort_by
         )
@@ -1088,6 +1196,10 @@ class SummaryCollectionPlotMixin:
         # seaborn auto-labels the y-axis correctly (e.g. "Time (s)").
         ylabel = auto_ylabel or "Value"
         df = df.rename(columns={"value": ylabel})
+        if multi_axis_meta is not None and multi_axis_meta.get("component_order"):
+            order = [c for c in multi_axis_meta["component_order"] if c in set(df["component"])]
+            if order:
+                df["component"] = pd.Categorical(df["component"], categories=order, ordered=True)
 
         created_fig = ax is None
         if created_fig:
@@ -1118,6 +1230,7 @@ class SummaryCollectionPlotMixin:
             n_components=n_components,
             n_groups=n_groups,
             filename_prefix=filename_prefix,
+            multi_axis_meta=multi_axis_meta,
         )
 
     # ------------------------------------------------------------------
@@ -1568,10 +1681,12 @@ class SummaryCollectionPlotMixin:
         """
         import seaborn as sns
 
+        merge_by = kwargs.pop("merge_by", "metric")
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
             sort_by=sort_by,
+            merge_by=merge_by,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
@@ -1586,6 +1701,8 @@ class SummaryCollectionPlotMixin:
         with self._temporary_numpy_seed(random_state):
             sns.barplot(**bar_kw, legend=False)
             sns.stripplot(**strip_kw)
+
+        self._apply_two_level_x_labels(spec.ax, spec.df, spec.multi_axis_meta)
 
         # Build seaborn params dict for statannotations passthrough
         sns_kw = {
