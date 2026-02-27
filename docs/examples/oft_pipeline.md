@@ -1053,7 +1053,7 @@ an identical y axis label.
 
 ```python
 # Ungrouped multi-metric demo
-fig, ax, df_multi_flat = sc.snsbar(
+fig, ax, df_multi_flat = sc.snssuperplot(
     {
         "centre": "time_in_center",
         "cluster": sc.each.time_in_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5]),
