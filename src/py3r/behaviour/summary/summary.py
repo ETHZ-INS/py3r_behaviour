@@ -21,6 +21,101 @@ from py3r.behaviour.util.io_utils import (
 from py3r.behaviour.util.series_utils import latencies_from_series
 
 
+def by_state_ok(func):
+    """Mark a Summary method as compatible with by_state dispatch."""
+    func._by_state_ok = True
+    return func
+
+
+class _ByStateDispatcher:
+    """Dynamic method dispatcher returned by :meth:`Summary.by_state`."""
+
+    def __init__(
+        self,
+        summary_obj: Summary,
+        state_column: str,
+        all_states: list | None = None,
+        max_states: int = 100,
+    ) -> None:
+        self._summary = summary_obj
+        self._state_column = state_column
+        self._all_states = all_states
+        self._max_states = max_states
+
+    def _make_subset_summary(self, mask: pd.Series) -> Summary:
+        # Use Features.loc to keep Tracking/Features slicing logic centralized.
+        subset_features = self._summary.features.loc[mask]
+        return Summary(subset_features)
+
+    def __getattr__(self, name: str):
+        attr = getattr(self._summary, name, None)
+        if not callable(attr):
+            raise AttributeError(f"'{self.__class__.__name__}' has no attribute '{name}'")
+        if not getattr(attr, "_by_state_ok", False):
+            raise NotImplementedError(
+                f"Summary.{name} is not marked as by_state-compatible. "
+                "Use a compatible method, or call this method without by_state."
+            )
+
+        def _wrapped(*args, **kwargs):
+            states_series = self._summary.features.data[self._state_column]
+            states = (
+                list(self._all_states)
+                if self._all_states is not None
+                else list(pd.unique(states_series.dropna()))
+            )
+            if len(states) > self._max_states:
+                raise ValueError(
+                    f"by_state('{self._state_column}') produced {len(states)} states, "
+                    f"exceeding max_states={self._max_states}. "
+                    "This often indicates a continuous-valued column was used as state. "
+                    "Pass a higher max_states if intentional."
+                )
+            out = {}
+            ylabel = None
+            for state in states:
+                mask = states_series == state
+                sub = self._make_subset_summary(mask)
+                result = getattr(sub, name)(*args, **kwargs)
+                if isinstance(result, SummaryResult) and ylabel is None:
+                    ylabel = result._ylabel
+                value = result.value if isinstance(result, SummaryResult) else result
+                if not pd.api.types.is_scalar(value):
+                    raise NotImplementedError(
+                        "by_state currently supports only Summary methods "
+                        "that return scalar values per state."
+                    )
+                out[state] = value
+            series = pd.Series(out)
+            meta = {
+                "function": f"{name}_by_state",
+                "state_column": self._state_column,
+                "all_states": states,
+                "args": args,
+                "kwargs": kwargs,
+            }
+            return SummaryResult(
+                series,
+                self._summary,
+                f"{name}_by_{self._state_column}",
+                meta,
+                ylabel=ylabel,
+            )
+
+        return _wrapped
+
+    def __dir__(self):
+        base = set(super().__dir__())
+        names = {
+            n
+            for n in dir(self._summary)
+            if not n.startswith("_")
+            and callable(getattr(self._summary, n, None))
+            and getattr(getattr(self._summary, n, None), "_by_state_ok", False)
+        }
+        return sorted(base | names)
+
+
 class Summary:
     """
     stores and computes summary statistics from features objects
@@ -351,6 +446,7 @@ class Summary:
         latency_s = latency / self.features.tracking.meta["fps"]
         return SummaryResult(latency_s, self, col, meta, ylabel="Latency (s)")
 
+    @by_state_ok
     def time_true(self, column: str) -> SummaryResult:
         """
         returns time in seconds that condition in the given column is true
@@ -387,6 +483,7 @@ class Summary:
         meta = {"function": "time_true", "column": column}
         return SummaryResult(time, self, f"time_true_{column}", meta, ylabel="Time (s)")
 
+    @by_state_ok
     def time_false(self, column: str) -> SummaryResult:
         """
         returns time in seconds that condition in the given column is false
@@ -423,6 +520,7 @@ class Summary:
         meta = {"function": "time_false", "column": column}
         return SummaryResult(time, self, f"time_false_{column}", meta, ylabel="Time (s)")
 
+    @by_state_ok
     def total_distance(
         self, point: str, startframe: int | None = None, endframe: int | None = None
     ) -> SummaryResult:
@@ -483,6 +581,56 @@ class Summary:
 
         raise TypeError("func must be callable.")
 
+    def by_state(
+        self, column: str, all_states: list | None = None, max_states: int = 100
+    ) -> _ByStateDispatcher:
+        """
+        Return a dynamic state-grouped dispatcher for Summary methods.
+
+        Parameters
+        ----------
+        column:
+            Name of the state column in ``features.data`` used to create per-state subsets.
+        all_states:
+            Optional explicit state list to define which states are evaluated and in what
+            output order. This list is inclusive: states not present in the data are still
+            evaluated on empty subsets and included in the output.
+        max_states:
+            Safety guard limiting the number of evaluated states. Raises ``ValueError`` if
+            the effective number of states exceeds this value.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> idx = t.data.index
+        >>> f.store(pd.Series(['A', 'A', 'B', 'B', 'A'][:len(idx)], index=idx), 'state', meta={})
+        >>> f.store(pd.Series([1, 2, 3, 4, 5][:len(idx)], index=idx), 'x', meta={})
+        >>> s = Summary(f)
+        >>> res = s.by_state('state', all_states=['B', 'C', 'A']).sum_column('x')
+        >>> res.value.index.tolist()
+        ['B', 'C', 'A']
+        >>> int(res.value['C'])  # inclusive all_states: state absent in data still included
+        0
+        >>> int(res.value['B'])
+        7
+
+        ```
+        """
+        if column not in self.features.data.columns:
+            raise ValueError(f"Column '{column}' not found in features.data")
+        if max_states <= 0:
+            raise ValueError("max_states must be a positive integer")
+        return _ByStateDispatcher(self, column, all_states=all_states, max_states=max_states)
+
+    @by_state_ok
     def sum_column(self, column: str) -> SummaryResult:
         """
         Sum all non-NaN values in a `features.data` column and return as a SummaryResult.
@@ -509,6 +657,7 @@ class Summary:
         """
         return self._apply_column(column, pd.Series.sum, skipna=True)
 
+    @by_state_ok
     def mean_column(self, column: str) -> SummaryResult:
         """
         Mean of all non-NaN values in a `features.data` column and return as a SummaryResult.
@@ -535,6 +684,7 @@ class Summary:
         """
         return self._apply_column(column, pd.Series.mean, skipna=True)
 
+    @by_state_ok
     def median_column(self, column: str) -> SummaryResult:
         """
         Median of all non-NaN values in a `features.data` column and return as a SummaryResult.
@@ -561,6 +711,7 @@ class Summary:
         """
         return self._apply_column(column, pd.Series.median, skipna=True)
 
+    @by_state_ok
     def max_column(self, column: str) -> SummaryResult:
         """
         Max of all non-NaN values in a `features.data` column and return as a SummaryResult.
@@ -587,6 +738,7 @@ class Summary:
         """
         return self._apply_column(column, pd.Series.max, skipna=True)
 
+    @by_state_ok
     def min_column(self, column: str) -> SummaryResult:
         """
         Min of all non-NaN values in a `features.data` column and return as a SummaryResult.

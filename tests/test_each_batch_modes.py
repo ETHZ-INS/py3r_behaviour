@@ -30,6 +30,17 @@ class DummyLeaf:
     def passthrough(self, value):
         return value
 
+    def by_state(self):
+        return _DummyByState(self.handle)
+
+
+class _DummyByState:
+    def __init__(self, handle: str):
+        self.handle = handle
+
+    def method(self, value: str) -> str:
+        return f"{self.handle}:{value}"
+
 
 class DummyCollection(BaseCollection):
     _element_type = DummyLeaf
@@ -146,6 +157,26 @@ def test_each_dict_with_embedded_batchresult_maps_embedded_values():
     assert out["B"]["label"] == "right"
     assert out["A"]["window"] == 3
     assert out["B"]["window"] == 3
+
+
+def test_batchresult_supports_chained_method_dispatch_on_leaves():
+    coll = _make_collection()
+
+    out = coll.each.by_state().method("ok")
+
+    assert isinstance(out, BatchResult)
+    assert out["A"] == "A:ok"
+    assert out["B"] == "B:ok"
+
+
+def test_grouped_batchresult_supports_chained_method_dispatch_on_leaves():
+    grouped = _make_collection().groupby("group")
+
+    out = grouped.each.by_state().method("ok")
+
+    assert isinstance(out, BatchResult)
+    assert out[("g1",)]["A"] == "A:ok"
+    assert out[("g2",)]["B"] == "B:ok"
 
 
 def test_each_invalid_batchresult_mapping_raises():
