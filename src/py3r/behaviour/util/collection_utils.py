@@ -98,6 +98,33 @@ class BatchResult(dict):
     def store(self, *args, **kwargs):
         return self._parent_collection.store(self, *args, **kwargs)
 
+    @staticmethod
+    def _first_non_none_leaf(d):
+        for v in d.values():
+            if isinstance(v, BatchResult):
+                leaf = BatchResult._first_non_none_leaf(v)
+                if leaf is not None:
+                    return leaf
+            elif v is not None:
+                return v
+        return None
+
+    def __getattr__(self, name: str):
+        if name.startswith("_"):
+            raise AttributeError(f"BatchResult has no attribute '{name}'")
+
+        leaf = self._first_non_none_leaf(self)
+        if leaf is None:
+            raise AttributeError(f"BatchResult has no attribute '{name}'")
+        attr = getattr(leaf, name, None)
+        if not callable(attr):
+            raise AttributeError(f"BatchResult has no callable attribute '{name}'")
+
+        def _leaf_call(*args, **kwargs):
+            return self._apply_to_leaves(lambda v: getattr(v, name)(*args, **kwargs))
+
+        return _leaf_call
+
     # ----- Convenience: functional transforms and simple arithmetic on results -----
     def _apply_to_leaves(self, fn):
         """
