@@ -241,8 +241,12 @@ fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 # Here we use both and assert they match.
 
 # %%
+
+ordered_oft_corners = ["tl", "tr", "br", "bl"]
+
+# we can store the boundary in a variable
 center_boundary = fc.each.define_static_boundary(
-    ["tl", "tr", "bl", "br"],
+    ordered_oft_corners,
     scale_dim1=0.5,
     scale_dim2=0.5,
     name="center",
@@ -257,6 +261,37 @@ for handle in fc.keys():
     assert in_center[handle].equals(in_center_by_name[handle])
 
 in_center.store()
+
+# `BatchResult` accepts logical operations, e.g. NOT in one boundary AND in another:
+_ = fc.each.define_static_boundary(
+    ordered_oft_corners,
+    scale_dim1=0.8,
+    scale_dim2=0.8,
+    name="not_periphery",
+)
+_ = fc.each.define_static_boundary(
+    ordered_oft_corners,
+    name="oft",
+)
+(
+    fc.each.within_boundary("bodycentre", "oft")
+    & (~fc.each.within_boundary("bodycentre", "not_periphery"))
+).store("bodycentre_in_periphery")
+
+for c in ordered_oft_corners:
+    _ = fc.each.define_static_boundary(
+        ordered_oft_corners,
+        scale_dim1=0.2,
+        scale_dim2=0.2,
+        name=f"{c}_corner",
+        anchor=c,
+    )
+    fc.each.within_boundary("bodycentre", boundary=f"{c}_corner")
+
+# we don't want to use these "within boundary" features for clustering later, so we'll store their
+# names for easy exclusion
+
+within_boundary_feats = fc[0].data.columns
 
 # `BatchResult` supports element-wise arithmetic across handles.
 # Here we gate distance moved by whether the animal is in center on each frame.
@@ -329,7 +364,6 @@ for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
     fc.each.area_of_boundary(boundary_name).store()
 
 # Static arena boundaries + point list for distance-to-boundary features.
-fc.each.define_static_boundary(points=["tl", "tr", "br", "bl"], name="oft")
 STATIC_DISTANCE_TO_BOUNDARY_POINTS = ["nose", "neck", "bodycentre", "tailbase"]
 
 for pt in STATIC_DISTANCE_TO_BOUNDARY_POINTS:
@@ -354,9 +388,9 @@ fc[0].list_boundaries()
 # - `cluster_embedding` also supports weighting/normalization knobs for advanced runs.
 
 # %%
-features = fc[0].data.columns
+cluster_features = list(set(fc[0].data.columns) - set(within_boundary_feats))
 offset = list(np.arange(-15, 16, 1))
-embedding_dict = {f: offset for f in features}
+embedding_dict = {f: offset for f in cluster_features}
 
 cluster_labels, centroids, _ = fc.cluster_embedding_stream(
     embedding_dict=embedding_dict, n_clusters=N_CLUSTERS
@@ -378,7 +412,7 @@ fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
 # --- Center boundary golden values ---
 H1 = "OFT1_1"
 H2 = "OFT1_10"
-GOLDEN_IN_CENTER = {H1: 5, H2: 0}
+GOLDEN_IN_CENTER = {H1: 11, H2: 0}
 for handle, expected in GOLDEN_IN_CENTER.items():
     if handle in fc:
         got = int(in_center[handle].sum())
@@ -544,8 +578,8 @@ H3 = "OFT1_11"
 GOLDEN_SUMMARY = {
     H1: {
         "total_distance_bodycentre": 0.44767611820624487,
-        "time_in_center": 0.16666666666666666,
-        "distance_moved_in_center": 0.03422028501882547,
+        "time_in_center": 0.36666666666666664,
+        "distance_moved_in_center": 0.07746912799395118,
     },
     H2: {
         "total_distance_bodycentre": 0.25695993685545326,
@@ -783,6 +817,40 @@ fig, ax, df_mc = sc.snsbar(
     show=False,
 )
 
+# %% [markdown]
+# ### Multi-metric plotting
+#
+# In addition to taking `str` and `BatchResult` inputs, the `sns*` methods also accept multiple
+# metrics via a list, or with convenience aliases via a dict. `merge_by` controls how multiple
+# metrics are collected (default: `"metric"`). When ploting multiple metrics, they must all share
+# an identical y axis label.
+
+# %%
+
+
+# Ungrouped multi-metric demo
+fig, ax, df_multi_flat = sc.snssuperplot(
+    {
+        "centre": "time_in_center",
+        "cluster": sc.each.time_in_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5]),
+        "periphery": sc.each.time_true("bodycentre_in_periphery"),
+    },
+    show=True,
+    savedir=OUT_DIR,
+    filename="demo_multi_metric_flat_barplot.png",
+)
+
+# %%
+# Grouped multi-metric demo
+fig, ax, df_multi_grouped = sc_grouped.snsbar(
+    ["time_in_center", "time_in_cluster"],
+    merge_by=None,
+    group_order=GROUP_ORDER,
+    show=True,
+    savedir=OUT_DIR,
+    filename="demo_multi_metric_grouped_barplot.png",
+)
+
 # %%
 # norender
 # --- Flat tidy DataFrame structure ---
@@ -816,6 +884,22 @@ for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
 assert df_gbar["component"].nunique() == N_CLUSTERS, (
     f"Expected {N_CLUSTERS} components, got {df_gbar['component'].nunique()}"
 )
+
+# --- Multi-metric demos ---
+# Flat case uses explicit aliases in the dict input:
+# - "centre" (scalar)
+# - "cluster" (multi-component BatchResult)
+# - "periphery" (scalar)
+components_multi_flat = set(df_multi_flat["component"].astype(str).tolist())
+assert "centre" in components_multi_flat
+assert any(c.startswith("cluster") for c in components_multi_flat)
+assert "periphery" in components_multi_flat
+
+# Grouped case should still return one grouped tidy DataFrame via standard path.
+assert "_group" in df_multi_grouped.columns
+components_multi_grouped = set(df_multi_grouped["component"].astype(str).tolist())
+assert any("time_in_cluster" in c for c in components_multi_grouped)
+assert "time_in_center" in components_multi_grouped
 
 # --- Auto-named plot files ---
 assert len(list(OUT_DIR.glob("*stripplot.png"))) >= 1

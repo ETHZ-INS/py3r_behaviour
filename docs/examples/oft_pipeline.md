@@ -277,8 +277,11 @@ Here we use both and assert they match.
 <div class="nb-cell-input" markdown>
 
 ```python
+ordered_oft_corners = ["tl", "tr", "br", "bl"]
+
+# we can store the boundary in a variable
 center_boundary = fc.each.define_static_boundary(
-    ["tl", "tr", "bl", "br"],
+    ordered_oft_corners,
     scale_dim1=0.5,
     scale_dim2=0.5,
     name="center",
@@ -293,6 +296,37 @@ for handle in fc.keys():
     assert in_center[handle].equals(in_center_by_name[handle])
 
 in_center.store()
+
+# `BatchResult` accepts logical operations, e.g. NOT in one boundary AND in another:
+_ = fc.each.define_static_boundary(
+    ordered_oft_corners,
+    scale_dim1=0.8,
+    scale_dim2=0.8,
+    name="not_periphery",
+)
+_ = fc.each.define_static_boundary(
+    ordered_oft_corners,
+    name="oft",
+)
+(
+    fc.each.within_boundary("bodycentre", "oft")
+    & (~fc.each.within_boundary("bodycentre", "not_periphery"))
+).store("bodycentre_in_periphery")
+
+for c in ordered_oft_corners:
+    _ = fc.each.define_static_boundary(
+        ordered_oft_corners,
+        scale_dim1=0.2,
+        scale_dim2=0.2,
+        name=f"{c}_corner",
+        anchor=c,
+    )
+    fc.each.within_boundary("bodycentre", boundary=f"{c}_corner")
+
+# we don't want to use these "within boundary" features for clustering later, so we'll store their
+# names for easy exclusion
+
+within_boundary_feats = fc[0].data.columns
 
 # `BatchResult` supports element-wise arithmetic across handles.
 # Here we gate distance moved by whether the animal is in center on each frame.
@@ -369,7 +403,6 @@ for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
     fc.each.area_of_boundary(boundary_name).store()
 
 # Static arena boundaries + point list for distance-to-boundary features.
-fc.each.define_static_boundary(points=["tl", "tr", "br", "bl"], name="oft")
 STATIC_DISTANCE_TO_BOUNDARY_POINTS = ["nose", "neck", "bodycentre", "tailbase"]
 
 for pt in STATIC_DISTANCE_TO_BOUNDARY_POINTS:
@@ -421,6 +454,42 @@ fc[0].list_boundaries()
       <td>True</td>
     </tr>
     <tr>
+      <th>not_periphery</th>
+      <td>static</td>
+      <td>4</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>oft</th>
+      <td>static</td>
+      <td>4</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>tl_corner</th>
+      <td>static</td>
+      <td>4</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>tr_corner</th>
+      <td>static</td>
+      <td>4</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>br_corner</th>
+      <td>static</td>
+      <td>4</td>
+      <td>True</td>
+    </tr>
+    <tr>
+      <th>bl_corner</th>
+      <td>static</td>
+      <td>4</td>
+      <td>True</td>
+    </tr>
+    <tr>
       <th>mouse_rear</th>
       <td>dynamic</td>
       <td>3</td>
@@ -444,12 +513,6 @@ fc[0].list_boundaries()
       <td>3</td>
       <td>False</td>
     </tr>
-    <tr>
-      <th>oft</th>
-      <td>static</td>
-      <td>4</td>
-      <td>True</td>
-    </tr>
   </tbody>
 </table>
 </div>
@@ -470,9 +533,9 @@ Option notes:
 <div class="nb-cell-input" markdown>
 
 ```python
-features = fc[0].data.columns
+cluster_features = list(set(fc[0].data.columns) - set(within_boundary_feats))
 offset = list(np.arange(-15, 16, 1))
-embedding_dict = {f: offset for f in features}
+embedding_dict = {f: offset for f in cluster_features}
 
 cluster_labels, centroids, _ = fc.cluster_embedding_stream(
     embedding_dict=embedding_dict, n_clusters=N_CLUSTERS
@@ -586,8 +649,8 @@ summary_df.head()
     <tr>
       <th>OFT2_11</th>
       <td>5.670102</td>
-      <td>0.733333</td>
-      <td>0.126602</td>
+      <td>4.300000</td>
+      <td>0.616402</td>
       <td>post</td>
       <td>control</td>
       <td>M</td>
@@ -595,8 +658,8 @@ summary_df.head()
     <tr>
       <th>OFT1_6</th>
       <td>10.727781</td>
-      <td>3.866667</td>
-      <td>0.563543</td>
+      <td>10.733333</td>
+      <td>1.647000</td>
       <td>pre</td>
       <td>stressor</td>
       <td>F</td>
@@ -604,8 +667,8 @@ summary_df.head()
     <tr>
       <th>OFT1_7</th>
       <td>11.464600</td>
-      <td>2.433333</td>
-      <td>0.417510</td>
+      <td>7.033333</td>
+      <td>1.098946</td>
       <td>pre</td>
       <td>stressor</td>
       <td>M</td>
@@ -613,8 +676,8 @@ summary_df.head()
     <tr>
       <th>OFT2_10</th>
       <td>5.981597</td>
-      <td>1.233333</td>
-      <td>0.311839</td>
+      <td>1.800000</td>
+      <td>0.467466</td>
       <td>post</td>
       <td>stressor</td>
       <td>F</td>
@@ -622,8 +685,8 @@ summary_df.head()
     <tr>
       <th>OFT2_12</th>
       <td>3.890576</td>
-      <td>0.000000</td>
-      <td>0.000000</td>
+      <td>1.333333</td>
+      <td>0.088791</td>
       <td>post</td>
       <td>stressor</td>
       <td>F</td>
@@ -979,6 +1042,59 @@ fig, ax, df_mc = sc.snsbar(
 
 </div>
 
+### Multi-metric plotting
+
+In addition to taking `str` and `BatchResult` inputs, the `sns*` methods also accept multiple
+metrics via a list, or with convenience aliases via a dict. `merge_by` controls how multiple
+metrics are collected (default: `"metric"`). When ploting multiple metrics, they must all share
+an identical y axis label.
+
+<div class="nb-cell-input" markdown>
+
+```python
+# Ungrouped multi-metric demo
+fig, ax, df_multi_flat = sc.snssuperplot(
+    {
+        "centre": "time_in_center",
+        "cluster": sc.each.time_in_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5]),
+        "periphery": sc.each.time_true("bodycentre_in_periphery"),
+    },
+    show=True,
+    savedir=OUT_DIR,
+    filename="demo_multi_metric_flat_barplot.png",
+)
+```
+
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_54_0.png)
+
+</div>
+
+<div class="nb-cell-input" markdown>
+
+```python
+# Grouped multi-metric demo
+fig, ax, df_multi_grouped = sc_grouped.snsbar(
+    ["time_in_center", "time_in_cluster"],
+    merge_by=None,
+    group_order=GROUP_ORDER,
+    show=True,
+    savedir=OUT_DIR,
+    filename="demo_multi_metric_grouped_barplot.png",
+)
+```
+
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_55_0.png)
+
+</div>
+
 ## Behaviour Flow Analysis (BFA)
 
 ### Compute BFA results and statistics
@@ -1028,37 +1144,37 @@ p3b.SummaryCollection.plot_bfa_results(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_57_0.png)
+![output](oft_pipeline_files/output_60_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_57_1.png)
+![output](oft_pipeline_files/output_60_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_57_2.png)
+![output](oft_pipeline_files/output_60_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_57_3.png)
+![output](oft_pipeline_files/output_60_3.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_57_4.png)
+![output](oft_pipeline_files/output_60_4.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_57_5.png)
+![output](oft_pipeline_files/output_60_5.png)
 
 </div>
 
@@ -1103,25 +1219,25 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_59_0.png)
+![output](oft_pipeline_files/output_62_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_59_1.png)
+![output](oft_pipeline_files/output_62_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_59_2.png)
+![output](oft_pipeline_files/output_62_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_59_3.png)
+![output](oft_pipeline_files/output_62_3.png)
 
 </div>
 
@@ -1149,7 +1265,7 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_61_0.png)
+![output](oft_pipeline_files/output_64_0.png)
 
 </div>
 

@@ -327,6 +327,267 @@ class SummaryCollectionPlotMixin:
 
         return df, metric_name, palette, sorted_groups, auto_ylabel
 
+    def _prepare_metric_for_plot(self, metric, *, merge_by: str | None = "metric"):
+        """
+        Prepare metric input for plotting.
+
+        Accepts ``str``, ``BatchResult``/``dict``, or a list containing any mix
+        of those. For multi-item lists, merges all items into a single per-handle
+        Series with namespaced component labels, then returns a dict structure
+        compatible with :meth:`_metric_to_tidy`.
+        """
+        from py3r.behaviour.summary.summary_result import SummaryResult
+        from py3r.behaviour.util.collection_utils import BatchResult
+
+        if merge_by not in {"metric", "component", None}:
+            raise ValueError("merge_by must be 'metric', 'component', or None.")
+
+        # Alias-map mode: {"alias": metric_spec, ...} for multi-metric plotting.
+        if isinstance(metric, dict):
+            flat_handles = set(self.flatten().keys())
+            grouped_keys = set(self.keys()) if getattr(self, "is_grouped", False) else set()
+            looks_like_alias_map = (
+                len(metric) > 1
+                and set(metric.keys()) != flat_handles
+                and set(metric.keys()) != grouped_keys
+                and all(isinstance(v, (str, dict, BatchResult)) for v in metric.values())
+            )
+            if looks_like_alias_map:
+                metric = list(metric.items())
+            else:
+                return metric, None
+
+        if not isinstance(metric, list):
+            return metric, None
+        if len(metric) == 0:
+            raise ValueError("metric list cannot be empty.")
+        if len(metric) == 1:
+            return metric[0], None
+
+        flat_self = self.flatten()
+        all_handles = list(flat_self.keys())
+
+        # Resolve each metric item to {handle -> value} with a display label/ylabel.
+        resolved_items = []
+        merge_sep = "::"
+
+        for idx, item in enumerate(metric):
+            alias = None
+            if isinstance(item, tuple) and len(item) == 2 and isinstance(item[0], str):
+                alias, item = item
+
+            if isinstance(item, str):
+                item_label = item
+                values_by_handle = {}
+                ylabels = set()
+                missing = []
+                for handle, summary in flat_self.items():
+                    if item not in summary.data:
+                        missing.append(handle)
+                        continue
+                    values_by_handle[handle] = summary.data[item]
+                    stored_meta = summary.meta.get(item)
+                    if isinstance(stored_meta, dict):
+                        yl = stored_meta.get("_ylabel")
+                        if yl:
+                            ylabels.add(yl)
+                if missing:
+                    shown = missing[:5]
+                    suffix = "..." if len(missing) > 5 else ""
+                    raise KeyError(
+                        f"Metric '{item}' not found in Summary.data for handles {shown}{suffix}"
+                    )
+                item_ylabel = next(iter(ylabels)) if ylabels else "Value"
+            elif isinstance(item, (dict, BatchResult)):
+                raw = dict(item) if isinstance(item, BatchResult) else item
+                if not raw:
+                    raise ValueError(f"metric[{idx}] is an empty mapping.")
+                first_val = next(iter(raw.values()))
+                values_by_handle = {}
+                ylabels = set()
+
+                if isinstance(first_val, dict):
+                    # Grouped shape: {group: {handle: value_or_SummaryResult}}
+                    for group_key, subdict in raw.items():
+                        if not isinstance(subdict, dict):
+                            raise TypeError(
+                                "metric[{idx}] grouped mapping for key "
+                                f"{group_key!r} must be a dict."
+                            )
+                        for handle, sr_or_val in subdict.items():
+                            if handle in values_by_handle:
+                                raise ValueError(
+                                    f"metric[{idx}] contains duplicate handle '{handle}'."
+                                )
+                            values_by_handle[handle] = (
+                                sr_or_val.value if hasattr(sr_or_val, "value") else sr_or_val
+                            )
+                            if hasattr(sr_or_val, "_ylabel") and sr_or_val._ylabel:
+                                ylabels.add(sr_or_val._ylabel)
+                else:
+                    # Flat shape: {handle: value_or_SummaryResult}
+                    for handle, sr_or_val in raw.items():
+                        values_by_handle[handle] = (
+                            sr_or_val.value if hasattr(sr_or_val, "value") else sr_or_val
+                        )
+                        if hasattr(sr_or_val, "_ylabel") and sr_or_val._ylabel:
+                            ylabels.add(sr_or_val._ylabel)
+
+                missing = sorted(set(all_handles) - set(values_by_handle.keys()))
+                extra = sorted(set(values_by_handle.keys()) - set(all_handles))
+                if missing or extra:
+                    raise ValueError(
+                        f"metric[{idx}] mapping keys do not match collection handles. "
+                        f"Missing: {missing[:5]}{'...' if len(missing) > 5 else ''}; "
+                        f"Extra: {extra[:5]}{'...' if len(extra) > 5 else ''}"
+                    )
+
+                item_label = f"metric_{idx + 1}"
+                if isinstance(item, BatchResult):
+                    flat_vals = list(values_by_handle.values())
+                    if flat_vals:
+                        first_sr = next(
+                            (v for v in dict(item).values() if hasattr(v, "_func_name")),
+                            None,
+                        )
+                        if first_sr is not None:
+                            item_label = first_sr._func_name
+                item_ylabel = next(iter(ylabels)) if ylabels else "Value"
+            else:
+                raise TypeError(
+                    "metric list entries must be str or BatchResult/dict. "
+                    f"Got {type(item).__name__} at index {idx}."
+                )
+
+            if alias is not None:
+                item_label = alias
+            if merge_sep in str(item_label):
+                raise ValueError(
+                    f"Metric label '{item_label}' contains reserved separator '{merge_sep}'."
+                )
+
+            resolved_items.append(
+                {
+                    "label": str(item_label),
+                    "values_by_handle": values_by_handle,
+                    "ylabel": item_ylabel,
+                }
+            )
+
+        ylabels = {ri["ylabel"] for ri in resolved_items}
+        if len(ylabels) != 1:
+            raise ValueError(
+                "All metrics must have identical y-axis labels for multi-metric plotting. "
+                f"Got labels: {[ri['label'] + '=' + str(ri['ylabel']) for ri in resolved_items]}"
+            )
+        common_ylabel = next(iter(ylabels))
+        merged_name = "_and_".join(ri["label"] for ri in resolved_items)
+
+        # Build merged component order with numeric-aware component sorting.
+        metric_labels = [ri["label"] for ri in resolved_items]
+        components_by_metric = {lbl: set() for lbl in metric_labels}
+        for handle in all_handles:
+            for ri in resolved_items:
+                lbl = ri["label"]
+                value = ri["values_by_handle"][handle]
+                if isinstance(value, pd.Series):
+                    for comp in value.index:
+                        components_by_metric[lbl].add(str(comp))
+
+        if merge_by == "metric":
+            merged_component_order = []
+            for lbl in metric_labels:
+                sorted_components = self._smart_sort_labels(components_by_metric[lbl])
+                if sorted_components:
+                    merged_component_order.extend(
+                        f"{lbl}{merge_sep}{comp}" for comp in sorted_components
+                    )
+                else:
+                    merged_component_order.append(lbl)
+        elif merge_by == "component":
+            all_components = set()
+            for comps in components_by_metric.values():
+                all_components.update(comps)
+            sorted_components = self._smart_sort_labels(all_components)
+            merged_component_order = []
+            for comp in sorted_components:
+                for lbl in metric_labels:
+                    if comp in components_by_metric[lbl]:
+                        merged_component_order.append(f"{comp}{merge_sep}{lbl}")
+            for lbl in metric_labels:
+                if len(components_by_metric[lbl]) == 0:
+                    merged_component_order.append(lbl)
+        else:
+            merged_component_order = []
+            for lbl in metric_labels:
+                sorted_components = self._smart_sort_labels(components_by_metric[lbl])
+                if sorted_components:
+                    merged_component_order.extend(
+                        f"{lbl}{merge_sep}{comp}" for comp in sorted_components
+                    )
+                else:
+                    merged_component_order.append(lbl)
+
+        # Build merged flat mapping handle -> SummaryResult(Series)
+        merged_flat = {}
+        for handle, summary in flat_self.items():
+            merged_data = {}
+            for ri in resolved_items:
+                label = ri["label"]
+                value = ri["values_by_handle"][handle]
+                if isinstance(value, pd.Series):
+                    for comp, v in value.items():
+                        comp_label = str(comp)
+                        if merge_sep in comp_label:
+                            raise ValueError(
+                                f"Component label '{comp_label}' contains reserved separator "
+                                f"'{merge_sep}'."
+                            )
+                        if merge_by == "metric":
+                            key = f"{label}{merge_sep}{comp_label}"
+                        elif merge_by == "component":
+                            key = f"{comp_label}{merge_sep}{label}"
+                        else:
+                            key = f"{label}{merge_sep}{comp_label}"
+                        if key in merged_data:
+                            raise ValueError(
+                                f"Duplicate merged component key '{key}' for handle '{handle}'."
+                            )
+                        merged_data[key] = v
+                else:
+                    # Scalar metrics use outer-label-only semantics in two-level
+                    # mode by remaining plain metric labels.
+                    key = label
+                    if key in merged_data:
+                        raise ValueError(
+                            f"Duplicate merged component key '{key}' for handle '{handle}'."
+                        )
+                    merged_data[key] = float(value)
+            merged_series = pd.Series(merged_data)
+            merged_flat[handle] = SummaryResult(
+                merged_series,
+                summary,
+                merged_name,
+                {"function": "merged_metrics", "metrics": [ri["label"] for ri in resolved_items]},
+                ylabel=common_ylabel,
+            )
+
+        multi_axis_meta = None
+        if merge_by is not None:
+            multi_axis_meta = {
+                "merge_sep": merge_sep,
+                "component_order": merged_component_order,
+                "gap_token_prefix": "__py3r_gap__",
+            }
+
+        if getattr(self, "is_grouped", False):
+            grouped = {}
+            for gkey, subcoll in self.items():
+                grouped[gkey] = {handle: merged_flat[handle] for handle in subcoll.keys()}
+            return grouped, multi_axis_meta
+
+        return merged_flat, multi_axis_meta
+
     # -------------------------------------------------------------------------
     # Figure sizing
     # -------------------------------------------------------------------------
@@ -408,6 +669,26 @@ class SummaryCollectionPlotMixin:
         slug = re.sub(r"[^a-zA-Z0-9]+", "_", metric_name)
         return slug.strip("_").lower()
 
+    @staticmethod
+    def _insert_primary_block_gaps(
+        component_order: list[str], merge_sep: str, gap_token_prefix: str
+    ):
+        """Insert spacer categories between primary-label blocks."""
+        if len(component_order) <= 1:
+            return component_order
+
+        out = []
+        prev_primary = None
+        gap_idx = 0
+        for comp in component_order:
+            primary = comp.split(merge_sep, 1)[0] if merge_sep in comp else comp
+            if prev_primary is not None and primary != prev_primary:
+                out.append(f"{gap_token_prefix}{gap_idx}")
+                gap_idx += 1
+            out.append(comp)
+            prev_primary = primary
+        return out
+
     # -------------------------------------------------------------------------
     # Seaborn kwargs builder
     # -------------------------------------------------------------------------
@@ -439,8 +720,12 @@ class SummaryCollectionPlotMixin:
         is_grouped = "_group" in df.columns
         n_components = df["component"].nunique()
 
-        if not is_grouped:
+        if isinstance(df["component"].dtype, pd.CategoricalDtype) and df["component"].cat.ordered:
+            components = list(df["component"].cat.categories)
+        else:
             components = SummaryCollectionPlotMixin._smart_sort_labels(df["component"].unique())
+
+        if not is_grouped:
             return {
                 "data": df,
                 "x": "component",
@@ -471,7 +756,6 @@ class SummaryCollectionPlotMixin:
             return kwargs, True  # legend redundant (info in tick labels)
 
         # Multi-component grouped: seaborn dodge handles spacing natively
-        components = SummaryCollectionPlotMixin._smart_sort_labels(df["component"].unique())
         kwargs = {
             "data": df,
             "x": "component",
@@ -485,6 +769,100 @@ class SummaryCollectionPlotMixin:
         if palette:
             kwargs["palette"] = palette
         return kwargs, False
+
+    @staticmethod
+    def _apply_two_level_x_labels(ax, df, multi_axis_meta):
+        """Render two-level x-axis labels for merged multi-metric ticks."""
+        if not multi_axis_meta:
+            return
+        merge_sep = multi_axis_meta.get("merge_sep", "::")
+        order = multi_axis_meta.get("component_order", None)
+        gap_token_prefix = multi_axis_meta.get("gap_token_prefix", "__py3r_gap__")
+        if not order:
+            return
+
+        label_to_parts = {}
+        for comp in order:
+            comp_str = str(comp)
+            if comp_str.startswith(gap_token_prefix):
+                label_to_parts[comp_str] = (None, "")
+                continue
+            if merge_sep in comp:
+                primary, secondary = comp.split(merge_sep, 1)
+            else:
+                primary, secondary = comp, ""
+            label_to_parts[comp_str] = (str(primary), str(secondary))
+
+        tick_texts = [tick.get_text() for tick in ax.get_xticklabels()]
+        tick_positions = list(ax.get_xticks())
+        if len(tick_texts) != len(tick_positions):
+            return
+
+        secondary_labels = [label_to_parts.get(t, ("", t))[1] for t in tick_texts]
+        visible_pairs = [
+            (x, lbl)
+            for t, x, lbl in zip(tick_texts, tick_positions, secondary_labels, strict=True)
+            if not str(t).startswith(gap_token_prefix)
+        ]
+        visible_tick_positions = [x for x, _ in visible_pairs]
+        visible_tick_labels = [lbl for _, lbl in visible_pairs]
+
+        # Set fixed visible ticks only (hide spacer ticks entirely).
+        ax.set_xticks(visible_tick_positions)
+        ax.set_xticklabels(visible_tick_labels)
+
+        # Remove prior custom artists if present (e.g., redrawing on same axis).
+        for artist in getattr(ax, "_py3r_twolevel_x_artists", []):
+            try:
+                artist.remove()
+            except Exception:
+                pass
+        custom_artists = []
+
+        # Add one primary label centered under each contiguous non-gap block.
+        blocks = []
+        start = None
+        current_primary = None
+        for i, tick in enumerate(tick_texts):
+            primary = label_to_parts.get(tick, (None, ""))[0]
+            if primary is None:
+                if start is not None:
+                    blocks.append((start, i - 1, current_primary))
+                    start = None
+                    current_primary = None
+                continue
+            if start is None:
+                start = i
+                current_primary = primary
+                continue
+            if primary != current_primary:
+                blocks.append((start, i - 1, current_primary))
+                start = i
+                current_primary = primary
+        if start is not None:
+            blocks.append((start, len(tick_texts) - 1, current_primary))
+
+        for i0, i1, primary in blocks:
+            x0 = tick_positions[i0]
+            x1 = tick_positions[i1]
+            x_center = (x0 + x1) / 2
+            txt = ax.text(
+                x_center,
+                -0.20,
+                primary,
+                transform=ax.get_xaxis_transform(),
+                ha="center",
+                va="top",
+            )
+            custom_artists.append(txt)
+
+        # Visual separator lines at explicit gap ticks.
+        for tick, xpos in zip(tick_texts, tick_positions, strict=True):
+            if str(tick).startswith(gap_token_prefix):
+                line = ax.axvline(xpos, color="0.88", linewidth=0.8, zorder=0)
+                custom_artists.append(line)
+
+        ax._py3r_twolevel_x_artists = custom_artists
 
     @staticmethod
     def _sns_post_plot(
@@ -787,10 +1165,12 @@ class SummaryCollectionPlotMixin:
         -------
         tuple[Figure, Axes, DataFrame]
         """
+        merge_by = kwargs.pop("merge_by", "metric")
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
             sort_by=sort_by,
+            merge_by=merge_by,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
@@ -798,6 +1178,8 @@ class SummaryCollectionPlotMixin:
         spec.sns_kwargs.update(kwargs)
         with self._temporary_numpy_seed(random_state):
             plot_func(**spec.sns_kwargs)
+
+        self._apply_two_level_x_labels(spec.ax, spec.df, spec.multi_axis_meta)
 
         # Build seaborn params dict for statannotations passthrough
         sns_kw = {
@@ -838,6 +1220,7 @@ class SummaryCollectionPlotMixin:
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
+        merge_by: str | None = "metric",
         ax=None,
         figsize=None,
     ):
@@ -850,8 +1233,8 @@ class SummaryCollectionPlotMixin:
 
         Parameters
         ----------
-        metric : str or BatchResult
-            Metric to prepare.
+        metric : str or BatchResult or list[str | BatchResult]
+            Metric to prepare. Lists are merged into a single plot-ready metric.
         group_order : dict[str, list] | None
             ``{tag_name: [value, ...]}`` controlling within-tag value ordering.
         sort_by : list[str] | str | None
@@ -859,6 +1242,11 @@ class SummaryCollectionPlotMixin:
             sort dimension).  Colours are unaffected — they always follow
             the ``groupby(tags=...)`` order.  Accepts a single tag name or a
             list.  See :meth:`_sns_plot_common` for details.
+        merge_by : {"metric", "component"} | None
+            Used only when *metric* is a list with more than one item. Controls
+            whether merged labels are arranged as ``metric::component``
+            (``"metric"``), ``component::metric`` (``"component"``), or kept
+            as flat merged labels without two-level axis formatting (``None``).
         ax : matplotlib.axes.Axes, optional
             Axes to plot on.  If *None*, a new figure is created with
             auto-calculated size.
@@ -912,6 +1300,7 @@ class SummaryCollectionPlotMixin:
 
         import matplotlib.pyplot as plt
 
+        metric, multi_axis_meta = self._prepare_metric_for_plot(metric, merge_by=merge_by)
         df, metric_name, palette, sorted_groups, auto_ylabel = self._metric_to_tidy(
             metric, group_order, sort_by=sort_by
         )
@@ -923,6 +1312,13 @@ class SummaryCollectionPlotMixin:
         # seaborn auto-labels the y-axis correctly (e.g. "Time (s)").
         ylabel = auto_ylabel or "Value"
         df = df.rename(columns={"value": ylabel})
+        if multi_axis_meta is not None and multi_axis_meta.get("component_order"):
+            order = [c for c in multi_axis_meta["component_order"] if c in set(df["component"])]
+            merge_sep = multi_axis_meta.get("merge_sep", "::")
+            gap_token_prefix = multi_axis_meta.get("gap_token_prefix", "__py3r_gap__")
+            order = self._insert_primary_block_gaps(order, merge_sep, gap_token_prefix)
+            if order:
+                df["component"] = pd.Categorical(df["component"], categories=order, ordered=True)
 
         created_fig = ax is None
         if created_fig:
@@ -953,6 +1349,7 @@ class SummaryCollectionPlotMixin:
             n_components=n_components,
             n_groups=n_groups,
             filename_prefix=filename_prefix,
+            multi_axis_meta=multi_axis_meta,
         )
 
     # ------------------------------------------------------------------
@@ -1403,10 +1800,12 @@ class SummaryCollectionPlotMixin:
         """
         import seaborn as sns
 
+        merge_by = kwargs.pop("merge_by", "metric")
         spec = self.prepare_plot(
             metric,
             group_order=group_order,
             sort_by=sort_by,
+            merge_by=merge_by,
             ax=ax,
             figsize=kwargs.pop("figsize", None),
         )
@@ -1421,6 +1820,8 @@ class SummaryCollectionPlotMixin:
         with self._temporary_numpy_seed(random_state):
             sns.barplot(**bar_kw, legend=False)
             sns.stripplot(**strip_kw)
+
+        self._apply_two_level_x_labels(spec.ax, spec.df, spec.multi_axis_meta)
 
         # Build seaborn params dict for statannotations passthrough
         sns_kw = {
