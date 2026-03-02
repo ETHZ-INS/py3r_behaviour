@@ -1530,9 +1530,11 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> idx = t.data.index
-        >>> f.store(pd.Series([True, False, True, False], index=idx).reindex(idx, fill_value=False),
+        >>> f.store(pd.Series([True, False, True, False, True], index=idx).reindex(idx,
+        ...         fill_value=False),
         ...         'in_corner', meta={})
-        >>> f.store(pd.Series([False, True, True, False], index=idx).reindex(idx, fill_value=False),
+        >>> f.store(pd.Series([False, True, True, False, True], index=idx).reindex(idx,
+        ...         fill_value=False),
         ...         'in_food', meta={})
         >>> state = f.compose_state_from_booleans(
         ...     {"corner": "in_corner", "food": "in_food"},
