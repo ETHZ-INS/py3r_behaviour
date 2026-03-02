@@ -617,9 +617,9 @@ class Summary:
         >>> res = s.by_state('state', all_states=['B', 'C', 'A']).sum_column('x')
         >>> res.value.index.tolist()
         ['B', 'C', 'A']
-        >>> res.value['C']  # inclusive all_states: state absent in data still included
+        >>> int(res.value['C'])  # inclusive all_states: state absent in data still included
         0
-        >>> res.value['B']
+        >>> int(res.value['B'])
         7
 
         ```
