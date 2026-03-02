@@ -1,8 +1,10 @@
+import warnings
 from math import ceil, floor
 from typing import Literal
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_bool_dtype
 
 
 def mode(series: pd.Series):
@@ -443,3 +445,109 @@ def latencies_from_series(
         bool_series = smooth_bool_series(bool_series, integration_window)
 
     return latencies_from_bool(bool_series)
+
+
+def ensure_nullable_boolean(series: pd.Series, *, label: str) -> pd.Series:
+    """
+    Validate/coerce a series to pandas nullable boolean dtype.
+
+    Accepts:
+    - native bool dtype
+    - pandas nullable boolean dtype
+    - object-like series containing only True/False/NA values
+
+    Examples
+    --------
+    ```pycon
+    >>> import pandas as pd
+    >>> s = pd.Series([True, False, None], dtype="object")
+    >>> out = ensure_nullable_boolean(s, label="zone")
+    >>> str(out.dtype)
+    'boolean'
+    >>> out.tolist()
+    [True, False, <NA>]
+
+    ```
+    """
+    if is_bool_dtype(series):
+        return series.astype("boolean")
+
+    non_na = series.dropna()
+    # Strict bool-like check to avoid accepting integer 0/1 as booleans.
+    if non_na.map(lambda x: isinstance(x, (bool, np.bool_))).all():
+        warnings.warn(
+            f"Boolean source '{label}' had non-boolean dtype; coercing to nullable boolean.",
+            stacklevel=3,
+        )
+        return series.astype("boolean")
+
+    raise TypeError(
+        f"Source '{label}' must be boolean/nullable-boolean (or contain only True/False/NA). "
+        f"Got dtype '{series.dtype}'."
+    )
+
+
+def compose_state_from_boolean_sources(
+    sources: dict[str, pd.Series],
+    *,
+    index: pd.Index,
+    priority: list[str] | None = None,
+    none_label: str = "none",
+) -> pd.Series:
+    """
+    Compose a single categorical state series from labeled boolean sources.
+
+    State assignment follows ``priority`` order. The first True label wins per frame.
+    Frames with no True label are assigned ``none_label``.
+
+    Examples
+    --------
+    ```pycon
+    >>> import pandas as pd
+    >>> idx = pd.RangeIndex(4, name="frame")
+    >>> sources = {
+    ...     "corner": pd.Series([True, False, True, False], index=idx),
+    ...     "food": pd.Series([False, True, True, False], index=idx),
+    ... }
+    >>> state = compose_state_from_boolean_sources(
+    ...     sources,
+    ...     index=idx,
+    ...     priority=["food", "corner"],
+    ...     none_label="none",
+    ... )
+    >>> state.tolist()
+    ['corner', 'food', 'food', 'none']
+
+    ```
+    """
+    if not isinstance(sources, dict) or len(sources) == 0:
+        raise ValueError("sources must be a non-empty mapping of label -> Series")
+
+    labels = list(sources.keys())
+    if any(not isinstance(lbl, str) or lbl == "" for lbl in labels):
+        raise TypeError("All source labels must be non-empty strings")
+
+    if priority is None:
+        order = labels
+    else:
+        if len(priority) != len(set(priority)):
+            raise ValueError("priority contains duplicate labels")
+        unknown = [lbl for lbl in priority if lbl not in sources]
+        if unknown:
+            raise ValueError(f"priority contains unknown label(s): {unknown}")
+        missing = [lbl for lbl in labels if lbl not in priority]
+        order = list(priority) + missing
+
+    bool_df = pd.DataFrame(index=index)
+    for label, series in sources.items():
+        if not isinstance(series, pd.Series):
+            raise TypeError(f"Source '{label}' must be a pandas Series")
+        aligned = series.reindex(index)
+        bool_df[label] = ensure_nullable_boolean(aligned, label=label)
+
+    state = pd.Series(none_label, index=index, dtype="object")
+    for label in order:
+        mask = bool_df[label].fillna(False)
+        state.loc[(state == none_label) & mask] = label
+
+    return state

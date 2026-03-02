@@ -134,6 +134,20 @@ def test_each_non_matching_dict_is_broadcast_not_mapped():
     assert out["B"] is cfg
 
 
+def test_each_dict_with_embedded_batchresult_maps_embedded_values():
+    coll = _make_collection()
+    mapped = BatchResult({"A": "left", "B": "right"}, coll)
+    payload = {"label": mapped, "window": 3}
+
+    out = coll.each.passthrough(payload)
+
+    assert isinstance(out, BatchResult)
+    assert out["A"]["label"] == "left"
+    assert out["B"]["label"] == "right"
+    assert out["A"]["window"] == 3
+    assert out["B"]["window"] == 3
+
+
 def test_each_invalid_batchresult_mapping_raises():
     coll = _make_collection()
     bad = BatchResult({"A": "left"}, coll)  # missing B
