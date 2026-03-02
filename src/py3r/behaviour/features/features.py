@@ -34,6 +34,7 @@ from py3r.behaviour.util.io_utils import (
 from py3r.behaviour.util.missing_tolerance import impute_frame
 from py3r.behaviour.util.series_utils import (
     apply_normalization_to_df,
+    compose_state_from_boolean_sources,
     normalize_df,
 )
 from py3r.behaviour.util.smoothing import smooth_series
@@ -1494,6 +1495,95 @@ class Features:
         name = f"distance_change_{point}_in_{''.join(dims)}"
         meta = {"function": "distance_change", "point": point, "dims": dims}
         return FeaturesResult(result, self, name, meta)
+
+    def compose_state_from_booleans(
+        self,
+        sources: dict[str, str | pd.Series],
+        *,
+        priority: list[str] | None = None,
+        none_label: str = "none",
+    ) -> FeaturesResult:
+        """
+        Compose a categorical state series from labeled boolean sources.
+
+        Parameters
+        ----------
+        sources:
+            Mapping ``{state_label: source}``, where source is either:
+            - a column name in ``self.data`` containing a boolean series, or
+            - a boolean pandas Series aligned/reindexable to ``self.data.index`` (e.g.
+            a ``FeaturesResult``)
+        priority:
+            Optional label precedence when multiple sources are True in the same
+            frame. Labels not listed are appended in insertion order.
+        none_label:
+            Label used when no source is True at a frame.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> idx = t.data.index
+        >>> f.store(pd.Series([True, False, True, False, True], index=idx).reindex(idx,
+        ...         fill_value=False),
+        ...         'in_corner', meta={})
+        >>> f.store(pd.Series([False, True, True, False, True], index=idx).reindex(idx,
+        ...         fill_value=False),
+        ...         'in_food', meta={})
+        >>> state = f.compose_state_from_booleans(
+        ...     {"corner": "in_corner", "food": "in_food"},
+        ...     priority=["food", "corner"],
+        ... )
+        >>> isinstance(state, pd.Series)
+        True
+        >>> set(state.dropna().unique()) >= {'corner', 'food', 'none'}
+        True
+
+        ```
+        """
+        if not isinstance(sources, dict) or len(sources) == 0:
+            raise ValueError("sources must be a non-empty dict")
+        if none_label in sources.keys():
+            raise ValueError(f"none_label, '{none_label}', found in sources.keys()")
+
+        resolved: dict[str, pd.Series] = {}
+        source_spec = {}
+        for label, source in sources.items():
+            if isinstance(source, str):
+                if source not in self.data.columns:
+                    raise ValueError(f"Column '{source}' not found in features.data")
+                resolved[label] = self.data[source]
+                source_spec[label] = {"type": "column", "name": source}
+            elif isinstance(source, pd.Series):
+                resolved[label] = source
+                source_spec[label] = {"type": "series"}
+            else:
+                raise TypeError(
+                    f"Source '{label}' must be a column name (str) or pandas Series, "
+                    f"got {type(source).__name__}."
+                )
+
+        state = compose_state_from_boolean_sources(
+            resolved,
+            index=self.tracking.data.index,
+            priority=priority,
+            none_label=none_label,
+        )
+        name = "state_from_booleans"
+        meta = {
+            "function": "compose_state_from_booleans",
+            "labels": list(sources.keys()),
+            "priority": priority,
+            "none_label": none_label,
+            "sources": source_spec,
+        }
+        return FeaturesResult(state, self, name, meta)
 
     def store(
         self,

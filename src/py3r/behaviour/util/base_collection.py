@@ -198,8 +198,10 @@ class BaseCollection(MutableMapping):
           a warning is emitted and handle-based mapping is used.
         - If a ``BatchResult`` cannot be resolved to one of the above mapping
           shapes, an error is raised.
-        - All non-``BatchResult`` values (including plain ``dict``) are
-          treated as scalar-broadcast values.
+        - Plain ``dict`` values are scalar-broadcast unless at least one value
+          is a ``BatchResult``. In that mixed case, each embedded
+          ``BatchResult`` is mapped per leaf while non-``BatchResult`` entries
+          are broadcast unchanged.
 
         If any leaf raises, a ``BatchProcessError`` is raised immediately.
         On complete success, returns a ``BatchResult`` of leaf return values
@@ -289,6 +291,10 @@ class BaseCollection(MutableMapping):
             return mode, value
 
         def select(spec, group_key, obj_key):
+            if isinstance(spec, Mapping) and not isinstance(spec, BatchResult):
+                has_embedded_batch = any(isinstance(v, BatchResult) for v in spec.values())
+                if has_embedded_batch:
+                    return {k: select(v, group_key, obj_key) for k, v in spec.items()}
             mode, resolved = _resolve_mode(spec)
             if mode == "grouped":
                 return resolved[group_key][obj_key]
@@ -539,11 +545,42 @@ class BaseCollection(MutableMapping):
         uses smart argument handling:
         - exact-key ``BatchResult`` mappings are applied per handle/group-handle
           structure,
-        - all other values (including plain ``dict``) are broadcast as scalars.
+        - plain ``dict`` values are broadcast as scalars unless they contain at
+          least one embedded ``BatchResult`` value; in that mixed case embedded
+          ``BatchResult`` values are mapped per leaf and other dict values are
+          broadcast unchanged.
 
         Returns either:
         - a collection (when all leaf returns are collection element type), or
         - a BatchResult otherwise.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.collection_utils import BatchResult
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> def _mk(handle):
+        ...     df = pd.DataFrame({"bp.x":[0.0,1.0], "bp.y":[0.0,1.0]}, index=[0,1])
+        ...     t = Tracking(
+        ...         df,
+        ...         {"fps": 30.0, "rescale_distance_method": "dummy"},
+        ...         handle=handle,
+        ...     )
+        ...     return Features(t)
+        >>> fc = FeaturesCollection({"A": _mk("A"), "B": _mk("B")})
+        >>> food = BatchResult({
+        ...     "A": pd.Series([True, False], index=[0,1]),
+        ...     "B": pd.Series([False, True], index=[0,1]),
+        ... }, fc)
+        >>> corner = pd.Series([False, False], index=[0,1])
+        >>> out = fc.each.compose_state_from_booleans({"food": food, "corner": corner})
+        >>> isinstance(out, BatchResult)
+        True
+
+        ```
         """
         if self._each_proxy is None:
             self._each_proxy = _EachProxy(self)
