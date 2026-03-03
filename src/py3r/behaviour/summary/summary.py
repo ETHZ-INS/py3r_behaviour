@@ -73,10 +73,13 @@ class _ByStateDispatcher:
                 )
             out = {}
             ylabel = None
+            base_func_name = name
             for state in states:
                 mask = states_series == state
                 sub = self._make_subset_summary(mask)
                 result = getattr(sub, name)(*args, **kwargs)
+                if isinstance(result, SummaryResult):
+                    base_func_name = result._func_name
                 if isinstance(result, SummaryResult) and ylabel is None:
                     ylabel = result._ylabel
                 value = result.value if isinstance(result, SummaryResult) else result
@@ -88,7 +91,7 @@ class _ByStateDispatcher:
                 out[state] = value
             series = pd.Series(out)
             meta = {
-                "function": f"{name}_by_state",
+                "function": f"{base_func_name}_by_state",
                 "state_column": self._state_column,
                 "all_states": states,
                 "args": args,
@@ -97,7 +100,7 @@ class _ByStateDispatcher:
             return SummaryResult(
                 series,
                 self._summary,
-                f"{name}_by_{self._state_column}",
+                f"{base_func_name}_by_{self._state_column}",
                 meta,
                 ylabel=ylabel,
             )
@@ -575,11 +578,38 @@ class Summary:
             raise ValueError(f"Column '{column}' not found in features.data")
 
         if callable(func):
+            preserve_ylabel = kwargs.pop("_preserve_ylabel", False)
             value = func(self.features.data[column], **kwargs)
             meta = {"function": f"{func.__name__}_column", "column": column}
-            return SummaryResult(value, self, f"{func.__name__}_{column}", meta)
+            ylabel = self._infer_column_ylabel(column) if preserve_ylabel else None
+            return SummaryResult(value, self, f"{func.__name__}_{column}", meta, ylabel=ylabel)
 
         raise TypeError("func must be callable.")
+
+    def _infer_column_ylabel(self, column: str) -> str | None:
+        """
+        Infer a human-readable y-axis label from feature metadata.
+        """
+        feature_meta = self.features.meta.get(column)
+        if not isinstance(feature_meta, dict):
+            return None
+
+        explicit_ylabel = feature_meta.get("_ylabel")
+        if isinstance(explicit_ylabel, str) and explicit_ylabel.strip():
+            return explicit_ylabel
+
+        units = self.features.tracking.meta.get("distance_units")
+        function_name = feature_meta.get("function")
+
+        if function_name == "speed":
+            return f"Speed ({units}/s)" if units else "Speed (a.u./s)"
+        if function_name in {"distance_change", "distance_between", "distance_to_boundary"}:
+            return f"Distance ({units})" if units else "Distance (a.u.)"
+
+        unit = feature_meta.get("unit")
+        if isinstance(unit, str) and unit.strip():
+            return f"Value ({unit})"
+        return None
 
     def by_state(
         self, column: str, all_states: list | None = None, max_states: int = 100
@@ -682,7 +712,7 @@ class Summary:
 
         ```
         """
-        return self._apply_column(column, pd.Series.mean, skipna=True)
+        return self._apply_column(column, pd.Series.mean, skipna=True, _preserve_ylabel=True)
 
     @by_state_ok
     def median_column(self, column: str) -> SummaryResult:
@@ -709,7 +739,7 @@ class Summary:
 
         ```
         """
-        return self._apply_column(column, pd.Series.median, skipna=True)
+        return self._apply_column(column, pd.Series.median, skipna=True, _preserve_ylabel=True)
 
     @by_state_ok
     def max_column(self, column: str) -> SummaryResult:
@@ -736,7 +766,7 @@ class Summary:
 
         ```
         """
-        return self._apply_column(column, pd.Series.max, skipna=True)
+        return self._apply_column(column, pd.Series.max, skipna=True, _preserve_ylabel=True)
 
     @by_state_ok
     def min_column(self, column: str) -> SummaryResult:
@@ -763,7 +793,7 @@ class Summary:
 
         ```
         """
-        return self._apply_column(column, pd.Series.min, skipna=True)
+        return self._apply_column(column, pd.Series.min, skipna=True, _preserve_ylabel=True)
 
     def store(self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None) -> None:
         """
