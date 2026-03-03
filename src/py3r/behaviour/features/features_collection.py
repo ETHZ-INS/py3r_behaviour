@@ -14,7 +14,11 @@ from py3r.behaviour.features.cluster_pipeline import (
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.util.base_collection import BaseCollection
-from py3r.behaviour.util.collection_utils import BatchResult, _Indexer
+from py3r.behaviour.util.collection_utils import (
+    BatchResult,
+    _Indexer,
+    resolve_single_store_name,
+)
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.series_utils import (
     apply_normalization_to_df,
@@ -1178,7 +1182,25 @@ class FeaturesCollection(BaseCollection):
         True
 
         ```
+
+        Returns
+        -------
+        str
+            The resolved stored column name. If auto-naming would resolve to
+            multiple different names across leaves, raises ValueError.
         """
+
+        def _resolve_leaf_name(v):
+            if hasattr(v, "_column_name"):
+                return v._column_name
+            if isinstance(v, pd.Series):
+                raise ValueError(
+                    "When storing raw Series in a collection, `name` must be provided."
+                )
+            raise ValueError(f"{v} is not a FeaturesResult or Series")
+
+        resolved_name = resolve_single_store_name(results_dict, name, _resolve_leaf_name)
+
         if getattr(self, "is_grouped", False):
             for gkey, group_dict in results_dict.items():
                 for handle, v in group_dict.items():
@@ -1192,7 +1214,7 @@ class FeaturesCollection(BaseCollection):
                             )
                         else:
                             raise ValueError(f"{v} is not a FeaturesResult or Series")
-            return
+            return resolved_name
         # Flat case
         for handle, v in results_dict.items():
             if hasattr(v, "store"):
@@ -1202,6 +1224,53 @@ class FeaturesCollection(BaseCollection):
                     self.features_dict[handle].store(v, name, overwrite=overwrite, meta=meta or {})
                 else:
                     raise ValueError(f"{v} is not a FeaturesResult or Series")
+        return resolved_name
+
+    def stored_info(self) -> pd.DataFrame:
+        """
+        Summarize stored feature columns across the collection's leaf Features objects.
+
+        Returns a DataFrame indexed by `feature` with columns:
+        - `attached_to`: number of recordings containing the feature
+        - `missing_from`: number of recordings not containing the feature
+        - `type`: pandas dtype string for the feature column when consistent, or a
+          list of dtype strings when mixed across recordings.
+        """
+        leaves = list(self.flatten().values())
+        total = len(leaves)
+        if total == 0:
+            cols = ["feature", "attached_to", "missing_from", "type"]
+            return pd.DataFrame(columns=cols).set_index("feature")
+
+        feature_names = sorted({name for feat in leaves for name in feat.data.columns})
+        records = []
+        for name in feature_names:
+            attached = 0
+            type_seen: set[str] = set()
+            for feat in leaves:
+                if name in feat.data.columns:
+                    attached += 1
+                    type_seen.add(str(feat.data[name].dtype))
+
+            type_value: str | list[str]
+            if len(type_seen) == 1:
+                type_value = next(iter(type_seen))
+            else:
+                type_value = sorted(type_seen)
+
+            records.append(
+                {
+                    "feature": name,
+                    "attached_to": attached,
+                    "missing_from": total - attached,
+                    "type": type_value,
+                }
+            )
+
+        out = pd.DataFrame.from_records(records).set_index("feature")
+        out["attached_to"] = out["attached_to"].astype("int64")
+        out["missing_from"] = out["missing_from"].astype("int64")
+        return out
 
     @property
     def loc(self):

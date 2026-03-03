@@ -7,6 +7,41 @@ class _Indexer:
         return self.slicer(idx)
 
 
+def iter_store_leaves(results_dict):
+    """
+    Yield non-dict leaves from a flat or nested mapping of batch results.
+    """
+    stack = [results_dict]
+    while stack:
+        current = stack.pop()
+        for value in current.values():
+            if isinstance(value, dict):
+                stack.append(value)
+            else:
+                yield value
+
+
+def resolve_single_store_name(results_dict, explicit_name, leaf_name_getter):
+    """
+    Resolve a single store name for an entire batch payload.
+
+    If explicit_name is provided, it is returned directly. Otherwise, names are
+    resolved per-leaf with leaf_name_getter and must be identical.
+    """
+    if explicit_name is not None:
+        return explicit_name
+
+    names = {leaf_name_getter(v) for v in iter_store_leaves(results_dict)}
+    if len(names) == 0:
+        raise ValueError("store() received an empty results_dict")
+    if len(names) != 1:
+        raise ValueError(
+            "store() resolved to multiple names across collection leaves: "
+            f"{sorted(map(str, names))}. Pass an explicit `name=...`."
+        )
+    return next(iter(names))
+
+
 class BatchResult(dict):
     def __init__(self, data, parent_collection):
         super().__init__(data)
@@ -97,6 +132,33 @@ class BatchResult(dict):
 
     def store(self, *args, **kwargs):
         return self._parent_collection.store(self, *args, **kwargs)
+
+    @staticmethod
+    def _first_non_none_leaf(d):
+        for v in d.values():
+            if isinstance(v, BatchResult):
+                leaf = BatchResult._first_non_none_leaf(v)
+                if leaf is not None:
+                    return leaf
+            elif v is not None:
+                return v
+        return None
+
+    def __getattr__(self, name: str):
+        if name.startswith("_"):
+            raise AttributeError(f"BatchResult has no attribute '{name}'")
+
+        leaf = self._first_non_none_leaf(self)
+        if leaf is None:
+            raise AttributeError(f"BatchResult has no attribute '{name}'")
+        attr = getattr(leaf, name, None)
+        if not callable(attr):
+            raise AttributeError(f"BatchResult has no callable attribute '{name}'")
+
+        def _leaf_call(*args, **kwargs):
+            return self._apply_to_leaves(lambda v: getattr(v, name)(*args, **kwargs))
+
+        return _leaf_call
 
     # ----- Convenience: functional transforms and simple arithmetic on results -----
     def _apply_to_leaves(self, fn):

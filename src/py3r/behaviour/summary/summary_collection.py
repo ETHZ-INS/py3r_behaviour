@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 import warnings
 from itertools import combinations
+from typing import Literal
 
 import pandas as pd
 
@@ -11,8 +12,8 @@ from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.summary.summary_collection_plot_mixin import (
     SummaryCollectionPlotMixin,
 )
-from py3r.behaviour.summary.summary_result import SummaryResult
 from py3r.behaviour.util.base_collection import BaseCollection
+from py3r.behaviour.util.collection_utils import resolve_single_store_name
 
 
 class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
@@ -152,14 +153,22 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         summary_dict = {obj.handle: obj for obj in summary_list}
         return cls(summary_dict)
 
-    def to_df(self, include_tags: bool = False, tag_prefix: str = "tag_"):
+    def to_df(
+        self,
+        include_tags: bool = False,
+        tag_prefix: str = "tag_",
+        series: Literal["ignore", "separate"] = "ignore",
+    ) -> pd.DataFrame | tuple[pd.DataFrame, dict[str, pd.DataFrame]]:
         """
-        Collate scalar values (numeric, string, bool) from each Summary.data into
-        a pandas DataFrame.
+        Collate values from each Summary.data into tabular output.
 
         - Index: handles of the Summary objects
-        - Columns: keys from each Summary.data (simple scalar values)
+        - Scalar columns: keys from each Summary.data with scalar values
         - If include_tags is True, include tag columns with the given prefix
+        - If series='ignore' (default), Series entries are skipped
+        - If series='separate', return `(scalars_df, series_tables)` where
+          `series_tables` is `{metric_name: dataframe}` and each dataframe has
+          one row per handle and one column per Series index value.
 
         Examples
         --------
@@ -180,25 +189,52 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         >>> df = sc.to_df(include_tags=True)
         >>> set(df.columns) >= {'score', 'tag_group'}
         True
+        >>> s1.store(pd.Series([1.0, 2.0], index=['A', 'B']), 'speed_by_state')
+        >>> s2.store(pd.Series([3.0, 4.0], index=['A', 'B']), 'speed_by_state')
+        >>> scalars, series_tables = sc.to_df(series='separate')
+        >>> isinstance(scalars, pd.DataFrame) and 'speed_by_state' in series_tables
+        True
 
         ```
         """
         import numbers
 
+        if series not in {"ignore", "separate"}:
+            raise ValueError("series must be one of: 'ignore', 'separate'")
+
         rows = {}
+        tags_by_handle: dict[str, dict] = {}
+        series_rows: dict[str, dict[str, pd.Series]] = {}
         for handle, summary in self.summary_dict.items():
             row = {}
             for key, value in summary.data.items():
                 if isinstance(value, (numbers.Number, str, bool)):
                     row[key] = value
+                elif isinstance(value, pd.Series) and series == "separate":
+                    series_rows.setdefault(key, {})[handle] = value
             if include_tags and getattr(summary, "tags", None):
+                tags_by_handle[handle] = dict(summary.tags)
                 for tag_key, tag_val in summary.tags.items():
                     row[f"{tag_prefix}{tag_key}"] = tag_val
             rows[handle] = row
 
-        df = pd.DataFrame.from_dict(rows, orient="index")
-        df.index.name = "handle"
-        return df
+        scalars_df = pd.DataFrame.from_dict(rows, orient="index")
+        scalars_df.index.name = "handle"
+        if series == "ignore":
+            return scalars_df
+
+        series_tables = {}
+        for metric_name, metric_rows in series_rows.items():
+            table = pd.DataFrame.from_dict(metric_rows, orient="index")
+            table.index.name = "handle"
+            if include_tags:
+                for handle, tags in tags_by_handle.items():
+                    if handle not in table.index:
+                        continue
+                    for tag_key, tag_val in tags.items():
+                        table.loc[handle, f"{tag_prefix}{tag_key}"] = tag_val
+            series_tables[metric_name] = table
+        return scalars_df, series_tables
 
     def make_bin(self, startframe, endframe):
         """
@@ -255,13 +291,16 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
     def store(
         self,
-        results_dict: dict[str, SummaryResult],
+        results_dict,
         name: str = None,
         meta: dict = None,
         overwrite: bool = False,
     ):
         """
-        Store all SummaryResult objects in a one-layer dict (as returned by batch methods).
+        Store SummaryResult objects returned by batch methods.
+
+        - Flat collection: results_dict is {handle: SummaryResult}
+        - Grouped collection: results_dict is {group_key: {handle: SummaryResult}}
 
         Examples
         --------
@@ -290,12 +329,82 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         True
 
         ```
+
+        Returns
+        -------
+        str
+            The resolved stored metric name. If auto-naming would resolve to
+            multiple different names across leaves, raises ValueError.
         """
+
+        def _resolve_leaf_name(v):
+            if hasattr(v, "_func_name"):
+                return v._func_name
+            raise ValueError(f"{v} is not a SummaryResult object")
+
+        resolved_name = resolve_single_store_name(results_dict, name, _resolve_leaf_name)
+
+        if getattr(self, "is_grouped", False):
+            for _, group_dict in results_dict.items():
+                for _, v in group_dict.items():
+                    if hasattr(v, "store"):
+                        v.store(name=name, meta=meta, overwrite=overwrite)
+                    else:
+                        raise ValueError(f"{v} is not a SummaryResult object")
+            return resolved_name
+
         for v in results_dict.values():
             if hasattr(v, "store"):
                 v.store(name=name, meta=meta, overwrite=overwrite)
             else:
                 raise ValueError(f"{v} is not a SummaryResult object")
+        return resolved_name
+
+    def stored_info(self) -> pd.DataFrame:
+        """
+        Summarize stored summary metrics across the collection's leaf Summary objects.
+
+        Returns a DataFrame indexed by `summary` with columns:
+        - `attached_to`: number of recordings containing the summary key
+        - `missing_from`: number of recordings not containing the summary key
+        - `type`: value datatype name when consistent, or a list of datatype names
+          when mixed across recordings.
+        """
+        leaves = list(self.flatten().values())
+        total = len(leaves)
+        if total == 0:
+            cols = ["summary", "attached_to", "missing_from", "type"]
+            return pd.DataFrame(columns=cols).set_index("summary")
+
+        summary_names = sorted({name for summary in leaves for name in summary.data.keys()})
+        records = []
+        for name in summary_names:
+            attached = 0
+            type_seen: set[str] = set()
+            for summary in leaves:
+                if name in summary.data:
+                    attached += 1
+                    type_seen.add(type(summary.data[name]).__name__)
+
+            type_value: str | list[str]
+            if len(type_seen) == 1:
+                type_value = next(iter(type_seen))
+            else:
+                type_value = sorted(type_seen)
+
+            records.append(
+                {
+                    "summary": name,
+                    "attached_to": attached,
+                    "missing_from": total - attached,
+                    "type": type_value,
+                }
+            )
+
+        out = pd.DataFrame.from_records(records).set_index("summary")
+        out["attached_to"] = out["attached_to"].astype("int64")
+        out["missing_from"] = out["missing_from"].astype("int64")
+        return out
 
     # ---- Cross-group analysis (formerly in MultipleSummaryCollection) ----
     def bfa(

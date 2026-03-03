@@ -558,6 +558,55 @@ class TrackingCollection(BaseCollection):
             missing_str = ", ".join(sorted(set(map(str, missing_handles))))
             print("the following handles were not found in collection: " + missing_str)
 
+    def stored_info(self) -> pd.DataFrame:
+        """
+        Summarize stored tracked points across the collection's leaf Tracking objects.
+
+        Returns a DataFrame indexed by `point_name` with columns:
+        - `attached_to`: number of recordings containing the point
+        - `missing_from`: number of recordings not containing the point
+        - `dims`: point dimensions (e.g. `['x', 'y', 'z', 'likelihood']`), or a list
+          of such dimension-sets when mixed across recordings.
+        """
+        leaves = list(self.flatten().values())
+        total = len(leaves)
+        if total == 0:
+            return pd.DataFrame(
+                columns=["point_name", "attached_to", "missing_from", "dims"]
+            ).set_index("point_name")
+
+        point_names = sorted({p for t in leaves for p in t.get_point_names()})
+        records = []
+        for point_name in point_names:
+            attached = 0
+            dims_seen: set[tuple[str, ...]] = set()
+            for tracking in leaves:
+                if point_name in tracking.get_point_names():
+                    attached += 1
+                    dims = [
+                        d for d in tracking.get_point_dimensions(point_name) if d != "likelihood"
+                    ]
+                    dims_seen.add(tuple(dims))
+
+            if len(dims_seen) == 1:
+                dims_value = list(next(iter(dims_seen)))
+            else:
+                dims_value = [list(d) for d in sorted(dims_seen)]
+
+            records.append(
+                {
+                    "point_name": point_name,
+                    "attached_to": attached,
+                    "missing_from": total - attached,
+                    "dims": dims_value,
+                }
+            )
+
+        out = pd.DataFrame.from_records(records).set_index("point_name")
+        out["attached_to"] = out["attached_to"].astype("int64")
+        out["missing_from"] = out["missing_from"].astype("int64")
+        return out
+
     def stereo_triangulate(self) -> TrackingCollection:
         """
         Triangulate all TrackingMV objects and return a new TrackingCollection.

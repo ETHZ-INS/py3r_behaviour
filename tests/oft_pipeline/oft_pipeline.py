@@ -14,6 +14,14 @@ import pandas as pd
 
 import py3r.behaviour as p3b
 
+try:
+    from IPython.display import display
+except ImportError:
+
+    def display(x):
+        print(x)
+
+
 # Skip heavy visualisation deps (pycirclize, umap-learn) in CI
 SKIP_HEAVY_VIZ = os.environ.get("CI", "").lower() in ("true", "1", "yes")
 
@@ -49,6 +57,13 @@ print(tc)
 # Main object types in `py3r.behaviour` implement `.copy()`.
 # We'll keep an untouched copy for didactic examples in this notebook.
 tc_raw_for_demo = tc.copy()
+
+# %% [markdown]
+# All Collection objects, like `TrackingCollection`, implement `stored_info()`
+# to give a quick overview of their accessible contents
+
+# %%
+tc.stored_info()
 
 # %%
 # norender
@@ -92,13 +107,15 @@ tc.tags_info()
 # %% [markdown]
 # ### Didactic: batch processing
 #
-# With a `TrackingCollection`, `.each` delegates calls to every `Tracking`.
+# With a `TrackingCollection`, `.each` delegates calls to each `Tracking`.
 # Think "batch call the same `Tracking` method for all recordings".
+# This `.each` batch processing pattern also applies to `FeaturesCollection`
+# and `SummaryCollection`, as we will see later.
 #
-# Methods on `Tracking` are `inplace=True` by default, and `.each` will return a `BatchResult.
-# If `inplace=False` then `.each` returns a `TrackingCollection`.
+# Methods on `Tracking` are `inplace=True` by default, so `.each` returns a
+# `BatchResult`. If `inplace=False`, `.each` returns a `TrackingCollection`.
 #
-# Passing a `BatchResult` argument back into `.each` maps values by handle
+# Passing a `BatchResult` back into `.each` maps values by handle.
 
 # %%
 demo_inplace = tc_raw_for_demo.copy().each.filter_likelihood(threshold=0.9)
@@ -117,11 +134,10 @@ print(type(demo_new_collection).__name__)  # expected: TrackingCollection
 # to real-world units.
 # This order is intentional: filter -> interpolate -> smooth -> rescale.
 #
-# In this main path we use in-place behavior (typical analysis workflow).
+# In this main path we use in-place behaviour (typical analysis workflow).
 # Equivalent non-in-place variants are shown above in the didactic batch section.
 
 # %%
-# `filter_likelihood`: masks low-confidence coordinates as NaN.
 tc.each.filter_likelihood(threshold=0.9)
 tc.each.interpolate(limit=5)
 tc.each.smooth_all(window=3, method="mean")
@@ -132,8 +148,10 @@ tc.each.rescale_by_known_distance(
 )
 
 # %% [markdown]
-# Generally these preprocessing methods have guards against re-application,
-# so for parameter tuning, set `inplace=False`
+# ### Re-running preprocessing
+#
+# Most preprocessing methods guard against re-application. For parameter tuning,
+# prefer `inplace=False` and work on a copy.
 
 # %%
 try:
@@ -233,7 +251,7 @@ print("Tags, preprocessing, and trajectory plot tests passed.")
 fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 # %% [markdown]
-# ### Spatial features — center zone
+# ### Spatial features — boundaries
 #
 # Define/store named boundaries on each `Features` leaf, then use either:
 # - mapped `BatchResult` boundary objects (smart per-handle passthrough), or
@@ -241,32 +259,94 @@ fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 # Here we use both and assert they match.
 
 # %%
-center_boundary = fc.each.define_static_boundary(
-    ["tl", "tr", "bl", "br"],
+ordered_oft_corners = ["tl", "tr", "br", "bl"]
+
+# %% [markdown]
+# Define and store a centre boundary for each recording.
+
+# %%
+centre_boundary = fc.each.define_static_boundary(
+    ordered_oft_corners,
     scale_dim1=0.5,
     scale_dim2=0.5,
-    name="center",
+    name="centre",
 )
 
-# `center_boundary` is a BatchResult keyed by handle (one boundary per recording).
-# Passing it back into `.each` maps boundary arguments to matching handles.
-in_center = fc.each.within_boundary(point="bodycentre", boundary=center_boundary)
-# Alternative: use stored boundary names (`"center"`) instead of explicit objects.
-in_center_by_name = fc.each.within_boundary(point="bodycentre", boundary="center")
+# %% [markdown]
+# Compare boundary usage styles: pass boundary objects vs stored boundary names.
+
+# %%
+in_centre = fc.each.within_boundary(point="bodycentre", boundary=centre_boundary)
+in_centre_by_name = fc.each.within_boundary(point="bodycentre", boundary="centre")
 for handle in fc.keys():
-    assert in_center[handle].equals(in_center_by_name[handle])
+    assert in_centre[handle].equals(in_centre_by_name[handle])
 
-in_center.store()
+# %% [markdown]
+# Store the result. Without a manual name, an automatic descriptive name is used.
+# `.store` always returns the stored name
 
-# `BatchResult` supports element-wise arithmetic across handles.
-# Here we gate distance moved by whether the animal is in center on each frame.
+# %%
+in_centre.store()
+
+# %% [markdown]
+# `BatchResult` supports logical composition (for example, arena periphery).
+
+# %%
+_ = fc.each.define_static_boundary(
+    ordered_oft_corners,
+    scale_dim1=0.8,
+    scale_dim2=0.8,
+    name="not_periphery",
+)
+_ = fc.each.define_static_boundary(
+    ordered_oft_corners,
+    name="oft",
+)
+(
+    fc.each.within_boundary("bodycentre", "oft")
+    & (~fc.each.within_boundary("bodycentre", "not_periphery"))
+).store("in_periphery")
+
+# %% [markdown]
+# Corner occupancy can be represented as a single state feature instead of many
+# independent booleans.
+
+# %%
+in_corners = dict()
+for c in ordered_oft_corners:
+    _ = fc.each.define_static_boundary(
+        ordered_oft_corners,
+        scale_dim1=0.2,
+        scale_dim2=0.2,
+        name=f"{c}_corner",
+        anchor=c,
+    )
+    in_corners[c] = fc.each.within_boundary("bodycentre", boundary=f"{c}_corner")
+
+# %%
+# Store a convenience boolean for "in any corner".
+(in_corners["tl"] | in_corners["tr"] | in_corners["bl"] | in_corners["br"]).store("in_corner")
+
+# %%
+# Store a categorical corner-state feature for state-based analyses.
+fc.each.compose_state_from_booleans(in_corners).store("corner_state")
+
+# %%
+# Keep these existing columns out of clustering feature selection.
+non_bfa_feats = fc[0].data.columns
+
+# %% [markdown]
+# `BatchResult` also supports element-wise arithmetic across handles.
+
+# %%
 dist_change = fc.each.distance_change("bodycentre")
-dist_change_in_center = in_center.astype("Int64") * dist_change
-dist_change_in_center.store(name="dist_change_bodycentre_in_center")
+dist_change_in_centre = in_centre.astype("Int64") * dist_change
+dist_change_in_centre.store(name="dist_change_bodycentre_in_centre")
 
+# %%
 # `BatchResult` also supports general binary operations.
-fast_outside_center = ~in_center & ((fc.each.speed("bodycentre") * 100) > 10.0)
-# this is just an example -- we won't store it.
+fast_outside_centre = ~in_centre & ((fc.each.speed("bodycentre") * 100) > 10.0)
+# This is an example only; we do not store it.
 
 # %% [markdown]
 # ### Kinematic features for BFA
@@ -287,6 +367,10 @@ fast_outside_center = ~in_center & ((fc.each.speed("bodycentre") * 100) > 10.0)
 for pt in ["nose", "neck", "earr", "earl", "bodycentre", "hipl", "hipr", "tailbase"]:
     fc.each.speed(pt).store()
 
+# %% [markdown]
+# Compute angular features.
+
+# %%
 # Angle deviations
 for basepoint, pointdirection1, pointdirection2 in [
     ("tailbase", "hipr", "hipl"),
@@ -296,6 +380,10 @@ for basepoint, pointdirection1, pointdirection2 in [
 ]:
     fc.each.azimuth_deviation(basepoint, pointdirection1, pointdirection2).store()
 
+# %% [markdown]
+# Compute inter-keypoint distances.
+
+# %%
 # Inter-keypoint distances
 for p1, p2 in [
     ("nose", "headcentre"),
@@ -315,8 +403,10 @@ for p1, p2 in [
 ]:
     fc.each.distance_between(p1, p2).store()
 
-# Boundary definitions for BFA kinematic features.
-# Dynamic boundaries are stored per recording, then used for dynamic area.
+# %% [markdown]
+# Define dynamic body boundaries and store per-boundary area features.
+
+# %%
 DYNAMIC_BODY_BOUNDARIES = [
     ("mouse_rear", ["tailbase", "hipr", "hipl"]),
     ("mouse_mid", ["hipr", "hipl", "bcl", "bcr"]),
@@ -328,16 +418,19 @@ for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
     fc.each.define_dynamic_boundary(boundary_points, name=boundary_name)
     fc.each.area_of_boundary(boundary_name).store()
 
-# Static arena boundaries + point list for distance-to-boundary features.
-fc.each.define_static_boundary(points=["tl", "tr", "br", "bl"], name="oft")
+# %% [markdown]
+# Compute distance-to-boundary features for selected points.
+
+# %%
 STATIC_DISTANCE_TO_BOUNDARY_POINTS = ["nose", "neck", "bodycentre", "tailbase"]
 
 for pt in STATIC_DISTANCE_TO_BOUNDARY_POINTS:
     fc.each.distance_to_boundary(pt, "oft").store()
 
+# %% [markdown]
 # Inspect stored boundary assets on one recording.
-# Return type: DataFrame with one row per stored boundary and columns like
-# `kind`, `n_points`, `has_vertices`.
+
+# %%
 fc[0].list_boundaries()
 
 # %% [markdown]
@@ -354,14 +447,20 @@ fc[0].list_boundaries()
 # - `cluster_embedding` also supports weighting/normalization knobs for advanced runs.
 
 # %%
-features = fc[0].data.columns
+cluster_features = list(set(fc[0].data.columns) - set(non_bfa_feats))
 offset = list(np.arange(-15, 16, 1))
-embedding_dict = {f: offset for f in features}
+embedding_dict = {f: offset for f in cluster_features}
 
 cluster_labels, centroids, _ = fc.cluster_embedding_stream(
     embedding_dict=embedding_dict, n_clusters=N_CLUSTERS
 )
 cluster_labels.store("kmeans_25", overwrite=True)
+
+# %% [markdown
+# A quick overview of the stored features
+
+# %%
+fc.stored_info()
 
 # %% [markdown]
 # ### Save features to disk
@@ -375,21 +474,21 @@ fc.save(f"{OUT_DIR}/features", data_format="csv", overwrite=True)
 
 # %%
 # norender
-# --- Center boundary golden values ---
+# --- Centre boundary golden values ---
 H1 = "OFT1_1"
 H2 = "OFT1_10"
-GOLDEN_IN_CENTER = {H1: 5, H2: 0}
-for handle, expected in GOLDEN_IN_CENTER.items():
+GOLDEN_IN_CENTRE = {H1: 11, H2: 0}
+for handle, expected in GOLDEN_IN_CENTRE.items():
     if handle in fc:
-        got = int(in_center[handle].sum())
-        assert got == expected, f"{handle} in_center: {got} != {expected}"
+        got = int(in_centre[handle].sum())
+        assert got == expected, f"{handle} in_centre: {got} != {expected}"
 
 # --- Feature columns exist ---
 first_handle = list(fc.keys())[0]
 cols = fc[first_handle].data.columns.tolist()
 btab = fc[first_handle].list_boundaries()
-assert {"center", "oft"} <= set(btab.index), f"Missing stored boundaries on {first_handle}"
-assert (btab.loc[["center", "oft"], "kind"] == "static").all()
+assert {"centre", "oft"} <= set(btab.index), f"Missing stored boundaries on {first_handle}"
+assert (btab.loc[["centre", "oft"], "kind"] == "static").all()
 
 expected_speed_cols = [
     "speed_of_nose_in_xy",
@@ -497,20 +596,43 @@ sc = p3b.SummaryCollection.from_features_collection(fc)
 
 # %%
 sc.each.total_distance("bodycentre").store()
-sc.each.time_true("within_boundary_static_bodycentre_in_center").store("time_in_center")
-sc.each.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
+sc.each.time_true("within_boundary_static_bodycentre_in_centre").store("time_in_centre")
+sc.each.sum_column("dist_change_bodycentre_in_centre").store(name="distance_moved_in_centre")
+
+# by_state API example: average speed by composed spatial zone.
+sc.each.by_state(
+    "corner_state",
+    all_states=ordered_oft_corners,
+).mean_column("speed_of_bodycentre_in_xy").store("mean_speed_corners")
+
+# by_state + all_states API example: force explicit cluster domain (0-9),
+# including states absent in a recording.
+sc.each.by_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).mean_column(
+    "speed_of_bodycentre_in_xy"
+).store("mean_speed_bodycentre_by_kmeans_25")
+
+# %% [markdown]
+# A quick overview of the stored summaries
+
+# %%
+sc.stored_info()
 
 # %% [markdown]
 # ### Export results to CSV
 #
 # `to_df(include_tags=True)` flattens summary metrics + selected tag columns
 # into one analysis-ready table (indexed by handle).
+# By default, series metrics, like time_in_state, are ignored (`series="ignore"`).
+# If `series="separate"` then each series metric will be output as its own df over the collection.
 
 # %%
-summary_df = sc.to_df(include_tags=True)
+summary_df, series_dfs = sc.to_df(include_tags=True, series="separate")
 summary_df.to_csv(f"{OUT_DIR}/OFT_results.csv")
-summary_df.head()
 
+display(summary_df.head())
+for key, val in series_dfs.items():
+    print(key)
+    display(val.head())
 # %%
 # norender
 from py3r.behaviour.summary.summary import Summary
@@ -526,8 +648,8 @@ for handle, s in sc.items():
 # --- Stored summary metrics ---
 summary_stored = [
     "total_distance_bodycentre",
-    "time_in_center",
-    "distance_moved_in_center",
+    "time_in_centre",
+    "distance_moved_in_centre",
 ]
 for handle in sc.keys():
     for name in summary_stored:
@@ -537,6 +659,30 @@ for handle in sc.keys():
             f"{handle}: '{name}' should be scalar, got {type(val)}"
         )
 
+# --- Stored by_state metrics ---
+for handle in sc.keys():
+    zone_speed = sc[handle].data["mean_speed_corners"]
+    cluster_speed = sc[handle].data["mean_speed_bodycentre_by_kmeans_25"]
+
+    assert isinstance(zone_speed, pd.Series), (
+        f"{handle}: mean_speed_bodycentre_by_zone should be a Series, got {type(zone_speed)}"
+    )
+    assert isinstance(cluster_speed, pd.Series), (
+        f"{handle}: mean_speed_bodycentre_by_cluster_0_9 should be a Series, "
+        f"got {type(cluster_speed)}"
+    )
+    assert sc[handle].meta["mean_speed_corners"].get("_ylabel") == "Speed (m/s)", (
+        f"{handle}: mean_speed_corners should preserve speed ylabel"
+    )
+    assert sc[handle].meta["mean_speed_bodycentre_by_kmeans_25"].get("_ylabel") == "Speed (m/s)", (
+        f"{handle}: mean_speed_bodycentre_by_kmeans_25 should preserve speed ylabel"
+    )
+
+    expected_zone_states = {"tl", "tr", "br", "bl", "none"}
+    assert set(zone_speed.index.astype(str)).issubset(expected_zone_states), (
+        f"{handle}: unexpected zone states {set(zone_speed.index.astype(str))}"
+    )
+
 # --- Golden summary values ---
 H1 = "OFT1_1"
 H2 = "OFT1_10"
@@ -544,18 +690,18 @@ H3 = "OFT1_11"
 GOLDEN_SUMMARY = {
     H1: {
         "total_distance_bodycentre": 0.44767611820624487,
-        "time_in_center": 0.16666666666666666,
-        "distance_moved_in_center": 0.03422028501882547,
+        "time_in_centre": 0.36666666666666664,
+        "distance_moved_in_centre": 0.07746912799395118,
     },
     H2: {
         "total_distance_bodycentre": 0.25695993685545326,
-        "time_in_center": 0.0,
-        "distance_moved_in_center": 0.0,
+        "time_in_centre": 0.0,
+        "distance_moved_in_centre": 0.0,
     },
     H3: {
         "total_distance_bodycentre": 0.16675110816606706,
-        "time_in_center": 0.0,
-        "distance_moved_in_center": 0.0,
+        "time_in_centre": 0.0,
+        "distance_moved_in_centre": 0.0,
     },
 }
 for handle, expected_vals in GOLDEN_SUMMARY.items():
@@ -567,9 +713,24 @@ for handle, expected_vals in GOLDEN_SUMMARY.items():
 # --- Sanity checks ---
 for handle in sc.keys():
     s = sc[handle].data
-    assert s["time_in_center"] >= 0
+    assert s["time_in_centre"] >= 0
     assert s["total_distance_bodycentre"] >= 0
-    assert s["distance_moved_in_center"] >= 0 or np.isnan(s["distance_moved_in_center"])
+    assert s["distance_moved_in_centre"] >= 0 or np.isnan(s["distance_moved_in_centre"])
+
+    zone_state = fc[handle].data["corner_state"]
+    assert zone_state.notna().all(), f"{handle}: zone_state contains NaN"
+    zone_counts = zone_state.value_counts()
+    assert int(zone_counts.sum()) == len(zone_state), f"{handle}: zone_state count mismatch"
+
+    # by_state over zone_state should include "tl" and match centre occupancy in seconds.
+    zone_speed = s["mean_speed_corners"]
+    assert "tl" in zone_speed.index, f"{handle}: tl missing in zone by_state index"
+
+    centre_time = s["time_in_centre"]
+    centre_frames = int(fc[handle].data["within_boundary_static_bodycentre_in_centre"].sum())
+    assert np.isclose(centre_time, centre_frames / FPS), (
+        f"{handle}: time_in_centre does not match centre boolean frames"
+    )
 
 # --- CSV round-trip ---
 csv_path = Path(OUT_DIR) / "OFT_results.csv"
@@ -637,7 +798,7 @@ fig, ax, df_super = sc.snssuperplot(
 # %%
 single = sc[list(sc.keys())[0]]
 fig, ax, df_single = single.snsbar(
-    single.time_in_state("within_boundary_static_bodycentre_in_center"),
+    single.time_in_state("within_boundary_static_bodycentre_in_centre"),
     show=True,
     savedir=OUT_DIR,
 )
@@ -645,9 +806,9 @@ fig, ax, df_single = single.snsbar(
 # %% [markdown]
 # ### Grouped plots
 #
-# Group by experimental tags with `groupby()`.
-# Use `group_order` to control how groups are arranged on the x-axis.
-# `groupby(...)` returns a grouped `SummaryCollection` view with same plotting API.
+# Group by experimental tags with `groupby()` to compare conditions directly.
+# Use `group_order` to control x-axis arrangement.
+# `groupby(...)` returns a grouped `SummaryCollection` with the same plotting API.
 
 # %%
 sc_grouped = sc.groupby(tags=["treatment", "timepoint"])
@@ -692,9 +853,9 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 # ### sort_by — independent spatial ordering
 #
 # `sort_by` overrides the spatial arrangement on the x-axis without changing
-# colour assignment.  Here `groupby(tags=["treatment", "timepoint"])` means
-# treatment drives the base colour (control=blue, FST=orange).  Adding
-# `sort_by="timepoint"` interleaves control/FST within each timepoint.
+# colour assignment. Here `groupby(tags=["treatment", "timepoint"])` means
+# treatment drives the base colour (control=blue, stressor=orange). Adding
+# `sort_by="timepoint"` interleaves control/stressor within each timepoint.
 
 # %%
 # Interleaved superplot — timepoint as primary spatial axis, colours by treatment
@@ -767,7 +928,7 @@ fig_ann, ax_ann, df_ann = sc_grouped.snsbox(
 #
 # 1. **String key** — a previously stored metric name
 # 2. **SummaryResult** object — inline computation (not stored)
-# (Both of these may be either single component,  or multi-component)
+# Both options can represent single- or multi-component metrics.
 
 # %%
 # 1. String key
@@ -779,8 +940,43 @@ fig, ax, _ = sc.snsstrip(
 
 # 2. SummaryResult object (inline)
 fig, ax, df_mc = sc.snsbar(
-    sc.each.time_in_state("within_boundary_static_bodycentre_in_center"),
+    sc.each.time_in_state("within_boundary_static_bodycentre_in_centre"),
     show=False,
+)
+
+# %% [markdown]
+# ### Multi-metric plotting
+#
+# `sns*` methods can accept multiple metrics via list input, or alias maps via dict input.
+# `merge_by` controls how metrics are combined (default: `"metric"`).
+# When plotting multiple metrics together, they must share a common y-axis label.
+
+# %%
+
+
+# Ungrouped multi-metric demo combining two by_state metrics with the same y-axis
+# (mean speed of bodycentre):
+# - corners
+# - kmeans clusters with explicit all_states=[0..9]
+fig, ax, df_multi_flat = sc.snsbar(
+    {
+        "corners": "mean_speed_corners",
+        "kmeans_0_to_9": "mean_speed_bodycentre_by_kmeans_25",
+    },
+    show=True,
+    savedir=OUT_DIR,
+    filename="demo_multi_metric_by_state_speed_barplot.png",
+)
+
+# %%
+# Grouped multi-metric demo
+fig, ax, df_multi_grouped = sc_grouped.snsbar(
+    ["time_in_centre", "time_in_cluster"],
+    merge_by=None,
+    group_order=GROUP_ORDER,
+    show=True,
+    savedir=OUT_DIR,
+    filename="demo_multi_metric_grouped_barplot.png",
 )
 
 # %%
@@ -816,6 +1012,19 @@ for label, df_check in [("gsup", df_gsup), ("gbar", df_gbar)]:
 assert df_gbar["component"].nunique() == N_CLUSTERS, (
     f"Expected {N_CLUSTERS} components, got {df_gbar['component'].nunique()}"
 )
+
+# --- Multi-metric demos ---
+# Flat case uses explicit aliases in the dict input:
+# - "corners" (state-composed speed means)
+# - "cluster_0_9" (kmeans speed means with explicit all_states)
+components_multi_flat = set(df_multi_flat["component"].astype(str).tolist())
+assert any(c.startswith("corners") for c in components_multi_flat)
+
+# Grouped case should still return one grouped tidy DataFrame via standard path.
+assert "_group" in df_multi_grouped.columns
+components_multi_grouped = set(df_multi_grouped["component"].astype(str).tolist())
+assert any("time_in_cluster" in c for c in components_multi_grouped)
+assert "time_in_centre" in components_multi_grouped
 
 # --- Auto-named plot files ---
 assert len(list(OUT_DIR.glob("*stripplot.png"))) >= 1
