@@ -14,6 +14,14 @@ import pandas as pd
 
 import py3r.behaviour as p3b
 
+try:
+    from IPython.display import display
+except ImportError:
+
+    def display(x):
+        print(x)
+
+
 # Skip heavy visualisation deps (pycirclize, umap-learn) in CI
 SKIP_HEAVY_VIZ = os.environ.get("CI", "").lower() in ("true", "1", "yes")
 
@@ -569,12 +577,17 @@ sc.each.by_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).mean_co
 #
 # `to_df(include_tags=True)` flattens summary metrics + selected tag columns
 # into one analysis-ready table (indexed by handle).
+# By default, series metrics, like time_in_state, are ignored (`series="ignore"`).
+# If `series="separate"` then each series metric will be output as its own df over the collection.
 
 # %%
-summary_df = sc.to_df(include_tags=True)
+summary_df, series_dfs = sc.to_df(include_tags=True, series="separate")
 summary_df.to_csv(f"{OUT_DIR}/OFT_results.csv")
-summary_df.head()
 
+display(summary_df.head())
+for key, val in series_dfs.items():
+    print(key)
+    display(val.head())
 # %%
 # norender
 from py3r.behaviour.summary.summary import Summary
