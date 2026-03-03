@@ -186,7 +186,7 @@ interpolate short gaps, smooth trajectories, and rescale coordinates
 to real-world units.
 This order is intentional: filter -> interpolate -> smooth -> rescale.
 
-In this main path we use in-place behavior (typical analysis workflow).
+In this main path we use in-place behaviour (typical analysis workflow).
 Equivalent non-in-place variants are shown above in the didactic batch section.
 
 <div class="nb-cell-input" markdown>
@@ -293,16 +293,16 @@ ordered_oft_corners = ["tl", "tr", "br", "bl"]
 
 </div>
 
-Define and store a center boundary for each recording.
+Define and store a centre boundary for each recording.
 
 <div class="nb-cell-input" markdown>
 
 ```python
-center_boundary = fc.each.define_static_boundary(
+centre_boundary = fc.each.define_static_boundary(
     ordered_oft_corners,
     scale_dim1=0.5,
     scale_dim2=0.5,
-    name="center",
+    name="centre",
 )
 ```
 
@@ -313,10 +313,10 @@ Compare boundary usage styles: pass boundary objects vs stored boundary names.
 <div class="nb-cell-input" markdown>
 
 ```python
-in_center = fc.each.within_boundary(point="bodycentre", boundary=center_boundary)
-in_center_by_name = fc.each.within_boundary(point="bodycentre", boundary="center")
+in_centre = fc.each.within_boundary(point="bodycentre", boundary=centre_boundary)
+in_centre_by_name = fc.each.within_boundary(point="bodycentre", boundary="centre")
 for handle in fc.keys():
-    assert in_center[handle].equals(in_center_by_name[handle])
+    assert in_centre[handle].equals(in_centre_by_name[handle])
 ```
 
 </div>
@@ -327,13 +327,13 @@ Store the result. Without a manual name, an automatic descriptive name is used.
 <div class="nb-cell-input" markdown>
 
 ```python
-in_center.store()
+in_centre.store()
 ```
 
 </div>
 
 <div class="nb-cell-output">
-<pre><code>&#x27;within_boundary_static_bodycentre_in_center&#x27;</code></pre>
+<pre><code>&#x27;within_boundary_static_bodycentre_in_centre&#x27;</code></pre>
 </div>
 
 `BatchResult` supports logical composition (for example, arena periphery).
@@ -424,21 +424,21 @@ non_bfa_feats = fc[0].data.columns
 
 ```python
 dist_change = fc.each.distance_change("bodycentre")
-dist_change_in_center = in_center.astype("Int64") * dist_change
-dist_change_in_center.store(name="dist_change_bodycentre_in_center")
+dist_change_in_centre = in_centre.astype("Int64") * dist_change
+dist_change_in_centre.store(name="dist_change_bodycentre_in_centre")
 ```
 
 </div>
 
 <div class="nb-cell-output">
-<pre><code>&#x27;dist_change_bodycentre_in_center&#x27;</code></pre>
+<pre><code>&#x27;dist_change_bodycentre_in_centre&#x27;</code></pre>
 </div>
 
 <div class="nb-cell-input" markdown>
 
 ```python
 # `BatchResult` also supports general binary operations.
-fast_outside_center = ~in_center & ((fc.each.speed("bodycentre") * 100) > 10.0)
+fast_outside_centre = ~in_centre & ((fc.each.speed("bodycentre") * 100) > 10.0)
 # This is an example only; we do not store it.
 ```
 
@@ -585,7 +585,7 @@ fc[0].list_boundaries()
   </thead>
   <tbody>
     <tr>
-      <th>center</th>
+      <th>centre</th>
       <td>static</td>
       <td>4</td>
       <td>True</td>
@@ -729,8 +729,8 @@ Same pattern as features:
 
 ```python
 sc.each.total_distance("bodycentre").store()
-sc.each.time_true("within_boundary_static_bodycentre_in_center").store("time_in_center")
-sc.each.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
+sc.each.time_true("within_boundary_static_bodycentre_in_centre").store("time_in_centre")
+sc.each.sum_column("dist_change_bodycentre_in_centre").store(name="distance_moved_in_centre")
 
 # by_state API example: average speed by composed spatial zone.
 sc.each.by_state(
@@ -792,8 +792,8 @@ for key, val in series_dfs.items():
     <tr style="text-align: right;">
       <th></th>
       <th>total_distance_bodycentre</th>
-      <th>time_in_center</th>
-      <th>distance_moved_in_center</th>
+      <th>time_in_centre</th>
+      <th>distance_moved_in_centre</th>
       <th>tag_timepoint</th>
       <th>tag_treatment</th>
       <th>tag_sex</th>
@@ -1170,7 +1170,7 @@ The auto filename is prefixed with the recording handle.
 ```python
 single = sc[list(sc.keys())[0]]
 fig, ax, df_single = single.snsbar(
-    single.time_in_state("within_boundary_static_bodycentre_in_center"),
+    single.time_in_state("within_boundary_static_bodycentre_in_centre"),
     show=True,
     savedir=OUT_DIR,
 )
@@ -1269,8 +1269,8 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 ### sort_by — independent spatial ordering
 
 `sort_by` overrides the spatial arrangement on the x-axis without changing
-color assignment. Here `groupby(tags=["treatment", "timepoint"])` means
-treatment drives the base color (control=blue, stressor=orange). Adding
+colour assignment. Here `groupby(tags=["treatment", "timepoint"])` means
+treatment drives the base colour (control=blue, stressor=orange). Adding
 `sort_by="timepoint"` interleaves control/stressor within each timepoint.
 
 <div class="nb-cell-input" markdown>
@@ -1436,7 +1436,7 @@ fig, ax, _ = sc.snsstrip(
 
 # 2. SummaryResult object (inline)
 fig, ax, df_mc = sc.snsbar(
-    sc.each.time_in_state("within_boundary_static_bodycentre_in_center"),
+    sc.each.time_in_state("within_boundary_static_bodycentre_in_centre"),
     show=False,
 )
 ```
@@ -1454,7 +1454,7 @@ When plotting multiple metrics together, they must share a common y-axis label.
 ```python
 # Ungrouped multi-metric demo combining two by_state metrics with the same y-axis
 # (mean speed of bodycentre):
-# - composed spatial zones (corners + center + outer)
+# - corners
 # - kmeans clusters with explicit all_states=[0..9]
 fig, ax, df_multi_flat = sc.snsbar(
     {
@@ -1480,7 +1480,7 @@ fig, ax, df_multi_flat = sc.snsbar(
 ```python
 # Grouped multi-metric demo
 fig, ax, df_multi_grouped = sc_grouped.snsbar(
-    ["time_in_center", "time_in_cluster"],
+    ["time_in_centre", "time_in_cluster"],
     merge_by=None,
     group_order=GROUP_ORDER,
     show=True,
