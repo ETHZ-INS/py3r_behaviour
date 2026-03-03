@@ -19,6 +19,14 @@ import pandas as pd
 
 import py3r.behaviour as p3b
 
+try:
+    from IPython.display import display
+except ImportError:
+
+    def display(x):
+        print(x)
+
+
 # Skip heavy visualisation deps (pycirclize, umap-learn) in CI
 SKIP_HEAVY_VIZ = os.environ.get("CI", "").lower() in ("true", "1", "yes")
 
@@ -142,13 +150,15 @@ tc.tags_info()
 
 ### Didactic: batch processing
 
-With a `TrackingCollection`, `.each` delegates calls to every `Tracking`.
+With a `TrackingCollection`, `.each` delegates calls to each `Tracking`.
 Think "batch call the same `Tracking` method for all recordings".
+This `.each` batch processing pattern also applies to `FeaturesCollection`
+and `SummaryCollection`, as we will see later.
 
-Methods on `Tracking` are `inplace=True` by default, and `.each` will return a `BatchResult.
-If `inplace=False` then `.each` returns a `TrackingCollection`.
+Methods on `Tracking` are `inplace=True` by default, so `.each` returns a
+`BatchResult`. If `inplace=False`, `.each` returns a `TrackingCollection`.
 
-Passing a `BatchResult` argument back into `.each` maps values by handle
+Passing a `BatchResult` back into `.each` maps values by handle.
 
 <div class="nb-cell-input" markdown>
 
@@ -176,13 +186,12 @@ interpolate short gaps, smooth trajectories, and rescale coordinates
 to real-world units.
 This order is intentional: filter -> interpolate -> smooth -> rescale.
 
-In this main path we use in-place behavior (typical analysis workflow).
+In this main path we use in-place behaviour (typical analysis workflow).
 Equivalent non-in-place variants are shown above in the didactic batch section.
 
 <div class="nb-cell-input" markdown>
 
 ```python
-# `filter_likelihood`: masks low-confidence coordinates as NaN.
 tc.each.filter_likelihood(threshold=0.9)
 tc.each.interpolate(limit=5)
 tc.each.smooth_all(window=3, method="mean")
@@ -199,8 +208,10 @@ tc.each.rescale_by_known_distance(
 <pre><code>BatchResult: 56 items processed (in-place)</code></pre>
 </div>
 
-Generally these preprocessing methods have guards against re-application,
-so for parameter tuning, set `inplace=False`
+### Re-running preprocessing
+
+Most preprocessing methods guard against re-application. For parameter tuning,
+prefer `inplace=False` and work on a copy.
 
 <div class="nb-cell-input" markdown>
 
@@ -267,7 +278,7 @@ fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 </div>
 
-### Spatial features — center zone
+### Spatial features — boundaries
 
 Define/store named boundaries on each `Features` leaf, then use either:
 - mapped `BatchResult` boundary objects (smart per-handle passthrough), or
@@ -278,31 +289,58 @@ Here we use both and assert they match.
 
 ```python
 ordered_oft_corners = ["tl", "tr", "br", "bl"]
+```
 
-# we can store the boundary as an asset of each Features object in the colection
-# (naming the boundary stores it automatically)
-center_boundary = fc.each.define_static_boundary(
+</div>
+
+Define and store a centre boundary for each recording.
+
+<div class="nb-cell-input" markdown>
+
+```python
+centre_boundary = fc.each.define_static_boundary(
     ordered_oft_corners,
     scale_dim1=0.5,
     scale_dim2=0.5,
-    name="center",
+    name="centre",
 )
+```
 
-# `center_boundary` is a BatchResult keyed by handle (one boundary per recording).
-# Passing it back into `.each` maps boundary arguments to matching handles.
-in_center = fc.each.within_boundary(point="bodycentre", boundary=center_boundary)
-# Alternative: use stored boundary names (`"center"`) instead of explicit objects.
-in_center_by_name = fc.each.within_boundary(point="bodycentre", boundary="center")
+</div>
+
+Compare boundary usage styles: pass boundary objects vs stored boundary names.
+
+<div class="nb-cell-input" markdown>
+
+```python
+in_centre = fc.each.within_boundary(point="bodycentre", boundary=centre_boundary)
+in_centre_by_name = fc.each.within_boundary(point="bodycentre", boundary="centre")
 for handle in fc.keys():
-    assert in_center[handle].equals(in_center_by_name[handle])
+    assert in_centre[handle].equals(in_centre_by_name[handle])
+```
 
-# now we store the BatchResult. It knows which FeaturesCollection it belongs to,
-# and allocates the FeaturesResult objects correctly to each Features object.
-# If we don't give it a name, then a name is auto-generated, in this case
-# "within_boundary_static_bodycentre_in_center" (rather verbose).
-in_center.store()
+</div>
 
-# `BatchResult` accepts logical operations, e.g. NOT in one boundary AND in another:
+Store the result. Without a manual name, an automatic descriptive name is used.
+`.store` always returns the stored name
+
+<div class="nb-cell-input" markdown>
+
+```python
+in_centre.store()
+```
+
+</div>
+
+<div class="nb-cell-output">
+<pre><code>&#x27;within_boundary_static_bodycentre_in_centre&#x27;</code></pre>
+</div>
+
+`BatchResult` supports logical composition (for example, arena periphery).
+
+<div class="nb-cell-input" markdown>
+
+```python
 _ = fc.each.define_static_boundary(
     ordered_oft_corners,
     scale_dim1=0.8,
@@ -321,8 +359,12 @@ _ = fc.each.define_static_boundary(
 
 </div>
 
-For the corners, it might be handy to know which corner the mouse was in, but we don't need to
-store them all as independent boolean features; instead, we can generate a state variable:
+<div class="nb-cell-output">
+<pre><code>&#x27;in_periphery&#x27;</code></pre>
+</div>
+
+Corner occupancy can be represented as a single state feature instead of many
+independent booleans.
 
 <div class="nb-cell-input" markdown>
 
@@ -337,28 +379,67 @@ for c in ordered_oft_corners:
         anchor=c,
     )
     in_corners[c] = fc.each.within_boundary("bodycentre", boundary=f"{c}_corner")
+```
 
-# we can store a composite boolean result for later convenience,
-# to check whether mouse in any corner:
+</div>
+
+<div class="nb-cell-input" markdown>
+
+```python
+# Store a convenience boolean for "in any corner".
 (in_corners["tl"] | in_corners["tr"] | in_corners["bl"] | in_corners["br"]).store("in_corner")
+```
 
-# and now compose a composite "corner state" for later bias analysis:
+</div>
+
+<div class="nb-cell-output">
+<pre><code>&#x27;in_corner&#x27;</code></pre>
+</div>
+
+<div class="nb-cell-input" markdown>
+
+```python
+# Store a categorical corner-state feature for state-based analyses.
 fc.each.compose_state_from_booleans(in_corners).store("corner_state")
+```
 
-# we don't want to use these features for clustering later, so we'll store their
-# names for easy exclusion
+</div>
 
+<div class="nb-cell-output">
+<pre><code>&#x27;corner_state&#x27;</code></pre>
+</div>
+
+<div class="nb-cell-input" markdown>
+
+```python
+# Keep these existing columns out of clustering feature selection.
 non_bfa_feats = fc[0].data.columns
+```
 
-# `BatchResult` also supports element-wise arithmetic across handles.
-# Here we gate distance moved by whether the animal is in center on each frame.
+</div>
+
+`BatchResult` also supports element-wise arithmetic across handles.
+
+<div class="nb-cell-input" markdown>
+
+```python
 dist_change = fc.each.distance_change("bodycentre")
-dist_change_in_center = in_center.astype("Int64") * dist_change
-dist_change_in_center.store(name="dist_change_bodycentre_in_center")
+dist_change_in_centre = in_centre.astype("Int64") * dist_change
+dist_change_in_centre.store(name="dist_change_bodycentre_in_centre")
+```
 
+</div>
+
+<div class="nb-cell-output">
+<pre><code>&#x27;dist_change_bodycentre_in_centre&#x27;</code></pre>
+</div>
+
+<div class="nb-cell-input" markdown>
+
+```python
 # `BatchResult` also supports general binary operations.
-fast_outside_center = ~in_center & ((fc.each.speed("bodycentre") * 100) > 10.0)
-# this is just an example -- we won't store it.
+fast_outside_centre = ~in_centre & ((fc.each.speed("bodycentre") * 100) > 10.0)
+# This is an example only; we do not store it.
 ```
 
 </div>
@@ -382,7 +463,15 @@ Specific choices used here:
 # Speeds
 for pt in ["nose", "neck", "earr", "earl", "bodycentre", "hipl", "hipr", "tailbase"]:
     fc.each.speed(pt).store()
+```
 
+</div>
+
+Compute angular features.
+
+<div class="nb-cell-input" markdown>
+
+```python
 # Angle deviations
 for basepoint, pointdirection1, pointdirection2 in [
     ("tailbase", "hipr", "hipl"),
@@ -391,7 +480,15 @@ for basepoint, pointdirection1, pointdirection2 in [
     ("headcentre", "earr", "earl"),
 ]:
     fc.each.azimuth_deviation(basepoint, pointdirection1, pointdirection2).store()
+```
 
+</div>
+
+Compute inter-keypoint distances.
+
+<div class="nb-cell-input" markdown>
+
+```python
 # Inter-keypoint distances
 for p1, p2 in [
     ("nose", "headcentre"),
@@ -410,9 +507,15 @@ for p1, p2 in [
     ("nose", "earl"),
 ]:
     fc.each.distance_between(p1, p2).store()
+```
 
-# Boundary definitions for BFA kinematic features.
-# Dynamic boundaries are stored per recording, then used for dynamic area.
+</div>
+
+Define dynamic body boundaries and store per-boundary area features.
+
+<div class="nb-cell-input" markdown>
+
+```python
 DYNAMIC_BODY_BOUNDARIES = [
     ("mouse_rear", ["tailbase", "hipr", "hipl"]),
     ("mouse_mid", ["hipr", "hipl", "bcl", "bcr"]),
@@ -423,16 +526,28 @@ DYNAMIC_BODY_BOUNDARIES = [
 for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
     fc.each.define_dynamic_boundary(boundary_points, name=boundary_name)
     fc.each.area_of_boundary(boundary_name).store()
+```
 
-# Static arena boundaries + point list for distance-to-boundary features.
+</div>
+
+Compute distance-to-boundary features for selected points.
+
+<div class="nb-cell-input" markdown>
+
+```python
 STATIC_DISTANCE_TO_BOUNDARY_POINTS = ["nose", "neck", "bodycentre", "tailbase"]
 
 for pt in STATIC_DISTANCE_TO_BOUNDARY_POINTS:
     fc.each.distance_to_boundary(pt, "oft").store()
+```
 
-# Inspect stored boundary assets on one recording.
-# Return type: DataFrame with one row per stored boundary and columns like
-# `kind`, `n_points`, `has_vertices`.
+</div>
+
+Inspect stored boundary assets on one recording.
+
+<div class="nb-cell-input" markdown>
+
+```python
 fc[0].list_boundaries()
 ```
 
@@ -470,7 +585,7 @@ fc[0].list_boundaries()
   </thead>
   <tbody>
     <tr>
-      <th>center</th>
+      <th>centre</th>
       <td>static</td>
       <td>4</td>
       <td>True</td>
@@ -567,6 +682,10 @@ cluster_labels.store("kmeans_25", overwrite=True)
 
 </div>
 
+<div class="nb-cell-output">
+<pre><code>&#x27;kmeans_25&#x27;</code></pre>
+</div>
+
 ### Save features to disk
 
 `save()` writes a collection manifest plus per-handle element folders.
@@ -610,8 +729,8 @@ Same pattern as features:
 
 ```python
 sc.each.total_distance("bodycentre").store()
-sc.each.time_true("within_boundary_static_bodycentre_in_center").store("time_in_center")
-sc.each.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
+sc.each.time_true("within_boundary_static_bodycentre_in_centre").store("time_in_centre")
+sc.each.sum_column("dist_change_bodycentre_in_centre").store(name="distance_moved_in_centre")
 
 # by_state API example: average speed by composed spatial zone.
 sc.each.by_state(
@@ -628,17 +747,27 @@ sc.each.by_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).mean_co
 
 </div>
 
+<div class="nb-cell-output">
+<pre><code>&#x27;mean_speed_bodycentre_by_kmeans_25&#x27;</code></pre>
+</div>
+
 ### Export results to CSV
 
 `to_df(include_tags=True)` flattens summary metrics + selected tag columns
 into one analysis-ready table (indexed by handle).
+By default, series metrics, like time_in_state, are ignored (`series="ignore"`).
+If `series="separate"` then each series metric will be output as its own df over the collection.
 
 <div class="nb-cell-input" markdown>
 
 ```python
-summary_df = sc.to_df(include_tags=True)
+summary_df, series_dfs = sc.to_df(include_tags=True, series="separate")
 summary_df.to_csv(f"{OUT_DIR}/OFT_results.csv")
-summary_df.head()
+
+display(summary_df.head())
+for key, val in series_dfs.items():
+    print(key)
+    display(val.head())
 ```
 
 </div>
@@ -663,8 +792,8 @@ summary_df.head()
     <tr style="text-align: right;">
       <th></th>
       <th>total_distance_bodycentre</th>
-      <th>time_in_center</th>
-      <th>distance_moved_in_center</th>
+      <th>time_in_centre</th>
+      <th>distance_moved_in_centre</th>
       <th>tag_timepoint</th>
       <th>tag_treatment</th>
       <th>tag_sex</th>
@@ -730,6 +859,244 @@ summary_df.head()
 </div>
 </div>
 
+<div class="nb-cell-output">
+<pre><code>mean_speed_corners</code></pre>
+</div>
+
+<div class="nb-cell-output nb-output-table">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>tl</th>
+      <th>tr</th>
+      <th>br</th>
+      <th>bl</th>
+      <th>tag_timepoint</th>
+      <th>tag_treatment</th>
+      <th>tag_sex</th>
+    </tr>
+    <tr>
+      <th>handle</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>OFT2_11</th>
+      <td>0.042689</td>
+      <td>0.061581</td>
+      <td>0.046867</td>
+      <td>0.015505</td>
+      <td>post</td>
+      <td>control</td>
+      <td>M</td>
+    </tr>
+    <tr>
+      <th>OFT1_6</th>
+      <td>0.079932</td>
+      <td>0.085120</td>
+      <td>0.055881</td>
+      <td>0.062372</td>
+      <td>pre</td>
+      <td>stressor</td>
+      <td>F</td>
+    </tr>
+    <tr>
+      <th>OFT1_7</th>
+      <td>0.082124</td>
+      <td>0.079620</td>
+      <td>0.072632</td>
+      <td>0.073711</td>
+      <td>pre</td>
+      <td>stressor</td>
+      <td>M</td>
+    </tr>
+    <tr>
+      <th>OFT2_10</th>
+      <td>0.036688</td>
+      <td>0.030134</td>
+      <td>0.065599</td>
+      <td>0.073706</td>
+      <td>post</td>
+      <td>stressor</td>
+      <td>F</td>
+    </tr>
+    <tr>
+      <th>OFT2_12</th>
+      <td>0.017380</td>
+      <td>0.059851</td>
+      <td>0.025541</td>
+      <td>0.044923</td>
+      <td>post</td>
+      <td>stressor</td>
+      <td>F</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
+<div class="nb-cell-output">
+<pre><code>mean_speed_bodycentre_by_kmeans_25</code></pre>
+</div>
+
+<div class="nb-cell-output nb-output-table">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>0</th>
+      <th>1</th>
+      <th>2</th>
+      <th>3</th>
+      <th>4</th>
+      <th>5</th>
+      <th>6</th>
+      <th>7</th>
+      <th>8</th>
+      <th>9</th>
+      <th>tag_timepoint</th>
+      <th>tag_treatment</th>
+      <th>tag_sex</th>
+    </tr>
+    <tr>
+      <th>handle</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>OFT2_11</th>
+      <td>0.025574</td>
+      <td>0.101113</td>
+      <td>0.099135</td>
+      <td>0.057878</td>
+      <td>0.143741</td>
+      <td>0.069975</td>
+      <td>0.081711</td>
+      <td>0.089199</td>
+      <td>0.112823</td>
+      <td>0.136072</td>
+      <td>post</td>
+      <td>control</td>
+      <td>M</td>
+    </tr>
+    <tr>
+      <th>OFT1_6</th>
+      <td>0.136441</td>
+      <td>0.071986</td>
+      <td>0.147371</td>
+      <td>0.109992</td>
+      <td>0.130053</td>
+      <td>0.143835</td>
+      <td>0.090680</td>
+      <td>0.126470</td>
+      <td>0.149374</td>
+      <td>0.053129</td>
+      <td>pre</td>
+      <td>stressor</td>
+      <td>F</td>
+    </tr>
+    <tr>
+      <th>OFT1_7</th>
+      <td>0.131161</td>
+      <td>0.117809</td>
+      <td>0.113949</td>
+      <td>0.135518</td>
+      <td>0.169374</td>
+      <td>0.166234</td>
+      <td>0.083589</td>
+      <td>0.061509</td>
+      <td>0.133972</td>
+      <td>0.117163</td>
+      <td>pre</td>
+      <td>stressor</td>
+      <td>M</td>
+    </tr>
+    <tr>
+      <th>OFT2_10</th>
+      <td>0.029245</td>
+      <td>0.107414</td>
+      <td>0.172519</td>
+      <td>0.070635</td>
+      <td>0.151966</td>
+      <td>0.082346</td>
+      <td>0.052644</td>
+      <td>0.120902</td>
+      <td>0.156323</td>
+      <td>0.209330</td>
+      <td>post</td>
+      <td>stressor</td>
+      <td>F</td>
+    </tr>
+    <tr>
+      <th>OFT2_12</th>
+      <td>0.020928</td>
+      <td>0.050408</td>
+      <td>0.029152</td>
+      <td>0.067833</td>
+      <td>0.135331</td>
+      <td>0.032628</td>
+      <td>0.028133</td>
+      <td>0.008224</td>
+      <td>0.074553</td>
+      <td>0.041765</td>
+      <td>post</td>
+      <td>stressor</td>
+      <td>F</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
 ## Visualise
 
 The `sns*` methods on `SummaryCollection` wrap seaborn categorical plots
@@ -776,19 +1143,19 @@ fig, ax, df_super = sc.snssuperplot(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_38_0.png)
+![output](oft_pipeline_files/output_62_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_38_1.png)
+![output](oft_pipeline_files/output_62_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_38_2.png)
+![output](oft_pipeline_files/output_62_2.png)
 
 </div>
 
@@ -803,7 +1170,7 @@ The auto filename is prefixed with the recording handle.
 ```python
 single = sc[list(sc.keys())[0]]
 fig, ax, df_single = single.snsbar(
-    single.time_in_state("within_boundary_static_bodycentre_in_center"),
+    single.time_in_state("within_boundary_static_bodycentre_in_centre"),
     show=True,
     savedir=OUT_DIR,
 )
@@ -813,15 +1180,15 @@ fig, ax, df_single = single.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_40_0.png)
+![output](oft_pipeline_files/output_64_0.png)
 
 </div>
 
 ### Grouped plots
 
-Group by experimental tags with `groupby()`.
-Use `group_order` to control how groups are arranged on the x-axis.
-`groupby(...)` returns a grouped `SummaryCollection` view with same plotting API.
+Group by experimental tags with `groupby()` to compare conditions directly.
+Use `group_order` to control x-axis arrangement.
+`groupby(...)` returns a grouped `SummaryCollection` with the same plotting API.
 
 <div class="nb-cell-input" markdown>
 
@@ -851,7 +1218,7 @@ fig, ax, df_gsup = sc_grouped.snssuperplot(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_43_0.png)
+![output](oft_pipeline_files/output_67_0.png)
 
 </div>
 
@@ -871,7 +1238,7 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_44_0.png)
+![output](oft_pipeline_files/output_68_0.png)
 
 </div>
 
@@ -895,16 +1262,16 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_46_0.png)
+![output](oft_pipeline_files/output_70_0.png)
 
 </div>
 
 ### sort_by — independent spatial ordering
 
 `sort_by` overrides the spatial arrangement on the x-axis without changing
-colour assignment.  Here `groupby(tags=["treatment", "timepoint"])` means
-treatment drives the base colour (control=blue, FST=orange).  Adding
-`sort_by="timepoint"` interleaves control/FST within each timepoint.
+colour assignment. Here `groupby(tags=["treatment", "timepoint"])` means
+treatment drives the base colour (control=blue, stressor=orange). Adding
+`sort_by="timepoint"` interleaves control/stressor within each timepoint.
 
 <div class="nb-cell-input" markdown>
 
@@ -925,7 +1292,7 @@ fig, ax, df_interleaved = sc_grouped.snssuperplot(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_48_0.png)
+![output](oft_pipeline_files/output_72_0.png)
 
 </div>
 
@@ -954,7 +1321,7 @@ plt.show()
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_49_0.png)
+![output](oft_pipeline_files/output_73_0.png)
 
 </div>
 
@@ -1045,7 +1412,7 @@ control, post vs. stressor, post: Mann-Whitney-Wilcoxon test two-sided, P_val:1.
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_52_1.png)
+![output](oft_pipeline_files/output_76_1.png)
 
 </div>
 
@@ -1055,7 +1422,7 @@ Two ways to pass a metric to any `sns*` method:
 
 1. **String key** — a previously stored metric name
 2. **SummaryResult** object — inline computation (not stored)
-(Both of these may be either single component,  or multi-component)
+Both options can represent single- or multi-component metrics.
 
 <div class="nb-cell-input" markdown>
 
@@ -1069,7 +1436,7 @@ fig, ax, _ = sc.snsstrip(
 
 # 2. SummaryResult object (inline)
 fig, ax, df_mc = sc.snsbar(
-    sc.each.time_in_state("within_boundary_static_bodycentre_in_center"),
+    sc.each.time_in_state("within_boundary_static_bodycentre_in_centre"),
     show=False,
 )
 ```
@@ -1078,17 +1445,16 @@ fig, ax, df_mc = sc.snsbar(
 
 ### Multi-metric plotting
 
-In addition to taking `str` and `BatchResult` inputs, the `sns*` methods also accept multiple
-metrics via a list, or with convenience aliases via a dict. `merge_by` controls how multiple
-metrics are collected (default: `"metric"`). When ploting multiple metrics, they must all share
-an identical y axis label.
+`sns*` methods can accept multiple metrics via list input, or alias maps via dict input.
+`merge_by` controls how metrics are combined (default: `"metric"`).
+When plotting multiple metrics together, they must share a common y-axis label.
 
 <div class="nb-cell-input" markdown>
 
 ```python
 # Ungrouped multi-metric demo combining two by_state metrics with the same y-axis
 # (mean speed of bodycentre):
-# - composed spatial zones (corners + center + outer)
+# - corners
 # - kmeans clusters with explicit all_states=[0..9]
 fig, ax, df_multi_flat = sc.snsbar(
     {
@@ -1105,7 +1471,7 @@ fig, ax, df_multi_flat = sc.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_56_0.png)
+![output](oft_pipeline_files/output_80_0.png)
 
 </div>
 
@@ -1114,7 +1480,7 @@ fig, ax, df_multi_flat = sc.snsbar(
 ```python
 # Grouped multi-metric demo
 fig, ax, df_multi_grouped = sc_grouped.snsbar(
-    ["time_in_center", "time_in_cluster"],
+    ["time_in_centre", "time_in_cluster"],
     merge_by=None,
     group_order=GROUP_ORDER,
     show=True,
@@ -1127,7 +1493,7 @@ fig, ax, df_multi_grouped = sc_grouped.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_57_0.png)
+![output](oft_pipeline_files/output_81_0.png)
 
 </div>
 
@@ -1180,37 +1546,37 @@ p3b.SummaryCollection.plot_bfa_results(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_62_0.png)
+![output](oft_pipeline_files/output_86_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_62_1.png)
+![output](oft_pipeline_files/output_86_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_62_2.png)
+![output](oft_pipeline_files/output_86_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_62_3.png)
+![output](oft_pipeline_files/output_86_3.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_62_4.png)
+![output](oft_pipeline_files/output_86_4.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_62_5.png)
+![output](oft_pipeline_files/output_86_5.png)
 
 </div>
 
@@ -1255,25 +1621,25 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_64_0.png)
+![output](oft_pipeline_files/output_88_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_64_1.png)
+![output](oft_pipeline_files/output_88_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_64_2.png)
+![output](oft_pipeline_files/output_88_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_64_3.png)
+![output](oft_pipeline_files/output_88_3.png)
 
 </div>
 
@@ -1301,7 +1667,7 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_66_0.png)
+![output](oft_pipeline_files/output_90_0.png)
 
 </div>
 

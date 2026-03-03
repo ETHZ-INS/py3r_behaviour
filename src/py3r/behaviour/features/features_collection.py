@@ -14,7 +14,11 @@ from py3r.behaviour.features.cluster_pipeline import (
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.util.base_collection import BaseCollection
-from py3r.behaviour.util.collection_utils import BatchResult, _Indexer
+from py3r.behaviour.util.collection_utils import (
+    BatchResult,
+    _Indexer,
+    resolve_single_store_name,
+)
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.series_utils import (
     apply_normalization_to_df,
@@ -1178,7 +1182,25 @@ class FeaturesCollection(BaseCollection):
         True
 
         ```
+
+        Returns
+        -------
+        str
+            The resolved stored column name. If auto-naming would resolve to
+            multiple different names across leaves, raises ValueError.
         """
+
+        def _resolve_leaf_name(v):
+            if hasattr(v, "_column_name"):
+                return v._column_name
+            if isinstance(v, pd.Series):
+                raise ValueError(
+                    "When storing raw Series in a collection, `name` must be provided."
+                )
+            raise ValueError(f"{v} is not a FeaturesResult or Series")
+
+        resolved_name = resolve_single_store_name(results_dict, name, _resolve_leaf_name)
+
         if getattr(self, "is_grouped", False):
             for gkey, group_dict in results_dict.items():
                 for handle, v in group_dict.items():
@@ -1192,7 +1214,7 @@ class FeaturesCollection(BaseCollection):
                             )
                         else:
                             raise ValueError(f"{v} is not a FeaturesResult or Series")
-            return
+            return resolved_name
         # Flat case
         for handle, v in results_dict.items():
             if hasattr(v, "store"):
@@ -1202,6 +1224,7 @@ class FeaturesCollection(BaseCollection):
                     self.features_dict[handle].store(v, name, overwrite=overwrite, meta=meta or {})
                 else:
                     raise ValueError(f"{v} is not a FeaturesResult or Series")
+        return resolved_name
 
     @property
     def loc(self):
