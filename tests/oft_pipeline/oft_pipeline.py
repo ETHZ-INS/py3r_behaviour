@@ -100,13 +100,15 @@ tc.tags_info()
 # %% [markdown]
 # ### Didactic: batch processing
 #
-# With a `TrackingCollection`, `.each` delegates calls to every `Tracking`.
+# With a `TrackingCollection`, `.each` delegates calls to each `Tracking`.
 # Think "batch call the same `Tracking` method for all recordings".
+# This `.each` batch processing pattern also applies to `FeaturesCollection`
+# and `SummaryCollection`, as we will see later.
 #
-# Methods on `Tracking` are `inplace=True` by default, and `.each` will return a `BatchResult.
-# If `inplace=False` then `.each` returns a `TrackingCollection`.
+# Methods on `Tracking` are `inplace=True` by default, so `.each` returns a
+# `BatchResult`. If `inplace=False`, `.each` returns a `TrackingCollection`.
 #
-# Passing a `BatchResult` argument back into `.each` maps values by handle
+# Passing a `BatchResult` back into `.each` maps values by handle.
 
 # %%
 demo_inplace = tc_raw_for_demo.copy().each.filter_likelihood(threshold=0.9)
@@ -129,7 +131,6 @@ print(type(demo_new_collection).__name__)  # expected: TrackingCollection
 # Equivalent non-in-place variants are shown above in the didactic batch section.
 
 # %%
-# `filter_likelihood`: masks low-confidence coordinates as NaN.
 tc.each.filter_likelihood(threshold=0.9)
 tc.each.interpolate(limit=5)
 tc.each.smooth_all(window=3, method="mean")
@@ -140,8 +141,10 @@ tc.each.rescale_by_known_distance(
 )
 
 # %% [markdown]
-# Generally these preprocessing methods have guards against re-application,
-# so for parameter tuning, set `inplace=False`
+# ### Re-running preprocessing
+#
+# Most preprocessing methods guard against re-application. For parameter tuning,
+# prefer `inplace=False` and work on a copy.
 
 # %%
 try:
@@ -241,7 +244,7 @@ print("Tags, preprocessing, and trajectory plot tests passed.")
 fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 # %% [markdown]
-# ### Spatial features — center zone
+# ### Spatial features — boundaries
 #
 # Define/store named boundaries on each `Features` leaf, then use either:
 # - mapped `BatchResult` boundary objects (smart per-handle passthrough), or
@@ -249,11 +252,12 @@ fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 # Here we use both and assert they match.
 
 # %%
-
 ordered_oft_corners = ["tl", "tr", "br", "bl"]
 
-# we can store the boundary as an asset of each Features object in the colection
-# (naming the boundary stores it automatically)
+# %% [markdown]
+# Define and store a center boundary for each recording.
+
+# %%
 center_boundary = fc.each.define_static_boundary(
     ordered_oft_corners,
     scale_dim1=0.5,
@@ -261,21 +265,26 @@ center_boundary = fc.each.define_static_boundary(
     name="center",
 )
 
-# `center_boundary` is a BatchResult keyed by handle (one boundary per recording).
-# Passing it back into `.each` maps boundary arguments to matching handles.
+# %% [markdown]
+# Compare boundary usage styles: pass boundary objects vs stored boundary names.
+
+# %%
 in_center = fc.each.within_boundary(point="bodycentre", boundary=center_boundary)
-# Alternative: use stored boundary names (`"center"`) instead of explicit objects.
 in_center_by_name = fc.each.within_boundary(point="bodycentre", boundary="center")
 for handle in fc.keys():
     assert in_center[handle].equals(in_center_by_name[handle])
 
-# now we store the BatchResult. It knows which FeaturesCollection it belongs to,
-# and allocates the FeaturesResult objects correctly to each Features object.
-# If we don't give it a name, then a name is auto-generated, in this case
-# "within_boundary_static_bodycentre_in_center" (rather verbose).
+# %% [markdown]
+# Store the result. Without a manual name, an automatic descriptive name is used.
+# `.store` always returns the stored name
+
+# %%
 in_center.store()
 
-# `BatchResult` accepts logical operations, e.g. NOT in one boundary AND in another:
+# %% [markdown]
+# `BatchResult` supports logical composition (for example, arena periphery).
+
+# %%
 _ = fc.each.define_static_boundary(
     ordered_oft_corners,
     scale_dim1=0.8,
@@ -292,8 +301,8 @@ _ = fc.each.define_static_boundary(
 ).store("in_periphery")
 
 # %% [markdown]
-# For the corners, it might be handy to know which corner the mouse was in, but we don't need to
-# store them all as independent boolean features; instead, we can generate a state variable:
+# Corner occupancy can be represented as a single state feature instead of many
+# independent booleans.
 
 # %%
 in_corners = dict()
@@ -307,27 +316,30 @@ for c in ordered_oft_corners:
     )
     in_corners[c] = fc.each.within_boundary("bodycentre", boundary=f"{c}_corner")
 
-# we can store a composite boolean result for later convenience,
-# to check whether mouse in any corner:
+# %%
+# Store a convenience boolean for "in any corner".
 (in_corners["tl"] | in_corners["tr"] | in_corners["bl"] | in_corners["br"]).store("in_corner")
 
-# and now compose a composite "corner state" for later bias analysis:
+# %%
+# Store a categorical corner-state feature for state-based analyses.
 fc.each.compose_state_from_booleans(in_corners).store("corner_state")
 
-# we don't want to use these features for clustering later, so we'll store their
-# names for easy exclusion
-
+# %%
+# Keep these existing columns out of clustering feature selection.
 non_bfa_feats = fc[0].data.columns
 
+# %% [markdown]
 # `BatchResult` also supports element-wise arithmetic across handles.
-# Here we gate distance moved by whether the animal is in center on each frame.
+
+# %%
 dist_change = fc.each.distance_change("bodycentre")
 dist_change_in_center = in_center.astype("Int64") * dist_change
 dist_change_in_center.store(name="dist_change_bodycentre_in_center")
 
+# %%
 # `BatchResult` also supports general binary operations.
 fast_outside_center = ~in_center & ((fc.each.speed("bodycentre") * 100) > 10.0)
-# this is just an example -- we won't store it.
+# This is an example only; we do not store it.
 
 # %% [markdown]
 # ### Kinematic features for BFA
@@ -348,6 +360,10 @@ fast_outside_center = ~in_center & ((fc.each.speed("bodycentre") * 100) > 10.0)
 for pt in ["nose", "neck", "earr", "earl", "bodycentre", "hipl", "hipr", "tailbase"]:
     fc.each.speed(pt).store()
 
+# %% [markdown]
+# Compute angular features.
+
+# %%
 # Angle deviations
 for basepoint, pointdirection1, pointdirection2 in [
     ("tailbase", "hipr", "hipl"),
@@ -357,6 +373,10 @@ for basepoint, pointdirection1, pointdirection2 in [
 ]:
     fc.each.azimuth_deviation(basepoint, pointdirection1, pointdirection2).store()
 
+# %% [markdown]
+# Compute inter-keypoint distances.
+
+# %%
 # Inter-keypoint distances
 for p1, p2 in [
     ("nose", "headcentre"),
@@ -376,8 +396,10 @@ for p1, p2 in [
 ]:
     fc.each.distance_between(p1, p2).store()
 
-# Boundary definitions for BFA kinematic features.
-# Dynamic boundaries are stored per recording, then used for dynamic area.
+# %% [markdown]
+# Define dynamic body boundaries and store per-boundary area features.
+
+# %%
 DYNAMIC_BODY_BOUNDARIES = [
     ("mouse_rear", ["tailbase", "hipr", "hipl"]),
     ("mouse_mid", ["hipr", "hipl", "bcl", "bcr"]),
@@ -389,15 +411,19 @@ for boundary_name, boundary_points in DYNAMIC_BODY_BOUNDARIES:
     fc.each.define_dynamic_boundary(boundary_points, name=boundary_name)
     fc.each.area_of_boundary(boundary_name).store()
 
-# Static arena boundaries + point list for distance-to-boundary features.
+# %% [markdown]
+# Compute distance-to-boundary features for selected points.
+
+# %%
 STATIC_DISTANCE_TO_BOUNDARY_POINTS = ["nose", "neck", "bodycentre", "tailbase"]
 
 for pt in STATIC_DISTANCE_TO_BOUNDARY_POINTS:
     fc.each.distance_to_boundary(pt, "oft").store()
 
+# %% [markdown]
 # Inspect stored boundary assets on one recording.
-# Return type: DataFrame with one row per stored boundary and columns like
-# `kind`, `n_points`, `has_vertices`.
+
+# %%
 fc[0].list_boundaries()
 
 # %% [markdown]
@@ -761,9 +787,9 @@ fig, ax, df_single = single.snsbar(
 # %% [markdown]
 # ### Grouped plots
 #
-# Group by experimental tags with `groupby()`.
-# Use `group_order` to control how groups are arranged on the x-axis.
-# `groupby(...)` returns a grouped `SummaryCollection` view with same plotting API.
+# Group by experimental tags with `groupby()` to compare conditions directly.
+# Use `group_order` to control x-axis arrangement.
+# `groupby(...)` returns a grouped `SummaryCollection` with the same plotting API.
 
 # %%
 sc_grouped = sc.groupby(tags=["treatment", "timepoint"])
@@ -808,9 +834,9 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 # ### sort_by — independent spatial ordering
 #
 # `sort_by` overrides the spatial arrangement on the x-axis without changing
-# colour assignment.  Here `groupby(tags=["treatment", "timepoint"])` means
-# treatment drives the base colour (control=blue, FST=orange).  Adding
-# `sort_by="timepoint"` interleaves control/FST within each timepoint.
+# color assignment. Here `groupby(tags=["treatment", "timepoint"])` means
+# treatment drives the base color (control=blue, stressor=orange). Adding
+# `sort_by="timepoint"` interleaves control/stressor within each timepoint.
 
 # %%
 # Interleaved superplot — timepoint as primary spatial axis, colours by treatment
@@ -883,7 +909,7 @@ fig_ann, ax_ann, df_ann = sc_grouped.snsbox(
 #
 # 1. **String key** — a previously stored metric name
 # 2. **SummaryResult** object — inline computation (not stored)
-# (Both of these may be either single component,  or multi-component)
+# Both options can represent single- or multi-component metrics.
 
 # %%
 # 1. String key
@@ -902,10 +928,9 @@ fig, ax, df_mc = sc.snsbar(
 # %% [markdown]
 # ### Multi-metric plotting
 #
-# In addition to taking `str` and `BatchResult` inputs, the `sns*` methods also accept multiple
-# metrics via a list, or with convenience aliases via a dict. `merge_by` controls how multiple
-# metrics are collected (default: `"metric"`). When ploting multiple metrics, they must all share
-# an identical y axis label.
+# `sns*` methods can accept multiple metrics via list input, or alias maps via dict input.
+# `merge_by` controls how metrics are combined (default: `"metric"`).
+# When plotting multiple metrics together, they must share a common y-axis label.
 
 # %%
 

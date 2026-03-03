@@ -12,8 +12,8 @@ from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.summary.summary_collection_plot_mixin import (
     SummaryCollectionPlotMixin,
 )
-from py3r.behaviour.summary.summary_result import SummaryResult
 from py3r.behaviour.util.base_collection import BaseCollection
+from py3r.behaviour.util.collection_utils import resolve_single_store_name
 
 
 class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
@@ -291,13 +291,16 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
     def store(
         self,
-        results_dict: dict[str, SummaryResult],
+        results_dict,
         name: str = None,
         meta: dict = None,
         overwrite: bool = False,
     ):
         """
-        Store all SummaryResult objects in a one-layer dict (as returned by batch methods).
+        Store SummaryResult objects returned by batch methods.
+
+        - Flat collection: results_dict is {handle: SummaryResult}
+        - Grouped collection: results_dict is {group_key: {handle: SummaryResult}}
 
         Examples
         --------
@@ -326,12 +329,36 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         True
 
         ```
+
+        Returns
+        -------
+        str
+            The resolved stored metric name. If auto-naming would resolve to
+            multiple different names across leaves, raises ValueError.
         """
+
+        def _resolve_leaf_name(v):
+            if hasattr(v, "_func_name"):
+                return v._func_name
+            raise ValueError(f"{v} is not a SummaryResult object")
+
+        resolved_name = resolve_single_store_name(results_dict, name, _resolve_leaf_name)
+
+        if getattr(self, "is_grouped", False):
+            for _, group_dict in results_dict.items():
+                for _, v in group_dict.items():
+                    if hasattr(v, "store"):
+                        v.store(name=name, meta=meta, overwrite=overwrite)
+                    else:
+                        raise ValueError(f"{v} is not a SummaryResult object")
+            return resolved_name
+
         for v in results_dict.values():
             if hasattr(v, "store"):
                 v.store(name=name, meta=meta, overwrite=overwrite)
             else:
                 raise ValueError(f"{v} is not a SummaryResult object")
+        return resolved_name
 
     # ---- Cross-group analysis (formerly in MultipleSummaryCollection) ----
     def bfa(
