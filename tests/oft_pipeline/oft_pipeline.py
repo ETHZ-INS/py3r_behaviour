@@ -58,6 +58,13 @@ print(tc)
 # We'll keep an untouched copy for didactic examples in this notebook.
 tc_raw_for_demo = tc.copy()
 
+# %% [markdown]
+# All Collection objects, like `TrackingCollection`, implement `stored_info()`
+# to give a quick overview of their accessible contents
+
+# %%
+tc.stored_info()
+
 # %%
 # norender
 # Structural checks on raw data (before preprocessing alters values)
@@ -449,6 +456,12 @@ cluster_labels, centroids, _ = fc.cluster_embedding_stream(
 )
 cluster_labels.store("kmeans_25", overwrite=True)
 
+# %% [markdown
+# A quick overview of the stored features
+
+# %%
+fc.stored_info()
+
 # %% [markdown]
 # ### Save features to disk
 #
@@ -597,6 +610,12 @@ sc.each.by_state(
 sc.each.by_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).mean_column(
     "speed_of_bodycentre_in_xy"
 ).store("mean_speed_bodycentre_by_kmeans_25")
+
+# %% [markdown]
+# A quick overview of the stored summaries
+
+# %%
+sc.stored_info()
 
 # %% [markdown]
 # ### Export results to CSV

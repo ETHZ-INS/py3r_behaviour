@@ -73,6 +73,155 @@ tc_raw_for_demo = tc.copy()
 <pre><code>&lt;TrackingCollection with 56 Tracking objects&gt;</code></pre>
 </div>
 
+All Collection objects, like `TrackingCollection`, implement `stored_info()`
+to give a quick overview of their accessible contents
+
+<div class="nb-cell-input" markdown>
+
+```python
+tc.stored_info()
+```
+
+</div>
+
+<div class="nb-cell-output nb-output-table">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>attached_to</th>
+      <th>missing_from</th>
+      <th>dims</th>
+    </tr>
+    <tr>
+      <th>point_name</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>bcl</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>bcr</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>bl</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>bodycentre</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>br</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>earl</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>earr</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>headcentre</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>hipl</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>hipr</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>neck</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>nose</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>tailbase</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>tailcentre</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>tailtip</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>tl</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+    <tr>
+      <th>tr</th>
+      <td>56</td>
+      <td>0</td>
+      <td>[x, y]</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
 ### Add experimental tags
 
 A tags CSV maps recording handles to experimental metadata.
@@ -252,7 +401,7 @@ tc[0].plot(trajectories=trajectories, static=static, lines=lines, show=True)
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_15_0.png)
+![output](oft_pipeline_files/output_17_0.png)
 
 </div>
 
@@ -686,6 +835,298 @@ cluster_labels.store("kmeans_25", overwrite=True)
 <pre><code>&#x27;kmeans_25&#x27;</code></pre>
 </div>
 
+<div class="nb-cell-input" markdown>
+
+```python
+# A quick overview of the stored features
+```
+
+</div>
+
+<div class="nb-cell-input" markdown>
+
+```python
+fc.stored_info()
+```
+
+</div>
+
+<div class="nb-cell-output nb-output-table">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>attached_to</th>
+      <th>missing_from</th>
+      <th>type</th>
+    </tr>
+    <tr>
+      <th>feature</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>area_of_boundary_mouse_face_dynamic</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>area_of_boundary_mouse_front_dynamic</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>area_of_boundary_mouse_mid_dynamic</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>area_of_boundary_mouse_rear_dynamic</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>azimuth_deviation_bodycentre_to_tailbase_and_neck</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>azimuth_deviation_headcentre_to_earr_and_earl</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>azimuth_deviation_neck_to_bodycentre_and_headcentre</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>azimuth_deviation_tailbase_to_hipr_and_hipl</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>corner_state</th>
+      <td>56</td>
+      <td>0</td>
+      <td>object</td>
+    </tr>
+    <tr>
+      <th>dist_change_bodycentre_in_centre</th>
+      <td>56</td>
+      <td>0</td>
+      <td>Float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_bcl_and_bodycentre_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_bcl_and_earl_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_bcl_and_hipl_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_bcr_and_bodycentre_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_bcr_and_earr_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_bcr_and_hipr_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_neck_and_bodycentre_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_neck_and_headcentre_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_nose_and_earl_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_nose_and_earr_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_nose_and_headcentre_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_tailbase_and_bodycentre_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_tailbase_and_hipl_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_between_tailbase_and_hipr_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_to_boundary_static_bodycentre_in_oft</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_to_boundary_static_neck_in_oft</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_to_boundary_static_nose_in_oft</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>distance_to_boundary_static_tailbase_in_oft</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>in_corner</th>
+      <td>56</td>
+      <td>0</td>
+      <td>boolean</td>
+    </tr>
+    <tr>
+      <th>in_periphery</th>
+      <td>56</td>
+      <td>0</td>
+      <td>boolean</td>
+    </tr>
+    <tr>
+      <th>kmeans_25</th>
+      <td>56</td>
+      <td>0</td>
+      <td>Int64</td>
+    </tr>
+    <tr>
+      <th>speed_of_bodycentre_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>speed_of_earl_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>speed_of_earr_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>speed_of_hipl_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>speed_of_hipr_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>speed_of_neck_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>speed_of_nose_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>speed_of_tailbase_in_xy</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>within_boundary_static_bodycentre_in_centre</th>
+      <td>56</td>
+      <td>0</td>
+      <td>boolean</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+
 ### Save features to disk
 
 `save()` writes a collection manifest plus per-handle element folders.
@@ -749,6 +1190,82 @@ sc.each.by_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).mean_co
 
 <div class="nb-cell-output">
 <pre><code>&#x27;mean_speed_bodycentre_by_kmeans_25&#x27;</code></pre>
+</div>
+
+A quick overview of the stored summaries
+
+<div class="nb-cell-input" markdown>
+
+```python
+sc.stored_info()
+```
+
+</div>
+
+<div class="nb-cell-output nb-output-table">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>attached_to</th>
+      <th>missing_from</th>
+      <th>type</th>
+    </tr>
+    <tr>
+      <th>summary</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>distance_moved_in_centre</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>mean_speed_bodycentre_by_kmeans_25</th>
+      <td>56</td>
+      <td>0</td>
+      <td>Series</td>
+    </tr>
+    <tr>
+      <th>mean_speed_corners</th>
+      <td>56</td>
+      <td>0</td>
+      <td>Series</td>
+    </tr>
+    <tr>
+      <th>time_in_centre</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+    <tr>
+      <th>total_distance_bodycentre</th>
+      <td>56</td>
+      <td>0</td>
+      <td>float64</td>
+    </tr>
+  </tbody>
+</table>
+</div>
 </div>
 
 ### Export results to CSV
@@ -1143,19 +1660,19 @@ fig, ax, df_super = sc.snssuperplot(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_62_0.png)
+![output](oft_pipeline_files/output_68_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_62_1.png)
+![output](oft_pipeline_files/output_68_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_62_2.png)
+![output](oft_pipeline_files/output_68_2.png)
 
 </div>
 
@@ -1180,7 +1697,7 @@ fig, ax, df_single = single.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_64_0.png)
+![output](oft_pipeline_files/output_70_0.png)
 
 </div>
 
@@ -1218,7 +1735,7 @@ fig, ax, df_gsup = sc_grouped.snssuperplot(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_67_0.png)
+![output](oft_pipeline_files/output_73_0.png)
 
 </div>
 
@@ -1238,7 +1755,7 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_68_0.png)
+![output](oft_pipeline_files/output_74_0.png)
 
 </div>
 
@@ -1262,7 +1779,7 @@ fig, ax, df_gbar = sc_grouped.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_70_0.png)
+![output](oft_pipeline_files/output_76_0.png)
 
 </div>
 
@@ -1292,7 +1809,7 @@ fig, ax, df_interleaved = sc_grouped.snssuperplot(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_72_0.png)
+![output](oft_pipeline_files/output_78_0.png)
 
 </div>
 
@@ -1321,7 +1838,7 @@ plt.show()
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_73_0.png)
+![output](oft_pipeline_files/output_79_0.png)
 
 </div>
 
@@ -1412,7 +1929,7 @@ control, post vs. stressor, post: Mann-Whitney-Wilcoxon test two-sided, P_val:1.
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_76_1.png)
+![output](oft_pipeline_files/output_82_1.png)
 
 </div>
 
@@ -1471,7 +1988,7 @@ fig, ax, df_multi_flat = sc.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_80_0.png)
+![output](oft_pipeline_files/output_86_0.png)
 
 </div>
 
@@ -1493,7 +2010,7 @@ fig, ax, df_multi_grouped = sc_grouped.snsbar(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_81_0.png)
+![output](oft_pipeline_files/output_87_0.png)
 
 </div>
 
@@ -1546,37 +2063,37 @@ p3b.SummaryCollection.plot_bfa_results(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_86_0.png)
+![output](oft_pipeline_files/output_92_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_86_1.png)
+![output](oft_pipeline_files/output_92_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_86_2.png)
+![output](oft_pipeline_files/output_92_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_86_3.png)
+![output](oft_pipeline_files/output_92_3.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_86_4.png)
+![output](oft_pipeline_files/output_92_4.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_86_5.png)
+![output](oft_pipeline_files/output_92_5.png)
 
 </div>
 
@@ -1621,25 +2138,25 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_88_0.png)
+![output](oft_pipeline_files/output_94_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_88_1.png)
+![output](oft_pipeline_files/output_94_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_88_2.png)
+![output](oft_pipeline_files/output_94_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_88_3.png)
+![output](oft_pipeline_files/output_94_3.png)
 
 </div>
 
@@ -1667,7 +2184,7 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_90_0.png)
+![output](oft_pipeline_files/output_96_0.png)
 
 </div>
 

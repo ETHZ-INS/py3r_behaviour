@@ -360,6 +360,52 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
                 raise ValueError(f"{v} is not a SummaryResult object")
         return resolved_name
 
+    def stored_info(self) -> pd.DataFrame:
+        """
+        Summarize stored summary metrics across the collection's leaf Summary objects.
+
+        Returns a DataFrame indexed by `summary` with columns:
+        - `attached_to`: number of recordings containing the summary key
+        - `missing_from`: number of recordings not containing the summary key
+        - `type`: value datatype name when consistent, or a list of datatype names
+          when mixed across recordings.
+        """
+        leaves = list(self.flatten().values())
+        total = len(leaves)
+        if total == 0:
+            cols = ["summary", "attached_to", "missing_from", "type"]
+            return pd.DataFrame(columns=cols).set_index("summary")
+
+        summary_names = sorted({name for summary in leaves for name in summary.data.keys()})
+        records = []
+        for name in summary_names:
+            attached = 0
+            type_seen: set[str] = set()
+            for summary in leaves:
+                if name in summary.data:
+                    attached += 1
+                    type_seen.add(type(summary.data[name]).__name__)
+
+            type_value: str | list[str]
+            if len(type_seen) == 1:
+                type_value = next(iter(type_seen))
+            else:
+                type_value = sorted(type_seen)
+
+            records.append(
+                {
+                    "summary": name,
+                    "attached_to": attached,
+                    "missing_from": total - attached,
+                    "type": type_value,
+                }
+            )
+
+        out = pd.DataFrame.from_records(records).set_index("summary")
+        out["attached_to"] = out["attached_to"].astype("int64")
+        out["missing_from"] = out["missing_from"].astype("int64")
+        return out
+
     # ---- Cross-group analysis (formerly in MultipleSummaryCollection) ----
     def bfa(
         self,

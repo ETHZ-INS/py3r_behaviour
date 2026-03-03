@@ -1226,6 +1226,52 @@ class FeaturesCollection(BaseCollection):
                     raise ValueError(f"{v} is not a FeaturesResult or Series")
         return resolved_name
 
+    def stored_info(self) -> pd.DataFrame:
+        """
+        Summarize stored feature columns across the collection's leaf Features objects.
+
+        Returns a DataFrame indexed by `feature` with columns:
+        - `attached_to`: number of recordings containing the feature
+        - `missing_from`: number of recordings not containing the feature
+        - `type`: pandas dtype string for the feature column when consistent, or a
+          list of dtype strings when mixed across recordings.
+        """
+        leaves = list(self.flatten().values())
+        total = len(leaves)
+        if total == 0:
+            cols = ["feature", "attached_to", "missing_from", "type"]
+            return pd.DataFrame(columns=cols).set_index("feature")
+
+        feature_names = sorted({name for feat in leaves for name in feat.data.columns})
+        records = []
+        for name in feature_names:
+            attached = 0
+            type_seen: set[str] = set()
+            for feat in leaves:
+                if name in feat.data.columns:
+                    attached += 1
+                    type_seen.add(str(feat.data[name].dtype))
+
+            type_value: str | list[str]
+            if len(type_seen) == 1:
+                type_value = next(iter(type_seen))
+            else:
+                type_value = sorted(type_seen)
+
+            records.append(
+                {
+                    "feature": name,
+                    "attached_to": attached,
+                    "missing_from": total - attached,
+                    "type": type_value,
+                }
+            )
+
+        out = pd.DataFrame.from_records(records).set_index("feature")
+        out["attached_to"] = out["attached_to"].astype("int64")
+        out["missing_from"] = out["missing_from"].astype("int64")
+        return out
+
     @property
     def loc(self):
         return _Indexer(self, self._loc)
