@@ -1,0 +1,2808 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ETHZ-INS.github.io/py3r_behaviour/v3.1.0/api/summary/">
+      
+      
+        <link rel="prev" href="../features_collection/">
+      
+      
+        <link rel="next" href="../summary_collection/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
+    
+    
+      
+        <title>Summary - py3r-behaviour</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#py3r.behaviour.summary.summary.Summary" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="py3r-behaviour" class="md-header__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            py3r-behaviour
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Summary
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-hidden="true" type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="py3r-behaviour" class="md-nav__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    py3r-behaviour
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/oft_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OFT pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking_mv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingMV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FeaturesCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Summary
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.meta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        meta
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.handle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        handle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.count_onset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        count_onset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calculate_latency_nth_onset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.time_true" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        time_true
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.time_false" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        time_false
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.total_distance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        total_distance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.by_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        by_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.sum_column" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sum_column
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.mean_column" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mean_column
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.median_column" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        median_column
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.max_column" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        max_column
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.min_column" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        min_column
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        copy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.make_bin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_bin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.make_bins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        make_bins
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.transition_matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        transition_matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.count_state_onsets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        count_state_onsets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.time_in_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        time_in_state
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.plot_chord" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot_chord
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.snsstrip" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snsstrip
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.snsswarm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snsswarm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.snsbar" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snsbar
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.snsbox" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snsbox
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.snsviolin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snsviolin
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.snspoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snspoint
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.summary.summary.Summary.snssuperplot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        snssuperplot
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../summary_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SummaryCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>Summary</h1>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="py3r.behaviour.summary.summary.Summary" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">py3r.behaviour.summary.summary.Summary</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary" class="headerlink" title="Permanent link">¶</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">Summary</span><span class="p">(</span><span class="n">trackingfeatures</span><span class="p">:</span> <span class="n">Features</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>stores and computes summary statistics from features objects</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.features" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">features</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.summary.summary.Summary.features" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">features</span> <span class="o">=</span> <span class="n">trackingfeatures</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.data" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">data</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.summary.summary.Summary.data" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.meta" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">meta</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.summary.summary.Summary.meta" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">meta</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.handle" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">handle</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.summary.summary.Summary.handle" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">handle</span> <span class="o">=</span> <span class="n">handle</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.tags" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">tags</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.summary.summary.Summary.tags" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">tags</span> <span class="o">=</span> <span class="n">tags</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.save" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">save</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.save" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">save</span><span class="p">(</span>
+    <span class="n">dirpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">data_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"parquet"</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Save this Summary (including nested Features/Tracking) to a directory.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># add a boolean feature for summary methods to use</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span><span class="o">//</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))[:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="s1">'mask'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">s</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">data_format</span><span class="o">=</span><span class="s1">'csv'</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s1">'manifest.json'</span><span class="p">))</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.load" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">load</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.summary.summary.Summary.load" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">load</span><span class="p">(</span><span class="n">dirpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Summary</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Load a Summary previously saved with save().</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">),</span> <span class="s1">'counter'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">s</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">data_format</span><span class="o">=</span><span class="s1">'csv'</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">s2</span> <span class="o">=</span> <span class="n">Summary</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">s2</span><span class="p">,</span> <span class="n">Summary</span><span class="p">)</span> <span class="ow">and</span> <span class="s1">'counter'</span> <span class="ow">in</span> <span class="n">s2</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">columns</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.count_onset" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">count_onset</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.count_onset" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">count_onset</span><span class="p">(</span><span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Count times boolean series changes False-&gt;True, ignoring nans.
+If first non-nan value is True, that counts as an onset.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="s1">'mask'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">count_onset</span><span class="p">(</span><span class="s1">'mask'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">calculate_latency_nth_onset</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">calculate_latency_nth_onset</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">target_value</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">threshold_op</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">"&gt;"</span><span class="p">,</span> <span class="s2">"&gt;="</span><span class="p">,</span> <span class="s2">"&lt;="</span><span class="p">,</span> <span class="s2">"&lt;"</span><span class="p">,</span> <span class="s2">"=="</span><span class="p">,</span> <span class="s2">"!="</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">"=="</span><span class="p">,</span>
+    <span class="n">nth_event</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">integration_window</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Compute the latency (in seconds) of the N-th onset event in a feature column.</p>
+<p>This method extracts a column from <code>features.data</code>,
+passes it on to <code>latencies_from_series</code>, and returns the index
+of the N-th False → True transition. If fewer than <code>nth_event</code>
+events are present, NaN is returned.</p>
+<p>The column may already be boolean or may be thresholded against
+<code>target_value</code> using <code>threshold_op</code>. Optional temporal integration
+(boolean smoothing) can be applied prior to onset detection.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(column)" class="doc doc-heading doc-heading-parameter">                  <code>column</code>
+<a href="#py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(column)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the column in <code>features.data</code> to analyze.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(target_value)" class="doc doc-heading doc-heading-parameter">                  <code>target_value</code>
+<a href="#py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(target_value)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="float">float</span> | <span title="int">int</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Value to compare against for non-boolean columns.
+Required unless the column is already boolean.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(threshold_op)" class="doc doc-heading doc-heading-parameter">                  <code>threshold_op</code>
+<a href="#py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(threshold_op)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code>('&gt;', '&gt;=', '&lt;=', '&lt;', '==', '!=')</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Comparison operator used to generate the boolean condition.
+Only "==" and "!=" are valid for string-valued columns.</p>
+              </div>
+            </td>
+            <td>
+                  <code>"&gt;"</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(nth_event)" class="doc doc-heading doc-heading-parameter">                  <code>nth_event</code>
+<a href="#py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(nth_event)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Index of the onset event to return (1 = first, note).</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(integration_window)" class="doc doc-heading doc-heading-parameter">                  <code>integration_window</code>
+<a href="#py3r.behaviour.summary.summary.Summary.calculate_latency_nth_onset(integration_window)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Window size for boolean integration/smoothing prior to latency
+extraction.</p>
+              </div>
+            </td>
+            <td>
+                  <code>1 = no smoothing</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="py3r.behaviour.summary.summary_result.SummaryResult">SummaryResult</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>A SummaryResult whose value is the index of the selected onset
+event, or NaN if the event does not exist.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If <code>column</code> is not found in <code>features.data</code>.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Propagated from <code>latencies_from_series</code> if thresholding arguments
+are invalid.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">],</span> <span class="n">dtype</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="s1">'mask'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">calculate_latency_nth_onset</span><span class="p">(</span><span class="s1">'mask'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span>
+<span class="go">1.0</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">_func_name</span><span class="p">)</span>
+<span class="go">latency_mask_==_True_int1_n1</span>
+</code></pre></div>
+<p>Selecting a later onset:</p>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">calculate_latency_nth_onset</span><span class="p">(</span><span class="s1">'mask'</span><span class="p">,</span> <span class="n">nth_event</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span>
+<span class="go">3.0</span>
+</code></pre></div>
+<p>Selecting a later onset (i.e non existing) creates nan:</p>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">calculate_latency_nth_onset</span><span class="p">(</span><span class="s1">'mask'</span><span class="p">,</span> <span class="n">nth_event</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span>
+<span class="go">nan</span>
+</code></pre></div>
+<p>Using thresholding on numeric data:</p>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">speed</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.2</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">],</span> <span class="n">dtype</span> <span class="o">=</span> <span class="nb">float</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">speed</span><span class="p">,</span> <span class="s1">'speed'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">calculate_latency_nth_onset</span><span class="p">(</span><span class="s1">'speed'</span><span class="p">,</span> <span class="n">target_value</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">threshold_op</span><span class="o">=</span><span class="s1">'&gt;'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span>
+<span class="go">2.0</span>
+</code></pre></div>
+<p>Using thresholding on int data:</p>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="nb">id</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span> <span class="o">=</span> <span class="nb">int</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="nb">id</span><span class="p">,</span> <span class="s1">'id'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">calculate_latency_nth_onset</span><span class="p">(</span><span class="s1">'id'</span><span class="p">,</span> <span class="n">target_value</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">threshold_op</span><span class="o">=</span><span class="s1">'&lt;'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span>
+<span class="go">1.0</span>
+</code></pre></div>
+<p>Using thresholding on string value:</p>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">cluster</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="s1">'A'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">,</span> <span class="s1">'B'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">],</span> <span class="n">dtype</span> <span class="o">=</span> <span class="nb">str</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">cluster</span><span class="p">,</span> <span class="s1">'cluster'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">calculate_latency_nth_onset</span><span class="p">(</span><span class="s1">'cluster'</span><span class="p">,</span> <span class="n">target_value</span><span class="o">=</span><span class="s1">'B'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span>
+<span class="go">2.0</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.time_true" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">time_true</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.time_true" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">time_true</span><span class="p">(</span><span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns time in seconds that condition in the given column is true</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="kc">True</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="s1">'mask'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">time_true</span><span class="p">(</span><span class="s1">'mask'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.time_false" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">time_false</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.time_false" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">time_false</span><span class="p">(</span><span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns time in seconds that condition in the given column is false</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="kc">False</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="s1">'mask'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">time_false</span><span class="p">(</span><span class="s1">'mask'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.total_distance" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">total_distance</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.total_distance" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">total_distance</span><span class="p">(</span>
+    <span class="n">point</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">startframe</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">endframe</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns total distance traveled by a tracked point between optional start and end frames</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">total_distance</span><span class="p">(</span><span class="s1">'p1'</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.by_state" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">by_state</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.by_state" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">by_state</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">all_states</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">max_states</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_ByStateDispatcher</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return a dynamic state-grouped dispatcher for Summary methods.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.by_state(column)" class="doc doc-heading doc-heading-parameter">                  <code>column</code>
+<a href="#py3r.behaviour.summary.summary.Summary.by_state(column)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the state column in <code>features.data</code> used to create per-state subsets.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.by_state(all_states)" class="doc doc-heading doc-heading-parameter">                  <code>all_states</code>
+<a href="#py3r.behaviour.summary.summary.Summary.by_state(all_states)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="list">list</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional explicit state list to define which states are evaluated and in what
+output order. This list is inclusive: states not present in the data are still
+evaluated on empty subsets and included in the output.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.by_state(max_states)" class="doc doc-heading doc-heading-parameter">                  <code>max_states</code>
+<a href="#py3r.behaviour.summary.summary.Summary.by_state(max_states)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Safety guard limiting the number of evaluated states. Raises <code>ValueError</code> if
+the effective number of states exceeds this value.</p>
+              </div>
+            </td>
+            <td>
+                  <code>100</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">idx</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="s1">'A'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">,</span> <span class="s1">'B'</span><span class="p">,</span> <span class="s1">'B'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">idx</span><span class="p">),</span> <span class="s1">'state'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">idx</span><span class="p">),</span> <span class="s1">'x'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">by_state</span><span class="p">(</span><span class="s1">'state'</span><span class="p">,</span> <span class="n">all_states</span><span class="o">=</span><span class="p">[</span><span class="s1">'B'</span><span class="p">,</span> <span class="s1">'C'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">])</span><span class="o">.</span><span class="n">sum_column</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="go">['B', 'C', 'A']</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">int</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="s1">'C'</span><span class="p">])</span>  <span class="c1"># inclusive all_states: state absent in data still included</span>
+<span class="go">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">int</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="s1">'B'</span><span class="p">])</span>
+<span class="go">7</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.sum_column" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">sum_column</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.sum_column" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">sum_column</span><span class="p">(</span><span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Sum all non-NaN values in a <code>features.data</code> column and return as a SummaryResult.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">'x'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">summ</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">summ</span><span class="o">.</span><span class="n">sum_column</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="mi">15</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.mean_column" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">mean_column</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.mean_column" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">mean_column</span><span class="p">(</span><span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Mean of all non-NaN values in a <code>features.data</code> column and return as a SummaryResult.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">'x'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">summ</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">summ</span><span class="o">.</span><span class="n">mean_column</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="mi">3</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.median_column" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">median_column</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.median_column" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">median_column</span><span class="p">(</span><span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Median of all non-NaN values in a <code>features.data</code> column and return as a SummaryResult.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">'x'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">summ</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">summ</span><span class="o">.</span><span class="n">median_column</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="mi">3</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.max_column" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">max_column</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.max_column" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">max_column</span><span class="p">(</span><span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Max of all non-NaN values in a <code>features.data</code> column and return as a SummaryResult.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">'x'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">summ</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">summ</span><span class="o">.</span><span class="n">max_column</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="mi">5</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.min_column" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">min_column</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.min_column" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">min_column</span><span class="p">(</span><span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Min of all non-NaN values in a <code>features.data</code> column and return as a SummaryResult.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">'x'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">summ</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">summ</span><span class="o">.</span><span class="n">min_column</span><span class="p">(</span><span class="s1">'x'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">bool</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.store" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">store</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.store" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">store</span><span class="p">(</span>
+    <span class="n">summarystat</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">meta</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>stores a summary statistic and optional metadata, with optional overwrite protection</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="mi">123</span><span class="p">,</span> <span class="s1">'num_events'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{</span><span class="s1">'unit'</span><span class="p">:</span><span class="s1">'count'</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">'num_events'</span><span class="p">]</span> <span class="o">==</span> <span class="mi">123</span> <span class="ow">and</span> <span class="n">s</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">'num_events'</span><span class="p">][</span><span class="s1">'unit'</span><span class="p">]</span> <span class="o">==</span> <span class="s1">'count'</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.copy" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">copy</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.copy" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">copy</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Summary</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Creates an independent copy of this Summary object.</p>
+<p>The returned object shares no mutable state with the original:
+Features is copied via Features.copy(), and data/meta/tags
+via deepcopy.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s_copy</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s_copy</span><span class="o">.</span><span class="n">handle</span> <span class="o">==</span> <span class="n">s</span><span class="o">.</span><span class="n">handle</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s_copy</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">tracking</span><span class="o">.</span><span class="n">data</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">s</span><span class="o">.</span><span class="n">features</span><span class="o">.</span><span class="n">tracking</span><span class="o">.</span><span class="n">data</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.make_bin" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">make_bin</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.make_bin" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">make_bin</span><span class="p">(</span><span class="n">startframe</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">endframe</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Summary</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>creates a copy of the Summary object with the dataframes
+restricted from startframe to endframe, inclusive</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">b</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">make_bin</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">Summary</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.make_bins" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">make_bins</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.make_bins" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">make_bins</span><span class="p">(</span><span class="n">numbins</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Summary</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>creates a list of Summary objects, with frames restricted into
+numbins even intervals.
+start/endpoints are duplicated between intervals to ensure no loss
+in e.g. distance calculations</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">bins</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">make_bins</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">bins</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">Summary</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bins</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.transition_matrix" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">transition_matrix</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.transition_matrix" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">transition_matrix</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">all_states</span><span class="o">=</span><span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns a transition matrix for a given column in self.features.data,
+with rows and columns as the unique values of the column or as specified by all_states.</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">states</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="s1">'A'</span><span class="p">,</span><span class="s1">'A'</span><span class="p">,</span><span class="s1">'B'</span><span class="p">,</span><span class="s1">'B'</span><span class="p">,</span><span class="s1">'A'</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="s1">'state'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">transition_matrix</span><span class="p">(</span><span class="s1">'state'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.count_state_onsets" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">count_state_onsets</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.count_state_onsets" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">count_state_onsets</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">all_states</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>counts the number of times a state is entered in a given column</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.count_state_onsets(column)" class="doc doc-heading doc-heading-parameter">                  <code>column</code>
+<a href="#py3r.behaviour.summary.summary.Summary.count_state_onsets(column)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the state column in <code>features.data</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.count_state_onsets(all_states)" class="doc doc-heading doc-heading-parameter">                  <code>all_states</code>
+<a href="#py3r.behaviour.summary.summary.Summary.count_state_onsets(all_states)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="list">list</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional explicit state ordering to control index presence/order in the
+returned Series. When provided, the output is reindexed to <code>all_states</code>
+and missing states are filled with <code>0</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">states</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="s1">'A'</span><span class="p">,</span><span class="s1">'A'</span><span class="p">,</span><span class="s1">'B'</span><span class="p">,</span><span class="s1">'B'</span><span class="p">,</span><span class="s1">'A'</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="s1">'state'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">count_state_onsets</span><span class="p">(</span><span class="s1">'state'</span><span class="p">,</span> <span class="n">all_states</span><span class="o">=</span><span class="p">[</span><span class="s1">'B'</span><span class="p">,</span> <span class="s1">'C'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="go">['B', 'C', 'A']</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="go">[1, 0, 2]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">_params</span><span class="p">[</span><span class="s1">'all_states'</span><span class="p">]</span>
+<span class="go">['B', 'C', 'A']</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">count_state_onsets</span><span class="p">(</span><span class="s1">'state'</span><span class="p">,</span> <span class="n">all_states</span><span class="o">=</span><span class="p">[</span><span class="s1">'A'</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="go">[2]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="go">['A']</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">hasattr</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="s1">'value'</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.time_in_state" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">time_in_state</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.time_in_state" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">time_in_state</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">all_states</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SummaryResult</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>returns the time spent in each state in a given column</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.time_in_state(column)" class="doc doc-heading doc-heading-parameter">                  <code>column</code>
+<a href="#py3r.behaviour.summary.summary.Summary.time_in_state(column)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the state column in <code>features.data</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.time_in_state(all_states)" class="doc doc-heading doc-heading-parameter">                  <code>all_states</code>
+<a href="#py3r.behaviour.summary.summary.Summary.time_in_state(all_states)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="list">list</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional explicit state ordering to control index presence/order in the
+returned Series. When provided, the output is reindexed to <code>all_states</code>
+and missing states are filled with <code>0</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'ex'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">states</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="s1">'A'</span><span class="p">,</span><span class="s1">'A'</span><span class="p">,</span><span class="s1">'B'</span><span class="p">,</span><span class="s1">'B'</span><span class="p">,</span><span class="s1">'A'</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)],</span> <span class="n">index</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="s1">'state'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">time_in_state</span><span class="p">(</span><span class="s1">'state'</span><span class="p">,</span> <span class="n">all_states</span><span class="o">=</span><span class="p">[</span><span class="s1">'B'</span><span class="p">,</span> <span class="s1">'C'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="go">['B', 'C', 'A']</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">tolist</span><span class="p">()]</span>
+<span class="go">[0.0667, 0.0, 0.1]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">_params</span><span class="p">[</span><span class="s1">'all_states'</span><span class="p">]</span>
+<span class="go">['B', 'C', 'A']</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">time_in_state</span><span class="p">(</span><span class="s1">'state'</span><span class="p">,</span> <span class="n">all_states</span><span class="o">=</span><span class="p">[</span><span class="s1">'A'</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">[</span><span class="nb">round</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">tolist</span><span class="p">()]</span>
+<span class="go">[0.1]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">res</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+<span class="go">['A']</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">hasattr</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="s1">'value'</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.plot_chord" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">plot_chord</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.plot_chord" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">plot_chord</span><span class="p">(</span>
+    <span class="n">column</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">all_states</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">fromkey</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">cmap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">show</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">save_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Plot a simple chord diagram of state transitions for this recording.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.plot_chord(column)" class="doc doc-heading doc-heading-parameter">                  <code>column</code>
+<a href="#py3r.behaviour.summary.summary.Summary.plot_chord(column)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Name of the categorical column in <code>features.data</code> to compute transitions from.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.plot_chord(all_states)" class="doc doc-heading doc-heading-parameter">                  <code>all_states</code>
+<a href="#py3r.behaviour.summary.summary.Summary.plot_chord(all_states)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span> | <span title="int">int</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional explicit list/array of states to define row/column presence and order.
+Required when <code>fromkey</code> is not provided.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.plot_chord(fromkey)" class="doc doc-heading doc-heading-parameter">                  <code>fromkey</code>
+<a href="#py3r.behaviour.summary.summary.Summary.plot_chord(fromkey)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+                  <code><span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional key in <code>summary.data</code> containing a precomputed transition DataFrame.
+If provided, this is used directly instead of computing transitions from <code>column</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h4 id="py3r.behaviour.summary.summary.Summary.plot_chord(kwargs)" class="doc doc-heading doc-heading-parameter">                  <code>kwargs</code>
+<a href="#py3r.behaviour.summary.summary.Summary.plot_chord(kwargs)" class="headerlink" title="Permanent link">¶</a></h4>            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Additional keyword arguments to pass to pycirclize.chordDiagram.</p>
+              </div>
+            </td>
+            <td>
+                  <code>{}</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>fig_like</code></td>            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Backend-dependent figure-like handle (from pycirclize).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="c1"># xdoctest: +REQUIRES(module: pycirclize)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">Features</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.summary.summary</span><span class="w"> </span><span class="kn">import</span> <span class="n">Summary</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'A'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># simple 3-state sequence to induce transitions</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">states</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="s1">'0'</span><span class="p">,</span><span class="s1">'1'</span><span class="p">,</span><span class="s1">'2'</span><span class="p">,</span><span class="s1">'1'</span><span class="p">,</span><span class="s1">'0'</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span><span class="o">//</span><span class="mi">5</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))[:</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)]</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">states</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">states</span><span class="p">,</span> <span class="s1">'state'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">s</span> <span class="o">=</span> <span class="n">Summary</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">outdir</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">_</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">plot_chord</span><span class="p">(</span><span class="s1">'state'</span><span class="p">,</span> <span class="n">all_states</span><span class="o">=</span><span class="p">[</span><span class="s1">'0'</span><span class="p">,</span><span class="s1">'1'</span><span class="p">,</span><span class="s1">'2'</span><span class="p">],</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">save_dir</span><span class="o">=</span><span class="n">outdir</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">'A_chord_state.png'</span><span class="p">))</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.snsstrip" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">snsstrip</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.snsstrip" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">snsstrip</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Strip plot -- see :meth:<code>SummaryCollection.snsstrip</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.snsswarm" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">snsswarm</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.snsswarm" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">snsswarm</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Swarm plot -- see :meth:<code>SummaryCollection.snsswarm</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.snsbar" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">snsbar</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.snsbar" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">snsbar</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Bar plot -- see :meth:<code>SummaryCollection.snsbar</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.snsbox" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">snsbox</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.snsbox" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">snsbox</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Box plot -- see :meth:<code>SummaryCollection.snsbox</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.snsviolin" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">snsviolin</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.snsviolin" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">snsviolin</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Violin plot -- see :meth:<code>SummaryCollection.snsviolin</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.snspoint" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">snspoint</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.snspoint" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">snspoint</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Point plot -- see :meth:<code>SummaryCollection.snspoint</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.summary.summary.Summary.snssuperplot" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">snssuperplot</span>
+
+
+<a href="#py3r.behaviour.summary.summary.Summary.snssuperplot" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">snssuperplot</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Superplot -- see :meth:<code>SummaryCollection.snssuperplot</code>.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "content.code.copy", "content.code.select", "toc.integrate", "toc.collapsible"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
