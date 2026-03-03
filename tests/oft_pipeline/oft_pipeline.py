@@ -244,7 +244,8 @@ fc = p3b.FeaturesCollection.from_tracking_collection(tc)
 
 ordered_oft_corners = ["tl", "tr", "br", "bl"]
 
-# we can store the boundary in a variable
+# we can store the boundary as an asset of each Features object in the colection
+# (naming the boundary stores it automatically)
 center_boundary = fc.each.define_static_boundary(
     ordered_oft_corners,
     scale_dim1=0.5,
@@ -260,6 +261,10 @@ in_center_by_name = fc.each.within_boundary(point="bodycentre", boundary="center
 for handle in fc.keys():
     assert in_center[handle].equals(in_center_by_name[handle])
 
+# now we store the BatchResult. It knows which FeaturesCollection it belongs to,
+# and allocates the FeaturesResult objects correctly to each Features object.
+# If we don't give it a name, then a name is auto-generated, in this case
+# "within_boundary_static_bodycentre_in_center" (rather verbose).
 in_center.store()
 
 # `BatchResult` accepts logical operations, e.g. NOT in one boundary AND in another:
@@ -276,8 +281,14 @@ _ = fc.each.define_static_boundary(
 (
     fc.each.within_boundary("bodycentre", "oft")
     & (~fc.each.within_boundary("bodycentre", "not_periphery"))
-).store("bodycentre_in_periphery")
+).store("in_periphery")
 
+# %% [markdown]
+# For the corners, it might be handy to know which corner the mouse was in, but we don't need to
+# store them all as independent boolean features; instead, we can generate a state variable:
+
+# %%
+in_corners = dict()
 for c in ordered_oft_corners:
     _ = fc.each.define_static_boundary(
         ordered_oft_corners,
@@ -286,14 +297,21 @@ for c in ordered_oft_corners:
         name=f"{c}_corner",
         anchor=c,
     )
-    fc.each.within_boundary("bodycentre", boundary=f"{c}_corner")
+    in_corners[c] = fc.each.within_boundary("bodycentre", boundary=f"{c}_corner")
 
-# we don't want to use these "within boundary" features for clustering later, so we'll store their
+# we can store a composite boolean result for later convenience,
+# to check whether mouse in any corner:
+(in_corners["tl"] | in_corners["tr"] | in_corners["bl"] | in_corners["br"]).store("in_corner")
+
+# and now compose a composite "corner state" for later bias analysis:
+fc.each.compose_state_from_booleans(in_corners).store("corner_state")
+
+# we don't want to use these features for clustering later, so we'll store their
 # names for easy exclusion
 
-within_boundary_feats = fc[0].data.columns
+non_bfa_feats = fc[0].data.columns
 
-# `BatchResult` supports element-wise arithmetic across handles.
+# `BatchResult` also supports element-wise arithmetic across handles.
 # Here we gate distance moved by whether the animal is in center on each frame.
 dist_change = fc.each.distance_change("bodycentre")
 dist_change_in_center = in_center.astype("Int64") * dist_change
@@ -388,7 +406,7 @@ fc[0].list_boundaries()
 # - `cluster_embedding` also supports weighting/normalization knobs for advanced runs.
 
 # %%
-cluster_features = list(set(fc[0].data.columns) - set(within_boundary_feats))
+cluster_features = list(set(fc[0].data.columns) - set(non_bfa_feats))
 offset = list(np.arange(-15, 16, 1))
 embedding_dict = {f: offset for f in cluster_features}
 
@@ -534,6 +552,18 @@ sc.each.total_distance("bodycentre").store()
 sc.each.time_true("within_boundary_static_bodycentre_in_center").store("time_in_center")
 sc.each.sum_column("dist_change_bodycentre_in_center").store(name="distance_moved_in_center")
 
+# by_state API example: average speed by composed spatial zone.
+sc.each.by_state(
+    "corner_state",
+    all_states=ordered_oft_corners,
+).mean_column("speed_of_bodycentre_in_xy").store("mean_speed_corners")
+
+# by_state + all_states API example: force explicit cluster domain (0-9),
+# including states absent in a recording.
+sc.each.by_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).mean_column(
+    "speed_of_bodycentre_in_xy"
+).store("mean_speed_bodycentre_by_kmeans_25")
+
 # %% [markdown]
 # ### Export results to CSV
 #
@@ -571,6 +601,30 @@ for handle in sc.keys():
             f"{handle}: '{name}' should be scalar, got {type(val)}"
         )
 
+# --- Stored by_state metrics ---
+for handle in sc.keys():
+    zone_speed = sc[handle].data["mean_speed_corners"]
+    cluster_speed = sc[handle].data["mean_speed_bodycentre_by_kmeans_25"]
+
+    assert isinstance(zone_speed, pd.Series), (
+        f"{handle}: mean_speed_bodycentre_by_zone should be a Series, got {type(zone_speed)}"
+    )
+    assert isinstance(cluster_speed, pd.Series), (
+        f"{handle}: mean_speed_bodycentre_by_cluster_0_9 should be a Series, "
+        f"got {type(cluster_speed)}"
+    )
+    assert sc[handle].meta["mean_speed_corners"].get("_ylabel") == "Speed (m/s)", (
+        f"{handle}: mean_speed_corners should preserve speed ylabel"
+    )
+    assert sc[handle].meta["mean_speed_bodycentre_by_kmeans_25"].get("_ylabel") == "Speed (m/s)", (
+        f"{handle}: mean_speed_bodycentre_by_kmeans_25 should preserve speed ylabel"
+    )
+
+    expected_zone_states = {"tl", "tr", "br", "bl", "none"}
+    assert set(zone_speed.index.astype(str)).issubset(expected_zone_states), (
+        f"{handle}: unexpected zone states {set(zone_speed.index.astype(str))}"
+    )
+
 # --- Golden summary values ---
 H1 = "OFT1_1"
 H2 = "OFT1_10"
@@ -604,6 +658,21 @@ for handle in sc.keys():
     assert s["time_in_center"] >= 0
     assert s["total_distance_bodycentre"] >= 0
     assert s["distance_moved_in_center"] >= 0 or np.isnan(s["distance_moved_in_center"])
+
+    zone_state = fc[handle].data["corner_state"]
+    assert zone_state.notna().all(), f"{handle}: zone_state contains NaN"
+    zone_counts = zone_state.value_counts()
+    assert int(zone_counts.sum()) == len(zone_state), f"{handle}: zone_state count mismatch"
+
+    # by_state over zone_state should include "tl" and match center occupancy in seconds.
+    zone_speed = s["mean_speed_corners"]
+    assert "tl" in zone_speed.index, f"{handle}: tl missing in zone by_state index"
+
+    center_time = s["time_in_center"]
+    center_frames = int(fc[handle].data["within_boundary_static_bodycentre_in_center"].sum())
+    assert np.isclose(center_time, center_frames / FPS), (
+        f"{handle}: time_in_center does not match center boolean frames"
+    )
 
 # --- CSV round-trip ---
 csv_path = Path(OUT_DIR) / "OFT_results.csv"
@@ -828,16 +897,18 @@ fig, ax, df_mc = sc.snsbar(
 # %%
 
 
-# Ungrouped multi-metric demo
-fig, ax, df_multi_flat = sc.snssuperplot(
+# Ungrouped multi-metric demo combining two by_state metrics with the same y-axis
+# (mean speed of bodycentre):
+# - composed spatial zones (corners + center + outer)
+# - kmeans clusters with explicit all_states=[0..9]
+fig, ax, df_multi_flat = sc.snsbar(
     {
-        "centre": "time_in_center",
-        "cluster": sc.each.time_in_state("kmeans_25", all_states=[0, 1, 2, 3, 4, 5]),
-        "periphery": sc.each.time_true("bodycentre_in_periphery"),
+        "corners": "mean_speed_corners",
+        "kmeans_0_to_9": "mean_speed_bodycentre_by_kmeans_25",
     },
     show=True,
     savedir=OUT_DIR,
-    filename="demo_multi_metric_flat_barplot.png",
+    filename="demo_multi_metric_by_state_speed_barplot.png",
 )
 
 # %%
@@ -887,13 +958,10 @@ assert df_gbar["component"].nunique() == N_CLUSTERS, (
 
 # --- Multi-metric demos ---
 # Flat case uses explicit aliases in the dict input:
-# - "centre" (scalar)
-# - "cluster" (multi-component BatchResult)
-# - "periphery" (scalar)
+# - "corners" (state-composed speed means)
+# - "cluster_0_9" (kmeans speed means with explicit all_states)
 components_multi_flat = set(df_multi_flat["component"].astype(str).tolist())
-assert "centre" in components_multi_flat
-assert any(c.startswith("cluster") for c in components_multi_flat)
-assert "periphery" in components_multi_flat
+assert any(c.startswith("corners") for c in components_multi_flat)
 
 # Grouped case should still return one grouped tidy DataFrame via standard path.
 assert "_group" in df_multi_grouped.columns

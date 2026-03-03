@@ -143,3 +143,30 @@ def test_by_state_max_states_guard_raises_helpful_error():
 
     with pytest.raises(ValueError, match="exceeding max_states=1"):
         summary.by_state("state", max_states=1).min_column("x")
+
+
+def test_by_state_uses_inner_result_name_for_default_autoname():
+    summary = _make_summary_with_state_and_value(["A", "A", "B"], [1.0, 2.0, 3.0])
+    summary.features.store(
+        pd.Series([0.1, 0.2, 0.3], index=summary.features.tracking.data.index),
+        "speed_of_bp_in_xy",
+        meta={"function": "speed", "point": "bp", "dims": ("x", "y")},
+    )
+
+    result = summary.by_state("state").mean_column("speed_of_bp_in_xy")
+
+    assert result._func_name == "mean_speed_of_bp_in_xy_by_state"
+
+
+def test_by_state_mean_min_max_median_preserve_speed_ylabel():
+    summary = _make_summary_with_state_and_value(["A", "A", "B"], [1.0, 2.0, 3.0])
+    summary.features.store(
+        pd.Series([0.1, 0.2, 0.3], index=summary.features.tracking.data.index),
+        "speed_of_bp_in_xy",
+        meta={"function": "speed", "point": "bp", "dims": ("x", "y")},
+    )
+
+    assert summary.by_state("state").mean_column("speed_of_bp_in_xy")._ylabel == "Speed (a.u./s)"
+    assert summary.by_state("state").min_column("speed_of_bp_in_xy")._ylabel == "Speed (a.u./s)"
+    assert summary.by_state("state").max_column("speed_of_bp_in_xy")._ylabel == "Speed (a.u./s)"
+    assert summary.by_state("state").median_column("speed_of_bp_in_xy")._ylabel == "Speed (a.u./s)"
