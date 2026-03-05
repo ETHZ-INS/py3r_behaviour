@@ -1375,12 +1375,12 @@ class Tracking:
     def _loc(self, idx):
         new_data = self.data.loc[idx].copy()
         new_meta = copy.deepcopy(self.meta)
-        return self.__class__(new_data, new_meta, self.handle)
+        return self.__class__(new_data, new_meta, self.handle, tags=copy.deepcopy(self.tags))
 
     def _iloc(self, idx):
         new_data = self.data.iloc[idx].copy()
         new_meta = copy.deepcopy(self.meta)
-        return self.__class__(new_data, new_meta, self.handle)
+        return self.__class__(new_data, new_meta, self.handle, tags=copy.deepcopy(self.tags))
 
     def __getitem__(self, idx):
         return self.loc[idx]
@@ -1779,6 +1779,48 @@ class Tracking:
             print("Rendering done.")
         plt.close(fig)
         print(f"Saved 3D tracking video to {out_path}")
+
+    def animation_stream(
+        self,
+        *,
+        points: list[str],
+        lines: list[tuple[str, str]] | None = None,
+        dims: tuple[str, str] = ("x", "y"),
+        canvas_size: tuple[int, int] = (800, 800),
+        bg_color: tuple[int, int, int] = (0, 0, 0),
+        style: dict | None = None,
+        pixel_coords: bool = False,
+        undo_meta_scaling: bool = False,
+    ):
+        """
+        Build a stream-like OpenCV geometry renderer from this Tracking object.
+
+        The returned object supports ``read()``, ``next()``, ``get_frame(i)``,
+        and ``render_into(frame, frame_idx=...)``.
+        """
+        from py3r.behaviour.animation.geometry_stream import (
+            build_geometry_stream,
+            undo_meta_scaling_for_geometry,
+        )
+
+        source_df = (
+            undo_meta_scaling_for_geometry(self.data, self.meta, dims=dims)
+            if undo_meta_scaling
+            else self.data
+        )
+
+        return build_geometry_stream(
+            source_df,
+            point_names=points,
+            lines=lines,
+            dims=dims,
+            frame_ids=source_df.index.to_numpy(copy=True),
+            fps=float(self.meta.get("fps", 30.0)),
+            canvas_size=canvas_size,
+            bg_color=bg_color,
+            style=style,
+            pixel_coords=pixel_coords,
+        )
 
     def __repr__(self) -> str:
         cn = self.__class__.__name__

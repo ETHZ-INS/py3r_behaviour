@@ -2065,19 +2065,23 @@ class Features:
         new = self.__class__(new_tracking)
         new.data = self.data.loc[idx].copy()
         new.meta = copy.deepcopy(self.meta)
+        new._assets = copy.deepcopy(self._assets)
         new.handle = self.handle
+        new.tags = copy.deepcopy(self.tags)
         return new
 
     def _iloc(self, idx):
         if isinstance(idx, tuple):
             row_idx, col_idx = idx
-            new_tracking = self.tracking.loc[row_idx]
+            new_tracking = self.tracking.iloc[row_idx]
         else:
-            new_tracking = self.tracking.loc[idx]
+            new_tracking = self.tracking.iloc[idx]
         new = self.__class__(new_tracking)
         new.data = self.data.iloc[idx].copy()
         new.meta = copy.deepcopy(self.meta)
+        new._assets = copy.deepcopy(self._assets)
         new.handle = self.handle
+        new.tags = copy.deepcopy(self.tags)
         return new
 
     def __getitem__(self, idx):
@@ -2185,3 +2189,100 @@ class Features:
             cx, cy, a_len, b_len, theta = model.params
 
         return ellipse_points(cx, cy, a_len * scaling, b_len * scaling, theta, n_points)
+
+    def animation_stream(
+        self,
+        *,
+        points: list[str],
+        lines: list[tuple[str, str]] | None = None,
+        boundaries: list[str] | None = None,
+        dims: tuple[str, str] = ("x", "y"),
+        canvas_size: tuple[int, int] = (800, 800),
+        bg_color: tuple[int, int, int] = (0, 0, 0),
+        style: dict | None = None,
+        pixel_coords: bool = False,
+        undo_meta_scaling: bool = False,
+    ):
+        """
+        Build a stream-like OpenCV geometry renderer from this Features object.
+
+        Boundaries can be provided by stored boundary names from ``self._assets``.
+        """
+        from py3r.behaviour.animation.geometry_stream import (
+            build_geometry_stream,
+            undo_meta_scaling_for_geometry,
+        )
+
+        source_df = (
+            undo_meta_scaling_for_geometry(self.tracking.data, self.tracking.meta, dims=dims)
+            if undo_meta_scaling
+            else self.tracking.data
+        )
+        rescale_factors = self.tracking.meta.get("rescale_factor", {})
+        aspectratio_correction = float(self.tracking.meta.get("aspectratio_correction", 1.0) or 1.0)
+
+        def _undo_static_polygon(vertices) -> np.ndarray:
+            poly = np.asarray(vertices, dtype=float).copy()
+            if not undo_meta_scaling:
+                return poly
+            dim1, dim2 = dims
+            factor_dim1 = float(rescale_factors.get(dim1, 1.0) or 1.0)
+            factor_dim2 = float(rescale_factors.get(dim2, 1.0) or 1.0)
+            if factor_dim1 not in (0.0, 1.0):
+                poly[:, 0] = poly[:, 0] / factor_dim1
+            if factor_dim2 not in (0.0, 1.0):
+                poly[:, 1] = poly[:, 1] / factor_dim2
+            if aspectratio_correction not in (0.0, 1.0):
+                if dim1 == "x":
+                    poly[:, 0] = poly[:, 0] / aspectratio_correction
+                if dim2 == "x":
+                    poly[:, 1] = poly[:, 1] / aspectratio_correction
+            return poly
+
+        polygons_per_frame: list[list[tuple[str, np.ndarray]]] = [[] for _ in range(len(source_df))]
+        if boundaries is not None:
+            for boundary_ref in boundaries:
+                boundary = self._resolve_boundary_ref(boundary_ref)
+                if boundary.dims != dims:
+                    raise ValueError(
+                        f"Boundary {boundary.name or boundary_ref} dims {boundary.dims} "
+                        f"do not match requested dims {dims}"
+                    )
+                if isinstance(boundary, StaticBoundary):
+                    poly = _undo_static_polygon(boundary.vertices)
+                    for i in range(len(polygons_per_frame)):
+                        polygons_per_frame[i].append((str(boundary_ref), poly))
+                elif isinstance(boundary, DynamicBoundary):
+                    cols_per_point = []
+                    for boundary_point in boundary.points:
+                        col_x = f"{boundary_point}.{dims[0]}"
+                        col_y = f"{boundary_point}.{dims[1]}"
+                        if col_x not in source_df.columns or col_y not in source_df.columns:
+                            raise ValueError(
+                                "Dynamic boundary point "
+                                f"{boundary_point} missing in tracking data for dims {dims}"
+                            )
+                        cols_per_point.append(
+                            np.column_stack(
+                                (
+                                    source_df[col_x].to_numpy(dtype=float, copy=True),
+                                    source_df[col_y].to_numpy(dtype=float, copy=True),
+                                )
+                            )
+                        )
+                    poly_stack = np.stack(cols_per_point, axis=1)
+                    for i in range(len(polygons_per_frame)):
+                        polygons_per_frame[i].append((str(boundary_ref), poly_stack[i]))
+        return build_geometry_stream(
+            source_df,
+            point_names=points,
+            lines=lines,
+            dims=dims,
+            frame_ids=source_df.index.to_numpy(copy=True),
+            fps=float(self.tracking.meta.get("fps", 30.0)),
+            polygons_per_frame=polygons_per_frame,
+            canvas_size=canvas_size,
+            bg_color=bg_color,
+            style=style,
+            pixel_coords=pixel_coords,
+        )
