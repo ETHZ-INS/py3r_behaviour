@@ -2196,7 +2196,8 @@ class Features:
         points: list[str],
         lines: list[tuple[str, str]] | None = None,
         boundaries: list[str] | None = None,
-        dims: tuple[str, str] = ("x", "y"),
+        dims: tuple[str, ...] = ("x", "y"),
+        view: dict | None = None,
         canvas_size: tuple[int, int] = (800, 800),
         bg_color: tuple[int, int, int] = (0, 0, 0),
         style: dict | None = None,
@@ -2218,6 +2219,8 @@ class Features:
             if undo_meta_scaling
             else self.tracking.data
         )
+        if boundaries and len(dims) != 2:
+            raise ValueError("boundaries are currently supported only when dims has length 2")
         rescale_factors = self.tracking.meta.get("rescale_factor", {})
         aspectratio_correction = float(self.tracking.meta.get("aspectratio_correction", 1.0) or 1.0)
 
@@ -2278,6 +2281,7 @@ class Features:
             point_names=points,
             lines=lines,
             dims=dims,
+            view=view,
             frame_ids=source_df.index.to_numpy(copy=True),
             fps=float(self.tracking.meta.get("fps", 30.0)),
             polygons_per_frame=polygons_per_frame,

@@ -6,7 +6,7 @@ import pandas as pd
 
 
 def undo_meta_scaling_for_geometry(
-    df: pd.DataFrame, meta: dict, dims: tuple[str, str] = ("x", "y")
+    df: pd.DataFrame, meta: dict, dims: tuple[str, ...] = ("x", "y")
 ) -> pd.DataFrame:
     """Return a copy with aspect-ratio and rescale-factor metadata inverted."""
     out = df.copy()
@@ -62,6 +62,7 @@ def _style_for_boundary(style: dict, boundary_name: str) -> dict:
         "edge_width": 1,
         "fill_color": None,
         "fill_alpha": 0.0,
+        "fill_mode": "normal",
     }
     merged.update(section.get("default", {}))
     merged.update(section.get(boundary_name, {}))
@@ -73,6 +74,10 @@ def _style_for_boundary(style: dict, boundary_name: str) -> dict:
     )
     merged["edge_width"] = int(merged["edge_width"])
     merged["fill_alpha"] = float(np.clip(merged["fill_alpha"], 0.0, 1.0))
+    fill_mode = str(merged.get("fill_mode", "normal")).lower()
+    if fill_mode not in {"normal", "erase"}:
+        raise ValueError("boundary fill_mode must be 'normal' or 'erase'")
+    merged["fill_mode"] = fill_mode
     return merged
 
 
@@ -164,6 +169,60 @@ def _coords_to_pixels(
     return out
 
 
+def _project_points_3d_to_2d(points_xyz: np.ndarray, view: dict | None) -> np.ndarray:
+    """
+    Project points with shape (n_frames, n_points, 3) to (n_frames, n_points, 2).
+
+    Supported projections:
+    - ortho: orthographic
+    - persp: simple perspective camera
+    """
+    v = view or {}
+    azim_deg = float(v.get("azim", 45.0))
+    elev_deg = float(v.get("elev", 30.0))
+    proj = str(v.get("proj", "ortho")).lower()
+    if proj not in {"ortho", "persp"}:
+        raise ValueError("view['proj'] must be 'ortho' or 'persp'")
+
+    valid = np.isfinite(points_xyz).all(axis=2)
+    if np.any(valid):
+        center = np.nanmean(points_xyz[valid], axis=0)
+    else:
+        center = np.array([0.0, 0.0, 0.0], dtype=float)
+
+    centered = points_xyz - center
+    az = np.deg2rad(azim_deg)
+    el = np.deg2rad(elev_deg)
+    cz, sz = np.cos(az), np.sin(az)
+    cx, sx = np.cos(el), np.sin(el)
+
+    # Rotate around z by azimuth, then around x by elevation.
+    rz = np.array([[cz, -sz, 0.0], [sz, cz, 0.0], [0.0, 0.0, 1.0]], dtype=float)
+    rx = np.array([[1.0, 0.0, 0.0], [0.0, cx, -sx], [0.0, sx, cx]], dtype=float)
+    rot = centered @ rz.T @ rx.T
+
+    x = rot[:, :, 0]
+    y = rot[:, :, 1]
+    z = rot[:, :, 2]
+
+    if proj == "ortho":
+        xy = np.stack((x, y), axis=2)
+        xy[~valid] = np.nan
+        return xy
+
+    finite_vals = centered[np.isfinite(centered)]
+    max_abs = float(np.nanmax(np.abs(finite_vals))) if finite_vals.size > 0 else 1.0
+    camera_distance = float(v.get("camera_distance", max(1.0, 4.0 * max_abs)))
+    focal_length = float(v.get("focal_length", camera_distance))
+    denom = camera_distance - z
+    good = valid & np.isfinite(denom) & (denom > 1e-9)
+    xp = np.full_like(x, np.nan, dtype=float)
+    yp = np.full_like(y, np.nan, dtype=float)
+    xp[good] = focal_length * x[good] / denom[good]
+    yp[good] = focal_length * y[good] / denom[good]
+    return np.stack((xp, yp), axis=2)
+
+
 class GeometryAnimationStream:
     """Tiny OpenCV stream: points/lines/boundaries with style dict."""
 
@@ -172,6 +231,7 @@ class GeometryAnimationStream:
         *,
         points_xy: np.ndarray,
         point_names: list[str],
+        draw_point_indices: list[int],
         frame_ids: np.ndarray,
         lines_idx: list[tuple[int, int]],
         line_keys: list[tuple[str, str]],
@@ -190,6 +250,7 @@ class GeometryAnimationStream:
             raise ValueError("polygons_per_frame length must match n_frames")
         self._points_xy = points_xy
         self._point_names = list(point_names)
+        self._draw_point_indices = list(draw_point_indices)
         self._frame_ids = np.asarray(frame_ids)
         self._lines_idx = lines_idx
         self._line_keys = line_keys
@@ -242,10 +303,10 @@ class GeometryAnimationStream:
         if frame.ndim != 3 or frame.shape[2] != 3:
             raise ValueError("frame must have shape (H, W, 3)")
         target = frame.copy() if copy else frame
+        # Snapshot of original underlay, used by boundary fill_mode="erase".
+        underlay = target.copy()
 
         valid_polys: list[tuple[np.ndarray, dict]] = []
-        fill_overlay = target.copy()
-        has_any_fill = False
         for boundary_name, poly in self._polygons_per_frame[frame_idx]:
             pix = _coords_to_pixels(
                 poly, target.shape[1], target.shape[0], self._bounds, self._pixel_coords
@@ -256,12 +317,20 @@ class GeometryAnimationStream:
                 continue
             bstyle = _style_for_boundary(self._style, boundary_name)
             valid_polys.append((pix, bstyle))
-            if bstyle["fill_color"] is not None and bstyle["fill_alpha"] > 0:
+            alpha = float(bstyle["fill_alpha"])
+            if alpha > 0 and bstyle["fill_mode"] == "normal" and bstyle["fill_color"] is not None:
+                fill_overlay = target.copy()
                 cv2.fillPoly(fill_overlay, [pix], color=bstyle["fill_color"])
-                has_any_fill = True
-        if has_any_fill:
-            max_alpha = max(float(b["fill_alpha"]) for _, b in valid_polys)
-            cv2.addWeighted(fill_overlay, max_alpha, target, 1.0 - max_alpha, 0.0, dst=target)
+                cv2.addWeighted(fill_overlay, alpha, target, 1.0 - alpha, 0.0, dst=target)
+            elif alpha > 0 and bstyle["fill_mode"] == "erase":
+                # Blend back toward the original underlay only inside this polygon.
+                mask = np.zeros(target.shape[:2], dtype=np.uint8)
+                cv2.fillPoly(mask, [pix], color=255)
+                m = mask.astype(bool)
+                target[m] = (
+                    (1.0 - alpha) * target[m].astype(np.float32)
+                    + alpha * underlay[m].astype(np.float32)
+                ).astype(np.uint8)
         for pix, bstyle in valid_polys:
             edge_width = int(bstyle["edge_width"])
             edge_color = bstyle["edge_color"]
@@ -290,7 +359,8 @@ class GeometryAnimationStream:
                     lstyle["color"],
                     lstyle["width"],
                 )
-        for point_i, p in enumerate(pix_pts):
+        for point_i in self._draw_point_indices:
+            p = pix_pts[point_i]
             if p[0] >= 0:
                 pstyle = _style_for_point(self._style, self._point_names[point_i])
                 cv2.circle(target, tuple(p), pstyle["radius"], pstyle["color"], thickness=-1)
@@ -408,7 +478,8 @@ def build_geometry_stream(
     *,
     point_names: list[str],
     lines: list[tuple[str, str]] | None = None,
-    dims: tuple[str, str] = ("x", "y"),
+    dims: tuple[str, ...] = ("x", "y"),
+    view: dict | None = None,
     frame_ids: np.ndarray | None = None,
     fps: float = 30.0,
     polygons_per_frame: list[list[tuple[str, np.ndarray]]] | None = None,
@@ -417,6 +488,8 @@ def build_geometry_stream(
     style: dict | None = None,
     pixel_coords: bool = False,
 ) -> GeometryAnimationStream:
+    if len(dims) not in (2, 3):
+        raise ValueError("dims must be length 2 or 3")
     if lines is None:
         lines = []
     if frame_ids is None:
@@ -425,28 +498,49 @@ def build_geometry_stream(
         polygons_per_frame = [[] for _ in range(len(df))]
     if len(polygons_per_frame) != len(df):
         raise ValueError("polygons_per_frame length must match number of frames")
-    for point in point_names:
+    all_point_names = list(point_names)
+    for p1, p2 in lines:
+        if p1 not in all_point_names:
+            all_point_names.append(p1)
+        if p2 not in all_point_names:
+            all_point_names.append(p2)
+
+    for point in all_point_names:
         for dim in dims:
             col = f"{point}.{dim}"
             if col not in df.columns:
                 raise ValueError(f"Column {col} not found")
-    point_arrays = []
-    for point in point_names:
-        x = df[f"{point}.{dims[0]}"].to_numpy(dtype=float, copy=True)
-        y = df[f"{point}.{dims[1]}"].to_numpy(dtype=float, copy=True)
-        point_arrays.append(np.column_stack((x, y)))
-    points_xy = np.stack(point_arrays, axis=1)
-    point_idx = {name: i for i, name in enumerate(point_names)}
+    if len(dims) == 2:
+        point_arrays = []
+        for point in all_point_names:
+            x = df[f"{point}.{dims[0]}"].to_numpy(dtype=float, copy=True)
+            y = df[f"{point}.{dims[1]}"].to_numpy(dtype=float, copy=True)
+            point_arrays.append(np.column_stack((x, y)))
+        points_xy = np.stack(point_arrays, axis=1)
+    else:
+        if polygons_per_frame and any(len(p) > 0 for p in polygons_per_frame):
+            raise ValueError(
+                "3D mode currently supports points/lines only; boundaries require 2D dims"
+            )
+        point_arrays3 = []
+        for point in all_point_names:
+            x = df[f"{point}.{dims[0]}"].to_numpy(dtype=float, copy=True)
+            y = df[f"{point}.{dims[1]}"].to_numpy(dtype=float, copy=True)
+            z = df[f"{point}.{dims[2]}"].to_numpy(dtype=float, copy=True)
+            point_arrays3.append(np.column_stack((x, y, z)))
+        points_xyz = np.stack(point_arrays3, axis=1)
+        points_xy = _project_points_3d_to_2d(points_xyz, view=view)
+    point_idx = {name: i for i, name in enumerate(all_point_names)}
+    draw_point_indices = [point_idx[name] for name in point_names]
     lines_idx: list[tuple[int, int]] = []
     line_keys: list[tuple[str, str]] = []
     for p1, p2 in lines:
-        if p1 not in point_idx or p2 not in point_idx:
-            raise ValueError(f"Unknown point in line ({p1}, {p2})")
         lines_idx.append((point_idx[p1], point_idx[p2]))
         line_keys.append((p1, p2))
     return GeometryAnimationStream(
         points_xy=points_xy,
-        point_names=point_names,
+        point_names=all_point_names,
+        draw_point_indices=draw_point_indices,
         frame_ids=np.asarray(frame_ids),
         lines_idx=lines_idx,
         line_keys=line_keys,
