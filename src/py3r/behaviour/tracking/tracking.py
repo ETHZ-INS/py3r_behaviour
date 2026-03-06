@@ -1822,6 +1822,7 @@ class Tracking:
             bg_color=bg_color,
             style=style,
             pixel_coords=pixel_coords,
+            bounds_pad=float((view or {}).get("pad", 0.05)),
         )
 
     def __repr__(self) -> str:

@@ -86,7 +86,7 @@ def _is_valid(pix: np.ndarray, idx: int) -> bool:
 
 
 def _compute_bounds(
-    points_xy: np.ndarray, polygons_per_frame: list[list[tuple[str, np.ndarray]]]
+    points_xy: np.ndarray, polygons_per_frame: list[list[tuple[str, np.ndarray]]], pad: float = 0.05
 ) -> tuple[float, float, float, float]:
     flat = points_xy.reshape(-1, 2)
     valid = np.isfinite(flat[:, 0]) & np.isfinite(flat[:, 1])
@@ -108,6 +108,14 @@ def _compute_bounds(
         xmax = xmin + 1.0
     if ymin == ymax:
         ymax = ymin + 1.0
+    pad = float(np.clip(pad, 0.0, 0.45))
+    if pad > 0:
+        xspan = xmax - xmin
+        yspan = ymax - ymin
+        xmin -= xspan * pad
+        xmax += xspan * pad
+        ymin -= yspan * pad
+        ymax += yspan * pad
     return xmin, xmax, ymin, ymax
 
 
@@ -169,7 +177,7 @@ def _coords_to_pixels(
     return out
 
 
-def _project_points_3d_to_2d(points_xyz: np.ndarray, view: dict | None) -> np.ndarray:
+def _make_projector(points_xyz: np.ndarray, view: dict | None) -> dict:
     """
     Project points with shape (n_frames, n_points, 3) to (n_frames, n_points, 2).
 
@@ -199,28 +207,76 @@ def _project_points_3d_to_2d(points_xyz: np.ndarray, view: dict | None) -> np.nd
     # Rotate around z by azimuth, then around x by elevation.
     rz = np.array([[cz, -sz, 0.0], [sz, cz, 0.0], [0.0, 0.0, 1.0]], dtype=float)
     rx = np.array([[1.0, 0.0, 0.0], [0.0, cx, -sx], [0.0, sx, cx]], dtype=float)
-    rot = centered @ rz.T @ rx.T
-
-    x = rot[:, :, 0]
-    y = rot[:, :, 1]
-    z = rot[:, :, 2]
-
     if proj == "ortho":
-        xy = np.stack((x, y), axis=2)
-        xy[~valid] = np.nan
-        return xy
+        return {"center": center, "rotm": rz.T @ rx.T, "proj": proj}
 
     finite_vals = centered[np.isfinite(centered)]
     max_abs = float(np.nanmax(np.abs(finite_vals))) if finite_vals.size > 0 else 1.0
     camera_distance = float(v.get("camera_distance", max(1.0, 4.0 * max_abs)))
     focal_length = float(v.get("focal_length", camera_distance))
-    denom = camera_distance - z
+    return {
+        "center": center,
+        "rotm": rz.T @ rx.T,
+        "proj": proj,
+        "camera_distance": camera_distance,
+        "focal_length": focal_length,
+    }
+
+
+def _project_xyz_with_projector(points_xyz: np.ndarray, projector: dict) -> np.ndarray:
+    valid = np.isfinite(points_xyz).all(axis=2)
+    centered = points_xyz - projector["center"]
+    rot = centered @ projector["rotm"]
+    x = rot[:, :, 0]
+    y = rot[:, :, 1]
+    z = rot[:, :, 2]
+    if projector["proj"] == "ortho":
+        xy = np.stack((x, y), axis=2)
+        xy[~valid] = np.nan
+        return xy
+    denom = projector["camera_distance"] - z
     good = valid & np.isfinite(denom) & (denom > 1e-9)
     xp = np.full_like(x, np.nan, dtype=float)
     yp = np.full_like(y, np.nan, dtype=float)
-    xp[good] = focal_length * x[good] / denom[good]
-    yp[good] = focal_length * y[good] / denom[good]
+    xp[good] = projector["focal_length"] * x[good] / denom[good]
+    yp[good] = projector["focal_length"] * y[good] / denom[good]
     return np.stack((xp, yp), axis=2)
+
+
+def _project_points_3d_to_2d(points_xyz: np.ndarray, view: dict | None) -> np.ndarray:
+    projector = _make_projector(points_xyz, view)
+    return _project_xyz_with_projector(points_xyz, projector)
+
+
+def _resolve_boundary_z(name: str, boundary_z) -> float:
+    if isinstance(boundary_z, dict):
+        return float(boundary_z.get(name, 0.0))
+    if boundary_z is None:
+        return 0.0
+    return float(boundary_z)
+
+
+def _project_polygons_3d_to_2d(
+    polygons_per_frame: list[list[tuple[str, np.ndarray]]], projector: dict, boundary_z
+) -> list[list[tuple[str, np.ndarray]]]:
+    projected: list[list[tuple[str, np.ndarray]]] = []
+    for frame_polys in polygons_per_frame:
+        frame_out: list[tuple[str, np.ndarray]] = []
+        for name, poly in frame_polys:
+            arr = np.asarray(poly, dtype=float)
+            if arr.ndim != 2 or arr.shape[0] == 0:
+                continue
+            if arr.shape[1] == 2:
+                z = _resolve_boundary_z(name, boundary_z)
+                xyz = np.column_stack((arr[:, 0], arr[:, 1], np.full(len(arr), z, dtype=float)))
+            elif arr.shape[1] == 3:
+                xyz = arr
+            else:
+                raise ValueError("Boundary polygon must have 2 or 3 columns for projection")
+            poly_xy = _project_xyz_with_projector(xyz[None, :, :], projector)[0]
+            frame_out.append((name, poly_xy))
+        projected.append(frame_out)
+    return projected
 
 
 class GeometryAnimationStream:
@@ -241,6 +297,7 @@ class GeometryAnimationStream:
         bg_color: tuple[int, int, int],
         style: dict | None,
         pixel_coords: bool,
+        bounds_pad: float = 0.05,
     ) -> None:
         if points_xy.ndim != 3 or points_xy.shape[2] != 2:
             raise ValueError("points_xy must be shape (n_frames, n_points, 2)")
@@ -261,7 +318,7 @@ class GeometryAnimationStream:
         self._style = style or {}
         self._pixel_coords = bool(pixel_coords)
         self._cursor = 0
-        self._bounds = _compute_bounds(points_xy, polygons_per_frame)
+        self._bounds = _compute_bounds(points_xy, polygons_per_frame, pad=bounds_pad)
 
     @property
     def frame_count(self) -> int:
@@ -480,6 +537,7 @@ def build_geometry_stream(
     lines: list[tuple[str, str]] | None = None,
     dims: tuple[str, ...] = ("x", "y"),
     view: dict | None = None,
+    boundary_z: float | dict[str, float] | None = 0.0,
     frame_ids: np.ndarray | None = None,
     fps: float = 30.0,
     polygons_per_frame: list[list[tuple[str, np.ndarray]]] | None = None,
@@ -487,6 +545,7 @@ def build_geometry_stream(
     bg_color: tuple[int, int, int] = (0, 0, 0),
     style: dict | None = None,
     pixel_coords: bool = False,
+    bounds_pad: float = 0.05,
 ) -> GeometryAnimationStream:
     if len(dims) not in (2, 3):
         raise ValueError("dims must be length 2 or 3")
@@ -518,10 +577,6 @@ def build_geometry_stream(
             point_arrays.append(np.column_stack((x, y)))
         points_xy = np.stack(point_arrays, axis=1)
     else:
-        if polygons_per_frame and any(len(p) > 0 for p in polygons_per_frame):
-            raise ValueError(
-                "3D mode currently supports points/lines only; boundaries require 2D dims"
-            )
         point_arrays3 = []
         for point in all_point_names:
             x = df[f"{point}.{dims[0]}"].to_numpy(dtype=float, copy=True)
@@ -529,7 +584,14 @@ def build_geometry_stream(
             z = df[f"{point}.{dims[2]}"].to_numpy(dtype=float, copy=True)
             point_arrays3.append(np.column_stack((x, y, z)))
         points_xyz = np.stack(point_arrays3, axis=1)
-        points_xy = _project_points_3d_to_2d(points_xyz, view=view)
+        projector = _make_projector(points_xyz, view)
+        points_xy = _project_xyz_with_projector(points_xyz, projector)
+        if polygons_per_frame and any(len(p) > 0 for p in polygons_per_frame):
+            polygons_per_frame = _project_polygons_3d_to_2d(
+                polygons_per_frame,
+                projector,
+                boundary_z,
+            )
     point_idx = {name: i for i, name in enumerate(all_point_names)}
     draw_point_indices = [point_idx[name] for name in point_names]
     lines_idx: list[tuple[int, int]] = []
@@ -550,4 +612,5 @@ def build_geometry_stream(
         bg_color=bg_color,
         style=style,
         pixel_coords=pixel_coords,
+        bounds_pad=bounds_pad,
     )

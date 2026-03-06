@@ -2219,8 +2219,6 @@ class Features:
             if undo_meta_scaling
             else self.tracking.data
         )
-        if boundaries and len(dims) != 2:
-            raise ValueError("boundaries are currently supported only when dims has length 2")
         rescale_factors = self.tracking.meta.get("rescale_factor", {})
         aspectratio_correction = float(self.tracking.meta.get("aspectratio_correction", 1.0) or 1.0)
 
@@ -2246,10 +2244,11 @@ class Features:
         if boundaries is not None:
             for boundary_ref in boundaries:
                 boundary = self._resolve_boundary_ref(boundary_ref)
-                if boundary.dims != dims:
+                expected_boundary_dims = (dims[0], dims[1])
+                if boundary.dims != expected_boundary_dims:
                     raise ValueError(
                         f"Boundary {boundary.name or boundary_ref} dims {boundary.dims} "
-                        f"do not match requested dims {dims}"
+                        f"do not match requested xy dims {expected_boundary_dims}"
                     )
                 if isinstance(boundary, StaticBoundary):
                     poly = _undo_static_polygon(boundary.vertices)
@@ -2282,6 +2281,7 @@ class Features:
             lines=lines,
             dims=dims,
             view=view,
+            boundary_z=(view or {}).get("boundary_z", 0.0),
             frame_ids=source_df.index.to_numpy(copy=True),
             fps=float(self.tracking.meta.get("fps", 30.0)),
             polygons_per_frame=polygons_per_frame,
@@ -2289,4 +2289,5 @@ class Features:
             bg_color=bg_color,
             style=style,
             pixel_coords=pixel_coords,
+            bounds_pad=float((view or {}).get("pad", 0.05)),
         )
