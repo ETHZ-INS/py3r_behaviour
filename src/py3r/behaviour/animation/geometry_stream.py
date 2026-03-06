@@ -113,6 +113,47 @@ def _style_for_boundary(style: dict, boundary_name: str) -> dict:
     return merged
 
 
+def _style_for_text(style: dict, label: str) -> dict:
+    section = style.get("text", {})
+    merged = {
+        "color": (255, 255, 255),
+        "font_scale": 0.5,
+        "thickness": 1,
+        "line_height": 18,
+        "format": None,
+        "as_bool": False,
+    }
+    merged.update(section.get("default", {}))
+    merged.update(section.get(label, {}))
+    merged["color"] = tuple(map(int, merged["color"]))
+    merged["font_scale"] = float(merged["font_scale"])
+    merged["thickness"] = int(merged["thickness"])
+    merged["line_height"] = int(merged["line_height"])
+    merged["as_bool"] = bool(merged["as_bool"])
+    return merged
+
+
+def _format_overlay_value(value, fmt: str, *, as_bool: bool = False) -> str:
+    if value is None:
+        return "NA"
+    if value is pd.NA:
+        return "NA"
+    if isinstance(value, (bool, np.bool_)):
+        return "True" if bool(value) else "False"
+    try:
+        fval = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if np.isnan(fval):
+        return "nan"
+    if as_bool and np.isfinite(fval):
+        if fval == 0.0:
+            return "False"
+        if fval == 1.0:
+            return "True"
+    return format(fval, fmt)
+
+
 def _is_valid(pix: np.ndarray, idx: int) -> bool:
     return idx < len(pix) and pix[idx, 0] >= 0 and pix[idx, 1] >= 0
 
@@ -352,6 +393,7 @@ class GeometryAnimationStream:
         lines_idx: list[tuple[int, int]],
         line_keys: list[tuple[str, str]],
         polygons_per_frame: list[list[tuple[str, np.ndarray]]],
+        text_overlays: list[tuple[str, np.ndarray | None]] | None,
         canvas_size: tuple[int, int],
         fps: float,
         bg_color: tuple[int, int, int],
@@ -365,6 +407,15 @@ class GeometryAnimationStream:
             raise ValueError("frame_ids length must match n_frames")
         if len(polygons_per_frame) != points_xy.shape[0]:
             raise ValueError("polygons_per_frame length must match n_frames")
+        if text_overlays is None:
+            text_overlays = []
+        for label, values in text_overlays:
+            if values is None:
+                continue
+            if len(values) != points_xy.shape[0]:
+                raise ValueError(
+                    f"text overlay '{label}' length must match n_frames ({points_xy.shape[0]})"
+                )
         self._points_xy = points_xy
         self._point_names = list(point_names)
         self._draw_point_indices = list(draw_point_indices)
@@ -372,6 +423,12 @@ class GeometryAnimationStream:
         self._lines_idx = lines_idx
         self._line_keys = line_keys
         self._polygons_per_frame = polygons_per_frame
+        self._text_overlays = []
+        for label, values in text_overlays:
+            if values is None:
+                self._text_overlays.append((str(label), None))
+            else:
+                self._text_overlays.append((str(label), np.asarray(values)))
         self._canvas_size = (int(canvas_size[0]), int(canvas_size[1]))
         self.fps = float(fps)
         self._bg_color = tuple(map(int, bg_color))
@@ -523,23 +580,51 @@ class GeometryAnimationStream:
         pix_pts = _coords_to_pixels(
             pts, target.shape[1], target.shape[0], self._bounds, self._pixel_coords
         )
-        if pix_pts is None:
-            return target
-        for line_i, (i1, i2) in enumerate(self._lines_idx):
-            if _is_valid(pix_pts, i1) and _is_valid(pix_pts, i2):
-                lstyle = _style_for_line(self._style, self._line_keys[line_i])
-                cv2.line(
-                    target,
-                    tuple(pix_pts[i1]),
-                    tuple(pix_pts[i2]),
-                    lstyle["color"],
-                    lstyle["width"],
+        if pix_pts is not None:
+            for line_i, (i1, i2) in enumerate(self._lines_idx):
+                if _is_valid(pix_pts, i1) and _is_valid(pix_pts, i2):
+                    lstyle = _style_for_line(self._style, self._line_keys[line_i])
+                    cv2.line(
+                        target,
+                        tuple(pix_pts[i1]),
+                        tuple(pix_pts[i2]),
+                        lstyle["color"],
+                        lstyle["width"],
+                    )
+            for point_i in self._draw_point_indices:
+                p = pix_pts[point_i]
+                if p[0] >= 0:
+                    pstyle = _style_for_point(self._style, self._point_names[point_i])
+                    cv2.circle(target, tuple(p), pstyle["radius"], pstyle["color"], thickness=-1)
+
+        if self._text_overlays:
+            text_section = self._style.get("text", {})
+            ox, oy = text_section.get("origin", (10, 20))
+            default_fmt = str(text_section.get("format", ".3f"))
+            y = int(oy)
+            for label, values in self._text_overlays:
+                tstyle = _style_for_text(self._style, label)
+                if y < 0:
+                    y += tstyle["line_height"]
+                if values is None:
+                    y += tstyle["line_height"]
+                    continue
+                fmt = default_fmt if tstyle.get("format") is None else str(tstyle["format"])
+                txt = (
+                    f"{label}: "
+                    f"{_format_overlay_value(values[frame_idx], fmt, as_bool=tstyle['as_bool'])}"
                 )
-        for point_i in self._draw_point_indices:
-            p = pix_pts[point_i]
-            if p[0] >= 0:
-                pstyle = _style_for_point(self._style, self._point_names[point_i])
-                cv2.circle(target, tuple(p), pstyle["radius"], pstyle["color"], thickness=-1)
+                cv2.putText(
+                    target,
+                    txt,
+                    (int(ox), y),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    tstyle["font_scale"],
+                    tstyle["color"],
+                    tstyle["thickness"],
+                    cv2.LINE_AA,
+                )
+                y += tstyle["line_height"]
         return target
 
     def play(
@@ -673,6 +758,7 @@ def build_geometry_stream(
     canvas_size: tuple[int, int] = (800, 800),
     bg_color: tuple[int, int, int] = (0, 0, 0),
     style: dict | None = None,
+    text_overlays: list[tuple[str, np.ndarray | None]] | None = None,
     pixel_coords: bool = False,
     bounds_pad: float = 0.05,
 ) -> GeometryAnimationStream:
@@ -743,6 +829,7 @@ def build_geometry_stream(
         canvas_size=canvas_size,
         bg_color=bg_color,
         style=style,
+        text_overlays=text_overlays,
         pixel_coords=pixel_coords,
         bounds_pad=bounds_pad,
     )
@@ -762,6 +849,7 @@ def build_geometry_stream_from_points(
     canvas_size: tuple[int, int] = (800, 800),
     bg_color: tuple[int, int, int] = (0, 0, 0),
     style: dict | None = None,
+    text_overlays: list[tuple[str, np.ndarray | None]] | None = None,
     pixel_coords: bool = False,
     bounds_pad: float = 0.05,
 ) -> GeometryAnimationStream:
@@ -818,6 +906,8 @@ def build_geometry_stream_from_points(
         polygons_per_frame = [[] for _ in range(points.shape[0])]
     if len(polygons_per_frame) != points.shape[0]:
         raise ValueError("polygons_per_frame length must match points.shape[0]")
+    if text_overlays is None:
+        text_overlays = []
 
     if points.shape[2] == 3:
         projector = _make_projector(points, view)
@@ -848,6 +938,7 @@ def build_geometry_stream_from_points(
         lines_idx=lines_idx,
         line_keys=line_keys,
         polygons_per_frame=polygons_per_frame,
+        text_overlays=text_overlays,
         canvas_size=canvas_size,
         fps=fps,
         bg_color=bg_color,

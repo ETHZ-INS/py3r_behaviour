@@ -1785,6 +1785,7 @@ class Tracking:
         *,
         points: list[str],
         lines: list[tuple[str, str]] | None = None,
+        features: list[str | None] | dict[str | None, str | None] | None = None,
         dims: tuple[str, ...] = ("x", "y"),
         view: dict | None = None,
         canvas_size: tuple[int, int] = (800, 800),
@@ -1811,6 +1812,11 @@ class Tracking:
         lines : list[tuple[str, str]], optional
             Line segments connecting point pairs. Endpoints can include points
             not listed in ``points``.
+        features : list[str | None] | dict[str | None, str | None], optional
+            Per-frame scalar columns to render as text overlays. If a list is
+            provided, each column is shown as ``name: value``. If a dict is
+            provided, keys are display labels and values are source column names.
+            ``None`` or ``""`` entries insert a blank spacer line.
         dims : tuple[str, ...], default ("x", "y")
             Coordinate dimensions. Use 2D (``("x","y")``) or 3D
             (``("x","y","z")`` with ``view``).
@@ -1904,6 +1910,20 @@ class Tracking:
         point_names, points_arr = self.points_to_numpy(
             all_points, dims=dims, undo_meta_scaling=undo_meta_scaling
         )
+        text_overlays = None
+        if features is not None:
+            text_overlays = []
+            if isinstance(features, dict):
+                pairs = list(features.items())
+            else:
+                pairs = [(name, name) for name in features]
+            for label, col in pairs:
+                if label in (None, "") or col in (None, ""):
+                    text_overlays.append(("", None))
+                    continue
+                if col not in self.data.columns:
+                    raise ValueError(f"Column {col} not found for text overlay")
+                text_overlays.append((str(label), self.data[col].to_numpy(copy=True)))
 
         return build_geometry_stream_from_points(
             points=points_arr,
@@ -1916,6 +1936,7 @@ class Tracking:
             canvas_size=canvas_size,
             bg_color=bg_color,
             style=style,
+            text_overlays=text_overlays,
             pixel_coords=pixel_coords,
             bounds_pad=float((view or {}).get("pad", 0.05)),
         )

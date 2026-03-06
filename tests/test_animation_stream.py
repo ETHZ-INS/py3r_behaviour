@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from py3r.behaviour.animation.geometry_stream import (
+    _format_overlay_value,
     build_geometry_stream,
     build_geometry_stream_from_points,
     undo_meta_scaling_for_geometry,
@@ -171,3 +172,56 @@ def test_build_geometry_stream_wrapper_supports_3d_points():
     assert stream.frame_count == 2
     assert stream.frame_ids.tolist() == [10, 11]
     assert frame.shape[2] == 3
+
+
+def test_tracking_animation_stream_feature_text_overlay_draws():
+    t = _tracking_xy()
+    stream = t.animation_stream(
+        points=[],
+        features={"nose_x": "nose.x"},
+        pixel_coords=True,
+        canvas_size=(128, 64),
+        style={
+            "text": {
+                "origin": (8, 20),
+                "format": ".1f",
+                "default": {"color": (255, 255, 255), "font_scale": 0.6},
+            }
+        },
+    )
+    frame = stream.get_frame(0)
+    assert np.any(frame != 0)
+
+
+def test_features_animation_stream_feature_text_overlay_draws():
+    t = _tracking_xy()
+    f = Features(t)
+    f.data["speed"] = pd.Series([0.1, 0.2, 0.3], index=t.data.index)
+    stream = f.animation_stream(
+        points=[],
+        features={"spd": "speed"},
+        pixel_coords=True,
+        canvas_size=(128, 64),
+    )
+    frame = stream.get_frame(0)
+    assert np.any(frame != 0)
+
+
+def test_overlay_value_formatting_bool_and_scientific():
+    assert _format_overlay_value(True, ".3f") == "True"
+    assert _format_overlay_value(np.bool_(False), ".3f") == "False"
+    assert _format_overlay_value(0.0001234, ".2e") == "1.23e-04"
+    assert _format_overlay_value(1.0, ".3f", as_bool=True) == "True"
+    assert _format_overlay_value(0.0, ".3f", as_bool=True) == "False"
+
+
+def test_tracking_animation_stream_feature_spacer_entries_allowed():
+    t = _tracking_xy()
+    stream = t.animation_stream(
+        points=[],
+        features=["nose.x", None, "tail.x", ""],
+        pixel_coords=True,
+        canvas_size=(128, 64),
+    )
+    frame = stream.get_frame(0)
+    assert frame.shape == (64, 128, 3)
