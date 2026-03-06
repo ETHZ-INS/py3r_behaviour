@@ -20,6 +20,7 @@ nav:
   - Examples:
     - OFT pipeline: examples/oft_pipeline.md
   - API:
+    - GeometryAnimationStream: api/animation.md
     - Tracking: api/tracking.md
     - TrackingMV: api/tracking_mv.md
     - TrackingCollection: api/tracking_collection.md
