@@ -69,17 +69,48 @@ def undo_meta_scaling_for_geometry(
     return out
 
 
-def _style_for_point(style: dict, point_name: str) -> dict:
+def _is_dynamic_spec(value) -> bool:
+    return isinstance(value, dict) and "from" in value and ("map" in value or "cmap" in value)
+
+
+def collect_dynamic_source_names_from_style(style: dict | None) -> set[str]:
+    names: set[str] = set()
+
+    def _walk(node):
+        if _is_dynamic_spec(node):
+            names.add(str(node["from"]))
+            return
+        if isinstance(node, dict):
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                _walk(v)
+
+    _walk(style or {})
+    return names
+
+
+def _style_raw_for_point(style: dict, point_name: str) -> dict:
     section = style.get("points", {})
     merged = {"color": (0, 255, 255), "radius": 3}
     merged.update(section.get("default", {}))
     merged.update(section.get(point_name, {}))
+    return merged
+
+
+def _style_for_point(style: dict, point_name: str) -> dict:
+    merged = _style_raw_for_point(style, point_name)
+    if _is_dynamic_spec(merged.get("color")):
+        merged["color"] = (0, 255, 255)
+    if _is_dynamic_spec(merged.get("radius")):
+        merged["radius"] = 3
     merged["color"] = tuple(map(int, merged["color"]))
     merged["radius"] = int(merged["radius"])
     return merged
 
 
-def _style_for_line(style: dict, line_key: tuple[str, str]) -> dict:
+def _style_raw_for_line(style: dict, line_key: tuple[str, str]) -> dict:
     section = style.get("lines", {})
     merged = {"color": (255, 255, 255), "width": 1}
     merged.update(section.get("default", {}))
@@ -89,12 +120,21 @@ def _style_for_line(style: dict, line_key: tuple[str, str]) -> dict:
         rev = (line_key[1], line_key[0])
         if rev in section:
             merged.update(section[rev])
+    return merged
+
+
+def _style_for_line(style: dict, line_key: tuple[str, str]) -> dict:
+    merged = _style_raw_for_line(style, line_key)
+    if _is_dynamic_spec(merged.get("color")):
+        merged["color"] = (255, 255, 255)
+    if _is_dynamic_spec(merged.get("width")):
+        merged["width"] = 1
     merged["color"] = tuple(map(int, merged["color"]))
     merged["width"] = int(merged["width"])
     return merged
 
 
-def _style_for_boundary(style: dict, boundary_name: str) -> dict:
+def _style_raw_for_boundary(style: dict, boundary_name: str) -> dict:
     section = style.get("boundaries", {})
     merged = {
         "edge_color": (0, 255, 0),
@@ -105,6 +145,21 @@ def _style_for_boundary(style: dict, boundary_name: str) -> dict:
     }
     merged.update(section.get("default", {}))
     merged.update(section.get(boundary_name, {}))
+    return merged
+
+
+def _style_for_boundary(style: dict, boundary_name: str) -> dict:
+    merged = _style_raw_for_boundary(style, boundary_name)
+    if _is_dynamic_spec(merged.get("edge_color")):
+        merged["edge_color"] = (0, 255, 0)
+    if _is_dynamic_spec(merged.get("fill_color")):
+        merged["fill_color"] = None
+    if _is_dynamic_spec(merged.get("edge_width")):
+        merged["edge_width"] = 1
+    if _is_dynamic_spec(merged.get("fill_alpha")):
+        merged["fill_alpha"] = 0.0
+    if _is_dynamic_spec(merged.get("fill_mode")):
+        merged["fill_mode"] = "normal"
     merged["edge_color"] = (
         None if merged["edge_color"] is None else tuple(map(int, merged["edge_color"]))
     )
@@ -120,7 +175,7 @@ def _style_for_boundary(style: dict, boundary_name: str) -> dict:
     return merged
 
 
-def _style_for_text(style: dict, label: str) -> dict:
+def _style_raw_for_text(style: dict, label: str) -> dict:
     section = style.get("text", {})
     merged = {
         "color": (255, 255, 255),
@@ -138,6 +193,35 @@ def _style_for_text(style: dict, label: str) -> dict:
     }
     merged.update(section.get("default", {}))
     merged.update(section.get(label, {}))
+    return merged
+
+
+def _style_for_text(style: dict, label: str) -> dict:
+    merged = _style_raw_for_text(style, label)
+    if _is_dynamic_spec(merged.get("color")):
+        merged["color"] = (255, 255, 255)
+    if _is_dynamic_spec(merged.get("outline_color")):
+        merged["outline_color"] = (0, 0, 0)
+    if _is_dynamic_spec(merged.get("font_scale")):
+        merged["font_scale"] = 0.5
+    if _is_dynamic_spec(merged.get("thickness")):
+        merged["thickness"] = 1
+    if _is_dynamic_spec(merged.get("outline_thickness")):
+        merged["outline_thickness"] = 2
+    if _is_dynamic_spec(merged.get("line_height")):
+        merged["line_height"] = 18
+    if _is_dynamic_spec(merged.get("format")):
+        merged["format"] = None
+    if _is_dynamic_spec(merged.get("as_bool")):
+        merged["as_bool"] = False
+    if _is_dynamic_spec(merged.get("nan_color")):
+        merged["nan_color"] = None
+    if _is_dynamic_spec(merged.get("cmap")):
+        merged["cmap"] = None
+    if _is_dynamic_spec(merged.get("vmin")):
+        merged["vmin"] = None
+    if _is_dynamic_spec(merged.get("vmax")):
+        merged["vmax"] = None
     merged["color"] = tuple(map(int, merged["color"]))
     merged["outline_color"] = tuple(map(int, merged["outline_color"]))
     merged["font_scale"] = float(merged["font_scale"])
@@ -225,6 +309,108 @@ def _resolve_text_color_arrays(
             nan_color = tstyle["color"]
         colors[~finite] = np.asarray(nan_color, dtype=np.uint8)
         out.append(colors)
+    return out
+
+
+def _compute_dynamic_array(
+    spec: dict,
+    source: np.ndarray,
+    n_frames: int,
+    *,
+    prop_name: str,
+) -> np.ndarray:
+    if len(source) != n_frames:
+        raise ValueError(f"Dynamic source '{spec['from']}' length must match n_frames ({n_frames})")
+    if "map" in spec:
+        mapping = spec["map"]
+        if not isinstance(mapping, dict):
+            raise ValueError(f"Dynamic map for '{prop_name}' must be a dict")
+        out = []
+        for raw in source:
+            if pd.isna(raw):
+                key = None
+            elif isinstance(raw, np.generic):
+                key = raw.item()
+            else:
+                key = raw
+            if key in mapping:
+                out.append(mapping[key])
+            elif isinstance(key, float) and int(key) == key and int(key) in mapping:
+                out.append(mapping[int(key)])
+            elif str(key) in mapping:
+                out.append(mapping[str(key)])
+            elif "default" in mapping:
+                out.append(mapping["default"])
+            elif None in mapping:
+                out.append(mapping[None])
+            else:
+                out.append(key)
+        return np.asarray(out, dtype=object)
+    if "cmap" in spec:
+        if mpl_cm is None:
+            raise ValueError(
+                f"Dynamic style for '{prop_name}' requests cmap='{spec['cmap']}' "
+                "but matplotlib is not available"
+            )
+        arr = pd.to_numeric(pd.Series(source), errors="coerce").to_numpy(dtype=float, copy=False)
+        finite = np.isfinite(arr)
+        vmin = float(spec.get("vmin", np.nanmin(arr) if np.any(finite) else 0.0))
+        vmax = float(spec.get("vmax", np.nanmax(arr) if np.any(finite) else (vmin + 1.0)))
+        if vmax <= vmin:
+            vmax = vmin + 1e-12
+        norm = np.clip((arr - vmin) / (vmax - vmin), 0.0, 1.0)
+        if mpl is not None and hasattr(mpl, "colormaps"):
+            cmap = mpl.colormaps[str(spec["cmap"])]
+        else:  # pragma: no cover
+            cmap = mpl_cm.get_cmap(str(spec["cmap"]))
+        rgba = cmap(norm)
+        colors = np.rint(rgba[:, :3][:, ::-1] * 255.0).astype(np.uint8)  # RGB->BGR
+        nan_color = spec.get("nan_color")
+        if nan_color is not None:
+            colors[~finite] = np.asarray(nan_color, dtype=np.uint8)
+        return colors
+    raise ValueError("Dynamic spec must include 'map' or 'cmap'")
+
+
+def _normalize_dynamic_value(value, prop_name: str):
+    if value is None:
+        return None
+    if isinstance(value, np.generic):
+        value = value.item()
+    if prop_name in {"color", "edge_color", "fill_color", "outline_color", "nan_color"}:
+        if isinstance(value, np.ndarray):
+            value = value.tolist()
+        return tuple(map(int, value))
+    if prop_name in {
+        "radius",
+        "width",
+        "edge_width",
+        "thickness",
+        "outline_thickness",
+        "line_height",
+    }:
+        return int(value)
+    if prop_name in {"fill_alpha", "font_scale", "vmin", "vmax"}:
+        return float(value)
+    if prop_name in {"as_bool"}:
+        return bool(value)
+    if prop_name in {"fill_mode", "format", "cmap"}:
+        return str(value)
+    return value
+
+
+def _apply_dynamic_overrides(
+    base_style: dict,
+    dyn_props: dict[str, np.ndarray] | None,
+    frame_idx: int,
+) -> dict:
+    if not dyn_props:
+        return base_style
+    out = dict(base_style)
+    for prop, arr in dyn_props.items():
+        if frame_idx >= len(arr):
+            continue
+        out[prop] = _normalize_dynamic_value(arr[frame_idx], prop)
     return out
 
 
@@ -472,6 +658,7 @@ class GeometryAnimationStream:
         fps: float,
         bg_color: tuple[int, int, int],
         style: dict | None,
+        style_sources: dict[str, np.ndarray] | None,
         pixel_coords: bool,
         bounds_pad: float = 0.05,
     ) -> None:
@@ -498,6 +685,7 @@ class GeometryAnimationStream:
         self._line_keys = line_keys
         self._polygons_per_frame = polygons_per_frame
         self._style = style or {}
+        self._style_sources = style_sources or {}
         self._text_overlays = []
         for label, values in text_overlays:
             if values is None:
@@ -509,6 +697,48 @@ class GeometryAnimationStream:
             self._style,
             points_xy.shape[0],
         )
+        self._dynamic_styles: dict[str, dict[object, dict[str, np.ndarray]]] = {
+            "points": {},
+            "lines": {},
+            "boundaries": {},
+            "text": {},
+        }
+        n_frames = points_xy.shape[0]
+
+        def _populate(section_name: str, item_key, merged: dict):
+            item_dyn: dict[str, np.ndarray] = {}
+            for prop, value in merged.items():
+                if not _is_dynamic_spec(value):
+                    continue
+                source_name = str(value["from"])
+                if source_name not in self._style_sources:
+                    raise ValueError(
+                        f"Dynamic style for {section_name}.{item_key}.{prop} references "
+                        f"unknown source '{source_name}'"
+                    )
+                item_dyn[prop] = _compute_dynamic_array(
+                    value,
+                    np.asarray(self._style_sources[source_name]),
+                    n_frames,
+                    prop_name=prop,
+                )
+            if item_dyn:
+                self._dynamic_styles[section_name][item_key] = item_dyn
+
+        for p in self._point_names:
+            _populate("points", p, _style_raw_for_point(self._style, p))
+        for lk in self._line_keys:
+            _populate("lines", lk, _style_raw_for_line(self._style, lk))
+        boundary_names = {
+            str(name) for frame_polys in self._polygons_per_frame for name, _ in frame_polys
+        }
+        for b in boundary_names:
+            _populate("boundaries", b, _style_raw_for_boundary(self._style, b))
+        for label, values in self._text_overlays:
+            if values is None:
+                continue
+            _populate("text", label, _style_raw_for_text(self._style, label))
+
         self._canvas_size = (int(canvas_size[0]), int(canvas_size[1]))
         self.fps = float(fps)
         self._bg_color = tuple(map(int, bg_color))
@@ -628,6 +858,9 @@ class GeometryAnimationStream:
             if np.any(pix[:, 0] < 0) or np.any(pix[:, 1] < 0):
                 continue
             bstyle = _style_for_boundary(self._style, boundary_name)
+            bstyle = _apply_dynamic_overrides(
+                bstyle, self._dynamic_styles["boundaries"].get(boundary_name), frame_idx
+            )
             valid_polys.append((pix, bstyle))
             alpha = float(bstyle["fill_alpha"])
             if alpha > 0 and bstyle["fill_mode"] == "normal" and bstyle["fill_color"] is not None:
@@ -663,6 +896,11 @@ class GeometryAnimationStream:
             for line_i, (i1, i2) in enumerate(self._lines_idx):
                 if _is_valid(pix_pts, i1) and _is_valid(pix_pts, i2):
                     lstyle = _style_for_line(self._style, self._line_keys[line_i])
+                    lstyle = _apply_dynamic_overrides(
+                        lstyle,
+                        self._dynamic_styles["lines"].get(self._line_keys[line_i]),
+                        frame_idx,
+                    )
                     cv2.line(
                         target,
                         tuple(pix_pts[i1]),
@@ -674,6 +912,11 @@ class GeometryAnimationStream:
                 p = pix_pts[point_i]
                 if p[0] >= 0:
                     pstyle = _style_for_point(self._style, self._point_names[point_i])
+                    pstyle = _apply_dynamic_overrides(
+                        pstyle,
+                        self._dynamic_styles["points"].get(self._point_names[point_i]),
+                        frame_idx,
+                    )
                     cv2.circle(target, tuple(p), pstyle["radius"], pstyle["color"], thickness=-1)
 
         if self._text_overlays:
@@ -685,6 +928,11 @@ class GeometryAnimationStream:
             max_text_w = 0
             for overlay_i, (label, values) in enumerate(self._text_overlays):
                 tstyle = _style_for_text(self._style, label)
+                tstyle = _apply_dynamic_overrides(
+                    tstyle,
+                    self._dynamic_styles["text"].get(label),
+                    frame_idx,
+                )
                 if y < 0:
                     y += tstyle["line_height"]
                 if values is None:
@@ -693,7 +941,10 @@ class GeometryAnimationStream:
                     continue
                 fmt = default_fmt if tstyle.get("format") is None else str(tstyle["format"])
                 color_arr = self._text_colors[overlay_i]
-                if color_arr is None:
+                dyn_text = self._dynamic_styles["text"].get(label)
+                if dyn_text is not None and "color" in dyn_text:
+                    color = tstyle["color"]
+                elif color_arr is None:
                     color = tstyle["color"]
                 else:
                     color = tuple(map(int, color_arr[frame_idx]))
@@ -921,6 +1172,7 @@ def build_geometry_stream(
     canvas_size: tuple[int, int] = (800, 800),
     bg_color: tuple[int, int, int] = (0, 0, 0),
     style: dict | None = None,
+    style_sources: dict[str, np.ndarray] | None = None,
     text_overlays: list[tuple[str, np.ndarray | None]] | None = None,
     pixel_coords: bool = False,
     bounds_pad: float = 0.05,
@@ -992,6 +1244,7 @@ def build_geometry_stream(
         canvas_size=canvas_size,
         bg_color=bg_color,
         style=style,
+        style_sources=style_sources,
         text_overlays=text_overlays,
         pixel_coords=pixel_coords,
         bounds_pad=bounds_pad,
@@ -1012,6 +1265,7 @@ def build_geometry_stream_from_points(
     canvas_size: tuple[int, int] = (800, 800),
     bg_color: tuple[int, int, int] = (0, 0, 0),
     style: dict | None = None,
+    style_sources: dict[str, np.ndarray] | None = None,
     text_overlays: list[tuple[str, np.ndarray | None]] | None = None,
     pixel_coords: bool = False,
     bounds_pad: float = 0.05,
@@ -1106,6 +1360,7 @@ def build_geometry_stream_from_points(
         fps=fps,
         bg_color=bg_color,
         style=style,
+        style_sources=style_sources,
         pixel_coords=pixel_coords,
         bounds_pad=bounds_pad,
     )

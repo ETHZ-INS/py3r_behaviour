@@ -283,3 +283,30 @@ def test_text_outline_and_panel_render():
     )
     frame = stream.get_frame(0)
     assert frame.shape == (64, 128, 3)
+
+
+def test_dynamic_boundary_style_from_feature_source():
+    points = np.empty((3, 0, 2), dtype=float)
+    poly = np.array([[10.0, 10.0], [50.0, 10.0], [50.0, 40.0], [10.0, 40.0]], dtype=float)
+    polygons = [[("zone", poly)] for _ in range(3)]
+    stream = build_geometry_stream_from_points(
+        points=points,
+        point_names=[],
+        frame_ids=np.array([0, 1, 2]),
+        polygons_per_frame=polygons,
+        canvas_size=(64, 48),
+        pixel_coords=True,
+        style={
+            "boundaries": {
+                "zone": {
+                    "fill_color": (255, 255, 255),
+                    "fill_alpha": {"from": "flag", "map": {0: 0.0, 1: 1.0}},
+                    "edge_width": 0,
+                }
+            }
+        },
+        style_sources={"flag": np.array([0, 1, 0], dtype=float)},
+    )
+    frame0 = stream.get_frame(0)
+    frame1 = stream.get_frame(1)
+    assert frame1.sum() > frame0.sum()

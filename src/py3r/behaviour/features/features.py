@@ -2298,6 +2298,7 @@ class Features:
         """
         from py3r.behaviour.animation.geometry_stream import (
             build_geometry_stream_from_points,
+            collect_dynamic_source_names_from_style,
         )
 
         line_points = {p for line in (lines or []) for p in line}
@@ -2328,6 +2329,20 @@ class Features:
                 if col not in self.data.columns:
                     raise ValueError(f"Feature column {col} not found for text overlay")
                 text_overlays.append((str(label), self.data[col].to_numpy(copy=True)))
+        style_sources = None
+        if style is not None:
+            needed = collect_dynamic_source_names_from_style(style)
+            if needed:
+                style_sources = {}
+                for name in needed:
+                    if name in self.data.columns:
+                        style_sources[name] = self.data[name].to_numpy(copy=True)
+                    elif name in self.tracking.data.columns:
+                        style_sources[name] = self.tracking.data[name].to_numpy(copy=True)
+                    else:
+                        raise ValueError(
+                            f"Dynamic style source '{name}' not found in Features or Tracking data"
+                        )
         return build_geometry_stream_from_points(
             points=points_arr,
             point_names=point_names,
@@ -2341,6 +2356,7 @@ class Features:
             canvas_size=canvas_size,
             bg_color=bg_color,
             style=style,
+            style_sources=style_sources,
             text_overlays=text_overlays,
             pixel_coords=pixel_coords,
             bounds_pad=float((view or {}).get("pad", 0.05)),
