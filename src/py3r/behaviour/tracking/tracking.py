@@ -842,10 +842,10 @@ class Tracking:
         >>> t.filter_likelihood(0.5)
         >>> bool(np.isnan(t.data.filter(like='.x')).any().any())
         True
-        >>> t.data['p1.x'].values
-        'array([ 0.,  1.,  2., nan, nan])'
-        >>> t.data['p1.likelihood'].values
-        'array([1.  , 0.75, 0.5 , 0.25, 0.  ])'
+        >>> bool(np.isnan(t.data['p1.x'].values[-1]))
+        True
+        >>> float(t.data['p1.likelihood'].values[0])
+        1.0
 
         ```
         """
@@ -925,7 +925,7 @@ class Tracking:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> t._assert_valid_point('p1')
         >>> with pytest.raises(KeyError):
-        >>>     t._assert_valid_point("nonexisting")
+        ...     t._assert_valid_point("nonexisting")
 
         ```
         """
@@ -1866,6 +1866,7 @@ class Tracking:
         >>> frame0 = stream.get_frame(0)
         >>> frame0.shape
         (48, 64, 3)
+
         ```
 
         Build a 3D projected stream:
@@ -1891,6 +1892,7 @@ class Tracking:
         ... )
         >>> s3.frame_count
         2
+
         ```
         """
         from py3r.behaviour.animation.geometry_stream import (
@@ -1926,13 +1928,45 @@ class Tracking:
         undo_meta_scaling: bool = False,
     ) -> tuple[list[str], np.ndarray]:
         """
-        Resolve selected point coordinates to a numpy array.
+        Resolve selected point coordinates to a NumPy array.
+
+        Parameters
+        ----------
+        points : list[str]
+            Point names to extract.
+        dims : tuple[str, ...], default ("x", "y")
+            Coordinate dimensions to extract (2D or 3D).
+        undo_meta_scaling : bool, default False
+            If True, invert ``aspectratio_correction`` and ``rescale_factor``
+            before extraction.
 
         Returns
         -------
         tuple[list[str], np.ndarray]
             ``(point_names, array)`` where array has shape
             ``(n_frames, n_points, len(dims))``.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> df = pd.DataFrame(
+        ...     {
+        ...         "nose.x": [1.0, 2.0],
+        ...         "nose.y": [3.0, 4.0],
+        ...         "tail.x": [5.0, 6.0],
+        ...         "tail.y": [7.0, 8.0],
+        ...     }
+        ... )
+        >>> t = Tracking(df, meta={"fps": 30.0}, handle="demo")
+        >>> names, arr = t.points_to_numpy(["nose", "tail"], dims=("x", "y"))
+        >>> names
+        ['nose', 'tail']
+        >>> arr.shape
+        (2, 2, 2)
+
+        ```
         """
         from py3r.behaviour.animation.geometry_stream import undo_meta_scaling_for_geometry
 

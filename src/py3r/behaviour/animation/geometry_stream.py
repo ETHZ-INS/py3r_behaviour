@@ -8,7 +8,39 @@ import pandas as pd
 def undo_meta_scaling_for_geometry(
     df: pd.DataFrame, meta: dict, dims: tuple[str, ...] = ("x", "y")
 ) -> pd.DataFrame:
-    """Return a copy with aspect-ratio and rescale-factor metadata inverted."""
+    """
+    Return a copy with coordinate scaling metadata inverted.
+
+    This helper reverses the transforms applied by ``meta["aspectratio_correction"]``
+    and ``meta["rescale_factor"]`` for the requested coordinate dimensions.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Tracking dataframe with ``"<point>.<dim>"`` columns.
+    meta : dict
+        Tracking metadata that may contain ``aspectratio_correction`` and
+        ``rescale_factor``.
+    dims : tuple[str, ...], default ("x", "y")
+        Dimensions to unscale.
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of ``df`` with requested dimensions unscaled.
+
+    Examples
+    --------
+    ```pycon
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({"nose.x": [20.0], "nose.y": [10.0]})
+    >>> meta = {"aspectratio_correction": 2.0, "rescale_factor": {"x": 4.0, "y": 2.0}}
+    >>> out = undo_meta_scaling_for_geometry(df, meta, dims=("x", "y"))
+    >>> float(out["nose.x"].iloc[0]), float(out["nose.y"].iloc[0])
+    (2.5, 5.0)
+
+    ```
+    """
     out = df.copy()
     dims_set = set(dims)
     correction = float(meta.get("aspectratio_correction", 1.0) or 1.0)
@@ -243,11 +275,6 @@ def _project_xyz_with_projector(points_xyz: np.ndarray, projector: dict) -> np.n
     return np.stack((xp, yp), axis=2)
 
 
-def _project_points_3d_to_2d(points_xyz: np.ndarray, view: dict | None) -> np.ndarray:
-    projector = _make_projector(points_xyz, view)
-    return _project_xyz_with_projector(points_xyz, projector)
-
-
 def _resolve_boundary_z(name: str, boundary_z) -> float:
     if isinstance(boundary_z, dict):
         return float(boundary_z.get(name, 0.0))
@@ -280,7 +307,40 @@ def _project_polygons_3d_to_2d(
 
 
 class GeometryAnimationStream:
-    """Tiny OpenCV stream: points/lines/boundaries with style dict."""
+    """
+    OpenCV-backed frame stream for points, lines, and boundaries.
+
+    Frames are generated lazily on demand, so callers can use this object both
+    for random-access rendering (``get_frame(i)``) and sequential playback
+    (``read()``, iteration, ``play()``, ``save()``).
+
+    Examples
+    --------
+    ```pycon
+    >>> import numpy as np
+    >>> points = np.array(
+    ...     [
+    ...         [[10.0, 10.0], [20.0, 20.0]],
+    ...         [[11.0, 11.0], [21.0, 21.0]],
+    ...     ],
+    ...     dtype=float,
+    ... )
+    >>> stream = build_geometry_stream_from_points(
+    ...     points=points,
+    ...     point_names=["nose", "tail"],
+    ...     draw_points=["nose"],
+    ...     lines=[("nose", "tail")],
+    ...     frame_ids=np.array([0, 1]),
+    ...     pixel_coords=True,
+    ...     canvas_size=(64, 48),
+    ... )
+    >>> stream.frame_count
+    2
+    >>> stream.get_frame(0).shape
+    (48, 64, 3)
+
+    ```
+    """
 
     def __init__(
         self,
@@ -322,16 +382,43 @@ class GeometryAnimationStream:
 
     @property
     def frame_count(self) -> int:
+        """Number of renderable frames."""
         return int(self._points_xy.shape[0])
 
     @property
     def frame_ids(self) -> np.ndarray:
+        """Copy of source frame identifiers aligned to stream indices."""
         return self._frame_ids.copy()
 
     def reset(self) -> None:
+        """Reset sequential cursor used by ``read()`` / iteration."""
         self._cursor = 0
 
     def read(self) -> tuple[bool, np.ndarray | None]:
+        """
+        Return next rendered frame using VideoCapture-style semantics.
+
+        Returns
+        -------
+        tuple[bool, np.ndarray | None]
+            ``(True, frame)`` while frames remain, otherwise ``(False, None)``.
+
+        Examples
+        --------
+        ```pycon
+        >>> import numpy as np
+        >>> s = build_geometry_stream_from_points(
+        ...     points=np.array([[[1.0, 2.0]]], dtype=float),
+        ...     point_names=["p1"],
+        ...     frame_ids=np.array([0]),
+        ...     pixel_coords=True,
+        ... )
+        >>> ok, frame = s.read()
+        >>> ok
+        True
+
+        ```
+        """
         if self._cursor >= self.frame_count:
             return False, None
         frame = self.get_frame(self._cursor)
@@ -342,12 +429,32 @@ class GeometryAnimationStream:
         return self
 
     def __next__(self) -> np.ndarray:
+        """Iterate frames sequentially; raises ``StopIteration`` at end."""
         ok, frame = self.read()
         if not ok or frame is None:
             raise StopIteration
         return frame
 
     def get_frame(self, frame_idx: int) -> np.ndarray:
+        """
+        Render and return one frame by stream index.
+
+        Examples
+        --------
+        ```pycon
+        >>> import numpy as np
+        >>> s = build_geometry_stream_from_points(
+        ...     points=np.array([[[1.0, 2.0]]], dtype=float),
+        ...     point_names=["p1"],
+        ...     frame_ids=np.array([0]),
+        ...     pixel_coords=True,
+        ... )
+        >>> frame0 = s.get_frame(0)
+        >>> frame0.ndim
+        3
+
+        ```
+        """
         if frame_idx < 0 or frame_idx >= self.frame_count:
             raise IndexError(f"frame_idx {frame_idx} out of range")
         w, h = self._canvas_size
@@ -355,6 +462,18 @@ class GeometryAnimationStream:
         return self.render_into(canvas, frame_idx=frame_idx, copy=False)
 
     def render_into(self, frame: np.ndarray, *, frame_idx: int, copy: bool = True) -> np.ndarray:
+        """
+        Draw stream geometry into an existing frame buffer.
+
+        Parameters
+        ----------
+        frame : np.ndarray
+            Base image buffer with shape ``(H, W, 3)`` in BGR.
+        frame_idx : int
+            Stream frame index to render.
+        copy : bool, default True
+            If True, draw into a copy and return it. If False, draw in-place.
+        """
         if frame_idx < 0 or frame_idx >= self.frame_count:
             raise IndexError(f"frame_idx {frame_idx} out of range")
         if frame.ndim != 3 or frame.shape[2] != 3:
@@ -434,6 +553,11 @@ class GeometryAnimationStream:
         video_path: str | None = None,
         align_to_frame_ids: bool = True,
     ) -> None:
+        """
+        Play stream in an OpenCV window.
+
+        Press ``q`` or ``Esc`` to exit playback.
+        """
         if frame_step < 1:
             raise ValueError("frame_step must be >= 1")
         if speed <= 0:
@@ -490,6 +614,11 @@ class GeometryAnimationStream:
         align_to_frame_ids: bool = True,
         codec: str = "mp4v",
     ) -> None:
+        """
+        Render stream to a video file.
+
+        If ``video_path`` is provided, geometry is composited onto decoded frames.
+        """
         if frame_step < 1:
             raise ValueError("frame_step must be >= 1")
         cap = None
@@ -547,6 +676,33 @@ def build_geometry_stream(
     pixel_coords: bool = False,
     bounds_pad: float = 0.05,
 ) -> GeometryAnimationStream:
+    """
+    Build a stream from tracking dataframe columns.
+
+    This is a convenience wrapper that extracts the requested columns from
+    ``df`` and delegates to :func:`build_geometry_stream_from_points`.
+
+    Examples
+    --------
+    ```pycon
+    >>> import numpy as np
+    >>> import pandas as pd
+    >>> df = pd.DataFrame(
+    ...     {"a.x": [0.0], "a.y": [1.0], "b.x": [2.0], "b.y": [3.0]},
+    ...     index=pd.Index([7], name="frame"),
+    ... )
+    >>> stream = build_geometry_stream(
+    ...     df,
+    ...     point_names=["a"],
+    ...     lines=[("a", "b")],
+    ...     frame_ids=np.array([7]),
+    ...     pixel_coords=True,
+    ... )
+    >>> stream.frame_ids.tolist()
+    [7]
+
+    ```
+    """
     if len(dims) not in (2, 3):
         raise ValueError("dims must be length 2 or 3")
     if lines is None:
@@ -569,46 +725,22 @@ def build_geometry_stream(
             col = f"{point}.{dim}"
             if col not in df.columns:
                 raise ValueError(f"Column {col} not found")
-    if len(dims) == 2:
-        point_arrays = []
-        for point in all_point_names:
-            x = df[f"{point}.{dims[0]}"].to_numpy(dtype=float, copy=True)
-            y = df[f"{point}.{dims[1]}"].to_numpy(dtype=float, copy=True)
-            point_arrays.append(np.column_stack((x, y)))
-        points_xy = np.stack(point_arrays, axis=1)
-    else:
-        point_arrays3 = []
-        for point in all_point_names:
-            x = df[f"{point}.{dims[0]}"].to_numpy(dtype=float, copy=True)
-            y = df[f"{point}.{dims[1]}"].to_numpy(dtype=float, copy=True)
-            z = df[f"{point}.{dims[2]}"].to_numpy(dtype=float, copy=True)
-            point_arrays3.append(np.column_stack((x, y, z)))
-        points_xyz = np.stack(point_arrays3, axis=1)
-        projector = _make_projector(points_xyz, view)
-        points_xy = _project_xyz_with_projector(points_xyz, projector)
-        if polygons_per_frame and any(len(p) > 0 for p in polygons_per_frame):
-            polygons_per_frame = _project_polygons_3d_to_2d(
-                polygons_per_frame,
-                projector,
-                boundary_z,
-            )
-    point_idx = {name: i for i, name in enumerate(all_point_names)}
-    draw_point_indices = [point_idx[name] for name in point_names]
-    lines_idx: list[tuple[int, int]] = []
-    line_keys: list[tuple[str, str]] = []
-    for p1, p2 in lines:
-        lines_idx.append((point_idx[p1], point_idx[p2]))
-        line_keys.append((p1, p2))
-    return GeometryAnimationStream(
-        points_xy=points_xy,
+    point_arrays = []
+    for point in all_point_names:
+        cols = [df[f"{point}.{dim}"].to_numpy(dtype=float, copy=True) for dim in dims]
+        point_arrays.append(np.column_stack(cols))
+    points_arr = np.stack(point_arrays, axis=1)
+    return build_geometry_stream_from_points(
+        points=points_arr,
         point_names=all_point_names,
-        draw_point_indices=draw_point_indices,
+        draw_points=point_names,
+        lines=lines,
+        view=view,
+        boundary_z=boundary_z,
         frame_ids=np.asarray(frame_ids),
-        lines_idx=lines_idx,
-        line_keys=line_keys,
+        fps=fps,
         polygons_per_frame=polygons_per_frame,
         canvas_size=canvas_size,
-        fps=fps,
         bg_color=bg_color,
         style=style,
         pixel_coords=pixel_coords,
@@ -634,12 +766,45 @@ def build_geometry_stream_from_points(
     bounds_pad: float = 0.05,
 ) -> GeometryAnimationStream:
     """
-    Build stream from precomputed points array.
+    Build stream from precomputed point arrays.
 
     Parameters
     ----------
     points : np.ndarray
-        Shape (n_frames, n_points, 2|3). If 3D, points are projected using ``view``.
+        Shape ``(n_frames, n_points, 2|3)``. If 3D, points are projected using
+        ``view`` and optional ``boundary_z``.
+    point_names : list[str]
+        Names for the second axis in ``points``.
+    draw_points : list[str], optional
+        Subset of ``point_names`` to draw as circles.
+    lines : list[tuple[str, str]], optional
+        Point-pair line segments.
+    frame_ids : np.ndarray
+        Source frame identifiers aligned to stream rows.
+
+    Returns
+    -------
+    GeometryAnimationStream
+        Lazy stream object supporting ``read()``, ``get_frame()``, ``play()``,
+        and ``save()``.
+
+    Examples
+    --------
+    ```pycon
+    >>> import numpy as np
+    >>> points = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=float)
+    >>> stream = build_geometry_stream_from_points(
+    ...     points=points,
+    ...     point_names=["a", "b"],
+    ...     draw_points=["a"],
+    ...     lines=[("a", "b")],
+    ...     frame_ids=np.array([42]),
+    ...     pixel_coords=True,
+    ... )
+    >>> stream.frame_ids.tolist()
+    [42]
+
+    ```
     """
     if lines is None:
         lines = []

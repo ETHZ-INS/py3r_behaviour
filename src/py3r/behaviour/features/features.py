@@ -2286,6 +2286,7 @@ class Features:
         3
         >>> stream.get_frame(1).shape
         (48, 64, 3)
+
         ```
         """
         from py3r.behaviour.animation.geometry_stream import (
@@ -2333,10 +2334,45 @@ class Features:
         """
         Resolve named boundary assets into per-frame polygon arrays.
 
+        Parameters
+        ----------
+        boundaries : list[str]
+            Stored boundary names (or refs accepted by ``_resolve_boundary_ref``).
+        dims : tuple[str, ...], default ("x", "y")
+            Requested coordinate dimensions. Boundary dims must match
+            ``(dims[0], dims[1])``.
+        undo_meta_scaling : bool, default False
+            If True, invert tracking scaling metadata before resolving dynamic
+            boundary coordinates.
+
         Returns
         -------
         list[list[tuple[str, np.ndarray]]]
             Per-frame boundary list as ``[(boundary_name, polygon_xy), ...]``.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> df = pd.DataFrame(
+        ...     {
+        ...         "a.x": [0.0, 0.0],
+        ...         "a.y": [0.0, 0.0],
+        ...         "b.x": [1.0, 1.0],
+        ...         "b.y": [0.0, 0.0],
+        ...         "c.x": [1.0, 1.0],
+        ...         "c.y": [1.0, 1.0],
+        ...     }
+        ... )
+        >>> f = Features(Tracking(df, meta={"fps": 30.0}, handle="demo"))
+        >>> _ = f.define_static_boundary(["a", "b", "c"], name="tri")
+        >>> polys = f.boundaries_to_polygons_per_frame(["tri"])
+        >>> len(polys), len(polys[0])
+        (2, 1)
+
+        ```
         """
         from py3r.behaviour.animation.geometry_stream import undo_meta_scaling_for_geometry
 
