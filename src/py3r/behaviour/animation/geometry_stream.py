@@ -4,6 +4,13 @@ import cv2
 import numpy as np
 import pandas as pd
 
+try:
+    import matplotlib as mpl
+    import matplotlib.cm as mpl_cm
+except Exception:  # pragma: no cover - optional dependency
+    mpl_cm = None
+    mpl = None
+
 
 def undo_meta_scaling_for_geometry(
     df: pd.DataFrame, meta: dict, dims: tuple[str, ...] = ("x", "y")
@@ -119,17 +126,27 @@ def _style_for_text(style: dict, label: str) -> dict:
         "color": (255, 255, 255),
         "font_scale": 0.5,
         "thickness": 1,
+        "outline_color": (0, 0, 0),
+        "outline_thickness": 2,
         "line_height": 18,
         "format": None,
         "as_bool": False,
+        "cmap": None,
+        "vmin": None,
+        "vmax": None,
+        "nan_color": None,
     }
     merged.update(section.get("default", {}))
     merged.update(section.get(label, {}))
     merged["color"] = tuple(map(int, merged["color"]))
+    merged["outline_color"] = tuple(map(int, merged["outline_color"]))
     merged["font_scale"] = float(merged["font_scale"])
     merged["thickness"] = int(merged["thickness"])
+    merged["outline_thickness"] = int(merged["outline_thickness"])
     merged["line_height"] = int(merged["line_height"])
     merged["as_bool"] = bool(merged["as_bool"])
+    if merged["nan_color"] is not None:
+        merged["nan_color"] = tuple(map(int, merged["nan_color"]))
     return merged
 
 
@@ -152,6 +169,63 @@ def _format_overlay_value(value, fmt: str, *, as_bool: bool = False) -> str:
         if fval == 1.0:
             return "True"
     return format(fval, fmt)
+
+
+def _resolve_text_color_arrays(
+    text_overlays: list[tuple[str, np.ndarray | None]],
+    style: dict,
+    n_frames: int,
+) -> list[np.ndarray | None]:
+    """
+    Precompute per-frame BGR text colors from optional cmap settings.
+    """
+    out: list[np.ndarray | None] = []
+    if not text_overlays:
+        return out
+    for label, values in text_overlays:
+        if values is None:
+            out.append(None)
+            continue
+        tstyle = _style_for_text(style, label)
+        cmap_name = tstyle.get("cmap")
+        if cmap_name in (None, ""):
+            base = np.array(tstyle["color"], dtype=np.uint8)
+            out.append(np.tile(base[None, :], (n_frames, 1)))
+            continue
+        if mpl_cm is None:
+            raise ValueError(
+                f"text style for '{label}' requests cmap='{cmap_name}' "
+                "but matplotlib is not available"
+            )
+        # Support nullable/object inputs (e.g. pd.NA) by coercing to float with NaN.
+        arr = pd.to_numeric(pd.Series(values), errors="coerce").to_numpy(dtype=float, copy=False)
+        finite = np.isfinite(arr)
+        vmin = tstyle.get("vmin")
+        vmax = tstyle.get("vmax")
+        if vmin is None:
+            vmin = float(np.nanmin(arr)) if np.any(finite) else 0.0
+        else:
+            vmin = float(vmin)
+        if vmax is None:
+            vmax = float(np.nanmax(arr)) if np.any(finite) else (vmin + 1.0)
+        else:
+            vmax = float(vmax)
+        if vmax <= vmin:
+            vmax = vmin + 1e-12
+        norm = (arr - vmin) / (vmax - vmin)
+        norm = np.clip(norm, 0.0, 1.0)
+        if mpl is not None and hasattr(mpl, "colormaps"):
+            cmap = mpl.colormaps[str(cmap_name)]
+        else:  # pragma: no cover - for older matplotlib
+            cmap = mpl_cm.get_cmap(str(cmap_name))
+        rgba = cmap(norm)
+        colors = np.rint(rgba[:, :3][:, ::-1] * 255.0).astype(np.uint8)  # RGB->BGR
+        nan_color = tstyle.get("nan_color")
+        if nan_color is None:
+            nan_color = tstyle["color"]
+        colors[~finite] = np.asarray(nan_color, dtype=np.uint8)
+        out.append(colors)
+    return out
 
 
 def _is_valid(pix: np.ndarray, idx: int) -> bool:
@@ -423,16 +497,21 @@ class GeometryAnimationStream:
         self._lines_idx = lines_idx
         self._line_keys = line_keys
         self._polygons_per_frame = polygons_per_frame
+        self._style = style or {}
         self._text_overlays = []
         for label, values in text_overlays:
             if values is None:
                 self._text_overlays.append((str(label), None))
             else:
                 self._text_overlays.append((str(label), np.asarray(values)))
+        self._text_colors = _resolve_text_color_arrays(
+            self._text_overlays,
+            self._style,
+            points_xy.shape[0],
+        )
         self._canvas_size = (int(canvas_size[0]), int(canvas_size[1]))
         self.fps = float(fps)
         self._bg_color = tuple(map(int, bg_color))
-        self._style = style or {}
         self._pixel_coords = bool(pixel_coords)
         self._cursor = 0
         self._bounds = _compute_bounds(points_xy, polygons_per_frame, pad=bounds_pad)
@@ -602,29 +681,113 @@ class GeometryAnimationStream:
             ox, oy = text_section.get("origin", (10, 20))
             default_fmt = str(text_section.get("format", ".3f"))
             y = int(oy)
-            for label, values in self._text_overlays:
+            entries: list[dict] = []
+            max_text_w = 0
+            for overlay_i, (label, values) in enumerate(self._text_overlays):
                 tstyle = _style_for_text(self._style, label)
                 if y < 0:
                     y += tstyle["line_height"]
                 if values is None:
+                    entries.append({"y": y, "line_height": tstyle["line_height"], "spacer": True})
                     y += tstyle["line_height"]
                     continue
                 fmt = default_fmt if tstyle.get("format") is None else str(tstyle["format"])
+                color_arr = self._text_colors[overlay_i]
+                if color_arr is None:
+                    color = tstyle["color"]
+                else:
+                    color = tuple(map(int, color_arr[frame_idx]))
                 txt = (
                     f"{label}: "
                     f"{_format_overlay_value(values[frame_idx], fmt, as_bool=tstyle['as_bool'])}"
                 )
-                cv2.putText(
-                    target,
+                (tw, _), _ = cv2.getTextSize(
                     txt,
-                    (int(ox), y),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     tstyle["font_scale"],
-                    tstyle["color"],
+                    tstyle["thickness"],
+                )
+                max_text_w = max(max_text_w, int(tw))
+                entries.append(
+                    {
+                        "y": y,
+                        "line_height": tstyle["line_height"],
+                        "spacer": False,
+                        "txt": txt,
+                        "style": tstyle,
+                        "color": color,
+                    }
+                )
+                y += tstyle["line_height"]
+
+            panel_cfg = text_section.get("panel", {})
+            panel_enabled = (
+                bool(panel_cfg.get("enabled", False))
+                if isinstance(panel_cfg, dict)
+                else bool(panel_cfg)
+            )
+            if panel_enabled and entries and max_text_w > 0:
+                pad = int(panel_cfg.get("padding", 6)) if isinstance(panel_cfg, dict) else 6
+                alpha = float(panel_cfg.get("alpha", 0.45)) if isinstance(panel_cfg, dict) else 0.45
+                alpha = float(np.clip(alpha, 0.0, 1.0))
+                panel_color = (
+                    tuple(map(int, panel_cfg.get("color", (0, 0, 0))))
+                    if isinstance(panel_cfg, dict)
+                    else (0, 0, 0)
+                )
+                top = min(int(e["y"] - e["line_height"] + 4) for e in entries)
+                bottom = max(int(e["y"] + 6) for e in entries)
+                left = int(ox) - pad
+                right = int(ox) + max_text_w + pad
+                left = max(0, left)
+                right = min(target.shape[1] - 1, right)
+                top = max(0, top)
+                bottom = min(target.shape[0] - 1, bottom)
+                if right > left and bottom > top:
+                    if alpha >= 1.0:
+                        cv2.rectangle(
+                            target,
+                            (left, top),
+                            (right, bottom),
+                            panel_color,
+                            thickness=-1,
+                        )
+                    elif alpha > 0:
+                        panel_overlay = target.copy()
+                        cv2.rectangle(
+                            panel_overlay,
+                            (left, top),
+                            (right, bottom),
+                            panel_color,
+                            thickness=-1,
+                        )
+                        cv2.addWeighted(panel_overlay, alpha, target, 1.0 - alpha, 0.0, dst=target)
+
+            for e in entries:
+                if e["spacer"]:
+                    continue
+                tstyle = e["style"]
+                if tstyle["outline_thickness"] > 0:
+                    cv2.putText(
+                        target,
+                        e["txt"],
+                        (int(ox), int(e["y"])),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        tstyle["font_scale"],
+                        tstyle["outline_color"],
+                        tstyle["outline_thickness"],
+                        cv2.LINE_AA,
+                    )
+                cv2.putText(
+                    target,
+                    e["txt"],
+                    (int(ox), int(e["y"])),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    tstyle["font_scale"],
+                    e["color"],
                     tstyle["thickness"],
                     cv2.LINE_AA,
                 )
-                y += tstyle["line_height"]
         return target
 
     def play(

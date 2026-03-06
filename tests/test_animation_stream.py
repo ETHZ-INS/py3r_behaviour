@@ -225,3 +225,61 @@ def test_tracking_animation_stream_feature_spacer_entries_allowed():
     )
     frame = stream.get_frame(0)
     assert frame.shape == (64, 128, 3)
+
+
+def test_text_colormap_precompute_runs_with_matplotlib():
+    t = _tracking_xy()
+    stream = t.animation_stream(
+        points=[],
+        features={"nose_x": "nose.x"},
+        pixel_coords=True,
+        style={
+            "text": {
+                "default": {"color": (255, 255, 255)},
+                "nose_x": {"cmap": "viridis", "vmin": 0.0, "vmax": 20.0},
+            }
+        },
+    )
+    frame = stream.get_frame(0)
+    assert frame.ndim == 3
+
+
+def test_text_colormap_handles_pd_na_values():
+    t = _tracking_xy()
+    t.data["nullable_metric"] = pd.Series([1.0, pd.NA, 3.0], index=t.data.index, dtype="Float64")
+    stream = t.animation_stream(
+        points=[],
+        features={"metric": "nullable_metric"},
+        pixel_coords=True,
+        style={
+            "text": {
+                "default": {"color": (255, 255, 255)},
+                "metric": {"cmap": "viridis", "vmin": 0.0, "vmax": 5.0, "nan_color": (10, 20, 30)},
+            }
+        },
+    )
+    frame = stream.get_frame(1)
+    assert frame.ndim == 3
+
+
+def test_text_outline_and_panel_render():
+    t = _tracking_xy()
+    stream = t.animation_stream(
+        points=[],
+        features={"speed": "nose.x"},
+        pixel_coords=True,
+        canvas_size=(128, 64),
+        style={
+            "text": {
+                "origin": (8, 20),
+                "default": {
+                    "color": (255, 255, 255),
+                    "outline_color": (0, 0, 0),
+                    "outline_thickness": 2,
+                },
+                "panel": {"enabled": True, "alpha": 0.5, "padding": 6, "color": (0, 0, 0)},
+            }
+        },
+    )
+    frame = stream.get_frame(0)
+    assert frame.shape == (64, 128, 3)
