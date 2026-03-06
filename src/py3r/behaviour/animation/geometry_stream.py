@@ -614,3 +614,79 @@ def build_geometry_stream(
         pixel_coords=pixel_coords,
         bounds_pad=bounds_pad,
     )
+
+
+def build_geometry_stream_from_points(
+    *,
+    points: np.ndarray,
+    point_names: list[str],
+    draw_points: list[str] | None = None,
+    lines: list[tuple[str, str]] | None = None,
+    view: dict | None = None,
+    boundary_z: float | dict[str, float] | None = 0.0,
+    frame_ids: np.ndarray,
+    fps: float = 30.0,
+    polygons_per_frame: list[list[tuple[str, np.ndarray]]] | None = None,
+    canvas_size: tuple[int, int] = (800, 800),
+    bg_color: tuple[int, int, int] = (0, 0, 0),
+    style: dict | None = None,
+    pixel_coords: bool = False,
+    bounds_pad: float = 0.05,
+) -> GeometryAnimationStream:
+    """
+    Build stream from precomputed points array.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Shape (n_frames, n_points, 2|3). If 3D, points are projected using ``view``.
+    """
+    if lines is None:
+        lines = []
+    if points.ndim != 3 or points.shape[2] not in (2, 3):
+        raise ValueError("points must have shape (n_frames, n_points, 2|3)")
+    if points.shape[1] != len(point_names):
+        raise ValueError("point_names length must match points.shape[1]")
+    if len(frame_ids) != points.shape[0]:
+        raise ValueError("frame_ids length must match points.shape[0]")
+    if polygons_per_frame is None:
+        polygons_per_frame = [[] for _ in range(points.shape[0])]
+    if len(polygons_per_frame) != points.shape[0]:
+        raise ValueError("polygons_per_frame length must match points.shape[0]")
+
+    if points.shape[2] == 3:
+        projector = _make_projector(points, view)
+        points_xy = _project_xyz_with_projector(points, projector)
+        if polygons_per_frame and any(len(p) > 0 for p in polygons_per_frame):
+            polygons_per_frame = _project_polygons_3d_to_2d(
+                polygons_per_frame, projector, boundary_z
+            )
+    else:
+        points_xy = points.astype(float, copy=True)
+
+    point_idx = {name: i for i, name in enumerate(point_names)}
+    draw_points = point_names if draw_points is None else draw_points
+    draw_point_indices = [point_idx[name] for name in draw_points]
+    lines_idx: list[tuple[int, int]] = []
+    line_keys: list[tuple[str, str]] = []
+    for p1, p2 in lines:
+        if p1 not in point_idx or p2 not in point_idx:
+            raise ValueError(f"Unknown point in line ({p1}, {p2})")
+        lines_idx.append((point_idx[p1], point_idx[p2]))
+        line_keys.append((p1, p2))
+
+    return GeometryAnimationStream(
+        points_xy=points_xy,
+        point_names=point_names,
+        draw_point_indices=draw_point_indices,
+        frame_ids=np.asarray(frame_ids),
+        lines_idx=lines_idx,
+        line_keys=line_keys,
+        polygons_per_frame=polygons_per_frame,
+        canvas_size=canvas_size,
+        fps=fps,
+        bg_color=bg_color,
+        style=style,
+        pixel_coords=pixel_coords,
+        bounds_pad=bounds_pad,
+    )

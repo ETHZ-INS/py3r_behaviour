@@ -1794,29 +1794,122 @@ class Tracking:
         undo_meta_scaling: bool = False,
     ):
         """
-        Build a stream-like OpenCV geometry renderer from this Tracking object.
+        Build an OpenCV-backed frame stream for animated point/line overlays.
 
-        The returned object supports ``read()``, ``next()``, ``get_frame(i)``,
-        and ``render_into(frame, frame_idx=...)``.
+        This method precomputes the selected point coordinates (and optional 3D
+        projection) once, then returns a stream object that can:
+
+        - fetch individual rendered frames via ``get_frame(i)``
+        - iterate sequentially via ``read()`` / ``next()``
+        - play live via ``stream.play(...)``
+        - save video via ``stream.save(...)``
+
+        Parameters
+        ----------
+        points : list[str]
+            Point names to render as circles.
+        lines : list[tuple[str, str]], optional
+            Line segments connecting point pairs. Endpoints can include points
+            not listed in ``points``.
+        dims : tuple[str, ...], default ("x", "y")
+            Coordinate dimensions. Use 2D (``("x","y")``) or 3D
+            (``("x","y","z")`` with ``view``).
+        view : dict, optional
+            3D camera options used only when ``dims`` has length 3.
+            Supported keys include ``azim``, ``elev``, ``proj`` (``"ortho"``
+            or ``"persp"``), ``camera_distance``, ``focal_length``, and
+            ``pad``.
+        canvas_size : tuple[int, int], default (800, 800)
+            Canvas size as ``(width, height)``.
+        bg_color : tuple[int, int, int], default (0, 0, 0)
+            Background color in BGR.
+        style : dict, optional
+            Style overrides for points/lines/boundaries.
+        pixel_coords : bool, default False
+            If True, interpret coordinates as absolute pixel locations.
+            If False, auto-fit projected coordinates to the canvas.
+        undo_meta_scaling : bool, default False
+            If True, invert ``aspectratio_correction`` and
+            ``meta["rescale_factor"]`` before rendering.
+
+        Returns
+        -------
+        GeometryAnimationStream
+            Stream object with ``get_frame()``, ``read()``, ``play()``, and
+            ``save()``.
+
+        Examples
+        --------
+        Build a simple 2D stream and render one frame:
+
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> df = pd.DataFrame(
+        ...     {
+        ...         "nose.x": [10.0, 11.0, 12.0],
+        ...         "nose.y": [20.0, 21.0, 22.0],
+        ...         "neck.x": [8.0, 9.0, 10.0],
+        ...         "neck.y": [19.0, 20.0, 21.0],
+        ...     },
+        ...     index=pd.Index([0, 1, 2], name="frame"),
+        ... )
+        >>> t = Tracking(df, meta={"fps": 30.0}, handle="demo")
+        >>> stream = t.animation_stream(
+        ...     points=["nose", "neck"],
+        ...     lines=[("nose", "neck")],
+        ...     pixel_coords=True,
+        ...     canvas_size=(64, 48),
+        ... )
+        >>> stream.frame_count
+        3
+        >>> frame0 = stream.get_frame(0)
+        >>> frame0.shape
+        (48, 64, 3)
+        ```
+
+        Build a 3D projected stream:
+
+        ```pycon
+        >>> df3 = pd.DataFrame(
+        ...     {
+        ...         "p1.x": [0.0, 1.0],
+        ...         "p1.y": [0.0, 0.0],
+        ...         "p1.z": [0.0, 0.5],
+        ...         "p2.x": [1.0, 2.0],
+        ...         "p2.y": [0.0, 0.0],
+        ...         "p2.z": [0.0, 0.5],
+        ...     },
+        ...     index=pd.Index([10, 11], name="frame"),
+        ... )
+        >>> t3 = Tracking(df3, meta={"fps": 30.0}, handle="demo3d")
+        >>> s3 = t3.animation_stream(
+        ...     points=["p1", "p2"],
+        ...     lines=[("p1", "p2")],
+        ...     dims=("x", "y", "z"),
+        ...     view={"azim": 45, "elev": 30, "proj": "ortho"},
+        ... )
+        >>> s3.frame_count
+        2
+        ```
         """
         from py3r.behaviour.animation.geometry_stream import (
-            build_geometry_stream,
-            undo_meta_scaling_for_geometry,
+            build_geometry_stream_from_points,
         )
 
-        source_df = (
-            undo_meta_scaling_for_geometry(self.data, self.meta, dims=dims)
-            if undo_meta_scaling
-            else self.data
+        line_points = {p for line in (lines or []) for p in line}
+        all_points = sorted(set(points) | line_points)
+        point_names, points_arr = self.points_to_numpy(
+            all_points, dims=dims, undo_meta_scaling=undo_meta_scaling
         )
 
-        return build_geometry_stream(
-            source_df,
-            point_names=points,
+        return build_geometry_stream_from_points(
+            points=points_arr,
+            point_names=point_names,
+            draw_points=points,
             lines=lines,
-            dims=dims,
             view=view,
-            frame_ids=source_df.index.to_numpy(copy=True),
+            frame_ids=self.data.index.to_numpy(copy=True),
             fps=float(self.meta.get("fps", 30.0)),
             canvas_size=canvas_size,
             bg_color=bg_color,
@@ -1824,6 +1917,48 @@ class Tracking:
             pixel_coords=pixel_coords,
             bounds_pad=float((view or {}).get("pad", 0.05)),
         )
+
+    def points_to_numpy(
+        self,
+        points: list[str],
+        dims: tuple[str, ...] = ("x", "y"),
+        *,
+        undo_meta_scaling: bool = False,
+    ) -> tuple[list[str], np.ndarray]:
+        """
+        Resolve selected point coordinates to a numpy array.
+
+        Returns
+        -------
+        tuple[list[str], np.ndarray]
+            ``(point_names, array)`` where array has shape
+            ``(n_frames, n_points, len(dims))``.
+        """
+        from py3r.behaviour.animation.geometry_stream import undo_meta_scaling_for_geometry
+
+        source_df = (
+            undo_meta_scaling_for_geometry(self.data, self.meta, dims=dims)
+            if undo_meta_scaling
+            else self.data
+        )
+        if len(points) == 0:
+            return (
+                [],
+                np.empty(
+                    (len(source_df), 0, len(dims)),
+                    dtype=float,
+                ),
+            )
+        point_arrays = []
+        for point in points:
+            cols = []
+            for dim in dims:
+                col = f"{point}.{dim}"
+                if col not in source_df.columns:
+                    raise ValueError(f"Column {col} not found in tracking data")
+                cols.append(source_df[col].to_numpy(dtype=float, copy=True))
+            point_arrays.append(np.column_stack(cols))
+        return list(points), np.stack(point_arrays, axis=1)
 
     def __repr__(self) -> str:
         cn = self.__class__.__name__
