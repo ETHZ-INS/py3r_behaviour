@@ -641,6 +641,233 @@ class FeaturesCollection(BaseCollection):
 
         return out
 
+    def compare_prediction_error(
+        self,
+        *,
+        source_embedding: dict[str, list[int]],
+        target_embedding: dict[str, list[int]],
+        from_group: str | None = None,
+        to_group: str | None = None,
+        between_mode: Literal[
+            "pooled",
+            "source_leave_one_out_ensemble",
+        ] = "source_leave_one_out_ensemble",
+        predictor_cls=None,
+        predictor_kwargs: dict | None = None,
+        normalize_source: bool = False,
+        normalize_pred: dict | str | None = None,
+        eps: float = 1e-6,
+        persist_frames: bool = False,
+        persist_prefix: str = "cpe_",
+    ):
+        """
+        Compare within-group and between-group prediction error.
+
+        This is a standalone analysis path:
+        - framewise outputs are returned as BatchResult[FeaturesResult]
+        - collection-level summary and stats are returned in one object
+        - optional persistence stores all frame outputs with the given prefix
+
+        Group semantics
+        ---------------
+        - Grouped collection: compares ``from_group -> to_group`` against
+          within-group LOO on ``to_group``.
+        - Flat collection: ``from_group`` / ``to_group`` are ignored and the
+          method compares pooled-vs-LOO within the flat collection.
+        """
+        from py3r.behaviour.features.features_result import FeaturesResult
+        from py3r.behaviour.prediction.evaluators import CrossGroupEvaluator
+        from py3r.behaviour.prediction.predictors import KNNPredictor
+        from py3r.behaviour.prediction.results import PredictionComparisonResult
+        from py3r.behaviour.util.collection_utils import BatchResult
+
+        if predictor_cls is None:
+            predictor_cls = KNNPredictor
+        if predictor_kwargs is None:
+            predictor_kwargs = {}
+
+        is_grouped = getattr(self, "is_grouped", False)
+        if is_grouped:
+            if from_group is None or to_group is None:
+                raise ValueError("Grouped collections require both from_group and to_group.")
+            if from_group not in self._obj_dict or to_group not in self._obj_dict:
+                raise KeyError(
+                    f"Unknown group(s): from_group={from_group}, to_group={to_group}. "
+                    f"Available: {list(self._obj_dict.keys())}"
+                )
+            source_sub = self._obj_dict[from_group]
+            target_sub = self._obj_dict[to_group]
+            source_handles = list(source_sub.features_dict.keys())
+            target_handles = list(target_sub.features_dict.keys())
+            if len(target_handles) < 2:
+                raise ValueError(
+                    "to_group must contain at least 2 recordings for within-group LOO."
+                )
+
+            source_embed = {
+                h: source_sub.features_dict[h].embedding_df(source_embedding)
+                for h in source_handles
+            }
+            source_tgt = {
+                h: source_sub.features_dict[h].embedding_df(target_embedding)
+                for h in source_handles
+            }
+            target_embed = {
+                h: target_sub.features_dict[h].embedding_df(source_embedding)
+                for h in target_handles
+            }
+            target_tgt = {
+                h: target_sub.features_dict[h].embedding_df(target_embedding)
+                for h in target_handles
+            }
+            features_lookup = target_sub.features_dict
+            group_label = to_group
+            comparison_key = f"{from_group}->{to_group}"
+        else:
+            source_handles = list(self.features_dict.keys())
+            target_handles = list(self.features_dict.keys())
+            if len(target_handles) < 2:
+                raise ValueError("Need at least 2 recordings for leave-one-out comparison.")
+            source_embed = {
+                h: self.features_dict[h].embedding_df(source_embedding) for h in source_handles
+            }
+            source_tgt = {
+                h: self.features_dict[h].embedding_df(target_embedding) for h in source_handles
+            }
+            target_embed = source_embed
+            target_tgt = source_tgt
+            features_lookup = self.features_dict
+            group_label = "__flat__"
+            comparison_key = "__flat__"
+
+        # Within-group LOO on target group
+        within_by_handle: dict[str, pd.Series] = {}
+        for left_out in target_handles:
+            train_h = [h for h in target_handles if h != left_out]
+            rms_list = CrossGroupEvaluator._fit_predict_rms(
+                train_X=[target_embed[h] for h in train_h],
+                train_y=[target_tgt[h] for h in train_h],
+                test_X=[target_embed[left_out]],
+                test_y=[target_tgt[left_out]],
+                predictor_cls=predictor_cls,
+                predictor_kwargs=predictor_kwargs,
+                normalize_source=normalize_source,
+                normalize_pred=normalize_pred,
+            )
+            within_by_handle[left_out] = rms_list[0]
+
+        # Between-group predictions targeting the same target handles
+        between_by_handle: dict[str, pd.Series] = {}
+        if between_mode == "pooled":
+            rms_list = CrossGroupEvaluator._fit_predict_rms(
+                train_X=[source_embed[h] for h in source_handles],
+                train_y=[source_tgt[h] for h in source_handles],
+                test_X=[target_embed[h] for h in target_handles],
+                test_y=[target_tgt[h] for h in target_handles],
+                predictor_cls=predictor_cls,
+                predictor_kwargs=predictor_kwargs,
+                normalize_source=normalize_source,
+                normalize_pred=normalize_pred,
+            )
+            between_by_handle = {h: rms for h, rms in zip(target_handles, rms_list, strict=True)}
+        elif between_mode == "source_leave_one_out_ensemble":
+            by_handle_runs: dict[str, list[pd.Series]] = {h: [] for h in target_handles}
+            for left_out in source_handles:
+                train_h = [h for h in source_handles if h != left_out]
+                if len(train_h) == 0:
+                    continue
+                rms_list = CrossGroupEvaluator._fit_predict_rms(
+                    train_X=[source_embed[h] for h in train_h],
+                    train_y=[source_tgt[h] for h in train_h],
+                    test_X=[target_embed[h] for h in target_handles],
+                    test_y=[target_tgt[h] for h in target_handles],
+                    predictor_cls=predictor_cls,
+                    predictor_kwargs=predictor_kwargs,
+                    normalize_source=normalize_source,
+                    normalize_pred=normalize_pred,
+                )
+                for h, rms in zip(target_handles, rms_list, strict=True):
+                    by_handle_runs[h].append(rms)
+            for h in target_handles:
+                runs = by_handle_runs[h]
+                if len(runs) == 0:
+                    between_by_handle[h] = pd.Series(np.nan, index=target_tgt[h].index)
+                elif len(runs) == 1:
+                    between_by_handle[h] = runs[0]
+                else:
+                    tmp = pd.concat(runs, axis=1)
+                    between_by_handle[h] = tmp.median(axis=1, skipna=True)
+        else:
+            raise ValueError("between_mode must be 'pooled' or 'source_leave_one_out_ensemble'")
+
+        ratio_by_handle = {}
+        log_ratio_by_handle = {}
+        for h in target_handles:
+            aligned = pd.concat(
+                {"within": within_by_handle[h], "between": between_by_handle[h]}, axis=1
+            )
+            ratio = (aligned["between"] + eps) / (aligned["within"] + eps)
+            log_ratio = np.log(ratio)
+            ratio_by_handle[h] = ratio
+            log_ratio_by_handle[h] = log_ratio
+
+        def _to_batch(series_by_handle: dict[str, pd.Series], metric_name: str):
+            metric_col = f"{persist_prefix}{metric_name}"
+            if is_grouped:
+                data = {
+                    to_group: {
+                        h: FeaturesResult(
+                            series_by_handle[h], features_lookup[h], metric_col, params={}
+                        )
+                        for h in target_handles
+                    }
+                }
+            else:
+                data = {
+                    h: FeaturesResult(
+                        series_by_handle[h], features_lookup[h], metric_col, params={}
+                    )
+                    for h in target_handles
+                }
+            return BatchResult(data, self)
+
+        within_batch = _to_batch(within_by_handle, "err_within")
+        between_batch = _to_batch(between_by_handle, "err_between")
+        ratio_batch = _to_batch(ratio_by_handle, "ratio")
+        log_ratio_batch = _to_batch(log_ratio_by_handle, "log_ratio")
+
+        summary_table, stats = CrossGroupEvaluator.summarize_handle_paired_errors(
+            within_by_handle=within_by_handle,
+            between_by_handle=between_by_handle,
+            eps=eps,
+            group=group_label,
+            comparison_key=comparison_key,
+        )
+
+        stats = {
+            **stats,
+            "comparison_key": comparison_key,
+            "between_mode": between_mode,
+            "predictor_cls": getattr(predictor_cls, "__name__", str(predictor_cls)),
+            "predictor_kwargs": dict(predictor_kwargs),
+        }
+
+        if persist_frames:
+            name_tag = comparison_key.replace("->", "_to_")
+            within_batch.store(name=f"{persist_prefix}err_within_{name_tag}")
+            between_batch.store(name=f"{persist_prefix}err_between_{name_tag}")
+            ratio_batch.store(name=f"{persist_prefix}ratio_{name_tag}")
+            log_ratio_batch.store(name=f"{persist_prefix}log_ratio_{name_tag}")
+
+        return PredictionComparisonResult(
+            within=within_batch,
+            between=between_batch,
+            ratio=ratio_batch,
+            log_ratio=log_ratio_batch,
+            summary_table=summary_table,
+            stats=stats,
+        )
+
     # ---- Cross-prediction utilities migrated from MultipleFeaturesCollection ----
     @dev_mode
     @staticmethod
@@ -728,7 +955,7 @@ class FeaturesCollection(BaseCollection):
         Dev mode only: not available in public release yet.
         """
         if predictor_cls is None:
-            from py3r.behaviour.predictors import KNNPredictor
+            from py3r.behaviour.prediction.predictors import KNNPredictor
 
             predictor_cls = KNNPredictor
         if predictor_kwargs is None:
@@ -1042,7 +1269,7 @@ class FeaturesCollection(BaseCollection):
         Dev mode only: not available in public release yet.
         """
         if predictor_cls is None:
-            from py3r.behaviour.predictors import KNNPredictor
+            from py3r.behaviour.prediction.predictors import KNNPredictor
 
             predictor_cls = KNNPredictor
         if predictor_kwargs is None:
