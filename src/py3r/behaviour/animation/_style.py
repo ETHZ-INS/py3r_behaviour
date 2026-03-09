@@ -191,60 +191,54 @@ def _format_overlay_value(value, fmt: str, *, as_bool: bool = False) -> str:
     return format(fval, fmt)
 
 
-def _resolve_text_color_arrays(
-    text_overlays: list[tuple[str, np.ndarray | None]],
-    style: dict,
-    n_frames: int,
-) -> list[np.ndarray | None]:
+def _resolve_text_color_for_frame(
+    text_style: dict,
+    values: np.ndarray,
+    frame_idx: int,
+) -> tuple[int, int, int]:
     """
-    Precompute per-frame BGR text colors from optional cmap settings.
+    Resolve BGR text color for one overlay at one frame.
+
+    If ``cmap`` is set, the frame's value is mapped through the colormap using
+    ``vmin``/``vmax`` from the same (already-dynamic-resolved) style dict.
     """
-    out: list[np.ndarray | None] = []
-    if not text_overlays:
-        return out
-    for label, values in text_overlays:
-        if values is None:
-            out.append(None)
-            continue
-        tstyle = _style_for_text(style, label)
-        cmap_name = tstyle.get("cmap")
-        if cmap_name in (None, ""):
-            base = np.array(tstyle["color"], dtype=np.uint8)
-            out.append(np.tile(base[None, :], (n_frames, 1)))
-            continue
-        if mpl_cm is None:
-            raise ValueError(
-                f"text style for '{label}' requests cmap='{cmap_name}' "
-                "but matplotlib is not available"
-            )
-        arr = pd.to_numeric(pd.Series(values), errors="coerce").to_numpy(dtype=float, copy=False)
-        finite = np.isfinite(arr)
-        vmin = tstyle.get("vmin")
-        vmax = tstyle.get("vmax")
-        if vmin is None:
-            vmin = float(np.nanmin(arr)) if np.any(finite) else 0.0
-        else:
-            vmin = float(vmin)
-        if vmax is None:
-            vmax = float(np.nanmax(arr)) if np.any(finite) else (vmin + 1.0)
-        else:
-            vmax = float(vmax)
-        if vmax <= vmin:
-            vmax = vmin + 1e-12
-        norm = (arr - vmin) / (vmax - vmin)
-        norm = np.clip(norm, 0.0, 1.0)
-        if mpl is not None and hasattr(mpl, "colormaps"):
-            cmap = mpl.colormaps[str(cmap_name)]
-        else:  # pragma: no cover - for older matplotlib
-            cmap = mpl_cm.get_cmap(str(cmap_name))
-        rgba = cmap(norm)
-        colors = np.rint(rgba[:, :3][:, ::-1] * 255.0).astype(np.uint8)
-        nan_color = tstyle.get("nan_color")
+    cmap_name = text_style.get("cmap")
+    if cmap_name in (None, ""):
+        return tuple(map(int, text_style["color"]))
+
+    if mpl_cm is None:
+        raise ValueError(f"text style requests cmap='{cmap_name}' but matplotlib is not available")
+
+    arr = pd.to_numeric(pd.Series(values), errors="coerce").to_numpy(dtype=float, copy=False)
+    finite = np.isfinite(arr)
+    current = arr[frame_idx] if frame_idx < len(arr) else np.nan
+    if not np.isfinite(current):
+        nan_color = text_style.get("nan_color")
         if nan_color is None:
-            nan_color = tstyle["color"]
-        colors[~finite] = np.asarray(nan_color, dtype=np.uint8)
-        out.append(colors)
-    return out
+            nan_color = text_style["color"]
+        return tuple(map(int, nan_color))
+
+    vmin = text_style.get("vmin")
+    vmax = text_style.get("vmax")
+    if vmin is None:
+        vmin = float(np.nanmin(arr)) if np.any(finite) else 0.0
+    else:
+        vmin = float(vmin)
+    if vmax is None:
+        vmax = float(np.nanmax(arr)) if np.any(finite) else (vmin + 1.0)
+    else:
+        vmax = float(vmax)
+    if vmax <= vmin:
+        vmax = vmin + 1e-12
+
+    norm = float(np.clip((current - vmin) / (vmax - vmin), 0.0, 1.0))
+    if mpl is not None and hasattr(mpl, "colormaps"):
+        cmap = mpl.colormaps[str(cmap_name)]
+    else:  # pragma: no cover - for older matplotlib
+        cmap = mpl_cm.get_cmap(str(cmap_name))
+    rgba = cmap(norm)
+    bgr = np.rint(np.asarray(rgba[:3])[::-1] * 255.0).astype(np.uint8)
+    return tuple(map(int, bgr))
 
 
 def _compute_dynamic_array(

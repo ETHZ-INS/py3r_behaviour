@@ -273,6 +273,31 @@ def test_text_colormap_handles_pd_na_values():
     assert frame.ndim == 3
 
 
+def test_text_colormap_uses_dynamic_vmin_per_frame():
+    t = _tracking_xy()
+    t.data["metric"] = pd.Series([10.0, 10.0, 10.0], index=t.data.index)
+    t.data["flag"] = pd.Series([0, 1, 0], index=t.data.index)
+    stream = t.animation_stream(
+        points=[],
+        features={"metric": "metric"},
+        pixel_coords=True,
+        style={
+            "text": {
+                "format": ".1f",
+                "default": {"color": (255, 255, 255)},
+                "metric": {
+                    "cmap": "viridis",
+                    "vmin": {"from": "flag", "map": {0: 0.0, 1: 10.0}},
+                    "vmax": 20.0,
+                },
+            }
+        },
+    )
+    frame0 = stream.get_frame(0)
+    frame1 = stream.get_frame(1)
+    assert not np.array_equal(frame0, frame1)
+
+
 def test_text_outline_and_panel_render():
     t = _tracking_xy()
     stream = t.animation_stream(

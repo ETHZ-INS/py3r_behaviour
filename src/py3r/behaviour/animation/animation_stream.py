@@ -16,7 +16,7 @@ from ._style import (
     _compute_dynamic_array,
     _format_overlay_value,
     _is_dynamic_spec,
-    _resolve_text_color_arrays,
+    _resolve_text_color_for_frame,
     _style_for_boundary,
     _style_for_line,
     _style_for_point,
@@ -93,11 +93,6 @@ class AnimationStream:
                 self._text_overlays.append((str(label), None))
             else:
                 self._text_overlays.append((str(label), np.asarray(values)))
-        self._text_colors = _resolve_text_color_arrays(
-            self._text_overlays,
-            self._style,
-            points_xy.shape[0],
-        )
         self._dynamic_styles: dict[str, dict[object, dict[str, np.ndarray]]] = {
             "points": {},
             "lines": {},
@@ -371,7 +366,7 @@ class AnimationStream:
             y = int(oy)
             entries: list[dict] = []
             max_text_w = 0
-            for overlay_i, (label, values) in enumerate(self._text_overlays):
+            for label, values in self._text_overlays:
                 tstyle = _style_for_text(self._style, label)
                 tstyle = _apply_dynamic_overrides(
                     tstyle,
@@ -385,14 +380,7 @@ class AnimationStream:
                     y += tstyle["line_height"]
                     continue
                 fmt = default_fmt if tstyle.get("format") is None else str(tstyle["format"])
-                color_arr = self._text_colors[overlay_i]
-                dyn_text = self._dynamic_styles["text"].get(label)
-                if dyn_text is not None and "color" in dyn_text:
-                    color = tstyle["color"]
-                elif color_arr is None:
-                    color = tstyle["color"]
-                else:
-                    color = tuple(map(int, color_arr[frame_idx]))
+                color = _resolve_text_color_for_frame(tstyle, np.asarray(values), frame_idx)
                 txt = (
                     f"{label}: "
                     f"{_format_overlay_value(values[frame_idx], fmt, as_bool=tstyle['as_bool'])}"
