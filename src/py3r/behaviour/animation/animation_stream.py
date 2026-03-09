@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
-import pandas as pd
 
 from ._projection import (
     _compute_bounds,
@@ -49,7 +48,7 @@ class AnimationStream:
     ...     ],
     ...     dtype=float,
     ... )
-    >>> stream = build_animation_stream_from_points(
+    >>> stream = build_animation_stream(
     ...     points=points,
     ...     point_names=["nose", "tail"],
     ...     draw_points=["nose"],
@@ -188,7 +187,7 @@ class AnimationStream:
         Examples:
             ```pycon
             >>> import numpy as np
-            >>> s = build_animation_stream_from_points(
+            >>> s = build_animation_stream(
             ...     points=np.array([[[1.0, 2.0]]], dtype=float),
             ...     point_names=["p1"],
             ...     frame_ids=np.array([0]),
@@ -215,7 +214,7 @@ class AnimationStream:
         Examples:
             ```pycon
             >>> import numpy as np
-            >>> s = build_animation_stream_from_points(
+            >>> s = build_animation_stream(
             ...     points=np.array([[[1.0, 2.0]]], dtype=float),
             ...     point_names=["p1"],
             ...     frame_ids=np.array([0]),
@@ -259,7 +258,7 @@ class AnimationStream:
         Examples:
             ```pycon
             >>> import numpy as np
-            >>> s = build_animation_stream_from_points(
+            >>> s = build_animation_stream(
             ...     points=np.array([[[1.0, 2.0]]], dtype=float),
             ...     point_names=["p1"],
             ...     frame_ids=np.array([0]),
@@ -296,7 +295,7 @@ class AnimationStream:
         Examples:
             ```pycon
             >>> import numpy as np
-            >>> s = build_animation_stream_from_points(
+            >>> s = build_animation_stream(
             ...     points=np.array([[[5.0, 6.0]]], dtype=float),
             ...     point_names=["p1"],
             ...     frame_ids=np.array([0]),
@@ -543,7 +542,7 @@ class AnimationStream:
         Examples:
             ```pycon
             >>> import numpy as np
-            >>> s = build_animation_stream_from_points(
+            >>> s = build_animation_stream(
             ...     points=np.array([[[1.0, 2.0]]], dtype=float),
             ...     point_names=["p1"],
             ...     frame_ids=np.array([0]),
@@ -629,7 +628,7 @@ class AnimationStream:
             ```pycon
             >>> import tempfile
             >>> import numpy as np
-            >>> s = build_animation_stream_from_points(
+            >>> s = build_animation_stream(
             ...     points=np.array([[[1.0, 2.0]]], dtype=float),
             ...     point_names=["p1"],
             ...     frame_ids=np.array([0]),
@@ -681,97 +680,6 @@ class AnimationStream:
 
 
 def build_animation_stream(
-    df: pd.DataFrame,
-    *,
-    point_names: list[str],
-    lines: list[tuple[str, str]] | None = None,
-    dims: tuple[str, ...] = ("x", "y"),
-    view: dict | None = None,
-    boundary_z: float | dict[str, float] | None = 0.0,
-    frame_ids: np.ndarray | None = None,
-    fps: float = 30.0,
-    boundary_arrays: list[tuple[str, np.ndarray]] | None = None,
-    canvas_size: tuple[int, int] = (800, 800),
-    bg_color: tuple[int, int, int] = (0, 0, 0),
-    style: dict | None = None,
-    style_sources: dict[str, np.ndarray] | None = None,
-    text_overlays: list[tuple[str, np.ndarray | None]] | None = None,
-    pixel_coords: bool = False,
-    bounds_pad: float = 0.05,
-) -> AnimationStream:
-    """
-    Build a stream from tracking dataframe columns.
-
-    This is a convenience wrapper that extracts the requested columns from
-    ``df`` and delegates to :func:`build_animation_stream_from_points`.
-
-    Examples
-    --------
-    ```pycon
-    >>> import numpy as np
-    >>> import pandas as pd
-    >>> df = pd.DataFrame(
-    ...     {"a.x": [0.0], "a.y": [1.0], "b.x": [2.0], "b.y": [3.0]},
-    ...     index=pd.Index([7], name="frame"),
-    ... )
-    >>> stream = build_animation_stream(
-    ...     df,
-    ...     point_names=["a"],
-    ...     lines=[("a", "b")],
-    ...     frame_ids=np.array([7]),
-    ...     pixel_coords=True,
-    ... )
-    >>> stream.frame_ids.tolist()
-    [7]
-
-    ```
-    """
-    if len(dims) not in (2, 3):
-        raise ValueError("dims must be length 2 or 3")
-    if lines is None:
-        lines = []
-    if frame_ids is None:
-        frame_ids = df.index.to_numpy(copy=True)
-    if boundary_arrays is None:
-        boundary_arrays = []
-    all_point_names = list(point_names)
-    for p1, p2 in lines:
-        if p1 not in all_point_names:
-            all_point_names.append(p1)
-        if p2 not in all_point_names:
-            all_point_names.append(p2)
-
-    for point in all_point_names:
-        for dim in dims:
-            col = f"{point}.{dim}"
-            if col not in df.columns:
-                raise ValueError(f"Column {col} not found")
-    point_arrays = []
-    for point in all_point_names:
-        cols = [df[f"{point}.{dim}"].to_numpy(dtype=float, copy=True) for dim in dims]
-        point_arrays.append(np.column_stack(cols))
-    points_arr = np.stack(point_arrays, axis=1)
-    return build_animation_stream_from_points(
-        points=points_arr,
-        point_names=all_point_names,
-        draw_points=point_names,
-        lines=lines,
-        view=view,
-        boundary_z=boundary_z,
-        frame_ids=np.asarray(frame_ids),
-        fps=fps,
-        boundary_arrays=boundary_arrays,
-        canvas_size=canvas_size,
-        bg_color=bg_color,
-        style=style,
-        style_sources=style_sources,
-        text_overlays=text_overlays,
-        pixel_coords=pixel_coords,
-        bounds_pad=bounds_pad,
-    )
-
-
-def build_animation_stream_from_points(
     *,
     points: np.ndarray,
     point_names: list[str],
@@ -818,7 +726,7 @@ def build_animation_stream_from_points(
     ```pycon
     >>> import numpy as np
     >>> points = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=float)
-    >>> stream = build_animation_stream_from_points(
+    >>> stream = build_animation_stream(
     ...     points=points,
     ...     point_names=["a", "b"],
     ...     draw_points=["a"],

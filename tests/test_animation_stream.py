@@ -6,7 +6,6 @@ import pandas as pd
 from py3r.behaviour.animation.animation_stream import (
     _format_overlay_value,
     build_animation_stream,
-    build_animation_stream_from_points,
 )
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.tracking import Tracking
@@ -86,7 +85,7 @@ def test_geometry_animation_stream_read_reset_iter():
         ],
         dtype=float,
     )
-    stream = build_animation_stream_from_points(
+    stream = build_animation_stream(
         points=points,
         point_names=["nose", "tail"],
         draw_points=["nose"],
@@ -110,7 +109,7 @@ def test_geometry_animation_stream_read_reset_iter():
 
 def test_geometry_animation_stream_render_into_copy_modes():
     points = np.array([[[10.0, 10.0]]], dtype=float)
-    stream = build_animation_stream_from_points(
+    stream = build_animation_stream(
         points=points,
         point_names=["nose"],
         draw_points=["nose"],
@@ -150,26 +149,22 @@ def test_tracking_points_to_numpy_undo_meta_scaling_inverts_meta_scaling():
     assert float(out[0, 0, 2]) == 9.0
 
 
-def test_build_animation_stream_wrapper_supports_3d_points():
-    df = pd.DataFrame(
-        {
-            "p1.x": [0.0, 1.0],
-            "p1.y": [0.0, 0.0],
-            "p1.z": [0.0, 0.5],
-            "p2.x": [1.0, 2.0],
-            "p2.y": [0.0, 0.0],
-            "p2.z": [0.0, 0.5],
-        },
-        index=pd.Index([10, 11], name="frame"),
+def test_build_animation_stream_supports_3d_points():
+    points = np.array(
+        [
+            [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+            [[1.0, 0.0, 0.5], [2.0, 0.0, 0.5]],
+        ],
+        dtype=float,
     )
     stream = build_animation_stream(
-        df,
-        point_names=["p1"],
+        points=points,
+        point_names=["p1", "p2"],
+        draw_points=["p1"],
         lines=[("p1", "p2")],
-        dims=("x", "y", "z"),
         view={"azim": 45.0, "elev": 30.0, "proj": "ortho"},
         pixel_coords=False,
-        frame_ids=df.index.to_numpy(copy=True),
+        frame_ids=np.array([10, 11]),
     )
 
     frame = stream.get_frame(0)
@@ -293,7 +288,7 @@ def test_dynamic_boundary_style_from_feature_source():
     points = np.empty((3, 0, 2), dtype=float)
     poly = np.array([[10.0, 10.0], [50.0, 10.0], [50.0, 40.0], [10.0, 40.0]], dtype=float)
     boundary_arrays = [("zone", np.repeat(poly[None, :, :], 3, axis=0))]
-    stream = build_animation_stream_from_points(
+    stream = build_animation_stream(
         points=points,
         point_names=[],
         frame_ids=np.array([0, 1, 2]),
