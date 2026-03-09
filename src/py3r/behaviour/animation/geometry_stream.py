@@ -553,7 +553,7 @@ def _project_boundary_arrays_3d_to_2d(
     return projected
 
 
-class GeometryAnimationStream:
+class AnimationStream:
     """
     OpenCV-backed frame stream for points, lines, and boundaries.
 
@@ -705,33 +705,50 @@ class GeometryAnimationStream:
         return self._frame_ids.copy()
 
     def reset(self) -> None:
-        """Reset sequential cursor used by ``read()`` / iteration."""
+        """
+        Reset the internal sequential cursor.
+
+        Examples:
+            ```pycon
+            >>> import numpy as np
+            >>> s = build_geometry_stream_from_points(
+            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
+            ...     point_names=["p1"],
+            ...     frame_ids=np.array([0]),
+            ...     pixel_coords=True,
+            ... )
+            >>> _ = s.read()
+            >>> s.reset()
+            >>> ok, _ = s.read()
+            >>> ok
+            True
+
+            ```
+        """
         self._cursor = 0
 
     def read(self) -> tuple[bool, np.ndarray | None]:
         """
-        Return next rendered frame using VideoCapture-style semantics.
+        Return the next rendered frame using VideoCapture-style semantics.
 
-        Returns
-        -------
-        tuple[bool, np.ndarray | None]
-            ``(True, frame)`` while frames remain, otherwise ``(False, None)``.
+        Returns:
+            tuple[bool, np.ndarray | None]: ``(True, frame)`` while frames remain;
+            otherwise ``(False, None)``.
 
-        Examples
-        --------
-        ```pycon
-        >>> import numpy as np
-        >>> s = build_geometry_stream_from_points(
-        ...     points=np.array([[[1.0, 2.0]]], dtype=float),
-        ...     point_names=["p1"],
-        ...     frame_ids=np.array([0]),
-        ...     pixel_coords=True,
-        ... )
-        >>> ok, frame = s.read()
-        >>> ok
-        True
+        Examples:
+            ```pycon
+            >>> import numpy as np
+            >>> s = build_geometry_stream_from_points(
+            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
+            ...     point_names=["p1"],
+            ...     frame_ids=np.array([0]),
+            ...     pixel_coords=True,
+            ... )
+            >>> ok, frame = s.read()
+            >>> ok and frame is not None
+            True
 
-        ```
+            ```
         """
         if self._cursor >= self.frame_count:
             return False, None
@@ -739,7 +756,7 @@ class GeometryAnimationStream:
         self._cursor += 1
         return True, frame
 
-    def __iter__(self) -> GeometryAnimationStream:
+    def __iter__(self) -> AnimationStream:
         return self
 
     def __next__(self) -> np.ndarray:
@@ -753,21 +770,29 @@ class GeometryAnimationStream:
         """
         Render and return one frame by stream index.
 
-        Examples
-        --------
-        ```pycon
-        >>> import numpy as np
-        >>> s = build_geometry_stream_from_points(
-        ...     points=np.array([[[1.0, 2.0]]], dtype=float),
-        ...     point_names=["p1"],
-        ...     frame_ids=np.array([0]),
-        ...     pixel_coords=True,
-        ... )
-        >>> frame0 = s.get_frame(0)
-        >>> frame0.ndim
-        3
+        Args:
+            frame_idx: Zero-based frame index.
 
-        ```
+        Returns:
+            np.ndarray: Rendered BGR image with shape ``(H, W, 3)``.
+
+        Raises:
+            IndexError: If ``frame_idx`` is out of range.
+
+        Examples:
+            ```pycon
+            >>> import numpy as np
+            >>> s = build_geometry_stream_from_points(
+            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
+            ...     point_names=["p1"],
+            ...     frame_ids=np.array([0]),
+            ...     pixel_coords=True,
+            ... )
+            >>> frame0 = s.get_frame(0)
+            >>> frame0.ndim
+            3
+
+            ```
         """
         if frame_idx < 0 or frame_idx >= self.frame_count:
             raise IndexError(f"frame_idx {frame_idx} out of range")
@@ -779,14 +804,34 @@ class GeometryAnimationStream:
         """
         Draw stream geometry into an existing frame buffer.
 
-        Parameters
-        ----------
-        frame : np.ndarray
-            Base image buffer with shape ``(H, W, 3)`` in BGR.
-        frame_idx : int
-            Stream frame index to render.
-        copy : bool, default True
-            If True, draw into a copy and return it. If False, draw in-place.
+        Args:
+            frame: Base BGR image buffer with shape ``(H, W, 3)``.
+            frame_idx: Stream frame index to render.
+            copy: If ``True``, draw into a copy. If ``False``, draw in-place.
+
+        Returns:
+            np.ndarray: Rendered frame buffer.
+
+        Raises:
+            IndexError: If ``frame_idx`` is out of range.
+            ValueError: If ``frame`` does not have shape ``(H, W, 3)``.
+
+        Examples:
+            ```pycon
+            >>> import numpy as np
+            >>> s = build_geometry_stream_from_points(
+            ...     points=np.array([[[5.0, 6.0]]], dtype=float),
+            ...     point_names=["p1"],
+            ...     frame_ids=np.array([0]),
+            ...     pixel_coords=True,
+            ...     canvas_size=(32, 24),
+            ... )
+            >>> base = np.zeros((24, 32, 3), dtype=np.uint8)
+            >>> out = s.render_into(base, frame_idx=0, copy=True)
+            >>> out.shape
+            (24, 32, 3)
+
+            ```
         """
         if frame_idx < 0 or frame_idx >= self.frame_count:
             raise IndexError(f"frame_idx {frame_idx} out of range")
@@ -1005,6 +1050,31 @@ class GeometryAnimationStream:
         Play stream in an OpenCV window.
 
         Press ``q`` or ``Esc`` to exit playback.
+
+        Args:
+            fps: Playback FPS. Uses stream FPS when ``None``.
+            frame_step: Number of stream frames to advance per displayed frame.
+            speed: Playback speed multiplier.
+            window_name: OpenCV window name.
+            loop: If ``True``, restart at the end.
+            video_path: Optional source video to draw overlays on.
+            align_to_frame_ids: If ``True``, seek source video to first ``frame_id``.
+
+        Raises:
+            ValueError: If ``frame_step < 1`` or ``speed <= 0``.
+
+        Examples:
+            ```pycon
+            >>> import numpy as np
+            >>> s = build_geometry_stream_from_points(
+            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
+            ...     point_names=["p1"],
+            ...     frame_ids=np.array([0]),
+            ...     pixel_coords=True,
+            ... )
+            >>> s.play(loop=False, speed=1.0)  # xdoctest: +SKIP
+
+            ```
         """
         if frame_step < 1:
             raise ValueError("frame_step must be >= 1")
@@ -1066,6 +1136,32 @@ class GeometryAnimationStream:
         Render stream to a video file.
 
         If ``video_path`` is provided, geometry is composited onto decoded frames.
+
+        Args:
+            out_path: Output video path.
+            fps: Output FPS when rendering without ``video_path``.
+            frame_step: Number of stream frames to skip per output frame.
+            video_path: Optional source video to draw overlays on.
+            align_to_frame_ids: If ``True``, seek source video to first ``frame_id``.
+            codec: FourCC codec string (for example ``"mp4v"``).
+
+        Raises:
+            ValueError: If ``frame_step < 1`` or writer/capture cannot be opened.
+
+        Examples:
+            ```pycon
+            >>> import tempfile
+            >>> import numpy as np
+            >>> s = build_geometry_stream_from_points(
+            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
+            ...     point_names=["p1"],
+            ...     frame_ids=np.array([0]),
+            ...     pixel_coords=True,
+            ... )
+            >>> with tempfile.NamedTemporaryFile(suffix=".mp4") as f:
+            ...     s.save(f.name)  # xdoctest: +SKIP
+
+            ```
         """
         if frame_step < 1:
             raise ValueError("frame_step must be >= 1")
@@ -1125,7 +1221,7 @@ def build_geometry_stream(
     text_overlays: list[tuple[str, np.ndarray | None]] | None = None,
     pixel_coords: bool = False,
     bounds_pad: float = 0.05,
-) -> GeometryAnimationStream:
+) -> AnimationStream:
     """
     Build a stream from tracking dataframe columns.
 
@@ -1216,7 +1312,7 @@ def build_geometry_stream_from_points(
     text_overlays: list[tuple[str, np.ndarray | None]] | None = None,
     pixel_coords: bool = False,
     bounds_pad: float = 0.05,
-) -> GeometryAnimationStream:
+) -> AnimationStream:
     """
     Build stream from precomputed point arrays.
 
@@ -1236,7 +1332,7 @@ def build_geometry_stream_from_points(
 
     Returns
     -------
-    GeometryAnimationStream
+    AnimationStream
         Lazy stream object supporting ``read()``, ``get_frame()``, ``play()``,
         and ``save()``.
 
@@ -1302,7 +1398,7 @@ def build_geometry_stream_from_points(
         lines_idx.append((point_idx[p1], point_idx[p2]))
         line_keys.append((p1, p2))
 
-    return GeometryAnimationStream(
+    return AnimationStream(
         points_xy=points_xy,
         point_names=point_names,
         draw_point_indices=draw_point_indices,
@@ -1319,3 +1415,7 @@ def build_geometry_stream_from_points(
         pixel_coords=pixel_coords,
         bounds_pad=bounds_pad,
     )
+
+
+# Backward-compatible alias.
+GeometryAnimationStream = AnimationStream

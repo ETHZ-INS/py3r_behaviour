@@ -2249,7 +2249,7 @@ class Features:
 
         Returns
         -------
-        GeometryAnimationStream
+        AnimationStream
             Stream object with ``get_frame()``, ``read()``, ``play()``, and
             ``save()``.
 
