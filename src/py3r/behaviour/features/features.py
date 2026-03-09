@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     import pandas as pd
     from sklearn.neighbors import KNeighborsRegressor
 
+    from py3r.behaviour.animation.animation_stream import AnimationStream
     from py3r.behaviour.classifier import BaseClassifier
 
 logger = logging.getLogger(__name__)
@@ -2205,7 +2206,7 @@ class Features:
         style: dict | None = None,
         pixel_coords: bool = False,
         undo_meta_scaling: bool = False,
-    ):
+    ) -> AnimationStream:
         """
         Build an OpenCV-backed animation stream from Features + boundary assets.
 
@@ -2214,86 +2215,69 @@ class Features:
         Static and dynamic boundaries are resolved to per-boundary arrays and
         rendered in boundary order.
 
-        Parameters
-        ----------
-        points : list[str]
-            Point names to render as circles.
-        lines : list[tuple[str, str]], optional
-            Line segments connecting point pairs.
-        boundaries : list[str], optional
-            Boundary names (or refs resolvable by ``_resolve_boundary_ref``) to
-            draw. Order controls draw stacking.
-        features : list[str | None] | dict[str | None, str | None], optional
-            Per-frame scalar feature columns from ``self.data`` to render as text
-            overlays. If a list is provided, each column is shown as
-            ``name: value``. If a dict is provided, keys are display labels and
-            values are source column names. ``None`` or ``""`` entries insert a
-            blank spacer line.
-        dims : tuple[str, ...], default ("x", "y")
-            Coordinate dimensions. For 3D, use ``("x","y","z")``.
-            Boundary definitions are interpreted in their native 2D ``dims`` and
-            can be projected in 3D via ``view``.
-        view : dict, optional
-            3D view options for projection (``azim``, ``elev``, ``proj``,
-            ``camera_distance``, ``focal_length``, ``boundary_z``, ``pad``).
-        canvas_size : tuple[int, int], default (800, 800)
-            Canvas size as ``(width, height)``.
-        bg_color : tuple[int, int, int], default (0, 0, 0)
-            Background color in BGR.
-        style : dict, optional
-            Style overrides for points/lines/boundaries.
-        pixel_coords : bool, default False
-            If True, coordinates are treated as absolute pixel values.
-        undo_meta_scaling : bool, default False
-            If True, invert tracking meta scaling before rendering.
+        Args:
+            points (list[str]): Point names to render as circles.
+            lines (list[tuple[str, str]] | None): Line segments connecting point pairs.
+            boundaries (list[str] | None): Boundary names (or refs resolvable by
+                ``_resolve_boundary_ref``) to draw. Order controls draw stacking.
+            features (list[str | None] | dict[str | None, str | None] | None):
+                Per-frame scalar feature columns from ``self.data`` to render as
+                text overlays. If a list is provided, each column is shown as
+                ``name: value``. If a dict is provided, keys are display labels and
+                values are source column names. ``None`` or ``""`` entries insert a
+                blank spacer line.
+            dims (tuple[str, ...]): Coordinate dimensions. For 3D, use
+                ``("x","y","z")``. Boundary definitions are interpreted in their
+                native 2D ``dims`` and can be projected in 3D via ``view``.
+                Defaults to ``("x", "y")``.
+            view (dict | None): 3D view options for projection (``azim``, ``elev``,
+                ``proj``, ``camera_distance``, ``focal_length``, ``boundary_z``,
+                ``pad``).
+            canvas_size (tuple[int, int]): Canvas size as ``(width, height)``.
+                Defaults to ``(800, 800)``.
+            bg_color (tuple[int, int, int]): Background color in BGR.
+                Defaults to ``(0, 0, 0)``.
+            style (dict | None): Style overrides for points/lines/boundaries.
+            pixel_coords (bool): If True, coordinates are treated as absolute pixel
+                values. Defaults to ``False``.
+            undo_meta_scaling (bool): If True, invert tracking meta scaling before
+                rendering. Defaults to ``False``.
 
-        Returns
-        -------
-        AnimationStream
-            Stream object with ``get_frame()``, ``read()``, ``play()``, and
-            ``save()``.
+        Returns:
+            AnimationStream: Stream object with ``get_frame()``, ``read()``,
+                ``play()``, and ``save()``.
 
         Examples
         --------
-        Build a stream with a static boundary and custom boundary fill:
-
         ```pycon
-        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
         >>> from py3r.behaviour.tracking.tracking import Tracking
         >>> from py3r.behaviour.features.features import Features
-        >>> df = pd.DataFrame(
-        ...     {
-        ...         "nose.x": [10.0, 11.0, 12.0],
-        ...         "nose.y": [20.0, 21.0, 22.0],
-        ...         "neck.x": [8.0, 9.0, 10.0],
-        ...         "neck.y": [19.0, 20.0, 21.0],
-        ...         "tl.x": [0.0, 0.0, 0.0],
-        ...         "tl.y": [0.0, 0.0, 0.0],
-        ...         "tr.x": [30.0, 30.0, 30.0],
-        ...         "tr.y": [0.0, 0.0, 0.0],
-        ...         "br.x": [30.0, 30.0, 30.0],
-        ...         "br.y": [30.0, 30.0, 30.0],
-        ...         "bl.x": [0.0, 0.0, 0.0],
-        ...         "bl.y": [30.0, 30.0, 30.0],
-        ...     },
-        ...     index=pd.Index([0, 1, 2], name="frame"),
-        ... )
-        >>> t = Tracking(df, meta={"fps": 30.0}, handle="demo")
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
         >>> f = Features(t)
-        >>> _ = f.define_static_boundary(["tl", "tr", "br", "bl"], name="arena")
-        >>> style = {"boundaries": {"arena": {"fill_color": (0, 0, 255), "fill_alpha": 0.3}}}
+        >>> f.data["speed"] = [0.0, 1.0, 0.0, 1.0, 0.0]
+        >>> style = {
+        ...     "points": {
+        ...         "default": {"color": (0, 255, 255), "radius": 3},  # default
+        ...         "p1": {"color": (0, 255, 0), "radius": 5},  # static override
+        ...         "p2": {  # dynamic override (source must be in Features.data)
+        ...             "radius": {"from": "speed", "map": {0.0: 2, 1.0: 6}}
+        ...         },
+        ...     }
+        ... }
         >>> stream = f.animation_stream(
-        ...     points=["nose", "neck"],
-        ...     lines=[("nose", "neck")],
-        ...     boundaries=["arena"],
+        ...     points=["p1", "p2"],
+        ...     lines=[("p1", "p2")],
+        ...     features={"spd": "speed"},
         ...     pixel_coords=True,
-        ...     canvas_size=(64, 48),
+        ...     canvas_size=(96, 72),
         ...     style=style,
         ... )
         >>> stream.frame_count
-        3
+        5
         >>> stream.get_frame(1).shape
-        (48, 64, 3)
+        (72, 96, 3)
 
         ```
         """
@@ -2371,22 +2355,18 @@ class Features:
         """
         Resolve named boundary assets into per-boundary arrays.
 
-        Parameters
-        ----------
-        boundaries : list[str]
-            Stored boundary names (or refs accepted by ``_resolve_boundary_ref``).
-        dims : tuple[str, ...], default ("x", "y")
-            Requested coordinate dimensions. Boundary dims must match
-            ``(dims[0], dims[1])``.
-        undo_meta_scaling : bool, default False
-            If True, invert tracking scaling metadata before resolving dynamic
-            boundary coordinates.
+        Args:
+            boundaries (list[str]): Stored boundary names (or refs accepted by
+                ``_resolve_boundary_ref``).
+            dims (tuple[str, ...]): Requested coordinate dimensions. Boundary dims
+                must match ``(dims[0], dims[1])``. Defaults to ``("x", "y")``.
+            undo_meta_scaling (bool): If True, invert tracking scaling metadata
+                before resolving dynamic boundary coordinates. Defaults to ``False``.
 
-        Returns
-        -------
-        list[tuple[str, np.ndarray]]
-            Boundary arrays as ``[(boundary_name, arr), ...]`` where each arr has
-            shape ``(n_frames, n_vertices, 2)``.
+        Returns:
+            list[tuple[str, np.ndarray]]: Boundary arrays as
+            ``[(boundary_name, arr), ...]`` where each arr has shape
+            ``(n_frames, n_vertices, 2)``.
 
         Examples
         --------

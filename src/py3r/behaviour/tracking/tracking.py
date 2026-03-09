@@ -5,7 +5,7 @@ import re
 import warnings
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,6 +29,9 @@ from py3r.behaviour.util.io_utils import (
 from py3r.behaviour.util.smoothing import apply_smoothing
 
 Self = TypeVar("Self", bound="Tracking")
+
+if TYPE_CHECKING:
+    from py3r.behaviour.animation.animation_stream import AnimationStream
 
 
 class Tracking:
@@ -1794,7 +1797,7 @@ class Tracking:
         style: dict | None = None,
         pixel_coords: bool = False,
         undo_meta_scaling: bool = False,
-    ):
+    ) -> AnimationStream:
         """
         Build an OpenCV-backed frame stream for animated point/line overlays.
 
@@ -1806,99 +1809,64 @@ class Tracking:
         - play live via ``stream.play(...)``
         - save video via ``stream.save(...)``
 
-        Parameters
-        ----------
-        points : list[str]
-            Point names to render as circles.
-        lines : list[tuple[str, str]], optional
-            Line segments connecting point pairs. Endpoints can include points
-            not listed in ``points``.
-        features : list[str | None] | dict[str | None, str | None], optional
-            Per-frame scalar columns to render as text overlays. If a list is
-            provided, each column is shown as ``name: value``. If a dict is
-            provided, keys are display labels and values are source column names.
-            ``None`` or ``""`` entries insert a blank spacer line.
-        dims : tuple[str, ...], default ("x", "y")
-            Coordinate dimensions. Use 2D (``("x","y")``) or 3D
-            (``("x","y","z")`` with ``view``).
-        view : dict, optional
-            3D camera options used only when ``dims`` has length 3.
-            Supported keys include ``azim``, ``elev``, ``proj`` (``"ortho"``
-            or ``"persp"``), ``camera_distance``, ``focal_length``, and
-            ``pad``.
-        canvas_size : tuple[int, int], default (800, 800)
-            Canvas size as ``(width, height)``.
-        bg_color : tuple[int, int, int], default (0, 0, 0)
-            Background color in BGR.
-        style : dict, optional
-            Style overrides for points/lines/boundaries.
-        pixel_coords : bool, default False
-            If True, interpret coordinates as absolute pixel locations.
-            If False, auto-fit projected coordinates to the canvas.
-        undo_meta_scaling : bool, default False
-            If True, invert ``aspectratio_correction`` and
-            ``meta["rescale_factor"]`` before rendering.
+        Args:
+            points (list[str]): Point names to render as circles.
+            lines (list[tuple[str, str]] | None): Line segments connecting point pairs.
+                Endpoints can include points not listed in ``points``.
+            features (list[str | None] | dict[str | None, str | None] | None):
+                Per-frame scalar columns to render as text overlays. If a list is
+                provided, each column is shown as ``name: value``. If a dict is
+                provided, keys are display labels and values are source column names.
+                ``None`` or ``""`` entries insert a blank spacer line.
+            dims (tuple[str, ...]): Coordinate dimensions. Use 2D (``("x","y")``)
+                or 3D (``("x","y","z")`` with ``view``). Defaults to ``("x", "y")``.
+            view (dict | None): 3D camera options used only when ``dims`` has
+                length 3. Supported keys include ``azim``, ``elev``, ``proj``
+                (``"ortho"`` or ``"persp"``), ``camera_distance``,
+                ``focal_length``, and ``pad``.
+            canvas_size (tuple[int, int]): Canvas size as ``(width, height)``.
+                Defaults to ``(800, 800)``.
+            bg_color (tuple[int, int, int]): Background color in BGR.
+                Defaults to ``(0, 0, 0)``.
+            style (dict | None): Style overrides for points/lines/boundaries.
+            pixel_coords (bool): If True, interpret coordinates as absolute pixel
+                locations. If False, auto-fit projected coordinates to the canvas.
+                Defaults to ``False``.
+            undo_meta_scaling (bool): If True, invert ``aspectratio_correction``
+                and ``meta["rescale_factor"]`` before rendering. Defaults to ``False``.
 
-        Returns
-        -------
-        AnimationStream
-            Stream object with ``get_frame()``, ``read()``, ``play()``, and
-            ``save()``.
+        Returns:
+            AnimationStream: Stream object with ``get_frame()``, ``read()``,
+                ``play()``, and ``save()``.
 
         Examples
         --------
-        Build a simple 2D stream and render one frame:
-
         ```pycon
-        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
         >>> from py3r.behaviour.tracking.tracking import Tracking
-        >>> df = pd.DataFrame(
-        ...     {
-        ...         "nose.x": [10.0, 11.0, 12.0],
-        ...         "nose.y": [20.0, 21.0, 22.0],
-        ...         "neck.x": [8.0, 9.0, 10.0],
-        ...         "neck.y": [19.0, 20.0, 21.0],
-        ...     },
-        ...     index=pd.Index([0, 1, 2], name="frame"),
-        ... )
-        >>> t = Tracking(df, meta={"fps": 30.0}, handle="demo")
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> style = {
+        ...     "points": {
+        ...         "default": {"color": (0, 255, 255), "radius": 3},  # default
+        ...         "p1": {"color": (0, 255, 0), "radius": 5},  # static override
+        ...         "p2": {  # dynamic override
+        ...             "radius": {"from": "p1.likelihood", "map": {1.0: 6, "default": 2}}
+        ...         },
+        ...     }
+        ... }
         >>> stream = t.animation_stream(
-        ...     points=["nose", "neck"],
-        ...     lines=[("nose", "neck")],
-        ...     pixel_coords=True,
-        ...     canvas_size=(64, 48),
-        ... )
-        >>> stream.frame_count
-        3
-        >>> frame0 = stream.get_frame(0)
-        >>> frame0.shape
-        (48, 64, 3)
-
-        ```
-
-        Build a 3D projected stream:
-
-        ```pycon
-        >>> df3 = pd.DataFrame(
-        ...     {
-        ...         "p1.x": [0.0, 1.0],
-        ...         "p1.y": [0.0, 0.0],
-        ...         "p1.z": [0.0, 0.5],
-        ...         "p2.x": [1.0, 2.0],
-        ...         "p2.y": [0.0, 0.0],
-        ...         "p2.z": [0.0, 0.5],
-        ...     },
-        ...     index=pd.Index([10, 11], name="frame"),
-        ... )
-        >>> t3 = Tracking(df3, meta={"fps": 30.0}, handle="demo3d")
-        >>> s3 = t3.animation_stream(
         ...     points=["p1", "p2"],
         ...     lines=[("p1", "p2")],
-        ...     dims=("x", "y", "z"),
-        ...     view={"azim": 45, "elev": 30, "proj": "ortho"},
+        ...     pixel_coords=True,
+        ...     canvas_size=(96, 72),
+        ...     style=style,
         ... )
-        >>> s3.frame_count
-        2
+        >>> stream.frame_count
+        5
+        >>> frame0 = stream.get_frame(0)
+        >>> frame0.shape
+        (72, 96, 3)
 
         ```
         """
@@ -1963,21 +1931,16 @@ class Tracking:
         """
         Resolve selected point coordinates to a NumPy array.
 
-        Parameters
-        ----------
-        points : list[str]
-            Point names to extract.
-        dims : tuple[str, ...], default ("x", "y")
-            Coordinate dimensions to extract (2D or 3D).
-        undo_meta_scaling : bool, default False
-            If True, invert ``aspectratio_correction`` and ``rescale_factor``
-            before extraction.
+        Args:
+            points (list[str]): Point names to extract.
+            dims (tuple[str, ...]): Coordinate dimensions to extract (2D or 3D).
+                Defaults to ``("x", "y")``.
+            undo_meta_scaling (bool): If True, invert ``aspectratio_correction``
+                and ``rescale_factor`` before extraction. Defaults to ``False``.
 
-        Returns
-        -------
-        tuple[list[str], np.ndarray]
-            ``(point_names, array)`` where array has shape
-            ``(n_frames, n_points, len(dims))``.
+        Returns:
+            tuple[list[str], np.ndarray]: ``(point_names, array)`` where array has
+            shape ``(n_frames, n_points, len(dims))``.
 
         Examples
         --------

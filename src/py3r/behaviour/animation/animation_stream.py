@@ -156,13 +156,11 @@ class AnimationStream:
 
         Examples:
             ```pycon
-            >>> import numpy as np
-            >>> s = build_animation_stream(
-            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
-            ...     point_names=["p1"],
-            ...     frame_ids=np.array([0]),
-            ...     pixel_coords=True,
-            ... )
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
             >>> _ = s.read()
             >>> s.reset()
             >>> ok, _ = s.read()
@@ -183,13 +181,11 @@ class AnimationStream:
 
         Examples:
             ```pycon
-            >>> import numpy as np
-            >>> s = build_animation_stream(
-            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
-            ...     point_names=["p1"],
-            ...     frame_ids=np.array([0]),
-            ...     pixel_coords=True,
-            ... )
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
             >>> ok, frame = s.read()
             >>> ok and frame is not None
             True
@@ -227,13 +223,11 @@ class AnimationStream:
 
         Examples:
             ```pycon
-            >>> import numpy as np
-            >>> s = build_animation_stream(
-            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
-            ...     point_names=["p1"],
-            ...     frame_ids=np.array([0]),
-            ...     pixel_coords=True,
-            ... )
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
             >>> frame0 = s.get_frame(0)
             >>> frame0.ndim
             3
@@ -265,13 +259,11 @@ class AnimationStream:
         Examples:
             ```pycon
             >>> import numpy as np
-            >>> s = build_animation_stream(
-            ...     points=np.array([[[5.0, 6.0]]], dtype=float),
-            ...     point_names=["p1"],
-            ...     frame_ids=np.array([0]),
-            ...     pixel_coords=True,
-            ...     canvas_size=(32, 24),
-            ... )
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(32, 24))
             >>> base = np.zeros((24, 32, 3), dtype=np.uint8)
             >>> out = s.render_into(base, frame_idx=0, copy=True)
             >>> out.shape
@@ -504,13 +496,11 @@ class AnimationStream:
 
         Examples:
             ```pycon
-            >>> import numpy as np
-            >>> s = build_animation_stream(
-            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
-            ...     point_names=["p1"],
-            ...     frame_ids=np.array([0]),
-            ...     pixel_coords=True,
-            ... )
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
             >>> s.play(loop=False, speed=1.0)  # xdoctest: +SKIP
 
             ```
@@ -590,13 +580,11 @@ class AnimationStream:
         Examples:
             ```pycon
             >>> import tempfile
-            >>> import numpy as np
-            >>> s = build_animation_stream(
-            ...     points=np.array([[[1.0, 2.0]]], dtype=float),
-            ...     point_names=["p1"],
-            ...     frame_ids=np.array([0]),
-            ...     pixel_coords=True,
-            ... )
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
             >>> with tempfile.NamedTemporaryFile(suffix=".mp4") as f:
             ...     s.save(f.name)  # xdoctest: +SKIP
 
@@ -687,18 +675,21 @@ def build_animation_stream(
     Examples
     --------
     ```pycon
-    >>> import numpy as np
-    >>> points = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=float)
+    >>> from py3r.behaviour.util.docdata import data_path
+    >>> from py3r.behaviour.tracking.tracking import Tracking
+    >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+    ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+    >>> point_names, points = t.points_to_numpy(["p1", "p2"], dims=("x", "y"))
     >>> stream = build_animation_stream(
     ...     points=points,
-    ...     point_names=["a", "b"],
-    ...     draw_points=["a"],
-    ...     lines=[("a", "b")],
-    ...     frame_ids=np.array([42]),
+    ...     point_names=point_names,
+    ...     draw_points=["p1"],
+    ...     lines=[("p1", "p2")],
+    ...     frame_ids=t.data.index.to_numpy(copy=True),
     ...     pixel_coords=True,
     ... )
-    >>> stream.frame_ids.tolist()
-    [42]
+    >>> stream.frame_count
+    5
 
     ```
     """
