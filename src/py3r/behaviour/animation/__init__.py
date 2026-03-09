@@ -1,13 +1,15 @@
-from .geometry_stream import (
+from ._style import (
+    collect_dynamic_source_names_from_style,
+)
+from .animation_stream import (
     AnimationStream,
-    GeometryAnimationStream,
-    build_geometry_stream,
-    build_geometry_stream_from_points,
+    build_animation_stream,
+    build_animation_stream_from_points,
 )
 
 __all__ = [
     "AnimationStream",
-    "GeometryAnimationStream",
-    "build_geometry_stream",
-    "build_geometry_stream_from_points",
+    "build_animation_stream",
+    "build_animation_stream_from_points",
+    "collect_dynamic_source_names_from_style",
 ]

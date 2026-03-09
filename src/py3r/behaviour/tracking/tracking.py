@@ -1902,8 +1902,8 @@ class Tracking:
 
         ```
         """
-        from py3r.behaviour.animation.geometry_stream import (
-            build_geometry_stream_from_points,
+        from py3r.behaviour.animation import (
+            build_animation_stream_from_points,
             collect_dynamic_source_names_from_style,
         )
 
@@ -1936,7 +1936,7 @@ class Tracking:
                         raise ValueError(f"Column {name} not found for dynamic style source")
                     style_sources[name] = self.data[name].to_numpy(copy=True)
 
-        return build_geometry_stream_from_points(
+        return build_animation_stream_from_points(
             points=points_arr,
             point_names=point_names,
             draw_points=points,

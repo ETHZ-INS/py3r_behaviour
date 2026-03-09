@@ -1,4 +1,4 @@
-::: py3r.behaviour.animation.geometry_stream.AnimationStream
+::: py3r.behaviour.animation.animation_stream.AnimationStream
     options:
       docstring_style: google
       members:
