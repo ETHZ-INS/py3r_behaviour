@@ -3,6 +3,9 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+from .models import CompiledScene
+from .renderer import render_frame
+
 
 def _open_video_capture(video_path: str, *, start_frame: int) -> cv2.VideoCapture:
     cap = cv2.VideoCapture(video_path)
@@ -35,8 +38,8 @@ def _make_video_writer(
     return writer
 
 
-def play_stream(
-    stream,
+def play(
+    scene: CompiledScene,
     *,
     fps: float | None = None,
     frame_step: int = 1,
@@ -50,17 +53,17 @@ def play_stream(
         raise ValueError("frame_step must be >= 1")
     if speed <= 0:
         raise ValueError("speed must be > 0")
-    playback_fps = float(stream.fps if fps is None else fps)
+    playback_fps = float(scene.fps if fps is None else fps)
     delay_ms = max(1, int(round(1000.0 / (playback_fps * float(speed)))))
     idx = 0
     cap = None
-    start_frame = int(stream._frame_ids[0]) if align_to_frame_ids else 0
+    start_frame = int(scene.frame_ids[0]) if align_to_frame_ids else 0
     if video_path is not None:
         cap = _open_video_capture(video_path, start_frame=start_frame)
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
     try:
         while True:
-            if idx >= stream.frame_count:
+            if idx >= len(scene.frame_ids):
                 if not loop:
                     break
                 idx = 0
@@ -71,12 +74,12 @@ def play_stream(
                 ok, base = cap.read()
                 if not ok:
                     break
-                frame = stream.render_into(base, frame_idx=idx, copy=False)
+                frame = render_frame(scene, idx, frame=base)
                 for _ in range(frame_step - 1):
                     if not cap.grab():
                         break
             else:
-                frame = stream.get_frame(idx)
+                frame = render_frame(scene, idx)
             cv2.imshow(window_name, frame)
             if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
                 break
@@ -93,8 +96,8 @@ def play_stream(
             pass
 
 
-def save_stream(
-    stream,
+def save(
+    scene: CompiledScene,
     out_path: str,
     *,
     fps: float | None = None,
@@ -109,31 +112,31 @@ def save_stream(
     writer = None
     try:
         if video_path is not None:
-            start_frame = int(stream._frame_ids[0]) if align_to_frame_ids else 0
+            start_frame = int(scene.frame_ids[0]) if align_to_frame_ids else 0
             cap = _open_video_capture(video_path, start_frame=start_frame)
             ok, first = cap.read()
             if not ok:
                 raise ValueError("Could not read first video frame from video_path")
             h, w = first.shape[:2]
-            out_fps = _resolve_video_fps(cap, fallback=(stream.fps if fps is None else float(fps)))
+            out_fps = _resolve_video_fps(cap, fallback=(scene.fps if fps is None else float(fps)))
             writer = _make_video_writer(out_path, width=w, height=h, fps=out_fps, codec=codec)
             idx = 0
             current = first
-            while idx < stream.frame_count:
-                writer.write(stream.render_into(current, frame_idx=idx, copy=True))
+            while idx < len(scene.frame_ids):
+                writer.write(render_frame(scene, idx, frame=current.copy()))
                 idx += frame_step
-                if idx >= stream.frame_count:
+                if idx >= len(scene.frame_ids):
                     break
                 for _ in range(frame_step):
                     ok, current = cap.read()
                     if not ok:
                         return
         else:
-            w, h = stream._canvas_size
-            out_fps = float(stream.fps if fps is None else fps)
+            w, h = scene.canvas_size
+            out_fps = float(scene.fps if fps is None else fps)
             writer = _make_video_writer(out_path, width=w, height=h, fps=out_fps, codec=codec)
-            for idx in range(0, stream.frame_count, frame_step):
-                writer.write(stream.get_frame(idx))
+            for idx in range(0, len(scene.frame_ids), frame_step):
+                writer.write(render_frame(scene, idx))
     finally:
         if cap is not None:
             cap.release()

@@ -4,55 +4,42 @@ import cv2
 import numpy as np
 
 from .compiler import (
-    _apply_dynamic_overrides,
     _coords_to_pixels,
-    _format_overlay_value,
     _is_valid,
 )
-from .models import GeometryData, StyleProgram
+from .models import CompiledScene
 
 
-def resolve_compiled_style(
-    compiled_styles: dict[str, dict[object, dict[str, object]]],
-    section_name: str,
-    item_key,
-    frame_idx: int,
-) -> dict:
-    compiled = compiled_styles[section_name][item_key]
-    return _apply_dynamic_overrides(compiled["base"], compiled["dyn"], frame_idx)
-
-
-def render_into_frame(
-    frame: np.ndarray,
-    *,
-    frame_idx: int,
-    geometry: GeometryData,
-    styles: StyleProgram,
-    copy: bool = True,
+def render_frame(
+    scene: CompiledScene, frame_idx: int, frame: np.ndarray | None = None
 ) -> np.ndarray:
-    target = frame.copy() if copy else frame
+    if frame_idx < 0 or frame_idx >= scene.points_xy.shape[0]:
+        raise IndexError(f"frame_idx {frame_idx} out of range")
+    if frame is None:
+        w, h = scene.canvas_size
+        target = np.full((h, w, 3), scene.bg_color, dtype=np.uint8)
+    else:
+        if frame.ndim != 3 or frame.shape[2] != 3:
+            raise ValueError("frame must have shape (H, W, 3)")
+        target = frame
     underlay = target.copy()
+    frame_styles = scene.styles_by_frame[frame_idx]
 
     valid_polys: list[tuple[np.ndarray, dict]] = []
-    for boundary_name, arr in geometry.boundary_arrays:
+    for boundary_name, arr in scene.boundaries_xy.items():
         poly = arr[frame_idx]
         pix = _coords_to_pixels(
             poly,
             target.shape[1],
             target.shape[0],
-            geometry.bounds,
-            geometry.pixel_coords,
+            scene.bounds,
+            scene.pixel_coords,
         )
         if pix is None or len(pix) < 3:
             continue
         if np.any(pix[:, 0] < 0) or np.any(pix[:, 1] < 0):
             continue
-        bstyle = resolve_compiled_style(
-            styles.compiled_styles,
-            "boundaries",
-            boundary_name,
-            frame_idx,
-        )
+        bstyle = frame_styles["boundaries"][boundary_name]
         valid_polys.append((pix, bstyle))
         alpha = float(bstyle["fill_alpha"])
         if alpha > 0 and bstyle["fill_mode"] == "normal" and bstyle["fill_color"] is not None:
@@ -73,23 +60,18 @@ def render_into_frame(
         if edge_width > 0 and edge_color is not None:
             cv2.polylines(target, [pix], isClosed=True, color=edge_color, thickness=edge_width)
 
-    pts = geometry.points_xy[frame_idx]
+    pts = scene.points_xy[frame_idx]
     pix_pts = _coords_to_pixels(
         pts,
         target.shape[1],
         target.shape[0],
-        geometry.bounds,
-        geometry.pixel_coords,
+        scene.bounds,
+        scene.pixel_coords,
     )
     if pix_pts is not None:
-        for line_i, (i1, i2) in enumerate(geometry.lines_idx):
+        for line_i, (i1, i2) in enumerate(scene.lines_idx):
             if _is_valid(pix_pts, i1) and _is_valid(pix_pts, i2):
-                lstyle = resolve_compiled_style(
-                    styles.compiled_styles,
-                    "lines",
-                    geometry.line_keys[line_i],
-                    frame_idx,
-                )
+                lstyle = frame_styles["lines"][scene.line_keys[line_i]]
                 cv2.line(
                     target,
                     tuple(pix_pts[i1]),
@@ -97,45 +79,28 @@ def render_into_frame(
                     lstyle["color"],
                     lstyle["width"],
                 )
-        for point_i in geometry.draw_point_indices:
+        for point_i in scene.draw_point_indices:
             p = pix_pts[point_i]
             if p[0] >= 0:
-                pstyle = resolve_compiled_style(
-                    styles.compiled_styles,
-                    "points",
-                    geometry.point_names[point_i],
-                    frame_idx,
-                )
+                pstyle = frame_styles["points"][scene.point_names[point_i]]
                 cv2.circle(target, tuple(p), pstyle["radius"], pstyle["color"], thickness=-1)
 
-    if styles.text_overlays:
-        text_section = styles.style.get("text", {})
+    entries = scene.text_by_frame[frame_idx]
+    if entries:
+        text_section = scene.text_config
         ox, oy = text_section.get("origin", (10, 20))
-        default_fmt = str(text_section.get("format", ".3f"))
         y = int(oy)
-        entries: list[dict] = []
         max_text_w = 0
-        for overlay_i, (label, values) in enumerate(styles.text_overlays):
-            tstyle = resolve_compiled_style(styles.compiled_styles, "text", label, frame_idx)
+        positioned: list[dict] = []
+        for entry in entries:
+            tstyle = entry["style"]
             if y < 0:
                 y += tstyle["line_height"]
-            if values is None:
-                entries.append({"y": y, "line_height": tstyle["line_height"], "spacer": True})
+            if entry["spacer"]:
+                positioned.append({"y": y, "line_height": tstyle["line_height"], "spacer": True})
                 y += tstyle["line_height"]
                 continue
-            fmt = default_fmt if tstyle.get("format") is None else str(tstyle["format"])
-            color_arr = styles.text_colors[overlay_i]
-            dyn_text = styles.compiled_styles["text"][label]["dyn"]
-            if dyn_text is not None and "color" in dyn_text:
-                color = tstyle["color"]
-            elif color_arr is None:
-                color = tstyle["color"]
-            else:
-                color = tuple(map(int, color_arr[frame_idx]))
-            txt = (
-                f"{label}: "
-                f"{_format_overlay_value(values[frame_idx], fmt, as_bool=tstyle['as_bool'])}"
-            )
+            txt = str(entry["text"])
             (tw, _), _ = cv2.getTextSize(
                 txt,
                 cv2.FONT_HERSHEY_SIMPLEX,
@@ -143,14 +108,14 @@ def render_into_frame(
                 tstyle["thickness"],
             )
             max_text_w = max(max_text_w, int(tw))
-            entries.append(
+            positioned.append(
                 {
                     "y": y,
                     "line_height": tstyle["line_height"],
                     "spacer": False,
                     "txt": txt,
                     "style": tstyle,
-                    "color": color,
+                    "color": tuple(map(int, entry["color"])),
                 }
             )
             y += tstyle["line_height"]
@@ -161,7 +126,7 @@ def render_into_frame(
             if isinstance(panel_cfg, dict)
             else bool(panel_cfg)
         )
-        if panel_enabled and entries and max_text_w > 0:
+        if panel_enabled and positioned and max_text_w > 0:
             pad = int(panel_cfg.get("padding", 6)) if isinstance(panel_cfg, dict) else 6
             alpha = float(panel_cfg.get("alpha", 0.45)) if isinstance(panel_cfg, dict) else 0.45
             alpha = float(np.clip(alpha, 0.0, 1.0))
@@ -170,8 +135,8 @@ def render_into_frame(
                 if isinstance(panel_cfg, dict)
                 else (0, 0, 0)
             )
-            top = min(int(e["y"] - e["line_height"] + 4) for e in entries)
-            bottom = max(int(e["y"] + 6) for e in entries)
+            top = min(int(e["y"] - e["line_height"] + 4) for e in positioned)
+            bottom = max(int(e["y"] + 6) for e in positioned)
             left = int(ox) - pad
             right = int(ox) + max_text_w + pad
             left = max(0, left)
@@ -192,7 +157,7 @@ def render_into_frame(
                     )
                     cv2.addWeighted(panel_overlay, alpha, target, 1.0 - alpha, 0.0, dst=target)
 
-        for entry in entries:
+        for entry in positioned:
             if entry["spacer"]:
                 continue
             tstyle = entry["style"]

@@ -2298,7 +2298,7 @@ class Features:
         ```
         """
         from py3r.behaviour.animation import (
-            build_animation_stream_from_points,
+            build_animation_stream,
             collect_dynamic_source_names_from_style,
         )
 
@@ -2344,7 +2344,7 @@ class Features:
                         raise ValueError(
                             f"Dynamic style source '{name}' not found in Features or Tracking data"
                         )
-        return build_animation_stream_from_points(
+        return build_animation_stream(
             points=points_arr,
             point_names=point_names,
             draw_points=points,
