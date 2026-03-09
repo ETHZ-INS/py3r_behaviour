@@ -299,15 +299,32 @@ class AnimationStream:
                 fill_overlay = target.copy()
                 cv2.fillPoly(fill_overlay, [pix], color=bstyle["fill_color"])
                 cv2.addWeighted(fill_overlay, alpha, target, 1.0 - alpha, 0.0, dst=target)
-            elif alpha > 0 and bstyle["fill_mode"] == "erase":
-                # Blend back toward the original underlay only inside this polygon.
-                mask = np.zeros(target.shape[:2], dtype=np.uint8)
-                cv2.fillPoly(mask, [pix], color=255)
-                m = mask.astype(bool)
-                target[m] = (
-                    (1.0 - alpha) * target[m].astype(np.float32)
-                    + alpha * underlay[m].astype(np.float32)
-                ).astype(np.uint8)
+            elif bstyle["fill_mode"] == "erase":
+                # Hard erase using ROI + OpenCV masked copy (no NumPy boolean indexing).
+                pts = np.asarray(pix, dtype=np.int32)
+                x, y, w, h = cv2.boundingRect(pts)
+                if w <= 0 or h <= 0:
+                    continue
+                img_h, img_w = target.shape[:2]
+                x0 = max(0, x)
+                y0 = max(0, y)
+                x1 = min(img_w, x + w)
+                y1 = min(img_h, y + h)
+                if x1 <= x0 or y1 <= y0:
+                    continue
+                local_pts = pts - np.array([x, y], dtype=np.int32)
+                mask_full = np.zeros((h, w), dtype=np.uint8)
+                cv2.fillPoly(mask_full, [local_pts], color=255)
+                dx0 = x0 - x
+                dy0 = y0 - y
+                dx1 = dx0 + (x1 - x0)
+                dy1 = dy0 + (y1 - y0)
+                mask_roi = mask_full[dy0:dy1, dx0:dx1]
+                if mask_roi.size == 0:
+                    continue
+                underlay_roi = underlay[y0:y1, x0:x1]
+                target_roi = target[y0:y1, x0:x1]
+                cv2.copyTo(underlay_roi, mask_roi, target_roi)
         for pix, bstyle in valid_polys:
             edge_width = int(bstyle["edge_width"])
             edge_color = bstyle["edge_color"]
