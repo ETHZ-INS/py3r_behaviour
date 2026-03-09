@@ -7,7 +7,6 @@ from py3r.behaviour.animation.geometry_stream import (
     _format_overlay_value,
     build_geometry_stream,
     build_geometry_stream_from_points,
-    undo_meta_scaling_for_geometry,
 )
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.tracking import Tracking
@@ -130,7 +129,7 @@ def test_geometry_animation_stream_render_into_copy_modes():
     assert np.any(base2 != 0)
 
 
-def test_undo_meta_scaling_for_geometry_inverts_meta_scaling():
+def test_tracking_points_to_numpy_undo_meta_scaling_inverts_meta_scaling():
     df = pd.DataFrame(
         {
             "nose.x": [20.0],
@@ -138,12 +137,17 @@ def test_undo_meta_scaling_for_geometry_inverts_meta_scaling():
             "nose.z": [9.0],
         }
     )
-    meta = {"aspectratio_correction": 2.0, "rescale_factor": {"x": 4.0, "y": 2.0}}
-    out = undo_meta_scaling_for_geometry(df, meta, dims=("x", "y"))
+    meta = {"fps": 30.0, "aspectratio_correction": 2.0, "rescale_factor": {"x": 4.0, "y": 2.0}}
+    tracking = Tracking(df, meta=meta, handle="demo")
+    _, out = tracking.points_to_numpy(
+        ["nose"],
+        dims=("x", "y", "z"),
+        undo_meta_scaling=True,
+    )
 
-    assert float(out["nose.x"].iloc[0]) == 2.5
-    assert float(out["nose.y"].iloc[0]) == 5.0
-    assert float(out["nose.z"].iloc[0]) == 9.0
+    assert float(out[0, 0, 0]) == 2.5
+    assert float(out[0, 0, 1]) == 5.0
+    assert float(out[0, 0, 2]) == 9.0
 
 
 def test_build_geometry_stream_wrapper_supports_3d_points():
@@ -288,12 +292,12 @@ def test_text_outline_and_panel_render():
 def test_dynamic_boundary_style_from_feature_source():
     points = np.empty((3, 0, 2), dtype=float)
     poly = np.array([[10.0, 10.0], [50.0, 10.0], [50.0, 40.0], [10.0, 40.0]], dtype=float)
-    polygons = [[("zone", poly)] for _ in range(3)]
+    boundary_arrays = [("zone", np.repeat(poly[None, :, :], 3, axis=0))]
     stream = build_geometry_stream_from_points(
         points=points,
         point_names=[],
         frame_ids=np.array([0, 1, 2]),
-        polygons_per_frame=polygons,
+        boundary_arrays=boundary_arrays,
         canvas_size=(64, 48),
         pixel_coords=True,
         style={

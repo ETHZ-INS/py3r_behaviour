@@ -17,6 +17,7 @@ from py3r.behaviour.features.boundary import DynamicBoundary, StaticBoundary
 from py3r.behaviour.features.features_result import FeaturesResult
 from py3r.behaviour.tracking.tracking import Tracking
 from py3r.behaviour.util import series_utils
+from py3r.behaviour.util.array_utils import rescale_array_by_dim
 from py3r.behaviour.util.bmicro_utils import (
     predict_knn_on_embedding,
     train_knn_from_embeddings,
@@ -2210,7 +2211,7 @@ class Features:
 
         This wraps the same renderer used by :meth:`Tracking.animation_stream`,
         while additionally resolving named boundaries stored in ``self._assets``.
-        Static and dynamic boundaries are converted to per-frame polygons and
+        Static and dynamic boundaries are resolved to per-boundary arrays and
         rendered in boundary order.
 
         Parameters
@@ -2306,14 +2307,14 @@ class Features:
         point_names, points_arr = self.tracking.points_to_numpy(
             all_points, dims=dims, undo_meta_scaling=undo_meta_scaling
         )
-        polygons_per_frame = (
-            self.boundaries_to_polygons_per_frame(
+        boundary_arrays = (
+            self.boundaries_to_arrays(
                 boundaries,
                 dims=dims,
                 undo_meta_scaling=undo_meta_scaling,
             )
             if boundaries is not None
-            else [[] for _ in range(len(points_arr))]
+            else []
         )
         text_overlays = None
         if features is not None:
@@ -2352,7 +2353,7 @@ class Features:
             boundary_z=(view or {}).get("boundary_z", 0.0),
             frame_ids=self.tracking.data.index.to_numpy(copy=True),
             fps=float(self.tracking.meta.get("fps", 30.0)),
-            polygons_per_frame=polygons_per_frame,
+            boundary_arrays=boundary_arrays,
             canvas_size=canvas_size,
             bg_color=bg_color,
             style=style,
@@ -2362,15 +2363,15 @@ class Features:
             bounds_pad=float((view or {}).get("pad", 0.05)),
         )
 
-    def boundaries_to_polygons_per_frame(
+    def boundaries_to_arrays(
         self,
         boundaries: list[str],
         *,
         dims: tuple[str, ...] = ("x", "y"),
         undo_meta_scaling: bool = False,
-    ) -> list[list[tuple[str, np.ndarray]]]:
+    ) -> list[tuple[str, np.ndarray]]:
         """
-        Resolve named boundary assets into per-frame polygon arrays.
+        Resolve named boundary assets into per-boundary arrays.
 
         Parameters
         ----------
@@ -2385,8 +2386,9 @@ class Features:
 
         Returns
         -------
-        list[list[tuple[str, np.ndarray]]]
-            Per-frame boundary list as ``[(boundary_name, polygon_xy), ...]``.
+        list[tuple[str, np.ndarray]]
+            Boundary arrays as ``[(boundary_name, arr), ...]`` where each arr has
+            shape ``(n_frames, n_vertices, 2)``.
 
         Examples
         --------
@@ -2406,41 +2408,17 @@ class Features:
         ... )
         >>> f = Features(Tracking(df, meta={"fps": 30.0}, handle="demo"))
         >>> _ = f.define_static_boundary(["a", "b", "c"], name="tri")
-        >>> polys = f.boundaries_to_polygons_per_frame(["tri"])
-        >>> len(polys), len(polys[0])
-        (2, 1)
+        >>> arrays = f.boundaries_to_arrays(["tri"])
+        >>> arrays[0][1].shape
+        (2, 3, 2)
 
         ```
         """
-        from py3r.behaviour.animation.geometry_stream import undo_meta_scaling_for_geometry
-
-        source_df = (
-            undo_meta_scaling_for_geometry(self.tracking.data, self.tracking.meta, dims=dims)
-            if undo_meta_scaling
-            else self.tracking.data
+        source_df = self.tracking.data
+        factors = (
+            self.tracking._undo_rescale_factors((dims[0], dims[1])) if undo_meta_scaling else {}
         )
-        rescale_factors = self.tracking.meta.get("rescale_factor", {})
-        aspectratio_correction = float(self.tracking.meta.get("aspectratio_correction", 1.0) or 1.0)
-
-        def _undo_static_polygon(vertices) -> np.ndarray:
-            poly = np.asarray(vertices, dtype=float).copy()
-            if not undo_meta_scaling:
-                return poly
-            dim1, dim2 = dims[0], dims[1]
-            factor_dim1 = float(rescale_factors.get(dim1, 1.0) or 1.0)
-            factor_dim2 = float(rescale_factors.get(dim2, 1.0) or 1.0)
-            if factor_dim1 not in (0.0, 1.0):
-                poly[:, 0] = poly[:, 0] / factor_dim1
-            if factor_dim2 not in (0.0, 1.0):
-                poly[:, 1] = poly[:, 1] / factor_dim2
-            if aspectratio_correction not in (0.0, 1.0):
-                if dim1 == "x":
-                    poly[:, 0] = poly[:, 0] / aspectratio_correction
-                if dim2 == "x":
-                    poly[:, 1] = poly[:, 1] / aspectratio_correction
-            return poly
-
-        polygons: list[list[tuple[str, np.ndarray]]] = [[] for _ in range(len(source_df))]
+        boundary_arrays: list[tuple[str, np.ndarray]] = []
         expected_boundary_dims = (dims[0], dims[1])
         for boundary_ref in boundaries:
             boundary = self._resolve_boundary_ref(boundary_ref)
@@ -2451,11 +2429,24 @@ class Features:
                 )
             boundary_name = str(boundary_ref)
             if isinstance(boundary, StaticBoundary):
-                poly = _undo_static_polygon(boundary.to_numpy())
-                for i in range(len(polygons)):
-                    polygons[i].append((boundary_name, poly))
+                poly = np.asarray(boundary.to_numpy(), dtype=float)
+                poly_stack = np.repeat(poly[None, :, :], len(source_df), axis=0)
+                poly_stack = rescale_array_by_dim(
+                    poly_stack,
+                    dims=(dims[0], dims[1]),
+                    factors=factors,
+                    dim_axis=2,
+                    copy=False,
+                )
+                boundary_arrays.append((boundary_name, poly_stack))
             elif isinstance(boundary, DynamicBoundary):
                 poly_stack = boundary.to_numpy_per_frame(source_df)
-                for i in range(len(polygons)):
-                    polygons[i].append((boundary_name, poly_stack[i]))
-        return polygons
+                poly_stack = rescale_array_by_dim(
+                    poly_stack,
+                    dims=(dims[0], dims[1]),
+                    factors=factors,
+                    dim_axis=2,
+                    copy=False,
+                )
+                boundary_arrays.append((boundary_name, poly_stack))
+        return boundary_arrays

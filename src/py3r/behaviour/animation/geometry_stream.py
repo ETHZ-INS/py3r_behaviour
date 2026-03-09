@@ -12,63 +12,6 @@ except Exception:  # pragma: no cover - optional dependency
     mpl = None
 
 
-def undo_meta_scaling_for_geometry(
-    df: pd.DataFrame, meta: dict, dims: tuple[str, ...] = ("x", "y")
-) -> pd.DataFrame:
-    """
-    Return a copy with coordinate scaling metadata inverted.
-
-    This helper reverses the transforms applied by ``meta["aspectratio_correction"]``
-    and ``meta["rescale_factor"]`` for the requested coordinate dimensions.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Tracking dataframe with ``"<point>.<dim>"`` columns.
-    meta : dict
-        Tracking metadata that may contain ``aspectratio_correction`` and
-        ``rescale_factor``.
-    dims : tuple[str, ...], default ("x", "y")
-        Dimensions to unscale.
-
-    Returns
-    -------
-    pd.DataFrame
-        Copy of ``df`` with requested dimensions unscaled.
-
-    Examples
-    --------
-    ```pycon
-    >>> import pandas as pd
-    >>> df = pd.DataFrame({"nose.x": [20.0], "nose.y": [10.0]})
-    >>> meta = {"aspectratio_correction": 2.0, "rescale_factor": {"x": 4.0, "y": 2.0}}
-    >>> out = undo_meta_scaling_for_geometry(df, meta, dims=("x", "y"))
-    >>> float(out["nose.x"].iloc[0]), float(out["nose.y"].iloc[0])
-    (2.5, 5.0)
-
-    ```
-    """
-    out = df.copy()
-    dims_set = set(dims)
-    correction = float(meta.get("aspectratio_correction", 1.0) or 1.0)
-    if correction not in (0.0, 1.0):
-        x_cols = [c for c in out.columns if c.endswith(".x")]
-        if x_cols:
-            out.loc[:, x_cols] = out.loc[:, x_cols] / correction
-    factors = meta.get("rescale_factor")
-    if isinstance(factors, dict):
-        for dim, factor in factors.items():
-            if dim not in dims_set:
-                continue
-            factor = float(factor)
-            if factor in (0.0, 1.0):
-                continue
-            cols = [c for c in out.columns if c.endswith(f".{dim}")]
-            if cols:
-                out.loc[:, cols] = out.loc[:, cols] / factor
-    return out
-
-
 def _is_dynamic_spec(value) -> bool:
     return isinstance(value, dict) and "from" in value and ("map" in value or "cmap" in value)
 
@@ -419,20 +362,21 @@ def _is_valid(pix: np.ndarray, idx: int) -> bool:
 
 
 def _compute_bounds(
-    points_xy: np.ndarray, polygons_per_frame: list[list[tuple[str, np.ndarray]]], pad: float = 0.05
+    points_xy: np.ndarray, boundary_arrays: list[tuple[str, np.ndarray]], pad: float = 0.05
 ) -> tuple[float, float, float, float]:
     flat = points_xy.reshape(-1, 2)
     valid = np.isfinite(flat[:, 0]) & np.isfinite(flat[:, 1])
     xs = [flat[valid, 0]] if np.any(valid) else []
     ys = [flat[valid, 1]] if np.any(valid) else []
-    for polys in polygons_per_frame:
-        for _, poly in polys:
-            if len(poly) == 0:
-                continue
-            ok = np.isfinite(poly[:, 0]) & np.isfinite(poly[:, 1])
-            if np.any(ok):
-                xs.append(poly[ok, 0])
-                ys.append(poly[ok, 1])
+    for _, arr in boundary_arrays:
+        poly = np.asarray(arr, dtype=float)
+        if poly.ndim != 3 or poly.shape[2] != 2 or poly.shape[0] == 0 or poly.shape[1] == 0:
+            continue
+        flat_poly = poly.reshape(-1, 2)
+        ok = np.isfinite(flat_poly[:, 0]) & np.isfinite(flat_poly[:, 1])
+        if np.any(ok):
+            xs.append(flat_poly[ok, 0])
+            ys.append(flat_poly[ok, 1])
     if not xs:
         return 0.0, 1.0, 0.0, 1.0
     xmin, xmax = float(np.min(np.concatenate(xs))), float(np.max(np.concatenate(xs)))
@@ -584,26 +528,28 @@ def _resolve_boundary_z(name: str, boundary_z) -> float:
     return float(boundary_z)
 
 
-def _project_polygons_3d_to_2d(
-    polygons_per_frame: list[list[tuple[str, np.ndarray]]], projector: dict, boundary_z
-) -> list[list[tuple[str, np.ndarray]]]:
-    projected: list[list[tuple[str, np.ndarray]]] = []
-    for frame_polys in polygons_per_frame:
-        frame_out: list[tuple[str, np.ndarray]] = []
-        for name, poly in frame_polys:
-            arr = np.asarray(poly, dtype=float)
-            if arr.ndim != 2 or arr.shape[0] == 0:
-                continue
-            if arr.shape[1] == 2:
-                z = _resolve_boundary_z(name, boundary_z)
-                xyz = np.column_stack((arr[:, 0], arr[:, 1], np.full(len(arr), z, dtype=float)))
-            elif arr.shape[1] == 3:
-                xyz = arr
-            else:
-                raise ValueError("Boundary polygon must have 2 or 3 columns for projection")
-            poly_xy = _project_xyz_with_projector(xyz[None, :, :], projector)[0]
-            frame_out.append((name, poly_xy))
-        projected.append(frame_out)
+def _project_boundary_arrays_3d_to_2d(
+    boundary_arrays: list[tuple[str, np.ndarray]],
+    projector: dict,
+    boundary_z,
+    n_frames: int,
+) -> list[tuple[str, np.ndarray]]:
+    projected: list[tuple[str, np.ndarray]] = []
+    for name, poly in boundary_arrays:
+        arr = np.asarray(poly, dtype=float)
+        if arr.ndim != 3 or arr.shape[0] != n_frames:
+            raise ValueError("Boundary array must have shape (n_frames, n_vertices, 2|3)")
+        if arr.shape[2] == 2:
+            z = _resolve_boundary_z(name, boundary_z)
+            xyz = np.concatenate(
+                (arr, np.full((arr.shape[0], arr.shape[1], 1), z, dtype=float)),
+                axis=2,
+            )
+        elif arr.shape[2] == 3:
+            xyz = arr
+        else:
+            raise ValueError("Boundary array must have 2 or 3 dimensions on last axis")
+        projected.append((str(name), _project_xyz_with_projector(xyz, projector)))
     return projected
 
 
@@ -652,7 +598,7 @@ class GeometryAnimationStream:
         frame_ids: np.ndarray,
         lines_idx: list[tuple[int, int]],
         line_keys: list[tuple[str, str]],
-        polygons_per_frame: list[list[tuple[str, np.ndarray]]],
+        boundary_arrays: list[tuple[str, np.ndarray]],
         text_overlays: list[tuple[str, np.ndarray | None]] | None,
         canvas_size: tuple[int, int],
         fps: float,
@@ -666,8 +612,10 @@ class GeometryAnimationStream:
             raise ValueError("points_xy must be shape (n_frames, n_points, 2)")
         if len(frame_ids) != points_xy.shape[0]:
             raise ValueError("frame_ids length must match n_frames")
-        if len(polygons_per_frame) != points_xy.shape[0]:
-            raise ValueError("polygons_per_frame length must match n_frames")
+        for _, arr in boundary_arrays:
+            barr = np.asarray(arr)
+            if barr.ndim != 3 or barr.shape[0] != points_xy.shape[0] or barr.shape[2] != 2:
+                raise ValueError("Boundary arrays must have shape (n_frames, n_vertices, 2)")
         if text_overlays is None:
             text_overlays = []
         for label, values in text_overlays:
@@ -683,7 +631,9 @@ class GeometryAnimationStream:
         self._frame_ids = np.asarray(frame_ids)
         self._lines_idx = lines_idx
         self._line_keys = line_keys
-        self._polygons_per_frame = polygons_per_frame
+        self._boundary_arrays = [
+            (str(name), np.asarray(arr, dtype=float)) for name, arr in boundary_arrays
+        ]
         self._style = style or {}
         self._style_sources = style_sources or {}
         self._text_overlays = []
@@ -729,9 +679,7 @@ class GeometryAnimationStream:
             _populate("points", p, _style_raw_for_point(self._style, p))
         for lk in self._line_keys:
             _populate("lines", lk, _style_raw_for_line(self._style, lk))
-        boundary_names = {
-            str(name) for frame_polys in self._polygons_per_frame for name, _ in frame_polys
-        }
+        boundary_names = {name for name, _ in self._boundary_arrays}
         for b in boundary_names:
             _populate("boundaries", b, _style_raw_for_boundary(self._style, b))
         for label, values in self._text_overlays:
@@ -744,7 +692,7 @@ class GeometryAnimationStream:
         self._bg_color = tuple(map(int, bg_color))
         self._pixel_coords = bool(pixel_coords)
         self._cursor = 0
-        self._bounds = _compute_bounds(points_xy, polygons_per_frame, pad=bounds_pad)
+        self._bounds = _compute_bounds(points_xy, self._boundary_arrays, pad=bounds_pad)
 
     @property
     def frame_count(self) -> int:
@@ -849,7 +797,8 @@ class GeometryAnimationStream:
         underlay = target.copy()
 
         valid_polys: list[tuple[np.ndarray, dict]] = []
-        for boundary_name, poly in self._polygons_per_frame[frame_idx]:
+        for boundary_name, arr in self._boundary_arrays:
+            poly = arr[frame_idx]
             pix = _coords_to_pixels(
                 poly, target.shape[1], target.shape[0], self._bounds, self._pixel_coords
             )
@@ -1168,7 +1117,7 @@ def build_geometry_stream(
     boundary_z: float | dict[str, float] | None = 0.0,
     frame_ids: np.ndarray | None = None,
     fps: float = 30.0,
-    polygons_per_frame: list[list[tuple[str, np.ndarray]]] | None = None,
+    boundary_arrays: list[tuple[str, np.ndarray]] | None = None,
     canvas_size: tuple[int, int] = (800, 800),
     bg_color: tuple[int, int, int] = (0, 0, 0),
     style: dict | None = None,
@@ -1210,10 +1159,8 @@ def build_geometry_stream(
         lines = []
     if frame_ids is None:
         frame_ids = df.index.to_numpy(copy=True)
-    if polygons_per_frame is None:
-        polygons_per_frame = [[] for _ in range(len(df))]
-    if len(polygons_per_frame) != len(df):
-        raise ValueError("polygons_per_frame length must match number of frames")
+    if boundary_arrays is None:
+        boundary_arrays = []
     all_point_names = list(point_names)
     for p1, p2 in lines:
         if p1 not in all_point_names:
@@ -1240,7 +1187,7 @@ def build_geometry_stream(
         boundary_z=boundary_z,
         frame_ids=np.asarray(frame_ids),
         fps=fps,
-        polygons_per_frame=polygons_per_frame,
+        boundary_arrays=boundary_arrays,
         canvas_size=canvas_size,
         bg_color=bg_color,
         style=style,
@@ -1261,7 +1208,7 @@ def build_geometry_stream_from_points(
     boundary_z: float | dict[str, float] | None = 0.0,
     frame_ids: np.ndarray,
     fps: float = 30.0,
-    polygons_per_frame: list[list[tuple[str, np.ndarray]]] | None = None,
+    boundary_arrays: list[tuple[str, np.ndarray]] | None = None,
     canvas_size: tuple[int, int] = (800, 800),
     bg_color: tuple[int, int, int] = (0, 0, 0),
     style: dict | None = None,
@@ -1319,22 +1266,30 @@ def build_geometry_stream_from_points(
         raise ValueError("point_names length must match points.shape[1]")
     if len(frame_ids) != points.shape[0]:
         raise ValueError("frame_ids length must match points.shape[0]")
-    if polygons_per_frame is None:
-        polygons_per_frame = [[] for _ in range(points.shape[0])]
-    if len(polygons_per_frame) != points.shape[0]:
-        raise ValueError("polygons_per_frame length must match points.shape[0]")
+    if boundary_arrays is None:
+        boundary_arrays = []
+    for _, arr in boundary_arrays:
+        barr = np.asarray(arr)
+        if barr.ndim != 3 or barr.shape[0] != points.shape[0] or barr.shape[2] not in (2, 3):
+            raise ValueError("Boundary arrays must have shape (n_frames, n_vertices, 2|3)")
     if text_overlays is None:
         text_overlays = []
 
     if points.shape[2] == 3:
         projector = _make_projector(points, view)
         points_xy = _project_xyz_with_projector(points, projector)
-        if polygons_per_frame and any(len(p) > 0 for p in polygons_per_frame):
-            polygons_per_frame = _project_polygons_3d_to_2d(
-                polygons_per_frame, projector, boundary_z
+        if boundary_arrays:
+            boundary_arrays = _project_boundary_arrays_3d_to_2d(
+                boundary_arrays,
+                projector,
+                boundary_z,
+                points.shape[0],
             )
     else:
         points_xy = points.astype(float, copy=True)
+        boundary_arrays = [
+            (str(name), np.asarray(arr, dtype=float)) for name, arr in boundary_arrays
+        ]
 
     point_idx = {name: i for i, name in enumerate(point_names)}
     draw_points = point_names if draw_points is None else draw_points
@@ -1354,7 +1309,7 @@ def build_geometry_stream_from_points(
         frame_ids=np.asarray(frame_ids),
         lines_idx=lines_idx,
         line_keys=line_keys,
-        polygons_per_frame=polygons_per_frame,
+        boundary_arrays=boundary_arrays,
         text_overlays=text_overlays,
         canvas_size=canvas_size,
         fps=fps,

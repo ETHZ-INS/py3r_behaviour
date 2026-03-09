@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from py3r.behaviour.util.array_utils import rescale_array_by_dim
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dataframe_utils import (
     euclidean_distance,
@@ -2000,13 +2001,7 @@ class Tracking:
 
         ```
         """
-        from py3r.behaviour.animation.geometry_stream import undo_meta_scaling_for_geometry
-
-        source_df = (
-            undo_meta_scaling_for_geometry(self.data, self.meta, dims=dims)
-            if undo_meta_scaling
-            else self.data
-        )
+        source_df = self.data
         if len(points) == 0:
             return (
                 [],
@@ -2024,7 +2019,33 @@ class Tracking:
                     raise ValueError(f"Column {col} not found in tracking data")
                 cols.append(source_df[col].to_numpy(dtype=float, copy=True))
             point_arrays.append(np.column_stack(cols))
-        return list(points), np.stack(point_arrays, axis=1)
+        out = np.stack(point_arrays, axis=1)
+        if undo_meta_scaling:
+            factors = self._undo_rescale_factors(dims)
+            out = rescale_array_by_dim(
+                out,
+                dims=dims,
+                factors=factors,
+                dim_axis=2,
+                copy=False,
+            )
+        return list(points), out
+
+    def _undo_rescale_factors(self, dims: tuple[str, ...]) -> dict[str, float]:
+        """
+        Return per-dimension multipliers that invert meta coordinate scaling.
+        """
+        factors: dict[str, float] = {}
+        rescale_factors = self.meta.get("rescale_factor")
+        if isinstance(rescale_factors, dict):
+            for dim in dims:
+                factor = float(rescale_factors.get(dim, 1.0) or 1.0)
+                if factor not in (0.0, 1.0):
+                    factors[dim] = 1.0 / factor
+        correction = float(self.meta.get("aspectratio_correction", 1.0) or 1.0)
+        if correction not in (0.0, 1.0) and "x" in dims:
+            factors["x"] = factors.get("x", 1.0) * (1.0 / correction)
+        return factors
 
     def __repr__(self) -> str:
         cn = self.__class__.__name__
