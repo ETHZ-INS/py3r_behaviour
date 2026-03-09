@@ -77,7 +77,6 @@ def _coords_to_pixels(
 
 
 def _make_projector(points_xyz: np.ndarray, view: dict | None) -> dict:
-    """Build projection parameters for 3D->2D projection."""
     v = view or {}
     azim_deg = float(v.get("azim", 45.0))
     elev_deg = float(v.get("elev", 30.0))

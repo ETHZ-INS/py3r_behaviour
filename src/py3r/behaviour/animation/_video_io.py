@@ -21,7 +21,12 @@ def _resolve_video_fps(cap: cv2.VideoCapture, *, fallback: float) -> float:
 
 
 def _make_video_writer(
-    out_path: str, *, width: int, height: int, fps: float, codec: str
+    out_path: str,
+    *,
+    width: int,
+    height: int,
+    fps: float,
+    codec: str,
 ) -> cv2.VideoWriter:
     fourcc = cv2.VideoWriter_fourcc(*codec)
     writer = cv2.VideoWriter(out_path, fourcc, float(fps), (int(width), int(height)))

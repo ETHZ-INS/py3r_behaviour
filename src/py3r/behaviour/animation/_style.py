@@ -22,6 +22,39 @@ def _replace_dynamic_specs(merged: dict, defaults: dict) -> dict:
     return merged
 
 
+def _merge_style_section(
+    style: dict,
+    section_name: str,
+    item_key,
+    *,
+    defaults: dict,
+    allow_reversed_tuple_key: bool = False,
+) -> dict:
+    section = style.get(section_name, {})
+    merged = dict(defaults)
+    merged.update(section.get("default", {}))
+    if allow_reversed_tuple_key and isinstance(item_key, tuple) and len(item_key) == 2:
+        if item_key in section:
+            merged.update(section[item_key])
+        else:
+            rev = (item_key[1], item_key[0])
+            if rev in section:
+                merged.update(section[rev])
+        return merged
+    merged.update(section.get(item_key, {}))
+    return merged
+
+
+def _as_int_tuple(value) -> tuple[int, ...]:
+    return tuple(map(int, value))
+
+
+def _as_optional_int_tuple(value) -> tuple[int, ...] | None:
+    if value is None:
+        return None
+    return _as_int_tuple(value)
+
+
 def collect_dynamic_source_names_from_style(style: dict | None) -> set[str]:
     names: set[str] = set()
 
@@ -40,87 +73,17 @@ def collect_dynamic_source_names_from_style(style: dict | None) -> set[str]:
     return names
 
 
-def _style_raw_for_point(style: dict, point_name: str) -> dict:
-    section = style.get("points", {})
-    merged = {"color": (0, 255, 255), "radius": 3}
-    merged.update(section.get("default", {}))
-    merged.update(section.get(point_name, {}))
-    return merged
-
-
-def _style_for_point(style: dict, point_name: str) -> dict:
-    merged = _style_raw_for_point(style, point_name)
-    _replace_dynamic_specs(merged, {"color": (0, 255, 255), "radius": 3})
-    merged["color"] = tuple(map(int, merged["color"]))
-    merged["radius"] = int(merged["radius"])
-    return merged
-
-
-def _style_raw_for_line(style: dict, line_key: tuple[str, str]) -> dict:
-    section = style.get("lines", {})
-    merged = {"color": (255, 255, 255), "width": 1}
-    merged.update(section.get("default", {}))
-    if line_key in section:
-        merged.update(section[line_key])
-    else:
-        rev = (line_key[1], line_key[0])
-        if rev in section:
-            merged.update(section[rev])
-    return merged
-
-
-def _style_for_line(style: dict, line_key: tuple[str, str]) -> dict:
-    merged = _style_raw_for_line(style, line_key)
-    _replace_dynamic_specs(merged, {"color": (255, 255, 255), "width": 1})
-    merged["color"] = tuple(map(int, merged["color"]))
-    merged["width"] = int(merged["width"])
-    return merged
-
-
-def _style_raw_for_boundary(style: dict, boundary_name: str) -> dict:
-    section = style.get("boundaries", {})
-    merged = {
+_STYLE_DEFAULTS = {
+    "points": {"color": (0, 255, 255), "radius": 3},
+    "lines": {"color": (255, 255, 255), "width": 1},
+    "boundaries": {
         "edge_color": (0, 255, 0),
         "edge_width": 1,
         "fill_color": None,
         "fill_alpha": 0.0,
         "fill_mode": "normal",
-    }
-    merged.update(section.get("default", {}))
-    merged.update(section.get(boundary_name, {}))
-    return merged
-
-
-def _style_for_boundary(style: dict, boundary_name: str) -> dict:
-    merged = _style_raw_for_boundary(style, boundary_name)
-    _replace_dynamic_specs(
-        merged,
-        {
-            "edge_color": (0, 255, 0),
-            "fill_color": None,
-            "edge_width": 1,
-            "fill_alpha": 0.0,
-            "fill_mode": "normal",
-        },
-    )
-    merged["edge_color"] = (
-        None if merged["edge_color"] is None else tuple(map(int, merged["edge_color"]))
-    )
-    merged["fill_color"] = (
-        None if merged["fill_color"] is None else tuple(map(int, merged["fill_color"]))
-    )
-    merged["edge_width"] = int(merged["edge_width"])
-    merged["fill_alpha"] = float(np.clip(merged["fill_alpha"], 0.0, 1.0))
-    fill_mode = str(merged.get("fill_mode", "normal")).lower()
-    if fill_mode not in {"normal", "erase"}:
-        raise ValueError("boundary fill_mode must be 'normal' or 'erase'")
-    merged["fill_mode"] = fill_mode
-    return merged
-
-
-def _style_raw_for_text(style: dict, label: str) -> dict:
-    section = style.get("text", {})
-    merged = {
+    },
+    "text": {
         "color": (255, 255, 255),
         "font_scale": 0.5,
         "thickness": 1,
@@ -133,41 +96,57 @@ def _style_raw_for_text(style: dict, label: str) -> dict:
         "vmin": None,
         "vmax": None,
         "nan_color": None,
-    }
-    merged.update(section.get("default", {}))
-    merged.update(section.get(label, {}))
-    return merged
+    },
+}
 
 
-def _style_for_text(style: dict, label: str) -> dict:
-    merged = _style_raw_for_text(style, label)
-    _replace_dynamic_specs(
-        merged,
-        {
-            "color": (255, 255, 255),
-            "outline_color": (0, 0, 0),
-            "font_scale": 0.5,
-            "thickness": 1,
-            "outline_thickness": 2,
-            "line_height": 18,
-            "format": None,
-            "as_bool": False,
-            "nan_color": None,
-            "cmap": None,
-            "vmin": None,
-            "vmax": None,
-        },
+def _style_raw(style: dict, section_name: str, item_key) -> dict:
+    return _merge_style_section(
+        style,
+        section_name,
+        item_key,
+        defaults=_STYLE_DEFAULTS[section_name],
+        allow_reversed_tuple_key=(section_name == "lines"),
     )
-    merged["color"] = tuple(map(int, merged["color"]))
-    merged["outline_color"] = tuple(map(int, merged["outline_color"]))
-    merged["font_scale"] = float(merged["font_scale"])
-    merged["thickness"] = int(merged["thickness"])
-    merged["outline_thickness"] = int(merged["outline_thickness"])
-    merged["line_height"] = int(merged["line_height"])
-    merged["as_bool"] = bool(merged["as_bool"])
-    if merged["nan_color"] is not None:
-        merged["nan_color"] = tuple(map(int, merged["nan_color"]))
-    return merged
+
+
+def _coerce_style(section_name: str, merged: dict) -> dict:
+    if section_name == "points":
+        merged["color"] = _as_int_tuple(merged["color"])
+        merged["radius"] = int(merged["radius"])
+        return merged
+    if section_name == "lines":
+        merged["color"] = _as_int_tuple(merged["color"])
+        merged["width"] = int(merged["width"])
+        return merged
+    if section_name == "boundaries":
+        merged["edge_color"] = _as_optional_int_tuple(merged["edge_color"])
+        merged["fill_color"] = _as_optional_int_tuple(merged["fill_color"])
+        merged["edge_width"] = int(merged["edge_width"])
+        merged["fill_alpha"] = float(np.clip(merged["fill_alpha"], 0.0, 1.0))
+        fill_mode = str(merged.get("fill_mode", "normal")).lower()
+        if fill_mode not in {"normal", "erase"}:
+            raise ValueError("boundary fill_mode must be 'normal' or 'erase'")
+        merged["fill_mode"] = fill_mode
+        return merged
+    if section_name == "text":
+        merged["color"] = _as_int_tuple(merged["color"])
+        merged["outline_color"] = _as_int_tuple(merged["outline_color"])
+        merged["font_scale"] = float(merged["font_scale"])
+        merged["thickness"] = int(merged["thickness"])
+        merged["outline_thickness"] = int(merged["outline_thickness"])
+        merged["line_height"] = int(merged["line_height"])
+        merged["as_bool"] = bool(merged["as_bool"])
+        if merged["nan_color"] is not None:
+            merged["nan_color"] = _as_int_tuple(merged["nan_color"])
+        return merged
+    raise ValueError(f"Unknown style section: {section_name}")
+
+
+def _style_resolved(style: dict, section_name: str, item_key) -> dict:
+    merged = _style_raw(style, section_name, item_key)
+    _replace_dynamic_specs(merged, _STYLE_DEFAULTS[section_name])
+    return _coerce_style(section_name, merged)
 
 
 def _format_overlay_value(value, fmt: str, *, as_bool: bool = False) -> str:
@@ -206,7 +185,7 @@ def _resolve_text_color_arrays(
         if values is None:
             out.append(None)
             continue
-        tstyle = _style_for_text(style, label)
+        tstyle = _style_resolved(style, "text", label)
         cmap_name = tstyle.get("cmap")
         if cmap_name in (None, ""):
             base = np.array(tstyle["color"], dtype=np.uint8)

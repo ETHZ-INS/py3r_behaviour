@@ -1,33 +1,18 @@
 from __future__ import annotations
 
-import cv2
 import numpy as np
 import pandas as pd
 
-from ._projection import (
-    _compute_bounds,
-    _coords_to_pixels,
-    _is_valid,
-    _make_projector,
-    _project_boundary_arrays_3d_to_2d,
-    _project_xyz_with_projector,
+from ._projection import _compute_bounds
+from ._style import _format_overlay_value, collect_dynamic_source_names_from_style
+from .compiler import (
+    compile_styles,
+    prepare_indices,
+    prepare_points_and_boundaries,
 )
-from ._style import (
-    _apply_dynamic_overrides,
-    _compute_dynamic_array,
-    _format_overlay_value,
-    _is_dynamic_spec,
-    _resolve_text_color_arrays,
-    _style_for_boundary,
-    _style_for_line,
-    _style_for_point,
-    _style_for_text,
-    _style_raw_for_boundary,
-    _style_raw_for_line,
-    _style_raw_for_point,
-    _style_raw_for_text,
-)
-from ._video_io import _make_video_writer, _open_video_capture, _resolve_video_fps
+from .io import play_stream, save_stream
+from .models import GeometryData
+from .renderer import render_into_frame
 
 
 class AnimationStream:
@@ -113,56 +98,16 @@ class AnimationStream:
         ]
         self._style = style or {}
         self._style_sources = style_sources or {}
-        self._text_overlays = []
-        for label, values in text_overlays:
-            if values is None:
-                self._text_overlays.append((str(label), None))
-            else:
-                self._text_overlays.append((str(label), np.asarray(values)))
-        self._text_colors = _resolve_text_color_arrays(
-            self._text_overlays,
-            self._style,
-            points_xy.shape[0],
+        self._style_program = compile_styles(
+            point_names=self._point_names,
+            line_keys=self._line_keys,
+            boundary_arrays=self._boundary_arrays,
+            text_overlays=text_overlays,
+            style=self._style,
+            style_sources=self._style_sources,
+            n_frames=points_xy.shape[0],
         )
-        self._dynamic_styles: dict[str, dict[object, dict[str, np.ndarray]]] = {
-            "points": {},
-            "lines": {},
-            "boundaries": {},
-            "text": {},
-        }
-        n_frames = points_xy.shape[0]
-
-        def _populate(section_name: str, item_key, merged: dict):
-            item_dyn: dict[str, np.ndarray] = {}
-            for prop, value in merged.items():
-                if not _is_dynamic_spec(value):
-                    continue
-                source_name = str(value["from"])
-                if source_name not in self._style_sources:
-                    raise ValueError(
-                        f"Dynamic style for {section_name}.{item_key}.{prop} references "
-                        f"unknown source '{source_name}'"
-                    )
-                item_dyn[prop] = _compute_dynamic_array(
-                    value,
-                    np.asarray(self._style_sources[source_name]),
-                    n_frames,
-                    prop_name=prop,
-                )
-            if item_dyn:
-                self._dynamic_styles[section_name][item_key] = item_dyn
-
-        for p in self._point_names:
-            _populate("points", p, _style_raw_for_point(self._style, p))
-        for lk in self._line_keys:
-            _populate("lines", lk, _style_raw_for_line(self._style, lk))
-        boundary_names = {name for name, _ in self._boundary_arrays}
-        for b in boundary_names:
-            _populate("boundaries", b, _style_raw_for_boundary(self._style, b))
-        for label, values in self._text_overlays:
-            if values is None:
-                continue
-            _populate("text", label, _style_raw_for_text(self._style, label))
+        self._text_overlays = self._style_program.text_overlays
 
         self._canvas_size = (int(canvas_size[0]), int(canvas_size[1]))
         self.fps = float(fps)
@@ -170,6 +115,16 @@ class AnimationStream:
         self._pixel_coords = bool(pixel_coords)
         self._cursor = 0
         self._bounds = _compute_bounds(points_xy, self._boundary_arrays, pad=bounds_pad)
+        self._geometry = GeometryData(
+            points_xy=self._points_xy,
+            point_names=self._point_names,
+            draw_point_indices=self._draw_point_indices,
+            lines_idx=self._lines_idx,
+            line_keys=self._line_keys,
+            boundary_arrays=self._boundary_arrays,
+            bounds=self._bounds,
+            pixel_coords=self._pixel_coords,
+        )
 
     @property
     def frame_count(self) -> int:
@@ -314,203 +269,13 @@ class AnimationStream:
             raise IndexError(f"frame_idx {frame_idx} out of range")
         if frame.ndim != 3 or frame.shape[2] != 3:
             raise ValueError("frame must have shape (H, W, 3)")
-        target = frame.copy() if copy else frame
-        # Snapshot of original underlay, used by boundary fill_mode="erase".
-        underlay = target.copy()
-
-        valid_polys: list[tuple[np.ndarray, dict]] = []
-        for boundary_name, arr in self._boundary_arrays:
-            poly = arr[frame_idx]
-            pix = _coords_to_pixels(
-                poly, target.shape[1], target.shape[0], self._bounds, self._pixel_coords
-            )
-            if pix is None or len(pix) < 3:
-                continue
-            if np.any(pix[:, 0] < 0) or np.any(pix[:, 1] < 0):
-                continue
-            bstyle = _style_for_boundary(self._style, boundary_name)
-            bstyle = _apply_dynamic_overrides(
-                bstyle, self._dynamic_styles["boundaries"].get(boundary_name), frame_idx
-            )
-            valid_polys.append((pix, bstyle))
-            alpha = float(bstyle["fill_alpha"])
-            if alpha > 0 and bstyle["fill_mode"] == "normal" and bstyle["fill_color"] is not None:
-                fill_overlay = target.copy()
-                cv2.fillPoly(fill_overlay, [pix], color=bstyle["fill_color"])
-                cv2.addWeighted(fill_overlay, alpha, target, 1.0 - alpha, 0.0, dst=target)
-            elif alpha > 0 and bstyle["fill_mode"] == "erase":
-                # Blend back toward the original underlay only inside this polygon.
-                mask = np.zeros(target.shape[:2], dtype=np.uint8)
-                cv2.fillPoly(mask, [pix], color=255)
-                m = mask.astype(bool)
-                target[m] = (
-                    (1.0 - alpha) * target[m].astype(np.float32)
-                    + alpha * underlay[m].astype(np.float32)
-                ).astype(np.uint8)
-        for pix, bstyle in valid_polys:
-            edge_width = int(bstyle["edge_width"])
-            edge_color = bstyle["edge_color"]
-            if edge_width > 0 and edge_color is not None:
-                cv2.polylines(
-                    target,
-                    [pix],
-                    isClosed=True,
-                    color=edge_color,
-                    thickness=edge_width,
-                )
-
-        pts = self._points_xy[frame_idx]
-        pix_pts = _coords_to_pixels(
-            pts, target.shape[1], target.shape[0], self._bounds, self._pixel_coords
+        return render_into_frame(
+            frame,
+            frame_idx=frame_idx,
+            geometry=self._geometry,
+            styles=self._style_program,
+            copy=copy,
         )
-        if pix_pts is not None:
-            for line_i, (i1, i2) in enumerate(self._lines_idx):
-                if _is_valid(pix_pts, i1) and _is_valid(pix_pts, i2):
-                    lstyle = _style_for_line(self._style, self._line_keys[line_i])
-                    lstyle = _apply_dynamic_overrides(
-                        lstyle,
-                        self._dynamic_styles["lines"].get(self._line_keys[line_i]),
-                        frame_idx,
-                    )
-                    cv2.line(
-                        target,
-                        tuple(pix_pts[i1]),
-                        tuple(pix_pts[i2]),
-                        lstyle["color"],
-                        lstyle["width"],
-                    )
-            for point_i in self._draw_point_indices:
-                p = pix_pts[point_i]
-                if p[0] >= 0:
-                    pstyle = _style_for_point(self._style, self._point_names[point_i])
-                    pstyle = _apply_dynamic_overrides(
-                        pstyle,
-                        self._dynamic_styles["points"].get(self._point_names[point_i]),
-                        frame_idx,
-                    )
-                    cv2.circle(target, tuple(p), pstyle["radius"], pstyle["color"], thickness=-1)
-
-        if self._text_overlays:
-            text_section = self._style.get("text", {})
-            ox, oy = text_section.get("origin", (10, 20))
-            default_fmt = str(text_section.get("format", ".3f"))
-            y = int(oy)
-            entries: list[dict] = []
-            max_text_w = 0
-            for overlay_i, (label, values) in enumerate(self._text_overlays):
-                tstyle = _style_for_text(self._style, label)
-                tstyle = _apply_dynamic_overrides(
-                    tstyle,
-                    self._dynamic_styles["text"].get(label),
-                    frame_idx,
-                )
-                if y < 0:
-                    y += tstyle["line_height"]
-                if values is None:
-                    entries.append({"y": y, "line_height": tstyle["line_height"], "spacer": True})
-                    y += tstyle["line_height"]
-                    continue
-                fmt = default_fmt if tstyle.get("format") is None else str(tstyle["format"])
-                color_arr = self._text_colors[overlay_i]
-                dyn_text = self._dynamic_styles["text"].get(label)
-                if dyn_text is not None and "color" in dyn_text:
-                    color = tstyle["color"]
-                elif color_arr is None:
-                    color = tstyle["color"]
-                else:
-                    color = tuple(map(int, color_arr[frame_idx]))
-                txt = (
-                    f"{label}: "
-                    f"{_format_overlay_value(values[frame_idx], fmt, as_bool=tstyle['as_bool'])}"
-                )
-                (tw, _), _ = cv2.getTextSize(
-                    txt,
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    tstyle["font_scale"],
-                    tstyle["thickness"],
-                )
-                max_text_w = max(max_text_w, int(tw))
-                entries.append(
-                    {
-                        "y": y,
-                        "line_height": tstyle["line_height"],
-                        "spacer": False,
-                        "txt": txt,
-                        "style": tstyle,
-                        "color": color,
-                    }
-                )
-                y += tstyle["line_height"]
-
-            panel_cfg = text_section.get("panel", {})
-            panel_enabled = (
-                bool(panel_cfg.get("enabled", False))
-                if isinstance(panel_cfg, dict)
-                else bool(panel_cfg)
-            )
-            if panel_enabled and entries and max_text_w > 0:
-                pad = int(panel_cfg.get("padding", 6)) if isinstance(panel_cfg, dict) else 6
-                alpha = float(panel_cfg.get("alpha", 0.45)) if isinstance(panel_cfg, dict) else 0.45
-                alpha = float(np.clip(alpha, 0.0, 1.0))
-                panel_color = (
-                    tuple(map(int, panel_cfg.get("color", (0, 0, 0))))
-                    if isinstance(panel_cfg, dict)
-                    else (0, 0, 0)
-                )
-                top = min(int(e["y"] - e["line_height"] + 4) for e in entries)
-                bottom = max(int(e["y"] + 6) for e in entries)
-                left = int(ox) - pad
-                right = int(ox) + max_text_w + pad
-                left = max(0, left)
-                right = min(target.shape[1] - 1, right)
-                top = max(0, top)
-                bottom = min(target.shape[0] - 1, bottom)
-                if right > left and bottom > top:
-                    if alpha >= 1.0:
-                        cv2.rectangle(
-                            target,
-                            (left, top),
-                            (right, bottom),
-                            panel_color,
-                            thickness=-1,
-                        )
-                    elif alpha > 0:
-                        panel_overlay = target.copy()
-                        cv2.rectangle(
-                            panel_overlay,
-                            (left, top),
-                            (right, bottom),
-                            panel_color,
-                            thickness=-1,
-                        )
-                        cv2.addWeighted(panel_overlay, alpha, target, 1.0 - alpha, 0.0, dst=target)
-
-            for e in entries:
-                if e["spacer"]:
-                    continue
-                tstyle = e["style"]
-                if tstyle["outline_thickness"] > 0:
-                    cv2.putText(
-                        target,
-                        e["txt"],
-                        (int(ox), int(e["y"])),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        tstyle["font_scale"],
-                        tstyle["outline_color"],
-                        tstyle["outline_thickness"],
-                        cv2.LINE_AA,
-                    )
-                cv2.putText(
-                    target,
-                    e["txt"],
-                    (int(ox), int(e["y"])),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    tstyle["font_scale"],
-                    e["color"],
-                    tstyle["thickness"],
-                    cv2.LINE_AA,
-                )
-        return target
 
     def play(
         self,
@@ -557,47 +322,16 @@ class AnimationStream:
             raise ValueError("frame_step must be >= 1")
         if speed <= 0:
             raise ValueError("speed must be > 0")
-        playback_fps = float(self.fps if fps is None else fps)
-        delay_ms = max(1, int(round(1000.0 / (playback_fps * float(speed)))))
-        idx = 0
-        cap = None
-        start_frame = int(self._frame_ids[0]) if align_to_frame_ids else 0
-        if video_path is not None:
-            cap = _open_video_capture(video_path, start_frame=start_frame)
-        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-        try:
-            while True:
-                if idx >= self.frame_count:
-                    if not loop:
-                        break
-                    idx = 0
-                    if cap is not None:
-                        cap.release()
-                        cap = _open_video_capture(video_path, start_frame=start_frame)
-                if cap is not None:
-                    ok, base = cap.read()
-                    if not ok:
-                        break
-                    frame = self.render_into(base, frame_idx=idx, copy=False)
-                    for _ in range(frame_step - 1):
-                        if not cap.grab():
-                            break
-                else:
-                    frame = self.get_frame(idx)
-                cv2.imshow(window_name, frame)
-                if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
-                    break
-                key = cv2.waitKeyEx(delay_ms)
-                if key in (27, ord("q"), ord("Q")):
-                    break
-                idx += frame_step
-        finally:
-            if cap is not None:
-                cap.release()
-            try:
-                cv2.destroyWindow(window_name)
-            except cv2.error:
-                pass
+        play_stream(
+            self,
+            fps=fps,
+            frame_step=frame_step,
+            speed=speed,
+            window_name=window_name,
+            loop=loop,
+            video_path=video_path,
+            align_to_frame_ids=align_to_frame_ids,
+        )
 
     def save(
         self,
@@ -642,42 +376,15 @@ class AnimationStream:
         """
         if frame_step < 1:
             raise ValueError("frame_step must be >= 1")
-        cap = None
-        writer = None
-        try:
-            if video_path is not None:
-                start_frame = int(self._frame_ids[0]) if align_to_frame_ids else 0
-                cap = _open_video_capture(video_path, start_frame=start_frame)
-                ok, first = cap.read()
-                if not ok:
-                    raise ValueError("Could not read first video frame from video_path")
-                h, w = first.shape[:2]
-                out_fps = _resolve_video_fps(
-                    cap, fallback=(self.fps if fps is None else float(fps))
-                )
-                writer = _make_video_writer(out_path, width=w, height=h, fps=out_fps, codec=codec)
-                idx = 0
-                current = first
-                while idx < self.frame_count:
-                    writer.write(self.render_into(current, frame_idx=idx, copy=True))
-                    idx += frame_step
-                    if idx >= self.frame_count:
-                        break
-                    for _ in range(frame_step):
-                        ok, current = cap.read()
-                        if not ok:
-                            return
-            else:
-                w, h = self._canvas_size
-                out_fps = float(self.fps if fps is None else fps)
-                writer = _make_video_writer(out_path, width=w, height=h, fps=out_fps, codec=codec)
-                for idx in range(0, self.frame_count, frame_step):
-                    writer.write(self.get_frame(idx))
-        finally:
-            if cap is not None:
-                cap.release()
-            if writer is not None:
-                writer.release()
+        save_stream(
+            self,
+            out_path,
+            fps=fps,
+            frame_step=frame_step,
+            video_path=video_path,
+            align_to_frame_ids=align_to_frame_ids,
+            codec=codec,
+        )
 
 
 def build_animation_stream(
@@ -848,32 +555,17 @@ def build_animation_stream_from_points(
     if text_overlays is None:
         text_overlays = []
 
-    if points.shape[2] == 3:
-        projector = _make_projector(points, view)
-        points_xy = _project_xyz_with_projector(points, projector)
-        if boundary_arrays:
-            boundary_arrays = _project_boundary_arrays_3d_to_2d(
-                boundary_arrays,
-                projector,
-                boundary_z,
-                points.shape[0],
-            )
-    else:
-        points_xy = points.astype(float, copy=True)
-        boundary_arrays = [
-            (str(name), np.asarray(arr, dtype=float)) for name, arr in boundary_arrays
-        ]
-
-    point_idx = {name: i for i, name in enumerate(point_names)}
-    draw_points = point_names if draw_points is None else draw_points
-    draw_point_indices = [point_idx[name] for name in draw_points]
-    lines_idx: list[tuple[int, int]] = []
-    line_keys: list[tuple[str, str]] = []
-    for p1, p2 in lines:
-        if p1 not in point_idx or p2 not in point_idx:
-            raise ValueError(f"Unknown point in line ({p1}, {p2})")
-        lines_idx.append((point_idx[p1], point_idx[p2]))
-        line_keys.append((p1, p2))
+    points_xy, boundary_arrays = prepare_points_and_boundaries(
+        points=points,
+        view=view,
+        boundary_arrays=boundary_arrays,
+        boundary_z=boundary_z,
+    )
+    draw_point_indices, lines_idx, line_keys = prepare_indices(
+        point_names=point_names,
+        draw_points=draw_points,
+        lines=lines,
+    )
 
     return AnimationStream(
         points_xy=points_xy,
@@ -892,3 +584,12 @@ def build_animation_stream_from_points(
         pixel_coords=pixel_coords,
         bounds_pad=bounds_pad,
     )
+
+
+__all__ = [
+    "AnimationStream",
+    "build_animation_stream",
+    "build_animation_stream_from_points",
+    "collect_dynamic_source_names_from_style",
+    "_format_overlay_value",
+]
