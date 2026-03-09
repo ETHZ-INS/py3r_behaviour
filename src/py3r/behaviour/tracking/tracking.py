@@ -5,12 +5,13 @@ import re
 import warnings
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from py3r.behaviour.util.array_utils import rescale_array_by_dim
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dataframe_utils import (
     euclidean_distance,
@@ -28,6 +29,9 @@ from py3r.behaviour.util.io_utils import (
 from py3r.behaviour.util.smoothing import apply_smoothing
 
 Self = TypeVar("Self", bound="Tracking")
+
+if TYPE_CHECKING:
+    from py3r.behaviour.animation.animation_stream import AnimationStream
 
 
 class Tracking:
@@ -842,10 +846,10 @@ class Tracking:
         >>> t.filter_likelihood(0.5)
         >>> bool(np.isnan(t.data.filter(like='.x')).any().any())
         True
-        >>> t.data['p1.x'].values
-        'array([ 0.,  1.,  2., nan, nan])'
-        >>> t.data['p1.likelihood'].values
-        'array([1.  , 0.75, 0.5 , 0.25, 0.  ])'
+        >>> bool(np.isnan(t.data['p1.x'].values[-1]))
+        True
+        >>> float(t.data['p1.likelihood'].values[0])
+        1.0
 
         ```
         """
@@ -925,7 +929,7 @@ class Tracking:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> t._assert_valid_point('p1')
         >>> with pytest.raises(KeyError):
-        >>>     t._assert_valid_point("nonexisting")
+        ...     t._assert_valid_point("nonexisting")
 
         ```
         """
@@ -1375,12 +1379,12 @@ class Tracking:
     def _loc(self, idx):
         new_data = self.data.loc[idx].copy()
         new_meta = copy.deepcopy(self.meta)
-        return self.__class__(new_data, new_meta, self.handle)
+        return self.__class__(new_data, new_meta, self.handle, tags=copy.deepcopy(self.tags))
 
     def _iloc(self, idx):
         new_data = self.data.iloc[idx].copy()
         new_meta = copy.deepcopy(self.meta)
-        return self.__class__(new_data, new_meta, self.handle)
+        return self.__class__(new_data, new_meta, self.handle, tags=copy.deepcopy(self.tags))
 
     def __getitem__(self, idx):
         return self.loc[idx]
@@ -1779,6 +1783,232 @@ class Tracking:
             print("Rendering done.")
         plt.close(fig)
         print(f"Saved 3D tracking video to {out_path}")
+
+    def animation_stream(
+        self,
+        *,
+        points: list[str],
+        lines: list[tuple[str, str]] | None = None,
+        features: list[str | None] | dict[str | None, str | None] | None = None,
+        dims: tuple[str, ...] = ("x", "y"),
+        view: dict | None = None,
+        canvas_size: tuple[int, int] = (800, 800),
+        bg_color: tuple[int, int, int] = (0, 0, 0),
+        style: dict | None = None,
+        pixel_coords: bool = False,
+        undo_meta_scaling: bool = False,
+    ) -> AnimationStream:
+        """
+        Build an OpenCV-backed frame stream for animated point/line overlays.
+
+        This method precomputes the selected point coordinates (and optional 3D
+        projection) once, then returns a stream object that can:
+
+        - fetch individual rendered frames via ``get_frame(i)``
+        - iterate sequentially via ``read()`` / ``next()``
+        - play live via ``stream.play(...)``
+        - save video via ``stream.save(...)``
+
+        Args:
+            points (list[str]): Point names to render as circles.
+            lines (list[tuple[str, str]] | None): Line segments connecting point pairs.
+                Endpoints can include points not listed in ``points``.
+            features (list[str | None] | dict[str | None, str | None] | None):
+                Per-frame scalar columns to render as text overlays. If a list is
+                provided, each column is shown as ``name: value``. If a dict is
+                provided, keys are display labels and values are source column names.
+                ``None`` or ``""`` entries insert a blank spacer line.
+            dims (tuple[str, ...]): Coordinate dimensions. Use 2D (``("x","y")``)
+                or 3D (``("x","y","z")`` with ``view``). Defaults to ``("x", "y")``.
+            view (dict | None): 3D camera options used only when ``dims`` has
+                length 3. Supported keys include ``azim``, ``elev``, ``proj``
+                (``"ortho"`` or ``"persp"``), ``camera_distance``,
+                ``focal_length``, and ``pad``.
+            canvas_size (tuple[int, int]): Canvas size as ``(width, height)``.
+                Defaults to ``(800, 800)``.
+            bg_color (tuple[int, int, int]): Background color in BGR.
+                Defaults to ``(0, 0, 0)``.
+            style (dict | None): Style overrides for points/lines/boundaries.
+            pixel_coords (bool): If True, interpret coordinates as absolute pixel
+                locations. If False, auto-fit projected coordinates to the canvas.
+                Defaults to ``False``.
+            undo_meta_scaling (bool): If True, invert ``aspectratio_correction``
+                and ``meta["rescale_factor"]`` before rendering. Defaults to ``False``.
+
+        Returns:
+            AnimationStream: Stream object with ``get_frame()``, ``read()``,
+                ``play()``, and ``save()``.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> style = {
+        ...     "points": {
+        ...         "default": {"color": (0, 255, 255), "radius": 3},  # default
+        ...         "p1": {"color": (0, 255, 0), "radius": 5},  # static override
+        ...         "p2": {  # dynamic override
+        ...             "radius": {"from": "p1.likelihood", "map": {1.0: 6, "default": 2}}
+        ...         },
+        ...     }
+        ... }
+        >>> stream = t.animation_stream(
+        ...     points=["p1", "p2"],
+        ...     lines=[("p1", "p2")],
+        ...     pixel_coords=True,
+        ...     canvas_size=(96, 72),
+        ...     style=style,
+        ... )
+        >>> stream.frame_count
+        5
+        >>> frame0 = stream.get_frame(0)
+        >>> frame0.shape
+        (72, 96, 3)
+
+        ```
+        """
+        from py3r.behaviour.animation import (
+            build_animation_stream,
+            collect_dynamic_source_names_from_style,
+        )
+
+        line_points = {p for line in (lines or []) for p in line}
+        all_points = sorted(set(points) | line_points)
+        point_names, points_arr = self.points_to_numpy(
+            all_points, dims=dims, undo_meta_scaling=undo_meta_scaling
+        )
+        text_overlays = None
+        if features is not None:
+            text_overlays = []
+            if isinstance(features, dict):
+                pairs = list(features.items())
+            else:
+                pairs = [(name, name) for name in features]
+            for label, col in pairs:
+                if label in (None, "") or col in (None, ""):
+                    text_overlays.append(("", None))
+                    continue
+                if col not in self.data.columns:
+                    raise ValueError(f"Column {col} not found for text overlay")
+                text_overlays.append((str(label), self.data[col].to_numpy(copy=True)))
+        style_sources = None
+        if style is not None:
+            needed = collect_dynamic_source_names_from_style(style)
+            if needed:
+                style_sources = {}
+                for name in needed:
+                    if name not in self.data.columns:
+                        raise ValueError(f"Column {name} not found for dynamic style source")
+                    style_sources[name] = self.data[name].to_numpy(copy=True)
+
+        return build_animation_stream(
+            points=points_arr,
+            point_names=point_names,
+            draw_points=points,
+            lines=lines,
+            view=view,
+            frame_ids=self.data.index.to_numpy(copy=True),
+            fps=float(self.meta.get("fps", 30.0)),
+            canvas_size=canvas_size,
+            bg_color=bg_color,
+            style=style,
+            style_sources=style_sources,
+            text_overlays=text_overlays,
+            pixel_coords=pixel_coords,
+            bounds_pad=float((view or {}).get("pad", 0.05)),
+        )
+
+    def points_to_numpy(
+        self,
+        points: list[str],
+        dims: tuple[str, ...] = ("x", "y"),
+        *,
+        undo_meta_scaling: bool = False,
+    ) -> tuple[list[str], np.ndarray]:
+        """
+        Resolve selected point coordinates to a NumPy array.
+
+        Args:
+            points (list[str]): Point names to extract.
+            dims (tuple[str, ...]): Coordinate dimensions to extract (2D or 3D).
+                Defaults to ``("x", "y")``.
+            undo_meta_scaling (bool): If True, invert ``aspectratio_correction``
+                and ``rescale_factor`` before extraction. Defaults to ``False``.
+
+        Returns:
+            tuple[list[str], np.ndarray]: ``(point_names, array)`` where array has
+            shape ``(n_frames, n_points, len(dims))``.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> df = pd.DataFrame(
+        ...     {
+        ...         "nose.x": [1.0, 2.0],
+        ...         "nose.y": [3.0, 4.0],
+        ...         "tail.x": [5.0, 6.0],
+        ...         "tail.y": [7.0, 8.0],
+        ...     }
+        ... )
+        >>> t = Tracking(df, meta={"fps": 30.0}, handle="demo")
+        >>> names, arr = t.points_to_numpy(["nose", "tail"], dims=("x", "y"))
+        >>> names
+        ['nose', 'tail']
+        >>> arr.shape
+        (2, 2, 2)
+
+        ```
+        """
+        source_df = self.data
+        if len(points) == 0:
+            return (
+                [],
+                np.empty(
+                    (len(source_df), 0, len(dims)),
+                    dtype=float,
+                ),
+            )
+        point_arrays = []
+        for point in points:
+            cols = []
+            for dim in dims:
+                col = f"{point}.{dim}"
+                if col not in source_df.columns:
+                    raise ValueError(f"Column {col} not found in tracking data")
+                cols.append(source_df[col].to_numpy(dtype=float, copy=True))
+            point_arrays.append(np.column_stack(cols))
+        out = np.stack(point_arrays, axis=1)
+        if undo_meta_scaling:
+            factors = self._undo_rescale_factors(dims)
+            out = rescale_array_by_dim(
+                out,
+                dims=dims,
+                factors=factors,
+                dim_axis=2,
+                copy=False,
+            )
+        return list(points), out
+
+    def _undo_rescale_factors(self, dims: tuple[str, ...]) -> dict[str, float]:
+        """
+        Return per-dimension multipliers that invert meta coordinate scaling.
+        """
+        factors: dict[str, float] = {}
+        rescale_factors = self.meta.get("rescale_factor")
+        if isinstance(rescale_factors, dict):
+            for dim in dims:
+                factor = float(rescale_factors.get(dim, 1.0) or 1.0)
+                if factor not in (0.0, 1.0):
+                    factors[dim] = 1.0 / factor
+        correction = float(self.meta.get("aspectratio_correction", 1.0) or 1.0)
+        if correction not in (0.0, 1.0) and "x" in dims:
+            factors["x"] = factors.get("x", 1.0) * (1.0 / correction)
+        return factors
 
     def __repr__(self) -> str:
         cn = self.__class__.__name__
