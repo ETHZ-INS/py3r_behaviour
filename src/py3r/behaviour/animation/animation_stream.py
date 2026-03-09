@@ -33,36 +33,11 @@ class AnimationStream:
     """
     OpenCV-backed frame stream for points, lines, and boundaries.
 
-    Frames are generated lazily on demand, so callers can use this object both
-    for random-access rendering (``get_frame(i)``) and sequential playback
+    Construct this class through `Tracking.animation_stream` and
+    `Features.animation_stream`.
+    Frames are generated lazily on demand, supporting both random-access
+    rendering (``get_frame(i)``) and sequential playback
     (``read()``, iteration, ``play()``, ``save()``).
-
-    Examples
-    --------
-    ```pycon
-    >>> import numpy as np
-    >>> points = np.array(
-    ...     [
-    ...         [[10.0, 10.0], [20.0, 20.0]],
-    ...         [[11.0, 11.0], [21.0, 21.0]],
-    ...     ],
-    ...     dtype=float,
-    ... )
-    >>> stream = build_animation_stream(
-    ...     points=points,
-    ...     point_names=["nose", "tail"],
-    ...     draw_points=["nose"],
-    ...     lines=[("nose", "tail")],
-    ...     frame_ids=np.array([0, 1]),
-    ...     pixel_coords=True,
-    ...     canvas_size=(64, 48),
-    ... )
-    >>> stream.frame_count
-    2
-    >>> stream.get_frame(0).shape
-    (48, 64, 3)
-
-    ```
     """
 
     def __init__(

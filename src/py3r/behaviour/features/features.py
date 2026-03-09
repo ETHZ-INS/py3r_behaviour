@@ -2338,11 +2338,9 @@ class Features:
                 for name in needed:
                     if name in self.data.columns:
                         style_sources[name] = self.data[name].to_numpy(copy=True)
-                    elif name in self.tracking.data.columns:
-                        style_sources[name] = self.tracking.data[name].to_numpy(copy=True)
                     else:
                         raise ValueError(
-                            f"Dynamic style source '{name}' not found in Features or Tracking data"
+                            f"Dynamic style source '{name}' not found in Features.data"
                         )
         return build_animation_stream(
             points=points_arr,

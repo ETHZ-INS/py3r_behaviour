@@ -2,6 +2,7 @@ import types
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from py3r.behaviour.animation.animation_stream import (
     _format_overlay_value,
@@ -204,6 +205,17 @@ def test_features_animation_stream_feature_text_overlay_draws():
     )
     frame = stream.get_frame(0)
     assert np.any(frame != 0)
+
+
+def test_features_animation_stream_dynamic_style_uses_features_data_only():
+    t = _tracking_xy()
+    f = Features(t)
+    with pytest.raises(ValueError, match="not found in Features\\.data"):
+        f.animation_stream(
+            points=["nose"],
+            pixel_coords=True,
+            style={"points": {"nose": {"radius": {"from": "nose.x", "map": {0: 1, 1: 3}}}}},
+        )
 
 
 def test_overlay_value_formatting_bool_and_scientific():
