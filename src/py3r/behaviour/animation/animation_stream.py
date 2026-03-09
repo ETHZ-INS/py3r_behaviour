@@ -3,9 +3,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from ._projection import _compute_bounds
-from ._style import _format_overlay_value, collect_dynamic_source_names_from_style
 from .compiler import (
+    _compute_bounds,
+    _format_overlay_value,
+    collect_dynamic_source_names_from_style,
     compile_styles,
     prepare_indices,
     prepare_points_and_boundaries,

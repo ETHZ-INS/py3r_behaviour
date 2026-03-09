@@ -3,8 +3,12 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from ._projection import _coords_to_pixels, _is_valid
-from ._style import _apply_dynamic_overrides, _format_overlay_value
+from .compiler import (
+    _apply_dynamic_overrides,
+    _coords_to_pixels,
+    _format_overlay_value,
+    _is_valid,
+)
 from .models import GeometryData, StyleProgram
 
 
