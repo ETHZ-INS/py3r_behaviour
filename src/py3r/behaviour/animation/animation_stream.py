@@ -117,6 +117,7 @@ class AnimationStream:
                     np.asarray(self._style_sources[source_name]),
                     n_frames,
                     prop_name=prop,
+                    style_path=f"{section_name}.{item_key}.{prop}",
                 )
             if item_dyn:
                 self._dynamic_styles[section_name][item_key] = item_dyn
