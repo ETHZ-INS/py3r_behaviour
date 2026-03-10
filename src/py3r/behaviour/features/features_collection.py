@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pandas as pd
@@ -24,6 +24,9 @@ from py3r.behaviour.util.series_utils import (
     apply_normalization_to_df,
     normalize_df,
 )
+
+if TYPE_CHECKING:
+    from py3r.behaviour.summary.summary_collection import SummaryCollection
 
 
 class FeaturesCollection(BaseCollection):
@@ -280,6 +283,45 @@ class FeaturesCollection(BaseCollection):
             raise Exception("handles must be unique")
         features_dict = {obj.handle: obj for obj in features_list}
         return cls(features_dict)
+
+    def to_summary(self) -> SummaryCollection:
+        """
+        Create a `SummaryCollection` from this `FeaturesCollection`.
+
+        This is a convenience wrapper around
+        `SummaryCollection.from_features_collection(self)` and preserves grouped
+        structure when the collection is grouped.
+
+        Returns:
+            SummaryCollection: Collection containing one `Summary` object per
+                features object in this collection.
+
+        Examples:
+            ```pycon
+            >>> import tempfile, shutil
+            >>> from pathlib import Path
+            >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+            >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> with tempfile.TemporaryDirectory() as d:
+            ...     d = Path(d)
+            ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+            ...         a = d / 'A.csv'; b = d / 'B.csv'
+            ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+            ...     tc = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+            ...     fc = FeaturesCollection.from_tracking_collection(tc)
+            ...     sc = fc.to_summary()
+            >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+            >>> isinstance(sc, SummaryCollection)
+            True
+            >>> sorted(sc.keys())
+            ['A', 'B']
+
+            ```
+        """
+        from py3r.behaviour.summary.summary_collection import SummaryCollection
+
+        return SummaryCollection.from_features_collection(self)
 
     def cluster_embedding(
         self,

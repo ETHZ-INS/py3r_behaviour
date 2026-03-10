@@ -32,6 +32,7 @@ Self = TypeVar("Self", bound="Tracking")
 
 if TYPE_CHECKING:
     from py3r.behaviour.animation.animation_stream import AnimationStream
+    from py3r.behaviour.features.features import Features
 
 
 class Tracking:
@@ -394,6 +395,34 @@ class Tracking:
             handle=self.handle,
             tags=copy.deepcopy(self.tags),
         )
+
+    def to_features(self) -> Features:
+        """
+        Create a `Features` object from this `Tracking`.
+
+        This is a convenience wrapper around `Features(self)`.
+
+        Returns:
+            Features: A new features object linked to this tracking object.
+
+        Examples:
+            ```pycon
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+            ...     t = Tracking.from_dlc(str(p), handle='demo', fps=30)
+            >>> f = t.to_features()
+            >>> from py3r.behaviour.features.features import Features
+            >>> isinstance(f, Features)
+            True
+            >>> f.handle
+            'demo'
+
+            ```
+        """
+        from py3r.behaviour.features.features import Features
+
+        return Features(self)
 
     @classmethod
     def concat(

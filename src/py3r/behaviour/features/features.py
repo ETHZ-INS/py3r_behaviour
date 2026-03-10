@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 
     from py3r.behaviour.animation.animation_stream import AnimationStream
     from py3r.behaviour.classifier import BaseClassifier
+    from py3r.behaviour.summary.summary import Summary
 
 logger = logging.getLogger(__name__)
 logformat = "%(funcName)s(): %(message)s"
@@ -198,6 +199,36 @@ class Features:
         result.handle = self.handle
         result.tags = copy.deepcopy(self.tags)
         return result
+
+    def to_summary(self) -> Summary:
+        """
+        Create a `Summary` object from this `Features` object.
+
+        This is a convenience wrapper around `Summary(self)`.
+
+        Returns:
+            Summary: A new summary object linked to this features object.
+
+        Examples:
+            ```pycon
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> from py3r.behaviour.features.features import Features
+            >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+            ...     t = Tracking.from_dlc(str(p), handle='demo', fps=30)
+            >>> f = Features(t)
+            >>> s = f.to_summary()
+            >>> from py3r.behaviour.summary.summary import Summary
+            >>> isinstance(s, Summary)
+            True
+            >>> s.handle
+            'demo'
+
+            ```
+        """
+        from py3r.behaviour.summary.summary import Summary
+
+        return Summary(self)
 
     @classmethod
     def concat(
