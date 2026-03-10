@@ -346,3 +346,100 @@ def test_dynamic_boundary_style_from_feature_source():
     frame0 = stream.get_frame(0)
     frame1 = stream.get_frame(1)
     assert frame1.sum() > frame0.sum()
+
+
+@pytest.mark.parametrize(
+    "fill_alpha_map,expect_raise",
+    [
+        ({False: 0.1, True: 0.8, "default": 0.5}, False),
+        ({False: 0.1, True: 0.8, None: 0.5}, False),
+        ({False: 0.1, True: 0.8}, True),
+    ],
+)
+@pytest.mark.parametrize("include_nan_color", [True, False])
+def test_features_dynamic_boundary_style_na_behavior_matrix(
+    fill_alpha_map,
+    expect_raise,
+    include_nan_color,
+):
+    df = pd.DataFrame(
+        {
+            "tl.x": [10.0, 10.0, 10.0],
+            "tl.y": [10.0, 10.0, 10.0],
+            "tr.x": [50.0, 50.0, 50.0],
+            "tr.y": [10.0, 10.0, 10.0],
+            "br.x": [50.0, 50.0, 50.0],
+            "br.y": [40.0, 40.0, 40.0],
+            "bl.x": [10.0, 10.0, 10.0],
+            "bl.y": [40.0, 40.0, 40.0],
+            "bodycentre.x": [30.0, 30.0, 30.0],
+            "bodycentre.y": [25.0, 25.0, 25.0],
+        },
+        index=pd.Index([0, 1, 2], name="frame"),
+    )
+    tracking = Tracking(df, meta={"fps": 30.0}, handle="demo")
+    features = Features(tracking)
+    _ = features.define_static_boundary(["tl", "tr", "br", "bl"], name="arena")
+    features.data["nullable_bool"] = pd.Series(
+        [True, pd.NA, False],
+        index=tracking.data.index,
+        dtype="boolean",
+    )
+    features.data["nullable_float"] = pd.Series(
+        [0.0, np.nan, 1.0],
+        index=tracking.data.index,
+        dtype="Float64",
+    )
+    fill_color_spec = {
+        "from": "nullable_float",
+        "cmap": "viridis",
+        "vmin": 0.0,
+        "vmax": 1.0,
+    }
+    if include_nan_color:
+        fill_color_spec["nan_color"] = (10, 20, 30)
+
+    if expect_raise:
+        with pytest.raises(
+            ValueError,
+            match=(
+                "Dynamic style boundaries\\.arena\\.fill_alpha from source nullable_bool, "
+                "resolved to value NA/None not specified in map"
+            ),
+        ):
+            features.animation_stream(
+                points=["bodycentre"],
+                boundaries=["arena"],
+                pixel_coords=True,
+                canvas_size=(64, 48),
+                style={
+                    "boundaries": {
+                        "arena": {
+                            "fill_color": fill_color_spec,
+                            "fill_alpha": {"from": "nullable_bool", "map": fill_alpha_map},
+                            "edge_width": 0,
+                        }
+                    }
+                },
+            )
+        return
+
+    stream = features.animation_stream(
+        points=["bodycentre"],
+        boundaries=["arena"],
+        pixel_coords=True,
+        canvas_size=(64, 48),
+        style={
+            "boundaries": {
+                "arena": {
+                    "fill_color": fill_color_spec,
+                    "fill_alpha": {"from": "nullable_bool", "map": fill_alpha_map},
+                    "edge_width": 0,
+                }
+            }
+        },
+    )
+    frame0 = stream.get_frame(0)
+    assert frame0.shape == (48, 64, 3)
+    frame1 = stream.get_frame(1)
+    assert frame1.shape == (48, 64, 3)

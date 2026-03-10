@@ -247,6 +247,7 @@ def _compute_dynamic_array(
     n_frames: int,
     *,
     prop_name: str,
+    style_path: str | None = None,
 ) -> np.ndarray:
     if len(source) != n_frames:
         raise ValueError(f"Dynamic source '{spec['from']}' length must match n_frames ({n_frames})")
@@ -273,7 +274,15 @@ def _compute_dynamic_array(
             elif None in mapping:
                 out.append(mapping[None])
             else:
-                out.append(key)
+                context = style_path or prop_name
+                source_name = str(spec["from"])
+                missing_value = "NA/None" if key is None else repr(key)
+                raise ValueError(
+                    f"Dynamic style {context} from source {source_name}, "
+                    f"resolved to value {missing_value} not specified in map. "
+                    "Hint: you can add map key 'default' to automatically catch all "
+                    "non-specified values."
+                )
         return np.asarray(out, dtype=object)
     if "cmap" in spec:
         if mpl_cm is None:
