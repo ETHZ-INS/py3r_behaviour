@@ -1657,10 +1657,9 @@ class Features:
             'mean' : mean in window (numerical)
             'savgol' : Savitzky–Golay (SciPy). Kwargs e.g. polyorder=3, mode='interp'.
             'mode' : mode in window (numerical or non-numerical)
-            'block' : removes labels that occur in blocks of less than length window
-                      and replaces them with value from previous block unless there is
-                      no previous block, in which case replaced from next block after smoothing
-                      note: all nan values will be filled using this method (dangerous!)
+            'block' : applies categorical series_utils.block_filter then series_utils.block_fill
+                      using window for both min_block and max_gap. Legacy smooth_block behavior is
+                      removed from this method; use series_utils.smooth_block directly if required.
         """
         if "smoothing" in self.meta[name].keys():
             raise Exception("feature already smoothed")
@@ -1675,7 +1674,20 @@ class Features:
             if inplace:
                 self.data[name] = smoothed.copy()
         elif method == "block":
-            smoothed = series_utils.smooth_block(self.data[name], window)
+            warnings.warn(
+                "Legacy block behavior in Features.smooth(method='block') was removed. "
+                "This now applies series_utils.block_filter followed by series_utils.block_fill "
+                "using window for both min_block and max_gap. "
+                "Deprecated legacy behavior remains available via series_utils.smooth_block.",
+                stacklevel=2,
+            )
+            filtered = series_utils.block_filter(self.data[name], min_block=window)
+            smoothed = series_utils.block_fill(
+                filtered,
+                max_gap=window,
+                direction=method_kwargs.get("fill_direction", "both"),
+                require_same_label=method_kwargs.get("fill_require_same_label", True),
+            )
             if inplace:
                 self.data[name] = smoothed.copy()
         else:
