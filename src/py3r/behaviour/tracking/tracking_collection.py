@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import pandas as pd
 
@@ -10,6 +10,9 @@ from py3r.behaviour.tracking.tracking_mv import TrackingMV
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dev_utils import dev_mode
+
+if TYPE_CHECKING:
+    from py3r.behaviour.features.features_collection import FeaturesCollection
 
 
 class TrackingCollection(BaseCollection):
@@ -655,6 +658,44 @@ class TrackingCollection(BaseCollection):
         ```
         """
         return self.map_leaves(lambda t: t.stereo_triangulate())
+
+    def to_features(self) -> FeaturesCollection:
+        """
+        Create a `FeaturesCollection` from this `TrackingCollection`.
+
+        This is a convenience wrapper around
+        `FeaturesCollection.from_tracking_collection(self)` and preserves grouped
+        structure when the collection is grouped.
+
+        Returns:
+            FeaturesCollection: Collection containing one `Features` object per
+                tracking object in this collection.
+
+        Examples:
+            ```pycon
+            >>> import tempfile, shutil
+            >>> from pathlib import Path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> with tempfile.TemporaryDirectory() as d:
+            ...     d = Path(d)
+            ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+            ...         a = d / 'A.csv'; b = d / 'B.csv'
+            ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+            ...     tc = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+            ...     fc = tc.to_features()
+            >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+            >>> isinstance(fc, FeaturesCollection)
+            True
+            >>> sorted(fc.keys())
+            ['A', 'B']
+
+            ```
+        """
+        from py3r.behaviour.features.features_collection import FeaturesCollection
+
+        return FeaturesCollection.from_tracking_collection(self)
 
     @property
     def loc(self):
