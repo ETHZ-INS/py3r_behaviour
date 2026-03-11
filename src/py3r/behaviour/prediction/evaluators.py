@@ -1,133 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
-
 import numpy as np
 import pandas as pd
 from scipy.stats import ttest_rel, wilcoxon
 
 from py3r.behaviour.util.series_utils import apply_normalization_to_df, normalize_df
 
-WithinPolicy = Literal["leave_one_out"]
-BetweenPolicy = Literal["pooled", "source_leave_one_out_ensemble"]
-
-
-@dataclass(frozen=True)
-class PredictionJob:
-    """Single training/prediction job for cross-prediction orchestration."""
-
-    train_group: str
-    test_group: str
-    train_handles: tuple[str, ...]
-    test_handles: tuple[str, ...]
-    tag: str
-    aggregation_key: str
-
-
-@dataclass(frozen=True)
-class ComparisonPlan:
-    """
-    Declarative plan for within-vs-between prediction comparisons.
-
-    The asymmetry concern (within uses many LOO predictors, between often one
-    pooled predictor) is encoded by ``between_policy``.
-    """
-
-    within_policy: WithinPolicy
-    between_policy: BetweenPolicy
-    within_jobs: tuple[PredictionJob, ...]
-    between_jobs: tuple[PredictionJob, ...]
-
-
-def build_group_comparison_plan(
-    *,
-    group_to_handles: dict[str, list[str]],
-    within_groups: list[str],
-    between_pairs: list[tuple[str, str]],
-    within_policy: WithinPolicy = "leave_one_out",
-    between_policy: BetweenPolicy = "pooled",
-) -> ComparisonPlan:
-    """Build a deterministic job plan for grouped cross-prediction analysis."""
-    if within_policy != "leave_one_out":
-        raise NotImplementedError("Only leave_one_out within policy is currently supported.")
-
-    within_jobs: list[PredictionJob] = []
-    between_jobs: list[PredictionJob] = []
-
-    for g in within_groups:
-        handles = tuple(group_to_handles[g])
-        if len(handles) < 2:
-            continue
-        for left_out in handles:
-            train_handles = tuple(h for h in handles if h != left_out)
-            within_jobs.append(
-                PredictionJob(
-                    train_group=g,
-                    test_group=g,
-                    train_handles=train_handles,
-                    test_handles=(left_out,),
-                    tag=f"within_{g}_loo_{left_out}",
-                    aggregation_key=f"within::{g}::{left_out}",
-                )
-            )
-
-    for from_group, to_group in between_pairs:
-        source = tuple(group_to_handles[from_group])
-        target = tuple(group_to_handles[to_group])
-        if len(source) == 0 or len(target) == 0:
-            continue
-
-        if between_policy == "pooled":
-            between_jobs.append(
-                PredictionJob(
-                    train_group=from_group,
-                    test_group=to_group,
-                    train_handles=source,
-                    test_handles=target,
-                    tag=f"between_{from_group}_to_{to_group}_pooled",
-                    aggregation_key=f"between::{from_group}->{to_group}",
-                )
-            )
-            continue
-
-        if between_policy == "source_leave_one_out_ensemble":
-            for left_out in source:
-                train_handles = tuple(h for h in source if h != left_out)
-                if len(train_handles) == 0:
-                    continue
-                between_jobs.append(
-                    PredictionJob(
-                        train_group=from_group,
-                        test_group=to_group,
-                        train_handles=train_handles,
-                        test_handles=target,
-                        tag=f"between_{from_group}_to_{to_group}_source_loo_{left_out}",
-                        aggregation_key=f"between::{from_group}->{to_group}::{left_out}",
-                    )
-                )
-            continue
-
-        raise ValueError(f"Unknown between_policy: {between_policy}")
-
-    return ComparisonPlan(
-        within_policy=within_policy,
-        between_policy=between_policy,
-        within_jobs=tuple(within_jobs),
-        between_jobs=tuple(between_jobs),
-    )
-
 
 class CrossGroupEvaluator:
-    """
-    Use-case runner for offline within-vs-between evaluation.
-
-    This is a scaffold class: execution is intentionally deferred until we
-    finalize predictor backend wiring and tidy-table schema.
-    """
-
-    def __init__(self, *, plan: ComparisonPlan):
-        self.plan = plan
+    """Helper methods for cross-group prediction evaluation."""
 
     @staticmethod
     def _rms_error(

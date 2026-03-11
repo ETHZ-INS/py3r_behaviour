@@ -648,10 +648,6 @@ class FeaturesCollection(BaseCollection):
         target_embedding: dict[str, list[int]],
         from_group: str | None = None,
         to_group: str | None = None,
-        between_mode: Literal[
-            "pooled",
-            "source_leave_one_out_ensemble",
-        ] = "source_leave_one_out_ensemble",
         predictor_cls=None,
         predictor_kwargs: dict | None = None,
         normalize_source: bool = False,
@@ -672,8 +668,6 @@ class FeaturesCollection(BaseCollection):
         ---------------
         - Grouped collection: compares ``from_group -> to_group`` against
           within-group LOO on ``to_group``.
-        - Flat collection: ``from_group`` / ``to_group`` are ignored and the
-          method compares pooled-vs-LOO within the flat collection.
         """
         from py3r.behaviour.features.features_result import FeaturesResult
         from py3r.behaviour.prediction.evaluators import CrossGroupEvaluator
@@ -687,58 +681,37 @@ class FeaturesCollection(BaseCollection):
             predictor_kwargs = {}
 
         is_grouped = getattr(self, "is_grouped", False)
-        if is_grouped:
-            if from_group is None or to_group is None:
-                raise ValueError("Grouped collections require both from_group and to_group.")
-            if from_group not in self._obj_dict or to_group not in self._obj_dict:
-                raise KeyError(
-                    f"Unknown group(s): from_group={from_group}, to_group={to_group}. "
-                    f"Available: {list(self._obj_dict.keys())}"
-                )
-            source_sub = self._obj_dict[from_group]
-            target_sub = self._obj_dict[to_group]
-            source_handles = list(source_sub.features_dict.keys())
-            target_handles = list(target_sub.features_dict.keys())
-            if len(target_handles) < 2:
-                raise ValueError(
-                    "to_group must contain at least 2 recordings for within-group LOO."
-                )
+        if not is_grouped:
+            raise ValueError("Collection object must be grouped.")
+        if from_group is None or to_group is None:
+            raise ValueError("Grouped collections require both from_group and to_group.")
+        if from_group not in self._obj_dict or to_group not in self._obj_dict:
+            raise KeyError(
+                f"Unknown group(s): from_group={from_group}, to_group={to_group}. "
+                f"Available: {list(self._obj_dict.keys())}"
+            )
+        source_sub = self._obj_dict[from_group]
+        target_sub = self._obj_dict[to_group]
+        source_handles = list(source_sub.features_dict.keys())
+        target_handles = list(target_sub.features_dict.keys())
+        if len(target_handles) < 2:
+            raise ValueError("to_group must contain at least 2 recordings for within-group LOO.")
 
-            source_embed = {
-                h: source_sub.features_dict[h].embedding_df(source_embedding)
-                for h in source_handles
-            }
-            source_tgt = {
-                h: source_sub.features_dict[h].embedding_df(target_embedding)
-                for h in source_handles
-            }
-            target_embed = {
-                h: target_sub.features_dict[h].embedding_df(source_embedding)
-                for h in target_handles
-            }
-            target_tgt = {
-                h: target_sub.features_dict[h].embedding_df(target_embedding)
-                for h in target_handles
-            }
-            features_lookup = target_sub.features_dict
-            group_label = to_group
-            comparison_key = f"{from_group}->{to_group}"
-        else:
-            source_handles = list(self.features_dict.keys())
-            target_handles = list(self.features_dict.keys())
-            if len(target_handles) < 2:
-                raise ValueError("Need at least 2 recordings for leave-one-out comparison.")
-            source_embed = {
-                h: self.features_dict[h].embedding_df(source_embedding) for h in source_handles
-            }
-            source_tgt = {
-                h: self.features_dict[h].embedding_df(target_embedding) for h in source_handles
-            }
-            target_embed = source_embed
-            target_tgt = source_tgt
-            features_lookup = self.features_dict
-            group_label = "__flat__"
-            comparison_key = "__flat__"
+        source_embed = {
+            h: source_sub._obj_dict[h].embedding_df(source_embedding) for h in source_handles
+        }
+        source_tgt = {
+            h: source_sub._obj_dict[h].embedding_df(target_embedding) for h in source_handles
+        }
+        target_embed = {
+            h: target_sub._obj_dict[h].embedding_df(source_embedding) for h in target_handles
+        }
+        target_tgt = {
+            h: target_sub._obj_dict[h].embedding_df(target_embedding) for h in target_handles
+        }
+        features_lookup = target_sub._obj_dict
+        group_label = to_group
+        comparison_key = f"{from_group}->{to_group}"
 
         # Within-group LOO on target group
         within_by_handle: dict[str, pd.Series] = {}
@@ -758,47 +731,17 @@ class FeaturesCollection(BaseCollection):
 
         # Between-group predictions targeting the same target handles
         between_by_handle: dict[str, pd.Series] = {}
-        if between_mode == "pooled":
-            rms_list = CrossGroupEvaluator._fit_predict_rms(
-                train_X=[source_embed[h] for h in source_handles],
-                train_y=[source_tgt[h] for h in source_handles],
-                test_X=[target_embed[h] for h in target_handles],
-                test_y=[target_tgt[h] for h in target_handles],
-                predictor_cls=predictor_cls,
-                predictor_kwargs=predictor_kwargs,
-                normalize_source=normalize_source,
-                normalize_pred=normalize_pred,
-            )
-            between_by_handle = {h: rms for h, rms in zip(target_handles, rms_list, strict=True)}
-        elif between_mode == "source_leave_one_out_ensemble":
-            by_handle_runs: dict[str, list[pd.Series]] = {h: [] for h in target_handles}
-            for left_out in source_handles:
-                train_h = [h for h in source_handles if h != left_out]
-                if len(train_h) == 0:
-                    continue
-                rms_list = CrossGroupEvaluator._fit_predict_rms(
-                    train_X=[source_embed[h] for h in train_h],
-                    train_y=[source_tgt[h] for h in train_h],
-                    test_X=[target_embed[h] for h in target_handles],
-                    test_y=[target_tgt[h] for h in target_handles],
-                    predictor_cls=predictor_cls,
-                    predictor_kwargs=predictor_kwargs,
-                    normalize_source=normalize_source,
-                    normalize_pred=normalize_pred,
-                )
-                for h, rms in zip(target_handles, rms_list, strict=True):
-                    by_handle_runs[h].append(rms)
-            for h in target_handles:
-                runs = by_handle_runs[h]
-                if len(runs) == 0:
-                    between_by_handle[h] = pd.Series(np.nan, index=target_tgt[h].index)
-                elif len(runs) == 1:
-                    between_by_handle[h] = runs[0]
-                else:
-                    tmp = pd.concat(runs, axis=1)
-                    between_by_handle[h] = tmp.median(axis=1, skipna=True)
-        else:
-            raise ValueError("between_mode must be 'pooled' or 'source_leave_one_out_ensemble'")
+        rms_list = CrossGroupEvaluator._fit_predict_rms(
+            train_X=[source_embed[h] for h in source_handles],
+            train_y=[source_tgt[h] for h in source_handles],
+            test_X=[target_embed[h] for h in target_handles],
+            test_y=[target_tgt[h] for h in target_handles],
+            predictor_cls=predictor_cls,
+            predictor_kwargs=predictor_kwargs,
+            normalize_source=normalize_source,
+            normalize_pred=normalize_pred,
+        )
+        between_by_handle = {h: rms for h, rms in zip(target_handles, rms_list, strict=True)}
 
         ratio_by_handle = {}
         log_ratio_by_handle = {}
@@ -847,7 +790,6 @@ class FeaturesCollection(BaseCollection):
         stats = {
             **stats,
             "comparison_key": comparison_key,
-            "between_mode": between_mode,
             "predictor_cls": getattr(predictor_cls, "__name__", str(predictor_cls)),
             "predictor_kwargs": dict(predictor_kwargs),
         }
