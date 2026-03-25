@@ -6,32 +6,120 @@ import cv2
 import numpy as np
 
 
-def find_chessboard_corners(image_paths, chessboard_size):
+def _make_circular_mask(shape, radius):
+    """Return a binary mask with a filled circle of given radius centred in the image."""
+    h, w = shape[:2]
+    mask = np.zeros((h, w), dtype=np.uint8)
+    cv2.circle(mask, (w // 2, h // 2), int(radius), 255, -1)
+    return mask
+
+
+def _canonical_corners(corners):
+    """
+    Ensure corner[0] is always at the minimum (x+y) position.
+
+    For even×even chessboards (e.g. 8×6) findChessboardCorners can return
+    corners in two opposite orderings depending on board orientation in the
+    image.  This causes silently wrong stereo correspondences while monocular
+    calibration remains unaffected.  Canonicalising before calibration fixes
+    the ambiguity.
+    """
+    first, last = corners[0, 0], corners[-1, 0]
+    if float(last[0] + last[1]) < float(first[0] + first[1]):
+        return corners[::-1]
+    return corners
+
+
+def find_chessboard_corners(image_paths, chessboard_size, mask_radius=None):
     """Find chessboard corners in a list of images.
-    Returns (objpoints, imgpoints, valid_indices)."""
+
+    Parameters
+    ----------
+    image_paths : list[str]
+    chessboard_size : tuple[int, int]
+        Inner corners (cols, rows).
+    mask_radius : int or None
+        If set, apply a circular mask of this pixel radius (centred on the
+        image) before detection.  Useful for fisheye lenses where the valid
+        image area is a circle; prevents corners near the distorted boundary
+        from being included.  Detection is performed on the masked image;
+        subpixel refinement is performed on the original unmasked image so
+        that accuracy in the valid region is preserved.
+
+    Returns
+    -------
+    objpoints, imgpoints, valid_indices
+    """
     objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-    objp[:, :2] = np.indices(chessboard_size).T.reshape(-1, 2)
-    objpoints = []
-    imgpoints = []
-    valid_indices = []
+    objp[:, :2] = np.mgrid[0 : chessboard_size[0], 0 : chessboard_size[1]].T.reshape(-1, 2)
+
+    subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-3)
+    det_flags = cv2.CALIB_CB_FAST_CHECK
+
+    objpoints, imgpoints, valid_indices = [], [], []
+    mask = None
+
     for idx, img_path in enumerate(image_paths):
         img = cv2.imread(img_path)
         if img is None:
             continue
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
+
+        if mask_radius is not None:
+            if mask is None:
+                mask = _make_circular_mask(gray.shape, mask_radius)
+            det_gray = cv2.bitwise_and(gray, gray, mask=mask)
+        else:
+            det_gray = gray
+
+        ret, corners = cv2.findChessboardCorners(det_gray, chessboard_size, det_flags)
         if ret:
-            objpoints.append(objp)
+            corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), subpix_criteria)
+            corners = _canonical_corners(corners)
+            objpoints.append(objp.copy())
             imgpoints.append(corners)
             valid_indices.append(idx)
+
     return objpoints, imgpoints, valid_indices
 
 
-def calibrate_stereo_system(view1_folder, view2_folder, chessboard_size, square_size, output_json):
+def calibrate_stereo_system(
+    view1_folder,
+    view2_folder,
+    chessboard_size,
+    square_size,
+    output_json,
+    shared_intrinsics=False,
+    mask_radius=None,
+):
+    """Calibrate a stereo camera system from chessboard image pairs.
+
+    Parameters
+    ----------
+    view1_folder, view2_folder : str
+        Folders containing paired PNG calibration images (sorted order matched).
+    chessboard_size : tuple[int, int]
+        Number of inner corners (cols, rows).
+    square_size : float
+        Physical size of one chessboard square in metres.
+    output_json : str
+        Path to write the calibration JSON.
+    shared_intrinsics : bool
+        If True, fit a single intrinsic model from observations pooled across
+        both views before stereo calibration.  Appropriate when both cameras
+        use the same physical lens (e.g. a split-sensor rig).  Default False.
+    mask_radius : int or None
+        If set, restrict corner detection to a circle of this radius (pixels)
+        centred on the image.  Useful for circular fisheye images to avoid
+        corners near the distorted boundary.  Default None (no mask).
+
+    Notes
+    -----
+    Corner ordering is always canonicalised so that corner[0] maps to the
+    minimum (x+y) position.  This is necessary for even×even boards (e.g.
+    8×6) which have 180° rotational symmetry and can otherwise produce
+    silently reversed correspondences between views.
     """
-    Calibrate a stereo camera system using chessboard images from two folders.
-    """
-    # Validate input folders
     if not os.path.isdir(view1_folder) or not os.path.isdir(view2_folder):
         raise FileNotFoundError("One or both view folders do not exist.")
 
@@ -45,55 +133,85 @@ def calibrate_stereo_system(view1_folder, view2_folder, chessboard_size, square_
     if len(images1) != len(images2):
         raise ValueError("Image count mismatch between views.")
 
-    # Find chessboard corners in both views
-    objpoints1, imgpoints1, valid1 = find_chessboard_corners(images1, chessboard_size)
-    objpoints2, imgpoints2, valid2 = find_chessboard_corners(images2, chessboard_size)
+    _, imgpoints1, valid1 = find_chessboard_corners(images1, chessboard_size, mask_radius)
+    _, imgpoints2, valid2 = find_chessboard_corners(images2, chessboard_size, mask_radius)
 
-    # Use only pairs where both views found corners
-    valid_pairs = set(valid1) & set(valid2)
+    valid_pairs = sorted(set(valid1) & set(valid2))
     if not valid_pairs:
         raise RuntimeError("No valid image pairs with detected chessboard corners.")
 
-    objpoints = []
-    imgpoints1_final = []
-    imgpoints2_final = []
-    for idx in sorted(valid_pairs):
-        objpoints.append(objpoints1[valid1.index(idx)])
-        imgpoints1_final.append(imgpoints1[valid1.index(idx)])
-        imgpoints2_final.append(imgpoints2[valid2.index(idx)])
+    valid1_lookup = {v: i for i, v in enumerate(valid1)}
+    valid2_lookup = {v: i for i, v in enumerate(valid2)}
 
-    # Calibrate one camera
-    gray = cv2.cvtColor(cv2.imread(images1[0]), cv2.COLOR_BGR2GRAY)
-    ret, K, dist, _, _ = cv2.calibrateCamera(
-        objpoints, imgpoints1_final, gray.shape[::-1], None, None
-    )
-    if not ret:
-        raise RuntimeError("Single camera calibration failed.")
+    objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0 : chessboard_size[0], 0 : chessboard_size[1]].T.reshape(-1, 2)
+    objp *= float(square_size)
 
-    # Stereo calibration
-    ret, _, _, _, _, R, T, E, F = cv2.stereoCalibrate(
-        objpoints,
-        imgpoints1_final,
-        imgpoints2_final,
-        K,
-        dist,
-        K,
-        dist,
-        gray.shape[::-1],
-        flags=cv2.CALIB_FIX_INTRINSIC,
-        criteria=(cv2.TERM_CRITERIA_MAX_ITER + cv2.TERM_CRITERIA_EPS, 100, 1e-5),
-    )
-    if not ret:
-        raise RuntimeError("Stereo calibration failed.")
+    objpoints, ip1, ip2 = [], [], []
+    for idx in valid_pairs:
+        objpoints.append(objp.copy())
+        ip1.append(imgpoints1[valid1_lookup[idx]])
+        ip2.append(imgpoints2[valid2_lookup[idx]])
+
+    if len(objpoints) < 3:
+        raise RuntimeError(f"Only {len(objpoints)} valid pair(s) found; need at least 3.")
+
+    sample = cv2.imread(images1[0])
+    image_size = (sample.shape[1], sample.shape[0])
+
+    stereo_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 1e-5)
+
+    if shared_intrinsics:
+        rms_mono, K, dist, _, _ = cv2.calibrateCamera(
+            objpoints + objpoints, ip1 + ip2, image_size, None, None
+        )
+        K1, d1, K2, d2 = K, dist, K.copy(), dist.copy()
+        print(f"Shared monocular RMS: {rms_mono:.3f}px")
+        rms_stereo, _, _, _, _, R, T, E, F = cv2.stereoCalibrate(
+            objpoints,
+            ip1,
+            ip2,
+            K1,
+            d1,
+            K2,
+            d2,
+            image_size,
+            flags=cv2.CALIB_FIX_INTRINSIC,
+            criteria=stereo_criteria,
+        )
+    else:
+        rms1, K1, d1, _, _ = cv2.calibrateCamera(objpoints, ip1, image_size, None, None)
+        rms2, K2, d2, _, _ = cv2.calibrateCamera(objpoints, ip2, image_size, None, None)
+        print(f"Monocular RMS: view1={rms1:.3f}px  view2={rms2:.3f}px")
+        rms_stereo, K1, d1, K2, d2, R, T, E, F = cv2.stereoCalibrate(
+            objpoints,
+            ip1,
+            ip2,
+            K1,
+            d1,
+            K2,
+            d2,
+            image_size,
+            flags=cv2.CALIB_USE_INTRINSIC_GUESS,
+            criteria=stereo_criteria,
+        )
+
+    baseline = float(np.linalg.norm(T))
+    angle_deg = float(np.degrees(np.arccos(np.clip((np.trace(R) - 1) / 2, -1, 1))))
+    print(f"Stereo RMS: {rms_stereo:.3f}px  baseline: {baseline:.4f}m  rotation: {angle_deg:.2f}°")
 
     calib = {
         "views": {
-            view1_name: {"K": K.tolist(), "dist": dist.tolist()},
-            view2_name: {"K": K.tolist(), "dist": dist.tolist()},
+            view1_name: {"K": K1.tolist(), "dist": d1.tolist()},
+            view2_name: {"K": K2.tolist(), "dist": d2.tolist()},
         },
         "relative_pose": {"R": R.tolist(), "T": T.tolist()},
-        "image_size": gray.shape[::-1],
+        "image_size": list(image_size),
         "view_order": [view1_name, view2_name],
+        "shared_intrinsics": shared_intrinsics,
+        "mask_radius": mask_radius,
+        "num_pairs": len(objpoints),
+        "rms": {"stereo": float(rms_stereo)},
     }
 
     with open(output_json, "w") as f:
