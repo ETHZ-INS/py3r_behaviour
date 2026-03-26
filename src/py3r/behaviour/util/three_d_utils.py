@@ -25,13 +25,13 @@ def _canonical_corners(corners):
     return corners
 
 
-def find_chessboard_corners(image_paths, chessboard_size, mask_radius=None):
+def find_chessboard_corners(image_paths, chessboard_dims, mask_radius=None, canonical_corners=True):
     """Find chessboard corners in a list of images.
 
     Parameters
     ----------
     image_paths : list[str]
-    chessboard_size : tuple[int, int]
+    chessboard_dims : tuple[int, int]
         Inner corners (cols, rows).
     mask_radius : int or None
         If set, apply a circular mask of this pixel radius (centred on the
@@ -40,13 +40,22 @@ def find_chessboard_corners(image_paths, chessboard_size, mask_radius=None):
         from being included.  Detection is performed on the masked image;
         subpixel refinement is performed on the original unmasked image so
         that accuracy in the valid region is preserved.
+    canonical_corners : bool
+        If True, enforce a canonical ordering so that corner[0] is always at
+        the minimum (x+y) pixel position.  This eliminates the 180° ordering
+        ambiguity that OpenCV has with even×even boards **within a single
+        view** — but it only produces correct *cross-view* correspondences
+        when both cameras point in the same direction (e.g. a split-chip rig).
+        Set False for standard multi-angle stereo rigs where the min(x+y)
+        pixel corner is a different physical board corner in each view.
+        Default True.
 
     Returns
     -------
     objpoints, imgpoints, valid_indices
     """
-    objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-    objp[:, :2] = np.mgrid[0 : chessboard_size[0], 0 : chessboard_size[1]].T.reshape(-1, 2)
+    objp = np.zeros((chessboard_dims[0] * chessboard_dims[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0 : chessboard_dims[0], 0 : chessboard_dims[1]].T.reshape(-1, 2)
 
     subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-3)
     det_flags = cv2.CALIB_CB_FAST_CHECK
@@ -67,10 +76,11 @@ def find_chessboard_corners(image_paths, chessboard_size, mask_radius=None):
         else:
             det_gray = gray
 
-        ret, corners = cv2.findChessboardCorners(det_gray, chessboard_size, det_flags)
+        ret, corners = cv2.findChessboardCorners(det_gray, chessboard_dims, det_flags)
         if ret:
             corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), subpix_criteria)
-            corners = _canonical_corners(corners)
+            if canonical_corners:
+                corners = _canonical_corners(corners)
             objpoints.append(objp.copy())
             imgpoints.append(corners)
             valid_indices.append(idx)
@@ -81,11 +91,12 @@ def find_chessboard_corners(image_paths, chessboard_size, mask_radius=None):
 def calibrate_stereo_system(
     view1_folder,
     view2_folder,
-    chessboard_size,
+    chessboard_dims,
     square_size,
     output_json,
     shared_intrinsics=True,
     mask_radius=None,
+    canonical_corners=None,
 ):
     """Calibrate a stereo camera system from chessboard image pairs.
 
@@ -93,7 +104,7 @@ def calibrate_stereo_system(
     ----------
     view1_folder, view2_folder : str
         Folders containing paired PNG calibration images (sorted order matched).
-    chessboard_size : tuple[int, int]
+    chessboard_dims : tuple[int, int]
         Number of inner corners (cols, rows).
     square_size : float
         Physical size of one chessboard square in metres.
@@ -107,8 +118,15 @@ def calibrate_stereo_system(
         If set, restrict corner detection to a circle of this radius (pixels)
         centred on the image.  Useful for circular fisheye images to avoid
         corners near the distorted boundary.  Default None (no mask).
+    canonical_corners : bool or None
+        Controls the 180° corner-ordering fix for even×even boards.
+        ``None`` (default) auto-selects: True when ``shared_intrinsics=True``
+        (co-directional / split-chip cameras), False otherwise.
+        See :func:`find_chessboard_corners` for a full explanation.
 
     """
+    if canonical_corners is None:
+        canonical_corners = shared_intrinsics
     if not os.path.isdir(view1_folder) or not os.path.isdir(view2_folder):
         raise FileNotFoundError("One or both view folders do not exist.")
 
@@ -122,8 +140,12 @@ def calibrate_stereo_system(
     if len(images1) != len(images2):
         raise ValueError("Image count mismatch between views.")
 
-    _, imgpoints1, valid1 = find_chessboard_corners(images1, chessboard_size, mask_radius)
-    _, imgpoints2, valid2 = find_chessboard_corners(images2, chessboard_size, mask_radius)
+    _, imgpoints1, valid1 = find_chessboard_corners(
+        images1, chessboard_dims, mask_radius, canonical_corners
+    )
+    _, imgpoints2, valid2 = find_chessboard_corners(
+        images2, chessboard_dims, mask_radius, canonical_corners
+    )
 
     valid_pairs = sorted(set(valid1) & set(valid2))
     if not valid_pairs:
@@ -132,8 +154,8 @@ def calibrate_stereo_system(
     valid1_lookup = {v: i for i, v in enumerate(valid1)}
     valid2_lookup = {v: i for i, v in enumerate(valid2)}
 
-    objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-    objp[:, :2] = np.mgrid[0 : chessboard_size[0], 0 : chessboard_size[1]].T.reshape(-1, 2)
+    objp = np.zeros((chessboard_dims[0] * chessboard_dims[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0 : chessboard_dims[0], 0 : chessboard_dims[1]].T.reshape(-1, 2)
     objp *= float(square_size)
 
     objpoints, ip1, ip2 = [], [], []
@@ -213,7 +235,7 @@ def calibrate_stereo_system(
 def calibrate_stereo_from_videos(
     videos,
     output_folder,
-    chessboard_size,
+    chessboard_dims,
     square_size,
     *,
     num_images=50,
@@ -221,23 +243,15 @@ def calibrate_stereo_from_videos(
     shared_intrinsics=True,
     frame_offset=0,
     min_step=3,
-    min_pass1_yield=0.2,
+    min_pass1_yield=0.1,
+    canonical_corners=None,
+    min_board_displacement=20.0,
 ):
     """Extract calibration frames and calibrate a stereo rig in a single pass.
 
     Scans two videos simultaneously, detects the chessboard in both views for
-    each candidate frame, saves accepted colour frames for QC, and then runs
-    stereo calibration on the accumulated corner data — no second detection
-    pass required.
-
-    **Frame scanning strategy**
-
-    Pass 1 checks exactly ``num_images`` evenly-spaced candidates spanning
-    the full video, guaranteeing good temporal coverage regardless of when the
-    board is visible.  If pass 1 did not collect enough pairs, successive
-    infill passes halve the step size — filling in the gaps between already-
-    checked frames — until either ``num_images`` pairs are found or the step
-    falls below ``min_step``.
+    each candidate frame, saves accepted frames for QC, and then runs
+    stereo calibration.
 
     A fail-fast check after pass 1 prevents wasted infill work: if fewer than
     ``min_pass1_yield`` of the pass 1 candidates yielded a valid detection,
@@ -257,7 +271,7 @@ def calibrate_stereo_from_videos(
                 <view1_name>/calib_0000.png ...
                 <view2_name>/calib_0000.png ...
 
-    chessboard_size : tuple[int, int]
+    chessboard_dims : tuple[int, int]
         Inner corners (cols, rows), e.g. ``(8, 6)``.
     square_size : float
         Physical side length of one chessboard square in metres.
@@ -282,7 +296,21 @@ def calibrate_stereo_from_videos(
         Minimum fraction of pass 1 candidates that must yield a valid
         detection to proceed with infill.  If the detection rate is below
         this threshold the video is considered unsuitable and scanning stops
-        early.  Default 0.2 (20 %).
+        early.  Default 0.1 (10 %).
+    canonical_corners : bool or None
+        Controls the 180° corner-ordering fix for even×even boards.
+        ``None`` (default) auto-selects: True when ``shared_intrinsics=True``
+        (co-directional / split-chip cameras), False otherwise.
+        For multi-angle rigs (cameras pointing in different directions), pass
+        False explicitly — the canonical fix is only reliable when both cameras
+        see the board from the same direction.  See :func:`find_chessboard_corners`
+        for a full explanation.
+    min_board_displacement : float
+        Minimum mean corner displacement (pixels) required between a new pair
+        and the most recently accepted pair.  Pairs where the board has barely
+        moved are rejected, preventing clusters of near-duplicate poses that
+        give the stereo optimiser a flat landscape and allow it to drift to a
+        wrong local minimum.  Default 20 px.  Set to 0 to disable.
 
     Returns
     -------
@@ -291,6 +319,9 @@ def calibrate_stereo_from_videos(
     """
     if len(videos) != 2:
         raise ValueError("Exactly two views are required for stereo calibration.")
+
+    if canonical_corners is None:
+        canonical_corners = shared_intrinsics
 
     view_names = list(videos.keys())
     v1, v2 = view_names
@@ -308,8 +339,8 @@ def calibrate_stereo_from_videos(
     # Effective range: frames where both streams have valid data.
     n_eff = max(0, min(n1, n2 - frame_offset) if frame_offset >= 0 else min(n1 + frame_offset, n2))
 
-    objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
-    objp[:, :2] = np.mgrid[0 : chessboard_size[0], 0 : chessboard_size[1]].T.reshape(-1, 2)
+    objp = np.zeros((chessboard_dims[0] * chessboard_dims[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0 : chessboard_dims[0], 0 : chessboard_dims[1]].T.reshape(-1, 2)
     objp *= float(square_size)
 
     subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-3)
@@ -341,13 +372,20 @@ def calibrate_stereo_from_videos(
             det2 = cv2.bitwise_and(g2, g2, mask=circ_mask)
         else:
             det1, det2 = g1, g2
-        r1, c1 = cv2.findChessboardCorners(det1, chessboard_size, det_flags)
-        r2, c2 = cv2.findChessboardCorners(det2, chessboard_size, det_flags)
+        r1, c1 = cv2.findChessboardCorners(det1, chessboard_dims, det_flags)
+        r2, c2 = cv2.findChessboardCorners(det2, chessboard_dims, det_flags)
         if r1 and r2:
             c1 = cv2.cornerSubPix(g1, c1, (11, 11), (-1, -1), subpix_criteria)
             c2 = cv2.cornerSubPix(g2, c2, (11, 11), (-1, -1), subpix_criteria)
-            c1 = _canonical_corners(c1)
-            c2 = _canonical_corners(c2)
+            if canonical_corners:
+                c1 = _canonical_corners(c1)
+                c2 = _canonical_corners(c2)
+            if min_board_displacement > 0 and ip1:
+                disp = float(
+                    np.mean(np.linalg.norm(c1.reshape(-1, 2) - ip1[-1].reshape(-1, 2), axis=1))
+                )
+                if disp < min_board_displacement:
+                    return
             tag = f"calib_{saved:04d}"
             cv2.imwrite(os.path.join(output_folder, v1, f"{tag}.png"), frame1)
             cv2.imwrite(os.path.join(output_folder, v2, f"{tag}.png"), frame2)
@@ -474,7 +512,7 @@ def extract_calibration_images(
     out_dir1,
     out_dir2,
     num_images=200,
-    chessboard_size=(9, 6),
+    chessboard_dims=(9, 6),
 ):
     """Extract up to ``num_images`` matched frame pairs where a chessboard is
     detected in both views.  Frames are sampled evenly across the video.
@@ -501,8 +539,8 @@ def extract_calibration_images(
             continue
         gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY) if len(frame1.shape) == 3 else frame1
         gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY) if len(frame2.shape) == 3 else frame2
-        found1, _ = cv2.findChessboardCorners(gray1, chessboard_size, cv2.CALIB_CB_FAST_CHECK)
-        found2, _ = cv2.findChessboardCorners(gray2, chessboard_size, cv2.CALIB_CB_FAST_CHECK)
+        found1, _ = cv2.findChessboardCorners(gray1, chessboard_dims, cv2.CALIB_CB_FAST_CHECK)
+        found2, _ = cv2.findChessboardCorners(gray2, chessboard_dims, cv2.CALIB_CB_FAST_CHECK)
         if found1 and found2:
             cv2.imwrite(os.path.join(out_dir1, f"calib_{saved:03d}.png"), frame1)
             cv2.imwrite(os.path.join(out_dir2, f"calib_{saved:03d}.png"), frame2)
