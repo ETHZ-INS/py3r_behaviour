@@ -17,12 +17,7 @@ def _make_circular_mask(shape, radius):
 def _canonical_corners(corners):
     """
     Ensure corner[0] is always at the minimum (x+y) position.
-
-    For even×even chessboards (e.g. 8×6) findChessboardCorners can return
-    corners in two opposite orderings depending on board orientation in the
-    image.  This causes silently wrong stereo correspondences while monocular
-    calibration remains unaffected.  Canonicalising before calibration fixes
-    the ambiguity.
+    (to avoid silent checkerboard orientation flips between views)
     """
     first, last = corners[0, 0], corners[-1, 0]
     if float(last[0] + last[1]) < float(first[0] + first[1]):
@@ -89,7 +84,7 @@ def calibrate_stereo_system(
     chessboard_size,
     square_size,
     output_json,
-    shared_intrinsics=False,
+    shared_intrinsics=True,
     mask_radius=None,
 ):
     """Calibrate a stereo camera system from chessboard image pairs.
@@ -107,18 +102,12 @@ def calibrate_stereo_system(
     shared_intrinsics : bool
         If True, fit a single intrinsic model from observations pooled across
         both views before stereo calibration.  Appropriate when both cameras
-        use the same physical lens (e.g. a split-sensor rig).  Default False.
+        use the same physical lens (e.g. a split-sensor rig).  Default True.
     mask_radius : int or None
         If set, restrict corner detection to a circle of this radius (pixels)
         centred on the image.  Useful for circular fisheye images to avoid
         corners near the distorted boundary.  Default None (no mask).
 
-    Notes
-    -----
-    Corner ordering is always canonicalised so that corner[0] maps to the
-    minimum (x+y) position.  This is necessary for even×even boards (e.g.
-    8×6) which have 180° rotational symmetry and can otherwise produce
-    silently reversed correspondences between views.
     """
     if not os.path.isdir(view1_folder) or not os.path.isdir(view2_folder):
         raise FileNotFoundError("One or both view folders do not exist.")
@@ -155,6 +144,8 @@ def calibrate_stereo_system(
 
     if len(objpoints) < 3:
         raise RuntimeError(f"Only {len(objpoints)} valid pair(s) found; need at least 3.")
+
+    print(f"using {len(objpoints)} image pairs for calibration")
 
     sample = cv2.imread(images1[0])
     image_size = (sample.shape[1], sample.shape[0])
@@ -219,6 +210,264 @@ def calibrate_stereo_system(
     print(f"Calibration saved to {output_json} with views: {view1_name}, {view2_name}")
 
 
+def calibrate_stereo_from_videos(
+    videos,
+    output_folder,
+    chessboard_size,
+    square_size,
+    *,
+    num_images=50,
+    mask_radius=None,
+    shared_intrinsics=True,
+    frame_offset=0,
+    min_step=3,
+    min_pass1_yield=0.2,
+):
+    """Extract calibration frames and calibrate a stereo rig in a single pass.
+
+    Scans two videos simultaneously, detects the chessboard in both views for
+    each candidate frame, saves accepted colour frames for QC, and then runs
+    stereo calibration on the accumulated corner data — no second detection
+    pass required.
+
+    **Frame scanning strategy**
+
+    Pass 1 checks exactly ``num_images`` evenly-spaced candidates spanning
+    the full video, guaranteeing good temporal coverage regardless of when the
+    board is visible.  If pass 1 did not collect enough pairs, successive
+    infill passes halve the step size — filling in the gaps between already-
+    checked frames — until either ``num_images`` pairs are found or the step
+    falls below ``min_step``.
+
+    A fail-fast check after pass 1 prevents wasted infill work: if fewer than
+    ``min_pass1_yield`` of the pass 1 candidates yielded a valid detection,
+    the video is considered insufficiently covered and scanning stops.
+
+    Parameters
+    ----------
+    videos : dict[str, str]
+        Exactly two entries mapping view name to video path, e.g.
+        ``{"top": "/data/top.mp4", "offset": "/data/offset.mp4"}``.
+        Insertion order determines view1 / view2.
+    output_folder : str
+        Root output directory (created if absent).  Structure::
+
+            output_folder/
+                calibration.json
+                <view1_name>/calib_0000.png ...
+                <view2_name>/calib_0000.png ...
+
+    chessboard_size : tuple[int, int]
+        Inner corners (cols, rows), e.g. ``(8, 6)``.
+    square_size : float
+        Physical side length of one chessboard square in metres.
+    num_images : int
+        Target number of valid pairs to collect.  Calibration proceeds with
+        however many are found if the video ends first (as long as ≥ 3).
+        Default 50.
+    mask_radius : int or None
+        If set, restrict corner detection to a centred circle of this radius
+        (pixels).  Subpixel refinement uses the unmasked image.  Default None.
+    shared_intrinsics : bool
+        Pool observations from both views to fit a single K/dist model before
+        stereo calibration.  Appropriate for split-sensor rigs with identical
+        optics.  Default True.
+    frame_offset : int
+        Frame index offset applied to the second video relative to the first
+        (positive = second video starts later).  Default 0.
+    min_step : int
+        Minimum frame step for infill passes.  Scanning will not go denser
+        than one check every ``min_step`` frames.  Default 3.
+    min_pass1_yield : float
+        Minimum fraction of pass 1 candidates that must yield a valid
+        detection to proceed with infill.  If the detection rate is below
+        this threshold the video is considered unsuitable and scanning stops
+        early.  Default 0.2 (20 %).
+
+    Returns
+    -------
+    dict
+        The calibration dictionary (same content as calibration.json).
+    """
+    if len(videos) != 2:
+        raise ValueError("Exactly two views are required for stereo calibration.")
+
+    view_names = list(videos.keys())
+    v1, v2 = view_names
+    paths = list(videos.values())
+
+    os.makedirs(output_folder, exist_ok=True)
+    os.makedirs(os.path.join(output_folder, v1), exist_ok=True)
+    os.makedirs(os.path.join(output_folder, v2), exist_ok=True)
+
+    cap1 = cv2.VideoCapture(paths[0])
+    cap2 = cv2.VideoCapture(paths[1])
+    n1 = int(cap1.get(cv2.CAP_PROP_FRAME_COUNT))
+    n2 = int(cap2.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    # Effective range: frames where both streams have valid data.
+    n_eff = max(0, min(n1, n2 - frame_offset) if frame_offset >= 0 else min(n1 + frame_offset, n2))
+
+    objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+    objp[:, :2] = np.mgrid[0 : chessboard_size[0], 0 : chessboard_size[1]].T.reshape(-1, 2)
+    objp *= float(square_size)
+
+    subpix_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-3)
+    det_flags = cv2.CALIB_CB_FAST_CHECK
+
+    objpoints, ip1, ip2 = [], [], []
+    circ_mask = None
+    saved = 0
+    last_frame1 = None
+
+    def _check_frame(frame_idx):
+        nonlocal saved, last_frame1, circ_mask
+        idx2 = frame_idx + frame_offset
+        if frame_idx >= n1 or idx2 < 0 or idx2 >= n2:
+            return
+        cap1.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        cap2.set(cv2.CAP_PROP_POS_FRAMES, idx2)
+        ret1, frame1 = cap1.read()
+        ret2, frame2 = cap2.read()
+        if not (ret1 and ret2):
+            return
+        last_frame1 = frame1
+        g1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+        g2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+        if mask_radius is not None:
+            if circ_mask is None:
+                circ_mask = _make_circular_mask(g1.shape, mask_radius)
+            det1 = cv2.bitwise_and(g1, g1, mask=circ_mask)
+            det2 = cv2.bitwise_and(g2, g2, mask=circ_mask)
+        else:
+            det1, det2 = g1, g2
+        r1, c1 = cv2.findChessboardCorners(det1, chessboard_size, det_flags)
+        r2, c2 = cv2.findChessboardCorners(det2, chessboard_size, det_flags)
+        if r1 and r2:
+            c1 = cv2.cornerSubPix(g1, c1, (11, 11), (-1, -1), subpix_criteria)
+            c2 = cv2.cornerSubPix(g2, c2, (11, 11), (-1, -1), subpix_criteria)
+            c1 = _canonical_corners(c1)
+            c2 = _canonical_corners(c2)
+            tag = f"calib_{saved:04d}"
+            cv2.imwrite(os.path.join(output_folder, v1, f"{tag}.png"), frame1)
+            cv2.imwrite(os.path.join(output_folder, v2, f"{tag}.png"), frame2)
+            objpoints.append(objp.copy())
+            ip1.append(c1)
+            ip2.append(c2)
+            saved += 1
+            print(f"  pair {saved:>4}/{num_images}  (frame {frame_idx})")
+
+    # Pass 1: exactly num_images evenly-spaced candidates across the full video.
+    # This guarantees temporal coverage regardless of where the board appears.
+    step = max(min_step, n_eff // max(1, num_images))
+    checked: set = set()
+    pass_num = 0
+
+    while step >= min_step and saved < num_images:
+        pass_num += 1
+        pass_candidates = [f for f in range(0, n_eff, step) if f not in checked]
+        before = saved
+        for fi in pass_candidates:
+            if saved >= num_images:
+                break
+            checked.add(fi)
+            _check_frame(fi)
+        found = saved - before
+        print(
+            f"Pass {pass_num}: {saved}/{num_images} pairs  "
+            f"(+{found} from {len(pass_candidates)} new frames, step={step})"
+        )
+
+        # Fail-fast after pass 1: if detection rate is too low, infill won't help.
+        if pass_num == 1:
+            rate = found / max(1, len(pass_candidates))
+            if rate < min_pass1_yield:
+                print(
+                    f"Pass 1 detection rate {rate:.1%} < min_pass1_yield "
+                    f"{min_pass1_yield:.0%}; video lacks sufficient board "
+                    "coverage — stopping early."
+                )
+                break
+
+        step //= 2
+
+    cap1.release()
+    cap2.release()
+    print(f"Total: {saved} valid pairs collected across {pass_num} pass(es)")
+
+    if saved < 3:
+        raise RuntimeError(f"Only {saved} valid pair(s) found; need at least 3.")
+
+    image_size = (last_frame1.shape[1], last_frame1.shape[0])
+    stereo_criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 1e-5)
+
+    if shared_intrinsics:
+        rms_mono, K, dist, _, _ = cv2.calibrateCamera(
+            objpoints + objpoints, ip1 + ip2, image_size, None, None
+        )
+        K1, d1, K2, d2 = K, dist, K.copy(), dist.copy()
+        print(f"Shared monocular RMS: {rms_mono:.3f}px")
+        rms_stereo, _, _, _, _, R, T, E, F = cv2.stereoCalibrate(
+            objpoints,
+            ip1,
+            ip2,
+            K1,
+            d1,
+            K2,
+            d2,
+            image_size,
+            flags=cv2.CALIB_FIX_INTRINSIC,
+            criteria=stereo_criteria,
+        )
+        rms_record = {"shared_mono": float(rms_mono), "stereo": float(rms_stereo)}
+    else:
+        rms1, K1, d1, _, _ = cv2.calibrateCamera(objpoints, ip1, image_size, None, None)
+        rms2, K2, d2, _, _ = cv2.calibrateCamera(objpoints, ip2, image_size, None, None)
+        print(f"Monocular RMS: {v1}={rms1:.3f}px  {v2}={rms2:.3f}px")
+        rms_stereo, K1, d1, K2, d2, R, T, E, F = cv2.stereoCalibrate(
+            objpoints,
+            ip1,
+            ip2,
+            K1,
+            d1,
+            K2,
+            d2,
+            image_size,
+            flags=cv2.CALIB_USE_INTRINSIC_GUESS,
+            criteria=stereo_criteria,
+        )
+        rms_record = {
+            f"mono_{v1}": float(rms1),
+            f"mono_{v2}": float(rms2),
+            "stereo": float(rms_stereo),
+        }
+
+    baseline = float(np.linalg.norm(T))
+    angle_deg = float(np.degrees(np.arccos(np.clip((np.trace(R) - 1) / 2, -1, 1))))
+    print(f"Stereo RMS: {rms_stereo:.3f}px  baseline: {baseline:.4f}m  rotation: {angle_deg:.2f}°")
+
+    calib = {
+        "views": {
+            v1: {"K": K1.tolist(), "dist": d1.tolist()},
+            v2: {"K": K2.tolist(), "dist": d2.tolist()},
+        },
+        "relative_pose": {"R": R.tolist(), "T": T.tolist()},
+        "image_size": list(image_size),
+        "view_order": [v1, v2],
+        "shared_intrinsics": shared_intrinsics,
+        "mask_radius": mask_radius,
+        "num_pairs": saved,
+        "rms": rms_record,
+    }
+
+    output_json = os.path.join(output_folder, "calibration.json")
+    with open(output_json, "w") as f:
+        json.dump(calib, f, indent=2)
+    print(f"Saved → {output_json}")
+
+    return calib
+
+
 def extract_calibration_images(
     video1_path,
     video2_path,
@@ -226,92 +475,56 @@ def extract_calibration_images(
     out_dir2,
     num_images=200,
     chessboard_size=(9, 6),
-    min_sharpness=80.0,
-    max_anisotropy=20.0,
-    min_edge_density=0.005,
 ):
-    """
-    Extracts num_images frames from two videos for calibration.
-    Only saves frames where a sharp chessboard is detected.
+    """Extract up to ``num_images`` matched frame pairs where a chessboard is
+    detected in both views.  Frames are sampled evenly across the video.
+
+    .. note::
+        For a single-step extract-and-calibrate workflow, prefer
+        :func:`calibrate_stereo_from_videos` instead.
     """
     os.makedirs(out_dir1, exist_ok=True)
     os.makedirs(out_dir2, exist_ok=True)
     cap1 = cv2.VideoCapture(video1_path)
     cap2 = cv2.VideoCapture(video2_path)
     n_frames = int(min(cap1.get(cv2.CAP_PROP_FRAME_COUNT), cap2.get(cv2.CAP_PROP_FRAME_COUNT)))
-    if n_frames < num_images:
-        raise ValueError(f"Not enough frames in the videos to extract {num_images} images.")
-    indices = np.linspace(0, n_frames - 1, num_images, dtype=int)
+    indices = np.linspace(0, n_frames - 1, min(num_images * 5, n_frames), dtype=int)
     saved = 0
     for idx in indices:
+        if saved >= num_images:
+            break
         cap1.set(cv2.CAP_PROP_POS_FRAMES, idx)
         cap2.set(cv2.CAP_PROP_POS_FRAMES, idx)
         ret1, frame1 = cap1.read()
         ret2, frame2 = cap2.read()
         if not (ret1 and ret2):
             continue
-        print(f"Read frame {idx} from {video1_path} or {video2_path}")
-        # convert to grayscale if needed
-        if len(frame1.shape) == 3:
-            gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
-        else:
-            gray1 = frame1.copy()
-        if len(frame2.shape) == 3:
-            gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
-        else:
-            gray2 = frame2.copy()
-
-        # find chessboard corners
-        chessboard_found1, _ = cv2.findChessboardCorners(gray1, chessboard_size, None)
-        chessboard_found2, _ = cv2.findChessboardCorners(gray2, chessboard_size, None)
-
-        if chessboard_found1 and chessboard_found2:
-            print(f"Found chessboard in frame {idx} of {video1_path} and {video2_path}")
-            # check not blurred
-            if not is_blurred(
-                gray1, min_sharpness, max_anisotropy, min_edge_density
-            ) and not is_blurred(gray2, min_sharpness, max_anisotropy, min_edge_density):
-                print(f"Not blurred in frame {idx} of {video1_path} and {video2_path}")
-                out1 = os.path.join(out_dir1, f"calib_{saved:03d}.png")
-                out2 = os.path.join(out_dir2, f"calib_{saved:03d}.png")
-                cv2.imwrite(out1, frame1)
-                cv2.imwrite(out2, frame2)
-                saved += 1
-        if saved >= num_images:
-            break
+        gray1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY) if len(frame1.shape) == 3 else frame1
+        gray2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY) if len(frame2.shape) == 3 else frame2
+        found1, _ = cv2.findChessboardCorners(gray1, chessboard_size, cv2.CALIB_CB_FAST_CHECK)
+        found2, _ = cv2.findChessboardCorners(gray2, chessboard_size, cv2.CALIB_CB_FAST_CHECK)
+        if found1 and found2:
+            cv2.imwrite(os.path.join(out_dir1, f"calib_{saved:03d}.png"), frame1)
+            cv2.imwrite(os.path.join(out_dir2, f"calib_{saved:03d}.png"), frame2)
+            saved += 1
     cap1.release()
     cap2.release()
     print(f"Saved {saved} calibration image pairs to {out_dir1} and {out_dir2}")
 
 
-def is_blurred(gray, min_lap_var=100.0, max_anisotropy=5.0, min_edge_density=0.01):
+def is_blurred(gray, min_lap_var=100.0):
+    """Return True if the image is likely blurred.
+
+    Uses Laplacian variance as the focus measure: a sharp image has high
+    variance because edges create large positive and negative responses;
+    a blurry image suppresses those responses.
+
+    Parameters
+    ----------
+    gray : np.ndarray
+        Grayscale image.
+    min_lap_var : float
+        Minimum acceptable Laplacian variance.  Values below this threshold
+        are considered blurred.  Default 100.
     """
-    Returns True if the image is likely motion blurred.
-    - min_lap_var: minimum Laplacian variance for sharpness
-    - max_anisotropy: maximum allowed ratio of dominant to orthogonal gradient energy
-    - min_edge_density: minimum fraction of edge pixels (Canny) required
-    """
-    # 1. Laplacian variance (focus)
-    lap_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-    if lap_var < min_lap_var:
-        return True  # blurry (could be defocus or motion)
-
-    # 2. Directional gradient ratio (anisotropy)
-    sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-    sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-    energy_x = np.sum(np.abs(sobelx))
-    energy_y = np.sum(np.abs(sobely))
-    if energy_x > energy_y:
-        anisotropy = energy_x / (energy_y + 1e-6)
-    else:
-        anisotropy = energy_y / (energy_x + 1e-6)
-    if anisotropy > max_anisotropy:
-        return True  # strong directional blur
-
-    # 3. Edge density (optional, to avoid blank/low-contrast images)
-    edges = cv2.Canny(gray, 100, 200)
-    edge_density = np.mean(edges > 0)
-    if edge_density < min_edge_density:
-        return True  # not enough edges
-
-    return False  # not blurred
+    return float(cv2.Laplacian(gray, cv2.CV_64F).var()) < min_lap_var
