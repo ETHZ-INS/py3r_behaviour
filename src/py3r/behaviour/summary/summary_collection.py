@@ -14,7 +14,6 @@ from py3r.behaviour.summary.summary_collection_plot_mixin import (
 )
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import resolve_single_store_name
-from py3r.behaviour.util.dataframe_utils import normalize_transition_matrix
 
 
 class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
@@ -415,7 +414,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         numshuffles: int = 1000,
         pairs: list[tuple[str, str]] | None = None,
         random_state: int | None = 0,
-        normalize: bool = True,
+        scale_by_transitions: bool = False,
     ):
         """
         Behaviour Flow Analysis between groups for a grouped SummaryCollection.
@@ -429,18 +428,28 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
         Parameters
         ----------
-        normalize : bool, default True
-            If True, each individual transition matrix is row-normalised before
-            computing distances, so the Manhattan distance measures the average
-            absolute difference in transition *probability* rather than raw counts.
-            Rows that sum to zero (state never left) are filled with 0.0.
-            Normalise at the individual level (before averaging across animals) to
-            avoid large-n animals dominating the group mean.
-        random_state:
-            Optional seed for deterministic surrogate shuffling. ``None`` keeps
-            non-deterministic behavior.  When comparing results across multiple
-            coarse-graining scales, pass the same seed to each ``bfa()`` call so
-            that surrogate shuffles are synchronised; see ``combine_bfa_results``.
+        column : str
+            Name of the column containing discrete state labels.
+        all_states : list | None
+            Explicit state ordering for the transition matrix.  ``None`` infers
+            states from the data.
+        numshuffles : int
+            Number of surrogate shuffles used to build the null distribution.
+        pairs : list[tuple[str, str]] | None
+            Group pairs to compare.  ``None`` evaluates all unique pairs.
+        random_state : int | None
+            Seed for reproducible surrogate shuffling.  ``None`` keeps
+            non-deterministic behaviour.  Pass the same seed to each ``bfa()``
+            call when combining scales so that surrogate shuffles are
+            synchronised; see :meth:`combine_bfa_results`.
+        scale_by_transitions : bool, default False
+            If ``True``, each pairwise Manhattan distance (observed and all
+            surrogates) is divided by the total number of transitions across
+            both groups for that pair.  This rescales raw-count distances to a
+            per-transition unit, making distances comparable across temporal
+            resolutions with different numbers of observations.  Defaults to
+            ``False`` to preserve legacy behaviour and retain the information
+            contained in total transition counts.
 
         Examples
         --------
@@ -466,7 +475,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         ...     f.tracking.add_tag('group', f'G{i+1}')
         >>> gfc = fc.groupby('group')
         >>> sc = SummaryCollection.from_features_collection(gfc)
-        >>> # compute all pairs (with normalization)
+        >>> # compute all pairs (raw transition counts)
         >>> res = sc.bfa('state', all_states=['A','B'], numshuffles=2)
         >>> isinstance(res, dict) and 'observed' in next(iter(res.values()))
         True
@@ -474,8 +483,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         >>> res2 = sc.bfa('state', all_states=['A','B'], numshuffles=2, pairs=[('G1','G2')])
         >>> list(res2.keys()) == ['G1_vs_G2']
         True
-        >>> # without normalization (raw counts)
-        >>> res3 = sc.bfa('state', all_states=['A','B'], numshuffles=2, normalize=False)
+        >>> # scale distances by total transition count (comparable across resolutions)
+        >>> res3 = sc.bfa('state', all_states=['A','B'], numshuffles=2, scale_by_transitions=True)
         >>> isinstance(res3, dict) and 'observed' in next(iter(res3.values()))
         True
 
@@ -525,12 +534,14 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
             _ = {}
             list1 = list(transition_matrices[group1].values())
             list2 = list(transition_matrices[group2].values())
-            if normalize:
-                list1 = [normalize_transition_matrix(tm) for tm in list1]
-                list2 = [normalize_transition_matrix(tm) for tm in list2]
-            _["observed"] = self._manhattan_distance_twogroups(list1, list2)
+            if scale_by_transitions:
+                total_T = float(sum(tm.to_numpy().sum() for tm in list1 + list2))
+                scale = 1.0 / total_T if total_T > 0 else 1.0
+            else:
+                scale = 1.0
+            _["observed"] = self._manhattan_distance_twogroups(list1, list2) * scale
             _["surrogates"] = [
-                self._manhattan_distance_twogroups(*self._shuffle_lists(list1, list2, rng))
+                self._manhattan_distance_twogroups(*self._shuffle_lists(list1, list2, rng)) * scale
                 for _ in range(numshuffles)
             ]
             # use formatted labels for result key
@@ -1175,7 +1186,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         numshuffles: int = 1000,
         pairs: list[tuple[str, str]] | None = None,
         random_state: int | None = 0,
-        normalize: bool = True,
+        scale_by_transitions: bool = True,
         scale_weights: list[float] | None = None,
     ) -> dict:
         """
@@ -1226,8 +1237,13 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         random_state : int | None
             Seed for reproducible surrogate shuffling.  The same seed is used
             at every scale to synchronise surrogates.
-        normalize : bool, default True
-            Row-normalise each transition matrix before computing distances.
+        scale_by_transitions : bool, default True
+            Divide each pairwise Manhattan distance by the total number of
+            transitions across both groups for that pair.  This is enabled by
+            default here because distances across scales must be on a common
+            per-transition unit before they can be meaningfully combined.
+            Set to ``False`` only if you need raw-count distances and are
+            handling comparability yourself.
         scale_weights : list[float] | None
             Per-scale multipliers for the combined distance, in the same order
             as ``scs``.  Defaults to uniform weighting.
@@ -1380,7 +1396,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
                 numshuffles=numshuffles,
                 pairs=pairs,
                 random_state=random_state,
-                normalize=normalize,
+                scale_by_transitions=scale_by_transitions,
             )
 
         combined = SummaryCollection.combine_bfa_results(

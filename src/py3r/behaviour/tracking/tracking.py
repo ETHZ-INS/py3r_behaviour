@@ -443,7 +443,7 @@ class Tracking:
 
         ```
 
-        Coarse-graining by 2 halves the row count and fps, though incomplete windows are dropped:
+        Coarse-graining by 2 halves the row count and fps (incomplete windows are kept):
 
         ```pycon
         >>> t2 = t.coarse_grain(2)
