@@ -252,13 +252,13 @@ def normalize_transition_matrix(tm: pd.DataFrame) -> pd.DataFrame:
     >>> import pandas as pd
     >>> tm = pd.DataFrame({'A': [3, 0], 'B': [1, 0]}, index=['A', 'B'])
     >>> result = normalize_transition_matrix(tm)
-    >>> result.loc['A', 'A']
+    >>> float(result.loc['A', 'A'])
     0.75
-    >>> result.loc['A', 'B']
+    >>> float(result.loc['A', 'B'])
     0.25
-    >>> result.loc['B', 'A']
+    >>> float(result.loc['B', 'A'])
     0.0
-    >>> result.loc['B', 'B']
+    >>> float(result.loc['B', 'B'])
     0.0
 
     ```

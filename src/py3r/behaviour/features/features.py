@@ -260,7 +260,7 @@ class Features:
         ```pycon
         >>> f2 = f.coarse_grain(2)
         >>> len(f2.data)
-        2
+        3
         >>> f2.tracking.meta['fps']
         15.0
         >>> f2.handle
@@ -268,12 +268,13 @@ class Features:
 
         ```
 
-        The averaged counter values are means of consecutive pairs (0+1)/2=0.5,
-        (2+3)/2=2.5; the fifth row is dropped as it does not complete a window:
+        The 5-row input produces 3 windows: two complete (rows 0–1, rows 2–3)
+        and one partial (row 4 alone).  Incomplete trailing windows are
+        retained — the single-row window aggregates to the row's own value:
 
         ```pycon
         >>> list(f2.data['counter'])
-        [0.5, 2.5]
+        [0.5, 2.5, 4.0]
 
         ```
 
@@ -292,7 +293,7 @@ class Features:
         >>> f.store(labels, 'state', meta={})
         >>> f_mode = f.coarse_grain(2, non_numeric='mode')
         >>> list(f_mode.data['state'])
-        ['A', 'B']
+        ['A', 'B', 'A']
 
         ```
 

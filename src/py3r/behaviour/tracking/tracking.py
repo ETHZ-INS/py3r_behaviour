@@ -448,7 +448,7 @@ class Tracking:
         ```pycon
         >>> t2 = t.coarse_grain(2)
         >>> len(t2.data)
-        2
+        3
         >>> t2.meta['fps']
         15.0
         >>> t2.handle
@@ -456,11 +456,14 @@ class Tracking:
 
         ```
 
-        The averaged `p1.x` values of the first window are the mean of rows
-        0 and 1 of the original data (0.0 and 1.0 → 0.5):
+        The 5-row input produces 3 windows: two complete (rows 0–1, rows 2–3)
+        and one partial (row 4 alone).  Incomplete trailing windows are
+        retained rather than dropped, so no data is lost.
+
+        The first window's mean ``p1.x`` is (0.0 + 1.0) / 2 = 0.5:
 
         ```pycon
-        >>> round(t2.data['p1.x'].iloc[0], 6)
+        >>> float(round(t2.data['p1.x'].iloc[0], 6))
         0.5
 
         ```
@@ -477,7 +480,7 @@ class Tracking:
 
         ```pycon
         >>> t_max = t.coarse_grain(2, method='max')
-        >>> round(t_max.data['p1.x'].iloc[0], 6)
+        >>> float(round(t_max.data['p1.x'].iloc[0], 6))
         1.0
 
         ```

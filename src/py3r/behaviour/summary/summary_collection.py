@@ -1281,7 +1281,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         ...     [sc1, sc1], 'state',
         ...     all_states=[['A', 'B'], ['A', 'B']],
         ...     numshuffles=2)
-        >>> ms['combined']['G1_vs_G2']['observed'] == ms2['combined']['G1_vs_G2']['observed']
+        >>> bool(ms['combined']['G1_vs_G2']['observed'] == ms2['combined']['G1_vs_G2']['observed'])
         True
         >>> set(ms.keys()) == {'combined', 'scales'}
         True
