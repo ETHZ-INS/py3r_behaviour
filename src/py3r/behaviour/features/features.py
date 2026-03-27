@@ -209,13 +209,100 @@ class Features:
         keep_assets: bool = True,
     ) -> Self:
         """
-        Coarse-grain feature data over fixed windows.
+        Coarse-grain feature data over fixed, non-overlapping windows.
 
-        Applies the same coarse-graining transform to both the backing
-        ``Tracking`` object and ``Features.data`` so row counts and index
-        alignment remain consistent.
+        Applies the same aggregation to both ``Features.data`` and the backing
+        ``Tracking`` object so row counts and index alignment remain consistent.
+        ``fps`` is divided by ``window`` to reflect the new effective frame rate.
+        A ``"coarse_grain"`` entry is appended to ``meta["transforms"]``.
 
-        When ``keep_assets`` is true, assets are deep-copied to the result.
+        Parameters
+        ----------
+        window : int
+            Number of consecutive rows to collapse into one.
+        method : {"mean", "median", "min", "max"}, default "mean"
+            Aggregation applied to numeric feature columns within each window.
+        non_numeric : {"drop", "nan", "first", "mode", "error"}, default "drop"
+            How to handle non-numeric feature columns (e.g. string state
+            labels).  Pass ``"mode"`` to keep the most-frequent value per
+            window, which is appropriate for categorical columns.
+        keep_assets : bool, default True
+            If ``True``, assets (e.g. boundary objects) are deep-copied to the
+            result.  Set to ``False`` to avoid copying large assets when they
+            are not needed at the coarser scale.
+
+        Returns
+        -------
+        Features
+            New ``Features`` (or subclass) object with ``len(data) // window``
+            rows and reduced fps.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> vals = pd.Series(range(len(t.data)), index=t.data.index, dtype=float)
+        >>> f.store(vals, 'counter', meta={})
+        >>> len(f.data), f.tracking.meta['fps']
+        (5, 30.0)
+
+        ```
+
+        Coarse-graining by 2 halves the row count and fps for both feature
+        data and the backing Tracking:
+
+        ```pycon
+        >>> f2 = f.coarse_grain(2)
+        >>> len(f2.data)
+        2
+        >>> f2.tracking.meta['fps']
+        15.0
+        >>> f2.handle
+        'ex'
+
+        ```
+
+        The averaged counter values are means of consecutive pairs (0+1)/2=0.5,
+        (2+3)/2=2.5; the fifth row is dropped as it does not complete a window:
+
+        ```pycon
+        >>> list(f2.data['counter'])
+        [0.5, 2.5]
+
+        ```
+
+        The backing Tracking is coarse-grained in sync — row counts match:
+
+        ```pycon
+        >>> len(f2.tracking.data) == len(f2.data)
+        True
+
+        ```
+
+        Categorical columns are preserved with ``non_numeric='mode'``:
+
+        ```pycon
+        >>> labels = pd.Series(['A','A','B','B','A'], index=t.data.index)
+        >>> f.store(labels, 'state', meta={})
+        >>> f_mode = f.coarse_grain(2, non_numeric='mode')
+        >>> list(f_mode.data['state'])
+        ['A', 'B']
+
+        ```
+
+        The transform is recorded in meta:
+
+        ```pycon
+        >>> f2.meta['transforms'][-1]
+        {'type': 'coarse_grain', 'window': 2, 'method': 'mean'}
+
+        ```
         """
         coarse_tracking = self.tracking.coarse_grain(
             window=window,

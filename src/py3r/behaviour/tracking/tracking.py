@@ -404,11 +404,83 @@ class Tracking:
         non_numeric: Literal["drop", "nan", "first", "mode", "error"] = "drop",
     ) -> Self:
         """
-        Coarse-grain tracking data over fixed windows.
+        Coarse-grain tracking data over fixed, non-overlapping windows.
 
-        Rows are aggregated in consecutive, non-overlapping windows of length
-        ``window``. The result is reindexed from 0 and fps is divided by
-        ``window``.
+        Numeric columns are aggregated with ``method`` within each window of
+        ``window`` rows.  The result is reindexed from 0 and ``fps`` is divided
+        by ``window`` to reflect the new effective frame rate.  A
+        ``"coarse_grain"`` entry is appended to ``meta["transforms"]``.
+
+        Non-numeric columns (e.g. string annotations) are handled according to
+        ``non_numeric``; the default ``"drop"`` removes them from the output.
+
+        Parameters
+        ----------
+        window : int
+            Number of consecutive rows to collapse into one.
+        method : {"mean", "median", "min", "max"}, default "mean"
+            Aggregation applied to numeric columns within each window.
+        non_numeric : {"drop", "nan", "first", "mode", "error"}, default "drop"
+            How to handle non-numeric columns.
+
+        Returns
+        -------
+        Tracking
+            New ``Tracking`` (or subclass) object with ``len(data) // window``
+            rows and ``fps`` reduced by a factor of ``window``.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> len(t.data)
+        5
+        >>> t.meta['fps']
+        30.0
+
+        ```
+
+        Coarse-graining by 2 halves the row count and fps, though incomplete windows are dropped:
+
+        ```pycon
+        >>> t2 = t.coarse_grain(2)
+        >>> len(t2.data)
+        2
+        >>> t2.meta['fps']
+        15.0
+        >>> t2.handle
+        'ex'
+
+        ```
+
+        The averaged `p1.x` values of the first window are the mean of rows
+        0 and 1 of the original data (0.0 and 1.0 → 0.5):
+
+        ```pycon
+        >>> round(t2.data['p1.x'].iloc[0], 6)
+        0.5
+
+        ```
+
+        The transform is recorded in meta:
+
+        ```pycon
+        >>> t2.meta['transforms'][-1]
+        {'type': 'coarse_grain', 'window': 2, 'method': 'mean'}
+
+        ```
+
+        Using ``method='max'`` takes the per-window maximum instead:
+
+        ```pycon
+        >>> t_max = t.coarse_grain(2, method='max')
+        >>> round(t_max.data['p1.x'].iloc[0], 6)
+        1.0
+
+        ```
         """
         coarse_data = coarse_grain_dataframe(
             self.data,

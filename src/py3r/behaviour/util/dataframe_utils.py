@@ -225,6 +225,48 @@ def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.Da
     return out
 
 
+def normalize_transition_matrix(tm: pd.DataFrame) -> pd.DataFrame:
+    """
+    Row-normalise a transition-count matrix to transition probabilities.
+
+    Each row is divided by its row sum so that non-zero rows become probability
+    distributions that sum to 1.  Rows whose sum is zero (a state that was
+    observed but never left in this recording) are filled with ``0.0`` rather
+    than ``NaN``, treating an unseen transition as having probability 0.
+
+    Parameters
+    ----------
+    tm : pd.DataFrame
+        Square (or rectangular) transition-count matrix with matching index
+        and columns.
+
+    Returns
+    -------
+    pd.DataFrame
+        Row-normalised DataFrame with the same shape, index, and columns as
+        the input.
+
+    Example
+
+    ```pycon
+    >>> import pandas as pd
+    >>> tm = pd.DataFrame({'A': [3, 0], 'B': [1, 0]}, index=['A', 'B'])
+    >>> result = normalize_transition_matrix(tm)
+    >>> result.loc['A', 'A']
+    0.75
+    >>> result.loc['A', 'B']
+    0.25
+    >>> result.loc['B', 'A']
+    0.0
+    >>> result.loc['B', 'B']
+    0.0
+
+    ```
+    """
+    row_sums = tm.sum(axis=1)
+    return tm.div(row_sums.replace(0, float("nan")), axis=0).fillna(0.0)
+
+
 def coarse_grain_dataframe(
     data: pd.DataFrame,
     *,
