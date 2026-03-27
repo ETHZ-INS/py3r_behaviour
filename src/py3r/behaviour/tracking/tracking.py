@@ -14,6 +14,7 @@ import pandas as pd
 from py3r.behaviour.util.array_utils import rescale_array_by_dim
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dataframe_utils import (
+    coarse_grain_dataframe,
     euclidean_distance,
     filter_by_threshold,
     scale_columns,
@@ -392,6 +393,44 @@ class Tracking:
         return type(self)(
             data=self.data.copy(),
             meta=copy.deepcopy(self.meta),
+            handle=self.handle,
+            tags=copy.deepcopy(self.tags),
+        )
+
+    def coarse_grain(
+        self: Self,
+        window: int,
+        method: Literal["mean", "median", "min", "max"] = "mean",
+        non_numeric: Literal["drop", "nan", "first", "mode", "error"] = "drop",
+    ) -> Self:
+        """
+        Coarse-grain tracking data over fixed windows.
+
+        Rows are aggregated in consecutive, non-overlapping windows of length
+        ``window``. The result is reindexed from 0 and fps is divided by
+        ``window``.
+        """
+        coarse_data = coarse_grain_dataframe(
+            self.data,
+            window=window,
+            method=method,
+            non_numeric=non_numeric,
+        )
+
+        coarse_meta = copy.deepcopy(self.meta)
+        coarse_meta["fps"] = float(self.meta["fps"]) / float(window)
+        coarse_meta["transforms"] = [
+            *coarse_meta.get("transforms", []),
+            {
+                "type": "coarse_grain",
+                "window": int(window),
+                "method": method,
+            },
+        ]
+
+        return type(self)(
+            data=coarse_data,
+            meta=coarse_meta,
             handle=self.handle,
             tags=copy.deepcopy(self.tags),
         )

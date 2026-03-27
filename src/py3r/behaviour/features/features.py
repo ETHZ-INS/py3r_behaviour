@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 import numpy as np
 import pandas as pd
@@ -23,6 +23,7 @@ from py3r.behaviour.util.bmicro_utils import (
     train_knn_from_embeddings,
 )
 from py3r.behaviour.util.collection_utils import _Indexer
+from py3r.behaviour.util.dataframe_utils import coarse_grain_dataframe
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
@@ -199,6 +200,51 @@ class Features:
         result.handle = self.handle
         result.tags = copy.deepcopy(self.tags)
         return result
+
+    def coarse_grain(
+        self: Self,
+        window: int,
+        method: Literal["mean", "median", "min", "max"] = "mean",
+        non_numeric: Literal["drop", "nan", "first", "mode", "error"] = "drop",
+        keep_assets: bool = True,
+    ) -> Self:
+        """
+        Coarse-grain feature data over fixed windows.
+
+        Applies the same coarse-graining transform to both the backing
+        ``Tracking`` object and ``Features.data`` so row counts and index
+        alignment remain consistent.
+
+        When ``keep_assets`` is true, assets are deep-copied to the result.
+        """
+        coarse_tracking = self.tracking.coarse_grain(
+            window=window,
+            method=method,
+            non_numeric=non_numeric,
+        )
+        coarse = type(self)(coarse_tracking)
+
+        coarse.data = coarse_grain_dataframe(
+            self.data,
+            window=window,
+            method=method,
+            non_numeric=non_numeric,
+        )
+
+        coarse.meta = copy.deepcopy(self.meta)
+        coarse.meta["transforms"] = [
+            *coarse.meta.get("transforms", []),
+            {
+                "type": "coarse_grain",
+                "window": int(window),
+                "method": method,
+            },
+        ]
+
+        coarse._assets = copy.deepcopy(self._assets) if keep_assets else {}
+        coarse.handle = self.handle
+        coarse.tags = copy.deepcopy(self.tags)
+        return coarse
 
     def to_summary(self) -> Summary:
         """
