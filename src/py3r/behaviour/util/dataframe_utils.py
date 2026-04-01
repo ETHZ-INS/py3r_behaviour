@@ -223,3 +223,119 @@ def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.Da
         out[c] *= factor
 
     return out
+
+
+def normalize_transition_matrix(tm: pd.DataFrame) -> pd.DataFrame:
+    """
+    Row-normalise a transition-count matrix to transition probabilities.
+
+    Each row is divided by its row sum so that non-zero rows become probability
+    distributions that sum to 1.  Rows whose sum is zero (a state that was
+    observed but never left in this recording) are filled with ``0.0`` rather
+    than ``NaN``, treating an unseen transition as having probability 0.
+
+    Parameters
+    ----------
+    tm : pd.DataFrame
+        Square (or rectangular) transition-count matrix with matching index
+        and columns.
+
+    Returns
+    -------
+    pd.DataFrame
+        Row-normalised DataFrame with the same shape, index, and columns as
+        the input.
+
+    Example
+
+    ```pycon
+    >>> import pandas as pd
+    >>> tm = pd.DataFrame({'A': [3, 0], 'B': [1, 0]}, index=['A', 'B'])
+    >>> result = normalize_transition_matrix(tm)
+    >>> float(result.loc['A', 'A'])
+    0.75
+    >>> float(result.loc['A', 'B'])
+    0.25
+    >>> float(result.loc['B', 'A'])
+    0.0
+    >>> float(result.loc['B', 'B'])
+    0.0
+
+    ```
+    """
+    row_sums = tm.sum(axis=1)
+    return tm.div(row_sums.replace(0, float("nan")), axis=0).fillna(0.0)
+
+
+def coarse_grain_dataframe(
+    data: pd.DataFrame,
+    *,
+    window: int,
+    method: Literal["mean", "median", "min", "max"] = "mean",
+    non_numeric: Literal["drop", "nan", "first", "mode", "error"] = "drop",
+) -> pd.DataFrame:
+    """
+    Coarse-grain a DataFrame over fixed, non-overlapping row windows.
+
+    Numeric columns are aggregated with ``method``. Boolean and other
+    non-numeric columns are handled according to ``non_numeric``.
+    """
+    valid_methods = {"mean", "median", "min", "max"}
+    if not isinstance(window, int) or window < 1:
+        raise ValueError(f"window must be a positive integer, got {window!r}")
+    if method not in valid_methods:
+        raise ValueError(f"method must be one of {sorted(valid_methods)}, got {method!r}")
+
+    bins = np.arange(len(data)) // window
+    grouped = data.groupby(bins, sort=True)
+
+    non_numeric_cols = [
+        col
+        for col in data.columns
+        if pd.api.types.is_bool_dtype(data[col]) or not pd.api.types.is_numeric_dtype(data[col])
+    ]
+    numeric_cols = [col for col in data.columns if col not in non_numeric_cols]
+
+    if non_numeric == "error" and non_numeric_cols:
+        raise TypeError(
+            "coarse_grain encountered non-numeric columns "
+            f"(including boolean dtypes): {non_numeric_cols}"
+        )
+
+    coarse_data = (
+        grouped[numeric_cols].aggregate(method)
+        if numeric_cols
+        else pd.DataFrame(index=grouped.size().index)
+    )
+
+    if non_numeric_cols and non_numeric != "drop":
+        if non_numeric == "nan":
+            extra = pd.DataFrame(
+                {
+                    col: pd.Series(pd.NA, index=coarse_data.index, dtype="object")
+                    for col in non_numeric_cols
+                }
+            )
+        elif non_numeric == "first":
+            extra = grouped[non_numeric_cols].first()
+        elif non_numeric == "mode":
+
+            def _mode_or_na(s: pd.Series):
+                modes = s.mode(dropna=True)
+                return modes.iloc[0] if not modes.empty else pd.NA
+
+            extra = grouped[non_numeric_cols].agg(_mode_or_na)
+        else:
+            extra = pd.DataFrame(index=coarse_data.index)
+
+        coarse_data = pd.concat([coarse_data, extra], axis=1)[data.columns]
+    else:
+        coarse_data = coarse_data[numeric_cols]
+
+    coarse_data.index = pd.RangeIndex(
+        start=0,
+        stop=len(coarse_data),
+        step=1,
+        name=data.index.name or "frame",
+    )
+    return coarse_data

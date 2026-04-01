@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 import numpy as np
 import pandas as pd
@@ -23,6 +23,7 @@ from py3r.behaviour.util.bmicro_utils import (
     train_knn_from_embeddings,
 )
 from py3r.behaviour.util.collection_utils import _Indexer
+from py3r.behaviour.util.dataframe_utils import coarse_grain_dataframe
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
@@ -199,6 +200,139 @@ class Features:
         result.handle = self.handle
         result.tags = copy.deepcopy(self.tags)
         return result
+
+    def coarse_grain(
+        self: Self,
+        window: int,
+        method: Literal["mean", "median", "min", "max"] = "mean",
+        non_numeric: Literal["drop", "nan", "first", "mode", "error"] = "drop",
+        keep_assets: bool = True,
+    ) -> Self:
+        """
+        Coarse-grain feature data over fixed, non-overlapping windows.
+
+        Applies the same aggregation to both ``Features.data`` and the backing
+        ``Tracking`` object so row counts and index alignment remain consistent.
+        ``fps`` is divided by ``window`` to reflect the new effective frame rate.
+        A ``"coarse_grain"`` entry is appended to ``meta["transforms"]``.
+
+        Parameters
+        ----------
+        window : int
+            Number of consecutive rows to collapse into one.
+        method : {"mean", "median", "min", "max"}, default "mean"
+            Aggregation applied to numeric feature columns within each window.
+        non_numeric : {"drop", "nan", "first", "mode", "error"}, default "drop"
+            How to handle non-numeric feature columns (e.g. string state
+            labels).  Pass ``"mode"`` to keep the most-frequent value per
+            window, which is appropriate for categorical columns.
+        keep_assets : bool, default True
+            If ``True``, assets (e.g. boundary objects) are deep-copied to the
+            result.  Set to ``False`` to avoid copying large assets when they
+            are not needed at the coarser scale.
+
+        Returns
+        -------
+        Features
+            New ``Features`` (or subclass) object with ``len(data) // window``
+            rows and reduced fps.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> vals = pd.Series(range(len(t.data)), index=t.data.index, dtype=float)
+        >>> f.store(vals, 'counter', meta={})
+        >>> len(f.data), f.tracking.meta['fps']
+        (5, 30.0)
+
+        ```
+
+        Coarse-graining by 2 halves the row count and fps for both feature
+        data and the backing Tracking:
+
+        ```pycon
+        >>> f2 = f.coarse_grain(2)
+        >>> len(f2.data)
+        3
+        >>> f2.tracking.meta['fps']
+        15.0
+        >>> f2.handle
+        'ex'
+
+        ```
+
+        The 5-row input produces 3 windows: two complete (rows 0–1, rows 2–3)
+        and one partial (row 4 alone).  Incomplete trailing windows are
+        retained — the single-row window aggregates to the row's own value:
+
+        ```pycon
+        >>> list(f2.data['counter'])
+        [0.5, 2.5, 4.0]
+
+        ```
+
+        The backing Tracking is coarse-grained in sync — row counts match:
+
+        ```pycon
+        >>> len(f2.tracking.data) == len(f2.data)
+        True
+
+        ```
+
+        Categorical columns are preserved with ``non_numeric='mode'``:
+
+        ```pycon
+        >>> labels = pd.Series(['A','A','B','B','A'], index=t.data.index)
+        >>> f.store(labels, 'state', meta={})
+        >>> f_mode = f.coarse_grain(2, non_numeric='mode')
+        >>> list(f_mode.data['state'])
+        ['A', 'B', 'A']
+
+        ```
+
+        The transform is recorded in meta:
+
+        ```pycon
+        >>> f2.meta['transforms'][-1]
+        {'type': 'coarse_grain', 'window': 2, 'method': 'mean'}
+
+        ```
+        """
+        coarse_tracking = self.tracking.coarse_grain(
+            window=window,
+            method=method,
+            non_numeric=non_numeric,
+        )
+        coarse = type(self)(coarse_tracking)
+
+        coarse.data = coarse_grain_dataframe(
+            self.data,
+            window=window,
+            method=method,
+            non_numeric=non_numeric,
+        )
+
+        coarse.meta = copy.deepcopy(self.meta)
+        coarse.meta["transforms"] = [
+            *coarse.meta.get("transforms", []),
+            {
+                "type": "coarse_grain",
+                "window": int(window),
+                "method": method,
+            },
+        ]
+
+        coarse._assets = copy.deepcopy(self._assets) if keep_assets else {}
+        coarse.handle = self.handle
+        coarse.tags = copy.deepcopy(self.tags)
+        return coarse
 
     def to_summary(self) -> Summary:
         """

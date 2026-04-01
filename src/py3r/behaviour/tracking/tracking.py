@@ -14,6 +14,7 @@ import pandas as pd
 from py3r.behaviour.util.array_utils import rescale_array_by_dim
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dataframe_utils import (
+    coarse_grain_dataframe,
     euclidean_distance,
     filter_by_threshold,
     scale_columns,
@@ -392,6 +393,119 @@ class Tracking:
         return type(self)(
             data=self.data.copy(),
             meta=copy.deepcopy(self.meta),
+            handle=self.handle,
+            tags=copy.deepcopy(self.tags),
+        )
+
+    def coarse_grain(
+        self: Self,
+        window: int,
+        method: Literal["mean", "median", "min", "max"] = "mean",
+        non_numeric: Literal["drop", "nan", "first", "mode", "error"] = "drop",
+    ) -> Self:
+        """
+        Coarse-grain tracking data over fixed, non-overlapping windows.
+
+        Numeric columns are aggregated with ``method`` within each window of
+        ``window`` rows.  The result is reindexed from 0 and ``fps`` is divided
+        by ``window`` to reflect the new effective frame rate.  A
+        ``"coarse_grain"`` entry is appended to ``meta["transforms"]``.
+
+        Non-numeric columns (e.g. string annotations) are handled according to
+        ``non_numeric``; the default ``"drop"`` removes them from the output.
+
+        Parameters
+        ----------
+        window : int
+            Number of consecutive rows to collapse into one.
+        method : {"mean", "median", "min", "max"}, default "mean"
+            Aggregation applied to numeric columns within each window.
+        non_numeric : {"drop", "nan", "first", "mode", "error"}, default "drop"
+            How to handle non-numeric columns.
+
+        Returns
+        -------
+        Tracking
+            New ``Tracking`` (or subclass) object with ``len(data) // window``
+            rows and ``fps`` reduced by a factor of ``window``.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> len(t.data)
+        5
+        >>> t.meta['fps']
+        30.0
+
+        ```
+
+        Coarse-graining by 2 halves the row count and fps (incomplete windows are kept):
+
+        ```pycon
+        >>> t2 = t.coarse_grain(2)
+        >>> len(t2.data)
+        3
+        >>> t2.meta['fps']
+        15.0
+        >>> t2.handle
+        'ex'
+
+        ```
+
+        The 5-row input produces 3 windows: two complete (rows 0–1, rows 2–3)
+        and one partial (row 4 alone).  Incomplete trailing windows are
+        retained rather than dropped, so no data is lost.
+
+        The first window's mean ``p1.x`` is (0.0 + 1.0) / 2 = 0.5:
+
+        ```pycon
+        >>> float(round(t2.data['p1.x'].iloc[0], 6))
+        0.5
+
+        ```
+
+        The transform is recorded in meta:
+
+        ```pycon
+        >>> t2.meta['transforms'][-1]
+        {'type': 'coarse_grain', 'window': 2, 'method': 'mean'}
+
+        ```
+
+        Using ``method='max'`` takes the per-window maximum instead:
+
+        ```pycon
+        >>> t_max = t.coarse_grain(2, method='max')
+        >>> float(round(t_max.data['p1.x'].iloc[0], 6))
+        1.0
+
+        ```
+        """
+        coarse_data = coarse_grain_dataframe(
+            self.data,
+            window=window,
+            method=method,
+            non_numeric=non_numeric,
+        )
+
+        coarse_meta = copy.deepcopy(self.meta)
+        coarse_meta["fps"] = float(self.meta["fps"]) / float(window)
+        coarse_meta["transforms"] = [
+            *coarse_meta.get("transforms", []),
+            {
+                "type": "coarse_grain",
+                "window": int(window),
+                "method": method,
+            },
+        ]
+
+        return type(self)(
+            data=coarse_data,
+            meta=coarse_meta,
             handle=self.handle,
             tags=copy.deepcopy(self.tags),
         )
