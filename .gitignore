@@ -13,3 +13,5 @@ development_testing/
 .ruff_cache/
 **/_rendered/
 **/.mplconfig
+CLAUDE.md
+.claude

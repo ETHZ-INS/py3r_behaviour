@@ -36,7 +36,13 @@ def ellipse_residual(params, points, smallness_weight):
 
 def fit_ellipse_least_squares(points, smallness_weight=0.1):
     # Initial guess (center, axes, rotation)
-    init = [np.mean(points[:, 0]), np.mean(points[:, 1]), 2, 1, 0]
+    init = [
+        np.mean(points[:, 0]),
+        np.mean(points[:, 1]),
+        (np.max(points[:, 0]) - np.min(points[:, 0])) / 2,
+        (np.max(points[:, 1]) - np.min(points[:, 1])) / 2,
+        0,
+    ]
 
     # Minimize the residuals
     result = minimize(ellipse_residual, init, args=(points, smallness_weight), method="Powell")
