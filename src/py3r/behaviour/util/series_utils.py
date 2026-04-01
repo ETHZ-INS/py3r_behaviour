@@ -36,11 +36,19 @@ def gen_encoder_decoder(s: pd.Series):
 
 def smooth_block(s: pd.Series, window: int) -> pd.Series:
     """
+    deprecated: use block_filter and block_fill instead
+
     drop labels that occur in blocks of less than window
     replace them with value from previous block in the series
     unless there is no previous block, in which case it fills
     from next block
     """
+
+    warnings.warn(
+        "smooth_block is deprecated, use block_filter and block_fill instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
     encoder, decoder = gen_encoder_decoder(s)
 
@@ -59,6 +67,101 @@ def smooth_block(s: pd.Series, window: int) -> pd.Series:
     output = pd.Series([decoder[i] for i in _["s"]])
 
     return output
+
+
+def block_filter(s: pd.Series, min_block: int = 2) -> pd.Series:
+    """
+    Mark short observed categorical blocks as np.nan.
+
+    Existing missing values are preserved. Only contiguous non-missing runs
+    of identical labels are considered "blocks".
+
+    Parameters
+    ----------
+    s : pd.Series
+        Input categorical series.
+    min_block : int, default 2
+        Minimum block length to keep. Blocks shorter than this are replaced
+        with ``np.nan``.
+    """
+    if not isinstance(min_block, int) or min_block < 1:
+        raise ValueError("min_block must be an integer >= 1")
+
+    out = s.copy()
+    observed = s.notna()
+    # New run starts when we hit observed data after a gap, or when label changes.
+    run_starts = observed & ((~observed.shift(fill_value=False)) | s.ne(s.shift()))
+    run_ids = run_starts.cumsum().where(observed)
+    run_lengths = run_ids.groupby(run_ids).transform("size")
+    out.loc[observed & (run_lengths < min_block)] = np.nan
+
+    return out
+
+
+def block_fill(
+    s: pd.Series,
+    *,
+    max_gap: int = 1,
+    direction: Literal["forward", "backward", "both"] = "both",
+    require_same_label: bool = True,
+) -> pd.Series:
+    """
+    Fill short missing runs in categorical data using local neighbors only.
+
+    Parameters
+    ----------
+    s : pd.Series
+        Input categorical series.
+    max_gap : int, default 1
+        Maximum length of a missing run to fill. Longer runs are left missing.
+    direction : {"forward", "backward", "both"}, default "both"
+        Neighbor direction used for fill.
+    require_same_label : bool, default True
+        Only applies when ``direction="both"``. If True, a gap is filled only
+        when both bracketing labels exist and are equal.
+    """
+    if not isinstance(max_gap, int) or max_gap < 0:
+        raise ValueError("max_gap must be an integer >= 0")
+    if direction not in {"forward", "backward", "both"}:
+        raise ValueError("direction must be one of: 'forward', 'backward', 'both'")
+    if max_gap == 0:
+        return s.copy()
+
+    out = s.copy()
+    na_mask = s.isna().to_numpy()
+    edges = np.diff(np.concatenate(([0], na_mask.astype(np.int8), [0])))
+    starts = np.where(edges == 1)[0]
+    ends = np.where(edges == -1)[0]
+
+    for start, end in zip(starts, ends, strict=True):
+        gap_len = end - start
+        if gap_len > max_gap:
+            continue
+
+        left_exists = start > 0 and pd.notna(out.iloc[start - 1])
+        right_exists = end < len(out) and pd.notna(out.iloc[end])
+
+        fill_value = None
+        if direction == "forward":
+            if left_exists:
+                fill_value = out.iloc[start - 1]
+        elif direction == "backward":
+            if right_exists:
+                fill_value = out.iloc[end]
+        else:
+            if require_same_label:
+                if left_exists and right_exists and out.iloc[start - 1] == out.iloc[end]:
+                    fill_value = out.iloc[start - 1]
+            else:
+                if left_exists:
+                    fill_value = out.iloc[start - 1]
+                elif right_exists:
+                    fill_value = out.iloc[end]
+
+        if fill_value is not None:
+            out.iloc[start:end] = fill_value
+
+    return out
 
 
 def get_block(s: pd.Series, window: int) -> pd.Series:

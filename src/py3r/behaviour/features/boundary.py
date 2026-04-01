@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import numpy as np
+
 
 def _as_tuple_point(point) -> tuple[float, float]:
     x, y = point
@@ -42,6 +44,10 @@ class StaticBoundary:
             "scale_dim2": self.scale_dim2,
             "name": self.name,
         }
+
+    def to_numpy(self) -> np.ndarray:
+        """Return boundary vertices as a float numpy array of shape (n_vertices, 2)."""
+        return np.asarray(self.vertices, dtype=float)
 
     @classmethod
     def from_dict(cls, payload: dict) -> StaticBoundary:
@@ -91,6 +97,33 @@ class DynamicBoundary:
             "scale_dim2": self.scale_dim2,
             "name": self.name,
         }
+
+    def to_numpy_per_frame(self, tracking_df) -> np.ndarray:
+        """
+        Resolve dynamic boundary point names against tracking data.
+
+        Returns
+        -------
+        np.ndarray
+            Shape (n_frames, n_vertices, 2) in this boundary's ``dims``.
+        """
+        cols_per_point = []
+        for point in self.points:
+            col_x = f"{point}.{self.dims[0]}"
+            col_y = f"{point}.{self.dims[1]}"
+            if col_x not in tracking_df.columns or col_y not in tracking_df.columns:
+                raise ValueError(
+                    f"Dynamic boundary point {point} missing in tracking data for dims {self.dims}"
+                )
+            cols_per_point.append(
+                np.column_stack(
+                    (
+                        tracking_df[col_x].to_numpy(dtype=float, copy=True),
+                        tracking_df[col_y].to_numpy(dtype=float, copy=True),
+                    )
+                )
+            )
+        return np.stack(cols_per_point, axis=1)
 
     @classmethod
     def from_dict(cls, payload: dict) -> DynamicBoundary:

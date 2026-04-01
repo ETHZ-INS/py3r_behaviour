@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 import numpy as np
 import pandas as pd
@@ -17,11 +17,13 @@ from py3r.behaviour.features.boundary import DynamicBoundary, StaticBoundary
 from py3r.behaviour.features.features_result import FeaturesResult
 from py3r.behaviour.tracking.tracking import Tracking
 from py3r.behaviour.util import series_utils
+from py3r.behaviour.util.array_utils import rescale_array_by_dim
 from py3r.behaviour.util.bmicro_utils import (
     predict_knn_on_embedding,
     train_knn_from_embeddings,
 )
 from py3r.behaviour.util.collection_utils import _Indexer
+from py3r.behaviour.util.dataframe_utils import coarse_grain_dataframe
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
@@ -43,7 +45,9 @@ if TYPE_CHECKING:
     import pandas as pd
     from sklearn.neighbors import KNeighborsRegressor
 
+    from py3r.behaviour.animation.animation_stream import AnimationStream
     from py3r.behaviour.classifier import BaseClassifier
+    from py3r.behaviour.summary.summary import Summary
 
 logger = logging.getLogger(__name__)
 logformat = "%(funcName)s(): %(message)s"
@@ -196,6 +200,169 @@ class Features:
         result.handle = self.handle
         result.tags = copy.deepcopy(self.tags)
         return result
+
+    def coarse_grain(
+        self: Self,
+        window: int,
+        method: Literal["mean", "median", "min", "max"] = "mean",
+        non_numeric: Literal["drop", "nan", "first", "mode", "error"] = "drop",
+        keep_assets: bool = True,
+    ) -> Self:
+        """
+        Coarse-grain feature data over fixed, non-overlapping windows.
+
+        Applies the same aggregation to both ``Features.data`` and the backing
+        ``Tracking`` object so row counts and index alignment remain consistent.
+        ``fps`` is divided by ``window`` to reflect the new effective frame rate.
+        A ``"coarse_grain"`` entry is appended to ``meta["transforms"]``.
+
+        Parameters
+        ----------
+        window : int
+            Number of consecutive rows to collapse into one.
+        method : {"mean", "median", "min", "max"}, default "mean"
+            Aggregation applied to numeric feature columns within each window.
+        non_numeric : {"drop", "nan", "first", "mode", "error"}, default "drop"
+            How to handle non-numeric feature columns (e.g. string state
+            labels).  Pass ``"mode"`` to keep the most-frequent value per
+            window, which is appropriate for categorical columns.
+        keep_assets : bool, default True
+            If ``True``, assets (e.g. boundary objects) are deep-copied to the
+            result.  Set to ``False`` to avoid copying large assets when they
+            are not needed at the coarser scale.
+
+        Returns
+        -------
+        Features
+            New ``Features`` (or subclass) object with ``len(data) // window``
+            rows and reduced fps.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> vals = pd.Series(range(len(t.data)), index=t.data.index, dtype=float)
+        >>> f.store(vals, 'counter', meta={})
+        >>> len(f.data), f.tracking.meta['fps']
+        (5, 30.0)
+
+        ```
+
+        Coarse-graining by 2 halves the row count and fps for both feature
+        data and the backing Tracking:
+
+        ```pycon
+        >>> f2 = f.coarse_grain(2)
+        >>> len(f2.data)
+        3
+        >>> f2.tracking.meta['fps']
+        15.0
+        >>> f2.handle
+        'ex'
+
+        ```
+
+        The 5-row input produces 3 windows: two complete (rows 0–1, rows 2–3)
+        and one partial (row 4 alone).  Incomplete trailing windows are
+        retained — the single-row window aggregates to the row's own value:
+
+        ```pycon
+        >>> list(f2.data['counter'])
+        [0.5, 2.5, 4.0]
+
+        ```
+
+        The backing Tracking is coarse-grained in sync — row counts match:
+
+        ```pycon
+        >>> len(f2.tracking.data) == len(f2.data)
+        True
+
+        ```
+
+        Categorical columns are preserved with ``non_numeric='mode'``:
+
+        ```pycon
+        >>> labels = pd.Series(['A','A','B','B','A'], index=t.data.index)
+        >>> f.store(labels, 'state', meta={})
+        >>> f_mode = f.coarse_grain(2, non_numeric='mode')
+        >>> list(f_mode.data['state'])
+        ['A', 'B', 'A']
+
+        ```
+
+        The transform is recorded in meta:
+
+        ```pycon
+        >>> f2.meta['transforms'][-1]
+        {'type': 'coarse_grain', 'window': 2, 'method': 'mean'}
+
+        ```
+        """
+        coarse_tracking = self.tracking.coarse_grain(
+            window=window,
+            method=method,
+            non_numeric=non_numeric,
+        )
+        coarse = type(self)(coarse_tracking)
+
+        coarse.data = coarse_grain_dataframe(
+            self.data,
+            window=window,
+            method=method,
+            non_numeric=non_numeric,
+        )
+
+        coarse.meta = copy.deepcopy(self.meta)
+        coarse.meta["transforms"] = [
+            *coarse.meta.get("transforms", []),
+            {
+                "type": "coarse_grain",
+                "window": int(window),
+                "method": method,
+            },
+        ]
+
+        coarse._assets = copy.deepcopy(self._assets) if keep_assets else {}
+        coarse.handle = self.handle
+        coarse.tags = copy.deepcopy(self.tags)
+        return coarse
+
+    def to_summary(self) -> Summary:
+        """
+        Create a `Summary` object from this `Features` object.
+
+        This is a convenience wrapper around `Summary(self)`.
+
+        Returns:
+            Summary: A new summary object linked to this features object.
+
+        Examples:
+            ```pycon
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> from py3r.behaviour.features.features import Features
+            >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+            ...     t = Tracking.from_dlc(str(p), handle='demo', fps=30)
+            >>> f = Features(t)
+            >>> s = f.to_summary()
+            >>> from py3r.behaviour.summary.summary import Summary
+            >>> isinstance(s, Summary)
+            True
+            >>> s.handle
+            'demo'
+
+            ```
+        """
+        from py3r.behaviour.summary.summary import Summary
+
+        return Summary(self)
 
     @classmethod
     def concat(
@@ -1655,10 +1822,9 @@ class Features:
             'mean' : mean in window (numerical)
             'savgol' : Savitzky–Golay (SciPy). Kwargs e.g. polyorder=3, mode='interp'.
             'mode' : mode in window (numerical or non-numerical)
-            'block' : removes labels that occur in blocks of less than length window
-                      and replaces them with value from previous block unless there is
-                      no previous block, in which case replaced from next block after smoothing
-                      note: all nan values will be filled using this method (dangerous!)
+            'block' : applies categorical series_utils.block_filter then series_utils.block_fill
+                      using window for both min_block and max_gap. Legacy smooth_block behavior is
+                      removed from this method; use series_utils.smooth_block directly if required.
         """
         if "smoothing" in self.meta[name].keys():
             raise Exception("feature already smoothed")
@@ -1673,7 +1839,20 @@ class Features:
             if inplace:
                 self.data[name] = smoothed.copy()
         elif method == "block":
-            smoothed = series_utils.smooth_block(self.data[name], window)
+            warnings.warn(
+                "Legacy block behavior in Features.smooth(method='block') was removed. "
+                "This now applies series_utils.block_filter followed by series_utils.block_fill "
+                "using window for both min_block and max_gap. "
+                "Deprecated legacy behavior remains available via series_utils.smooth_block.",
+                stacklevel=2,
+            )
+            filtered = series_utils.block_filter(self.data[name], min_block=window)
+            smoothed = series_utils.block_fill(
+                filtered,
+                max_gap=window,
+                direction=method_kwargs.get("fill_direction", "both"),
+                require_same_label=method_kwargs.get("fill_require_same_label", True),
+            )
             if inplace:
                 self.data[name] = smoothed.copy()
         else:
@@ -2065,19 +2244,23 @@ class Features:
         new = self.__class__(new_tracking)
         new.data = self.data.loc[idx].copy()
         new.meta = copy.deepcopy(self.meta)
+        new._assets = copy.deepcopy(self._assets)
         new.handle = self.handle
+        new.tags = copy.deepcopy(self.tags)
         return new
 
     def _iloc(self, idx):
         if isinstance(idx, tuple):
             row_idx, col_idx = idx
-            new_tracking = self.tracking.loc[row_idx]
+            new_tracking = self.tracking.iloc[row_idx]
         else:
-            new_tracking = self.tracking.loc[idx]
+            new_tracking = self.tracking.iloc[idx]
         new = self.__class__(new_tracking)
         new.data = self.data.iloc[idx].copy()
         new.meta = copy.deepcopy(self.meta)
+        new._assets = copy.deepcopy(self._assets)
         new.handle = self.handle
+        new.tags = copy.deepcopy(self.tags)
         return new
 
     def __getitem__(self, idx):
@@ -2185,3 +2368,240 @@ class Features:
             cx, cy, a_len, b_len, theta = model.params
 
         return ellipse_points(cx, cy, a_len * scaling, b_len * scaling, theta, n_points)
+
+    def animation_stream(
+        self,
+        *,
+        points: list[str],
+        lines: list[tuple[str, str]] | None = None,
+        boundaries: list[str] | None = None,
+        features: list[str | None] | dict[str | None, str | None] | None = None,
+        dims: tuple[str, ...] = ("x", "y"),
+        view: dict | None = None,
+        canvas_size: tuple[int, int] = (800, 800),
+        bg_color: tuple[int, int, int] = (0, 0, 0),
+        style: dict | None = None,
+        pixel_coords: bool = False,
+        undo_meta_scaling: bool = False,
+    ) -> AnimationStream:
+        """
+        Build an OpenCV-backed animation stream from Features + boundary assets.
+
+        This wraps the same renderer used by :meth:`Tracking.animation_stream`,
+        while additionally resolving named boundaries stored in ``self._assets``.
+        Static and dynamic boundaries are resolved to per-boundary arrays and
+        rendered in boundary order.
+
+        Args:
+            points (list[str]): Point names to render as circles.
+            lines (list[tuple[str, str]] | None): Line segments connecting point pairs.
+            boundaries (list[str] | None): Boundary names (or refs resolvable by
+                ``_resolve_boundary_ref``) to draw. Order controls draw stacking.
+            features (list[str | None] | dict[str | None, str | None] | None):
+                Per-frame scalar feature columns from ``self.data`` to render as
+                text overlays. If a list is provided, each column is shown as
+                ``name: value``. If a dict is provided, keys are display labels and
+                values are source column names. ``None`` or ``""`` entries insert a
+                blank spacer line.
+            dims (tuple[str, ...]): Coordinate dimensions. For 3D, use
+                ``("x","y","z")``. Boundary definitions are interpreted in their
+                native 2D ``dims`` and can be projected in 3D via ``view``.
+                Defaults to ``("x", "y")``.
+            view (dict | None): 3D view options for projection (``azim``, ``elev``,
+                ``proj``, ``camera_distance``, ``focal_length``, ``boundary_z``,
+                ``pad``).
+            canvas_size (tuple[int, int]): Canvas size as ``(width, height)``.
+                Defaults to ``(800, 800)``.
+            bg_color (tuple[int, int, int]): Background color in BGR.
+                Defaults to ``(0, 0, 0)``.
+            style (dict | None): Style overrides for points/lines/boundaries.
+            pixel_coords (bool): If True, coordinates are treated as absolute pixel
+                values. Defaults to ``False``.
+            undo_meta_scaling (bool): If True, invert tracking meta scaling before
+                rendering. Defaults to ``False``.
+
+        Returns:
+            AnimationStream: Stream object with ``get_frame()``, ``read()``,
+                ``play()``, and ``save()``.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> f = Features(t)
+        >>> f.data["speed"] = [0.0, 1.0, 0.0, 1.0, 0.0]
+        >>> style = {
+        ...     "points": {
+        ...         "default": {"color": (0, 255, 255), "radius": 3},  # default
+        ...         "p1": {"color": (0, 255, 0), "radius": 5},  # static override
+        ...         "p2": {  # dynamic override (source must be in Features.data)
+        ...             "radius": {"from": "speed", "map": {0.0: 2, 1.0: 6}}
+        ...         },
+        ...     }
+        ... }
+        >>> stream = f.animation_stream(
+        ...     points=["p1", "p2"],
+        ...     lines=[("p1", "p2")],
+        ...     features={"spd": "speed"},
+        ...     pixel_coords=True,
+        ...     canvas_size=(96, 72),
+        ...     style=style,
+        ... )
+        >>> stream.frame_count
+        5
+        >>> stream.get_frame(1).shape
+        (72, 96, 3)
+
+        ```
+        """
+        from py3r.behaviour.animation import (
+            build_animation_stream,
+            collect_dynamic_source_names_from_style,
+        )
+
+        line_points = {p for line in (lines or []) for p in line}
+        all_points = sorted(set(points) | line_points)
+        point_names, points_arr = self.tracking.points_to_numpy(
+            all_points, dims=dims, undo_meta_scaling=undo_meta_scaling
+        )
+        boundary_arrays = (
+            self.boundaries_to_arrays(
+                boundaries,
+                dims=dims,
+                undo_meta_scaling=undo_meta_scaling,
+            )
+            if boundaries is not None
+            else []
+        )
+        text_overlays = None
+        if features is not None:
+            text_overlays = []
+            if isinstance(features, dict):
+                pairs = list(features.items())
+            else:
+                pairs = [(name, name) for name in features]
+            for label, col in pairs:
+                if label in (None, "") or col in (None, ""):
+                    text_overlays.append(("", None))
+                    continue
+                if col not in self.data.columns:
+                    raise ValueError(f"Feature column {col} not found for text overlay")
+                text_overlays.append((str(label), self.data[col].to_numpy(copy=True)))
+        style_sources = None
+        if style is not None:
+            needed = collect_dynamic_source_names_from_style(style)
+            if needed:
+                style_sources = {}
+                for name in needed:
+                    if name in self.data.columns:
+                        style_sources[name] = self.data[name].to_numpy(copy=True)
+                    else:
+                        raise ValueError(
+                            f"Dynamic style source '{name}' not found in Features.data"
+                        )
+        return build_animation_stream(
+            points=points_arr,
+            point_names=point_names,
+            draw_points=points,
+            lines=lines,
+            view=view,
+            boundary_z=(view or {}).get("boundary_z", 0.0),
+            frame_ids=self.tracking.data.index.to_numpy(copy=True),
+            fps=float(self.tracking.meta.get("fps", 30.0)),
+            boundary_arrays=boundary_arrays,
+            canvas_size=canvas_size,
+            bg_color=bg_color,
+            style=style,
+            style_sources=style_sources,
+            text_overlays=text_overlays,
+            pixel_coords=pixel_coords,
+            bounds_pad=float((view or {}).get("pad", 0.05)),
+        )
+
+    def boundaries_to_arrays(
+        self,
+        boundaries: list[str],
+        *,
+        dims: tuple[str, ...] = ("x", "y"),
+        undo_meta_scaling: bool = False,
+    ) -> list[tuple[str, np.ndarray]]:
+        """
+        Resolve named boundary assets into per-boundary arrays.
+
+        Args:
+            boundaries (list[str]): Stored boundary names (or refs accepted by
+                ``_resolve_boundary_ref``).
+            dims (tuple[str, ...]): Requested coordinate dimensions. Boundary dims
+                must match ``(dims[0], dims[1])``. Defaults to ``("x", "y")``.
+            undo_meta_scaling (bool): If True, invert tracking scaling metadata
+                before resolving dynamic boundary coordinates. Defaults to ``False``.
+
+        Returns:
+            list[tuple[str, np.ndarray]]: Boundary arrays as
+            ``[(boundary_name, arr), ...]`` where each arr has shape
+            ``(n_frames, n_vertices, 2)``.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> df = pd.DataFrame(
+        ...     {
+        ...         "a.x": [0.0, 0.0],
+        ...         "a.y": [0.0, 0.0],
+        ...         "b.x": [1.0, 1.0],
+        ...         "b.y": [0.0, 0.0],
+        ...         "c.x": [1.0, 1.0],
+        ...         "c.y": [1.0, 1.0],
+        ...     }
+        ... )
+        >>> f = Features(Tracking(df, meta={"fps": 30.0}, handle="demo"))
+        >>> _ = f.define_static_boundary(["a", "b", "c"], name="tri")
+        >>> arrays = f.boundaries_to_arrays(["tri"])
+        >>> arrays[0][1].shape
+        (2, 3, 2)
+
+        ```
+        """
+        source_df = self.tracking.data
+        factors = (
+            self.tracking._undo_rescale_factors((dims[0], dims[1])) if undo_meta_scaling else {}
+        )
+        boundary_arrays: list[tuple[str, np.ndarray]] = []
+        expected_boundary_dims = (dims[0], dims[1])
+        for boundary_ref in boundaries:
+            boundary = self._resolve_boundary_ref(boundary_ref)
+            if boundary.dims != expected_boundary_dims:
+                raise ValueError(
+                    f"Boundary {boundary.name or boundary_ref} dims {boundary.dims} "
+                    f"do not match requested xy dims {expected_boundary_dims}"
+                )
+            boundary_name = str(boundary_ref)
+            if isinstance(boundary, StaticBoundary):
+                poly = np.asarray(boundary.to_numpy(), dtype=float)
+                poly_stack = np.repeat(poly[None, :, :], len(source_df), axis=0)
+                poly_stack = rescale_array_by_dim(
+                    poly_stack,
+                    dims=(dims[0], dims[1]),
+                    factors=factors,
+                    dim_axis=2,
+                    copy=False,
+                )
+                boundary_arrays.append((boundary_name, poly_stack))
+            elif isinstance(boundary, DynamicBoundary):
+                poly_stack = boundary.to_numpy_per_frame(source_df)
+                poly_stack = rescale_array_by_dim(
+                    poly_stack,
+                    dims=(dims[0], dims[1]),
+                    factors=factors,
+                    dim_axis=2,
+                    copy=False,
+                )
+                boundary_arrays.append((boundary_name, poly_stack))
+        return boundary_arrays
