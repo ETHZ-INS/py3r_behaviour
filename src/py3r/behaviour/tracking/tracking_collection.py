@@ -52,6 +52,18 @@ class TrackingCollection(BaseCollection):
         """
         Generic constructor from a mapping of handle -> filepath using a loader callable.
 
+        Parameters
+        ----------
+        handles_and_filepaths : dict[str, str]
+            Mapping of session handle to file path.
+        tracking_loader : callable
+            Loader callable, e.g. ``Tracking.from_dlc``. Called as
+            ``tracking_loader(filepath, handle=handle, **loader_kwargs)``.
+        tracking_cls : type, default=Tracking
+            ``Tracking`` subclass to instantiate.
+        **loader_kwargs
+            Extra keyword arguments forwarded to ``tracking_loader``.
+
         Examples
         --------
         ```pycon
@@ -94,6 +106,18 @@ class TrackingCollection(BaseCollection):
         """
         Load a collection from DLC CSVs.
 
+        Parameters
+        ----------
+        handles_and_filepaths : dict[str, str]
+            Mapping of session handle to DLC CSV file path.
+        fps : float
+            Frame rate of the recording in frames per second.
+        aspectratio_correction : float, default=1.0
+            Multiplicative correction applied to the x-axis to account for
+            non-square pixels.
+        tracking_cls : type, default=Tracking
+            ``Tracking`` subclass to instantiate.
+
         Examples
         --------
         ```pycon
@@ -131,6 +155,18 @@ class TrackingCollection(BaseCollection):
         """
         Load a collection from YOLO3R CSVs.
 
+        Parameters
+        ----------
+        handles_and_filepaths : dict[str, str]
+            Mapping of session handle to YOLO3R CSV file path.
+        fps : float
+            Frame rate of the recording in frames per second.
+        aspectratio_correction : float, default=1.0
+            Multiplicative correction applied to the x-axis to account for
+            non-square pixels.
+        tracking_cls : type, default=Tracking
+            ``Tracking`` subclass to instantiate.
+
         Examples
         --------
         ```pycon
@@ -167,6 +203,18 @@ class TrackingCollection(BaseCollection):
     ):
         """
         Load a collection from DLC multi-animal CSVs.
+
+        Parameters
+        ----------
+        handles_and_filepaths : dict[str, str]
+            Mapping of session handle to DLC multi-animal CSV file path.
+        fps : float
+            Frame rate of the recording in frames per second.
+        aspectratio_correction : float, default=1.0
+            Multiplicative correction applied to the x-axis to account for
+            non-square pixels.
+        tracking_cls : type, default=Tracking
+            ``Tracking`` subclass to instantiate.
 
         Examples
         --------
@@ -667,12 +715,15 @@ class TrackingCollection(BaseCollection):
         `FeaturesCollection.from_tracking_collection(self)` and preserves grouped
         structure when the collection is grouped.
 
-        Returns:
-            FeaturesCollection: Collection containing one `Features` object per
-                tracking object in this collection.
+        Returns
+        -------
+        FeaturesCollection
+            Collection containing one `Features` object per tracking object in
+            this collection.
 
-        Examples:
-            ```pycon
+        Examples
+        --------
+        ```pycon
             >>> import tempfile, shutil
             >>> from pathlib import Path
             >>> from py3r.behaviour.tracking.tracking import Tracking

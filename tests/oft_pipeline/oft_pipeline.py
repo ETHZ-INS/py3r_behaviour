@@ -246,9 +246,13 @@ print("Tags, preprocessing, and trajectory plot tests passed.")
 # methods for computing time-series features.
 # Most feature methods return `FeaturesResult`; call `.store()` to persist
 # to `Features.data` and register metadata in `Features.meta`.
+#
+# `tc.to_features()` is the preferred shorthand for
+# `FeaturesCollection.from_tracking_collection(tc)` and preserves any
+# grouped structure on the collection.
 
 # %%
-fc = p3b.FeaturesCollection.from_tracking_collection(tc)
+fc = tc.to_features()
 
 # %% [markdown]
 # ### Spatial features — boundaries
@@ -436,15 +440,16 @@ fc[0].list_boundaries()
 # %% [markdown]
 # ### K-means clustering
 #
-# Embed the feature time-series with temporal offsets, then cluster
-# the embedded space with k-means.
+# Embed the feature time-series with temporal offsets, then cluster the embedded
+# space with streaming MiniBatchKMeans.
 # Returns `(cluster_labels, centroids, scaling_factors)`, where:
 # - `cluster_labels` is a per-handle `BatchResult` of label series
 # - `centroids` is a DataFrame with `n_clusters` rows
 #
-# Option notes:
-# - `offset` controls temporal context window.
-# - `cluster_embedding` also supports weighting/normalization knobs for advanced runs.
+# `cluster_embedding_stream` processes one `Features` at a time in multiple epochs
+# so it never materialises a combined DataFrame — use this for any multi-recording
+# dataset. `cluster_embedding` (in-memory k-means) is available for small datasets.
+# Both methods support `normalize` and `feature_weights` for advanced runs.
 
 # %%
 cluster_features = list(set(fc[0].data.columns) - set(non_bfa_feats))
@@ -579,10 +584,13 @@ print("Feature computation, clustering, and save tests passed.")
 #
 # Each `Summary` object holds scalar (or Series) metrics computed from
 # a single recording's features.
-# Return type here is `SummaryCollection`.
+#
+# `fc.to_summary()` is the preferred shorthand for
+# `SummaryCollection.from_features_collection(fc)` and preserves any
+# grouped structure on the collection.
 
 # %%
-sc = p3b.SummaryCollection.from_features_collection(fc)
+sc = fc.to_summary()
 
 # %% [markdown]
 # ### Compute summary measures

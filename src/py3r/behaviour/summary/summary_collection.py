@@ -65,7 +65,14 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     @classmethod
     def from_features_collection(cls, features_collection: FeaturesCollection, summary_cls=Summary):
         """
-        creates a SummaryCollection from a FeaturesCollection (flat or grouped)
+        Create a SummaryCollection from a FeaturesCollection.
+
+        Parameters
+        ----------
+        features_collection : FeaturesCollection
+            Source collection. Grouped structure is preserved.
+        summary_cls : type, default=Summary
+            ``Summary`` subclass to instantiate for each session.
 
         Examples
         --------
@@ -123,7 +130,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     @classmethod
     def from_list(cls, summary_list: list[Summary]):
         """
-        creates a SummaryCollection from a list of Summary objects, keyed by handle
+        Create a SummaryCollection from a list of Summary objects, keyed by handle.
+
+        Parameters
+        ----------
+        summary_list : list[Summary]
+            Summary objects to collect. All handles must be unique.
 
         Examples
         --------
@@ -236,9 +248,16 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
             series_tables[metric_name] = table
         return scalars_df, series_tables
 
-    def make_bin(self, startframe, endframe):
+    def make_bin(self, startframe: int, endframe: int):
         """
-        returns a new SummaryCollection with binned summaries
+        Return a new SummaryCollection restricted to frames in [startframe, endframe).
+
+        Parameters
+        ----------
+        startframe : int
+            First frame index of the bin (inclusive).
+        endframe : int
+            Last frame index of the bin (exclusive).
 
         Examples
         --------
@@ -263,7 +282,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
     def make_bins(self, numbins):
         """
-        returns a list of SummaryCollection, one per bin
+        Divide the collection into equal time bins and return one SummaryCollection per bin.
+
+        Parameters
+        ----------
+        numbins : int
+            Number of equal-length bins to split each session into.
 
         Examples
         --------
@@ -299,8 +323,18 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         """
         Store SummaryResult objects returned by batch methods.
 
-        - Flat collection: results_dict is {handle: SummaryResult}
-        - Grouped collection: results_dict is {group_key: {handle: SummaryResult}}
+        Parameters
+        ----------
+        results_dict : dict
+            Batch results to store. Flat: ``{handle: SummaryResult}``.
+            Grouped: ``{group_key: {handle: SummaryResult}}``.
+        name : str | None, default=None
+            Metric name to store under. If None, resolved automatically from
+            the result objects (all must agree on a single name).
+        meta : dict | None, default=None
+            Metadata dict to attach alongside the stored metric.
+        overwrite : bool, default=False
+            If True, overwrite an existing metric with the same name.
 
         Examples
         --------
