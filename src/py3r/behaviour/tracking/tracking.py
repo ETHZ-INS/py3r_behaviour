@@ -516,11 +516,14 @@ class Tracking:
 
         This is a convenience wrapper around `Features(self)`.
 
-        Returns:
-            Features: A new features object linked to this tracking object.
+        Returns
+        -------
+        Features
+            A new features object linked to this tracking object.
 
-        Examples:
-            ```pycon
+        Examples
+        --------
+        ```pycon
             >>> from py3r.behaviour.util.docdata import data_path
             >>> from py3r.behaviour.tracking.tracking import Tracking
             >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
@@ -1952,35 +1955,43 @@ class Tracking:
         - play live via ``stream.play(...)``
         - save video via ``stream.save(...)``
 
-        Args:
-            points (list[str]): Point names to render as circles.
-            lines (list[tuple[str, str]] | None): Line segments connecting point pairs.
-                Endpoints can include points not listed in ``points``.
-            features (list[str | None] | dict[str | None, str | None] | None):
-                Per-frame scalar columns to render as text overlays. If a list is
-                provided, each column is shown as ``name: value``. If a dict is
-                provided, keys are display labels and values are source column names.
-                ``None`` or ``""`` entries insert a blank spacer line.
-            dims (tuple[str, ...]): Coordinate dimensions. Use 2D (``("x","y")``)
-                or 3D (``("x","y","z")`` with ``view``). Defaults to ``("x", "y")``.
-            view (dict | None): 3D camera options used only when ``dims`` has
-                length 3. Supported keys include ``azim``, ``elev``, ``proj``
-                (``"ortho"`` or ``"persp"``), ``camera_distance``,
-                ``focal_length``, and ``pad``.
-            canvas_size (tuple[int, int]): Canvas size as ``(width, height)``.
-                Defaults to ``(800, 800)``.
-            bg_color (tuple[int, int, int]): Background color in BGR.
-                Defaults to ``(0, 0, 0)``.
-            style (dict | None): Style overrides for points/lines/boundaries.
-            pixel_coords (bool): If True, interpret coordinates as absolute pixel
-                locations. If False, auto-fit projected coordinates to the canvas.
-                Defaults to ``False``.
-            undo_meta_scaling (bool): If True, invert ``aspectratio_correction``
-                and ``meta["rescale_factor"]`` before rendering. Defaults to ``False``.
+        Parameters
+        ----------
+        points : list[str]
+            Point names to render as circles.
+        lines : list[tuple[str, str]] | None
+            Line segments connecting point pairs. Endpoints can include points
+            not listed in ``points``.
+        features : list[str | None] | dict[str | None, str | None] | None
+            Per-frame scalar columns to render as text overlays. If a list is
+            provided, each column is shown as ``name: value``. If a dict is
+            provided, keys are display labels and values are source column names.
+            ``None`` or ``""`` entries insert a blank spacer line.
+        dims : tuple[str, ...], default=("x", "y")
+            Coordinate dimensions. Use 2D (``("x","y")``) or 3D
+            (``("x","y","z")`` with ``view``).
+        view : dict | None
+            3D camera options used only when ``dims`` has length 3. Supported
+            keys include ``azim``, ``elev``, ``proj`` (``"ortho"`` or
+            ``"persp"``), ``camera_distance``, ``focal_length``, and ``pad``.
+        canvas_size : tuple[int, int], default=(800, 800)
+            Canvas size as ``(width, height)``.
+        bg_color : tuple[int, int, int], default=(0, 0, 0)
+            Background color in BGR.
+        style : dict | None
+            Style overrides for points/lines/boundaries.
+        pixel_coords : bool, default=False
+            If True, interpret coordinates as absolute pixel locations.
+            If False, auto-fit projected coordinates to the canvas.
+        undo_meta_scaling : bool, default=False
+            If True, invert ``aspectratio_correction`` and
+            ``meta["rescale_factor"]`` before rendering.
 
-        Returns:
-            AnimationStream: Stream object with ``get_frame()``, ``read()``,
-                ``play()``, and ``save()``.
+        Returns
+        -------
+        AnimationStream
+            Stream object with ``get_frame()``, ``read()``, ``play()``, and
+            ``save()``.
 
         Examples
         --------
@@ -2074,16 +2085,21 @@ class Tracking:
         """
         Resolve selected point coordinates to a NumPy array.
 
-        Args:
-            points (list[str]): Point names to extract.
-            dims (tuple[str, ...]): Coordinate dimensions to extract (2D or 3D).
-                Defaults to ``("x", "y")``.
-            undo_meta_scaling (bool): If True, invert ``aspectratio_correction``
-                and ``rescale_factor`` before extraction. Defaults to ``False``.
+        Parameters
+        ----------
+        points : list[str]
+            Point names to extract.
+        dims : tuple[str, ...], default=("x", "y")
+            Coordinate dimensions to extract (2D or 3D).
+        undo_meta_scaling : bool, default=False
+            If True, invert ``aspectratio_correction`` and ``rescale_factor``
+            before extraction.
 
-        Returns:
-            tuple[list[str], np.ndarray]: ``(point_names, array)`` where array has
-            shape ``(n_frames, n_points, len(dims))``.
+        Returns
+        -------
+        tuple[list[str], np.ndarray]
+            ``(point_names, array)`` where array has shape
+            ``(n_frames, n_points, len(dims))``.
 
         Examples
         --------

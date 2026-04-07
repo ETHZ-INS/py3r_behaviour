@@ -667,12 +667,15 @@ class TrackingCollection(BaseCollection):
         `FeaturesCollection.from_tracking_collection(self)` and preserves grouped
         structure when the collection is grouped.
 
-        Returns:
-            FeaturesCollection: Collection containing one `Features` object per
-                tracking object in this collection.
+        Returns
+        -------
+        FeaturesCollection
+            Collection containing one `Features` object per tracking object in
+            this collection.
 
-        Examples:
-            ```pycon
+        Examples
+        --------
+        ```pycon
             >>> import tempfile, shutil
             >>> from pathlib import Path
             >>> from py3r.behaviour.tracking.tracking import Tracking

@@ -292,12 +292,15 @@ class FeaturesCollection(BaseCollection):
         `SummaryCollection.from_features_collection(self)` and preserves grouped
         structure when the collection is grouped.
 
-        Returns:
-            SummaryCollection: Collection containing one `Summary` object per
-                features object in this collection.
+        Returns
+        -------
+        SummaryCollection
+            Collection containing one `Summary` object per features object in
+            this collection.
 
-        Examples:
-            ```pycon
+        Examples
+        --------
+        ```pycon
             >>> import tempfile, shutil
             >>> from pathlib import Path
             >>> from py3r.behaviour.features.features_collection import FeaturesCollection
