@@ -158,8 +158,7 @@ preserves grouped structure. The underlying classmethod is
 
 ### 5. Compute features
 
-All feature methods return a
-[`FeaturesResult`][py3r.behaviour.features.features_result.FeaturesResult]
+All feature methods return a `FeaturesResult`
 (a `pd.Series` subclass). Call `.store()` on the result to persist it with an
 auto-generated name in `Features.data`.  Batch via `.each`:
 `fc.each.speed("bodycentre").store()`.
