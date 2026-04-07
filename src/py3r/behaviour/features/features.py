@@ -1881,10 +1881,20 @@ class Features:
 
     def embedding_df(self, embedding: dict[str, list[int]]):
         """
-        generate a time series embedding dataframe with specified time shifts for each column,
-        where embedding is a dict mapping column names to lists of shifts
-        positive shift: value from the future (t+n)
-        negative shift: value from the past (t-n)
+        Generate a time-series embedding DataFrame with per-column time shifts.
+
+        Parameters
+        ----------
+        embedding : dict[str, list[int]]
+            Mapping of feature column name to a list of integer time shifts.
+            Positive shift pulls the value from the future (t+n); negative
+            shift pulls from the past (t-n); zero is the current frame.
+
+        Returns
+        -------
+        pd.DataFrame
+            One column per (feature, shift) pair, named ``<col>_t0``,
+            ``<col>_t+n``, or ``<col>_t-n``.
 
         Examples
         --------

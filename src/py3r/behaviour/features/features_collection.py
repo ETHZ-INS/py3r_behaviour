@@ -72,6 +72,13 @@ class FeaturesCollection(BaseCollection):
         """
         Create a FeaturesCollection from a TrackingCollection.
 
+        Parameters
+        ----------
+        tracking_collection : TrackingCollection
+            Source collection. Grouped structure is preserved.
+        feature_cls : type, default=Features
+            ``Features`` subclass to instantiate for each session.
+
         Examples
         --------
         ```pycon
@@ -261,7 +268,12 @@ class FeaturesCollection(BaseCollection):
     @classmethod
     def from_list(cls, features_list: list[Features]):
         """
-        Create a FeaturesCollection from a list of Features objects, keyed by handle
+        Create a FeaturesCollection from a list of Features objects, keyed by handle.
+
+        Parameters
+        ----------
+        features_list : list[Features]
+            Features objects to collect. All handles must be unique.
 
         Examples
         --------
@@ -1204,8 +1216,18 @@ class FeaturesCollection(BaseCollection):
         """
         Store FeaturesResult objects returned by batch methods.
 
-        - Flat collection: results_dict is {handle: FeaturesResult}
-        - Grouped collection: results_dict is {group_key: {handle: FeaturesResult}}
+        Parameters
+        ----------
+        results_dict : dict
+            Batch results to store. Flat: ``{handle: FeaturesResult}``.
+            Grouped: ``{group_key: {handle: FeaturesResult}}``.
+        name : str | None, default=None
+            Column name to store under. If None, resolved automatically from
+            the result objects (all must agree on a single name).
+        meta : dict | None, default=None
+            Metadata dict to attach alongside the stored column.
+        overwrite : bool, default=False
+            If True, overwrite an existing column with the same name.
 
         Examples
         --------

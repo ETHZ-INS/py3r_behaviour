@@ -1136,16 +1136,19 @@ class Tracking:
         return df
 
     def set_point_data(self, df: pd.DataFrame, point: str, target_df: pd.DataFrame = None):
-        """Sets the data of a point to the values of an external df.
+        """
+        Set the data of a point from an external DataFrame.
 
-        Args:
-            df (pd.DataFrame):  the dataframe containing the point data that should be
-                writen into the trackingobject. colnames should reflect the dimension
-                name (i.e 'x', 'y' etc.)
-            point (str): the name of the point to overwrite
-            target_df (pd.DataFrame, Optional): An external copy of the self.data
-                dataframe can be specified. Usefull for operations that are not in
-                place. defaults to None = write into self.data
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame containing the point data to write. Column names must
+            reflect the dimension names (e.g. ``'x'``, ``'y'``).
+        point : str
+            Name of the point to overwrite.
+        target_df : pd.DataFrame | None, default=None
+            An external copy of ``self.data`` to write into. If None, writes
+            in-place into ``self.data``.
 
 
         Examples
