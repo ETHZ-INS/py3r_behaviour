@@ -789,7 +789,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         self,
         column: str,
         all_states=None,
-        groups: list[str] | list[list[str]] | None = None,
+        groups: list[str | tuple[str, ...]] | list[list[str | tuple[str, ...]]] | None = None,
         n_neighbors: int = 15,
         min_dist: float = 0.1,
         random_state: int = 0,
@@ -798,56 +798,149 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         save_dir: str | None = None,
     ):
         """
-        Plot a simple UMAP embedding of per-subject transition matrices for selected groups.
+        Plot a UMAP embedding of per-subject transition matrices for selected groups.
+
+        Transition matrices are computed for each subject within each group, flattened,
+        scaled, and embedded with UMAP. The collection must already be grouped, for
+        example via ``groupby``.
 
         Parameters
         ----------
-        column:
+        column
             Name of the categorical column used to compute transition matrices.
-        all_states:
-            Optional explicit state ordering for transition matrices.
-        groups:
-            - Optional list of group keys (strings) to include; defaults to all.
-            - Or a list of lists for sequential groups, e.g.
-              ``[['control_pre','control_45min','control_90min'],
-              ['treatment_pre','treatment_45min','treatment_90min']]``.
-              Each sequence is plotted with a monochrome gradient.
-        n_neighbors, min_dist, random_state:
-            UMAP hyperparameters.
-        figsize, show:
-            Matplotlib options.
+        all_states
+            Optional explicit state ordering used when constructing transition matrices.
+        groups
+            Optional group selection. If omitted, all groups are included.
+
+            This argument supports three forms:
+
+            - A flat list of single-tag group labels, for example
+              ``['control', 'treatment']``.
+            - A flat list of multi-tag group keys (tuples), for example
+              ``[('control', 'time1'), ('control', 'time2')]``.
+            - A list of lists defining ordered sequences of groups, for example
+              ``[[('control', 'time1'), ('control', 'time2')],
+              [('treatment', 'time1'), ('treatment', 'time2')]]``.
+
+            When sequences are provided, each sequence is plotted using a monochrome
+            gradient to indicate progression within that sequence.
+        n_neighbors
+            Number of neighbors used by UMAP.
+        min_dist
+            Minimum distance parameter passed to UMAP.
+        random_state
+            Seed for reproducible UMAP embeddings.
+        figsize
+            Figure size passed to Matplotlib.
+        show
+            If True, display the figure.
+        save_dir
+            Optional directory in which to save the plot as
+            ``transition_umap.png``.
 
         Returns
         -------
-        (fig, ax): Matplotlib figure and axis.
+        fig, ax
+            Matplotlib figure and axis.
+
+        Raises
+        ------
+        ValueError
+            If the collection is not grouped, or if no data are found for the
+            requested groups.
+        ImportError
+            If ``umap-learn`` is not installed.
 
         Examples
         --------
         ```pycon
         >>> # xdoctest: +REQUIRES(module: umap)
-        >>> import tempfile, shutil, os, pandas as pd
+        >>> import os, shutil, tempfile
         >>> from pathlib import Path
+        >>> import pandas as pd
         >>> from py3r.behaviour.util.docdata import data_path
         >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
         >>> from py3r.behaviour.features.features_collection import FeaturesCollection
         >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+
         >>> with tempfile.TemporaryDirectory() as d:
         ...     d = Path(d)
+        ...     paths = {}
         ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        >>> fc = FeaturesCollection.from_tracking_collection(tc)
-        >>> for i, (h, f) in enumerate(fc.items()):
-        ...     pat = ['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1)
-        ...     states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
-        ...     f.store(states, 'state', meta={})
-        ...     f.tracking.add_tag('group', f'G{i+1}')
-        >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
-        >>> with tempfile.TemporaryDirectory() as outdir:
+        ...         for name in ['A', 'B', 'C', 'D']:
+        ...             dst = d / f'{name}.csv'
+        ...             _ = shutil.copy(p, dst)
+        ...             paths[name] = str(dst)
+        ...     tc = TrackingCollection.from_dlc(paths, fps=30)
+        ...     fc = FeaturesCollection.from_tracking_collection(tc)
+        ...
+        ...     tags = {
+        ...         'A': ('control', 'time1'),
+        ...         'B': ('control', 'time2'),
+        ...         'C': ('treatment', 'time1'),
+        ...         'D': ('treatment', 'time2'),
+        ...     }
+        ...
+        ...     for h, f in fc.items():
+        ...         pat = ['A', 'A', 'B', 'B', 'A'] * (len(f.tracking.data) // 5 + 1)
+        ...         states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
+        ...         f.store(states, 'state', meta={})
+        ...         condition, time = tags[h]
+        ...         f.tracking.add_tag('condition', condition)
+        ...         f.tracking.add_tag('time', time)
+        ...
+        ...     sc = SummaryCollection.from_features_collection(fc.groupby(['condition', 'time']))
+        ...
+        ...     with tempfile.TemporaryDirectory() as outdir:
+        ...         fig, ax = sc.plot_transition_umap(
+        ...             column='state',
+        ...             all_states=['A', 'B'],
+        ...             groups=[('control', 'time1'), ('control', 'time2')],
+        ...             show=False,
+        ...             save_dir=outdir,
+        ...         )
+        ...         os.path.exists(os.path.join(outdir, 'transition_umap.png'))
+        True
+
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     paths = {}
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         for name in ['A', 'B', 'C', 'D']:
+        ...             dst = d / f'{name}.csv'
+        ...             _ = shutil.copy(p, dst)
+        ...             paths[name] = str(dst)
+        ...     tc = TrackingCollection.from_dlc(paths, fps=30)
+        ...     fc = FeaturesCollection.from_tracking_collection(tc)
+        ...
+        ...     tags = {
+        ...         'A': ('control', 'time1'),
+        ...         'B': ('control', 'time2'),
+        ...         'C': ('treatment', 'time1'),
+        ...         'D': ('treatment', 'time2'),
+        ...     }
+        ...
+        ...     for h, f in fc.items():
+        ...         pat = ['A', 'A', 'B', 'B', 'A'] * (len(f.tracking.data) // 5 + 1)
+        ...         states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
+        ...         f.store(states, 'state', meta={})
+        ...         condition, time = tags[h]
+        ...         f.tracking.add_tag('condition', condition)
+        ...         f.tracking.add_tag('time', time)
+        ...
+        ...     sc = SummaryCollection.from_features_collection(fc.groupby(['condition', 'time']))
+        ...
         ...     fig, ax = sc.plot_transition_umap(
-        ...         column='state', all_states=['A','B'], groups=['G1','G2'],
-        ...         show=False, save_dir=outdir)
-        ...     os.path.exists(os.path.join(outdir, 'transition_umap.png'))
+        ...         column='state',
+        ...         all_states=['A', 'B'],
+        ...         groups=[
+        ...             [('control', 'time1'), ('control', 'time2')],
+        ...             [('treatment', 'time1'), ('treatment', 'time2')],
+        ...         ],
+        ...         show=False,
+        ...     )
+        ...     fig is not None and ax is not None
         True
 
         ```
