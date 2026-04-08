@@ -886,7 +886,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         if groups is None:
             selected = list(matrices.keys())
         else:
-            if any(isinstance(g, (list, tuple)) for g in groups):
+            if any(isinstance(g, (list)) for g in groups):
                 # sequence mode
                 sequence_mode = True
                 sequences = [list(seq) for seq in groups]  # type: ignore[arg-type]
