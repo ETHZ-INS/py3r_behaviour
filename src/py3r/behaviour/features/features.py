@@ -340,11 +340,14 @@ class Features:
 
         This is a convenience wrapper around `Summary(self)`.
 
-        Returns:
-            Summary: A new summary object linked to this features object.
+        Returns
+        -------
+        Summary
+            A new summary object linked to this features object.
 
-        Examples:
-            ```pycon
+        Examples
+        --------
+        ```pycon
             >>> from py3r.behaviour.util.docdata import data_path
             >>> from py3r.behaviour.tracking.tracking import Tracking
             >>> from py3r.behaviour.features.features import Features
@@ -1878,10 +1881,20 @@ class Features:
 
     def embedding_df(self, embedding: dict[str, list[int]]):
         """
-        generate a time series embedding dataframe with specified time shifts for each column,
-        where embedding is a dict mapping column names to lists of shifts
-        positive shift: value from the future (t+n)
-        negative shift: value from the past (t-n)
+        Generate a time-series embedding DataFrame with per-column time shifts.
+
+        Parameters
+        ----------
+        embedding : dict[str, list[int]]
+            Mapping of feature column name to a list of integer time shifts.
+            Positive shift pulls the value from the future (t+n); negative
+            shift pulls from the past (t-n); zero is the current frame.
+
+        Returns
+        -------
+        pd.DataFrame
+            One column per (feature, shift) pair, named ``<col>_t0``,
+            ``<col>_t+n``, or ``<col>_t-n``.
 
         Examples
         --------
@@ -2392,37 +2405,44 @@ class Features:
         Static and dynamic boundaries are resolved to per-boundary arrays and
         rendered in boundary order.
 
-        Args:
-            points (list[str]): Point names to render as circles.
-            lines (list[tuple[str, str]] | None): Line segments connecting point pairs.
-            boundaries (list[str] | None): Boundary names (or refs resolvable by
-                ``_resolve_boundary_ref``) to draw. Order controls draw stacking.
-            features (list[str | None] | dict[str | None, str | None] | None):
-                Per-frame scalar feature columns from ``self.data`` to render as
-                text overlays. If a list is provided, each column is shown as
-                ``name: value``. If a dict is provided, keys are display labels and
-                values are source column names. ``None`` or ``""`` entries insert a
-                blank spacer line.
-            dims (tuple[str, ...]): Coordinate dimensions. For 3D, use
-                ``("x","y","z")``. Boundary definitions are interpreted in their
-                native 2D ``dims`` and can be projected in 3D via ``view``.
-                Defaults to ``("x", "y")``.
-            view (dict | None): 3D view options for projection (``azim``, ``elev``,
-                ``proj``, ``camera_distance``, ``focal_length``, ``boundary_z``,
-                ``pad``).
-            canvas_size (tuple[int, int]): Canvas size as ``(width, height)``.
-                Defaults to ``(800, 800)``.
-            bg_color (tuple[int, int, int]): Background color in BGR.
-                Defaults to ``(0, 0, 0)``.
-            style (dict | None): Style overrides for points/lines/boundaries.
-            pixel_coords (bool): If True, coordinates are treated as absolute pixel
-                values. Defaults to ``False``.
-            undo_meta_scaling (bool): If True, invert tracking meta scaling before
-                rendering. Defaults to ``False``.
+        Parameters
+        ----------
+        points : list[str]
+            Point names to render as circles.
+        lines : list[tuple[str, str]] | None
+            Line segments connecting point pairs.
+        boundaries : list[str] | None
+            Boundary names (or refs resolvable by ``_resolve_boundary_ref``)
+            to draw. Order controls draw stacking.
+        features : list[str | None] | dict[str | None, str | None] | None
+            Per-frame scalar feature columns from ``self.data`` to render as
+            text overlays. If a list is provided, each column is shown as
+            ``name: value``. If a dict is provided, keys are display labels and
+            values are source column names. ``None`` or ``""`` entries insert a
+            blank spacer line.
+        dims : tuple[str, ...], default=("x", "y")
+            Coordinate dimensions. For 3D, use ``("x","y","z")``. Boundary
+            definitions are interpreted in their native 2D ``dims`` and can be
+            projected in 3D via ``view``.
+        view : dict | None
+            3D view options for projection (``azim``, ``elev``, ``proj``,
+            ``camera_distance``, ``focal_length``, ``boundary_z``, ``pad``).
+        canvas_size : tuple[int, int], default=(800, 800)
+            Canvas size as ``(width, height)``.
+        bg_color : tuple[int, int, int], default=(0, 0, 0)
+            Background color in BGR.
+        style : dict | None
+            Style overrides for points/lines/boundaries.
+        pixel_coords : bool, default=False
+            If True, coordinates are treated as absolute pixel values.
+        undo_meta_scaling : bool, default=False
+            If True, invert tracking meta scaling before rendering.
 
-        Returns:
-            AnimationStream: Stream object with ``get_frame()``, ``read()``,
-                ``play()``, and ``save()``.
+        Returns
+        -------
+        AnimationStream
+            Stream object with ``get_frame()``, ``read()``, ``play()``, and
+            ``save()``.
 
         Examples
         --------
@@ -2532,18 +2552,22 @@ class Features:
         """
         Resolve named boundary assets into per-boundary arrays.
 
-        Args:
-            boundaries (list[str]): Stored boundary names (or refs accepted by
-                ``_resolve_boundary_ref``).
-            dims (tuple[str, ...]): Requested coordinate dimensions. Boundary dims
-                must match ``(dims[0], dims[1])``. Defaults to ``("x", "y")``.
-            undo_meta_scaling (bool): If True, invert tracking scaling metadata
-                before resolving dynamic boundary coordinates. Defaults to ``False``.
+        Parameters
+        ----------
+        boundaries : list[str]
+            Stored boundary names (or refs accepted by ``_resolve_boundary_ref``).
+        dims : tuple[str, ...], default=("x", "y")
+            Requested coordinate dimensions. Boundary dims must match
+            ``(dims[0], dims[1])``.
+        undo_meta_scaling : bool, default=False
+            If True, invert tracking scaling metadata before resolving dynamic
+            boundary coordinates.
 
-        Returns:
-            list[tuple[str, np.ndarray]]: Boundary arrays as
-            ``[(boundary_name, arr), ...]`` where each arr has shape
-            ``(n_frames, n_vertices, 2)``.
+        Returns
+        -------
+        list[tuple[str, np.ndarray]]
+            Boundary arrays as ``[(boundary_name, arr), ...]`` where each arr
+            has shape ``(n_frames, n_vertices, 2)``.
 
         Examples
         --------
