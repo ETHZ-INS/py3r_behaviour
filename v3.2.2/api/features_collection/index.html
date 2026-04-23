@@ -1,0 +1,2765 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ETHZ-INS.github.io/py3r_behaviour/v3.2.2/api/features_collection/">
+      
+      
+        <link rel="prev" href="../features/">
+      
+      
+        <link rel="next" href="../summary/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>FeaturesCollection - py3r-behaviour</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#py3r.behaviour.features.features_collection.FeaturesCollection" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="py3r-behaviour" class="md-header__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            py3r-behaviour
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              FeaturesCollection
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-hidden="true" type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="py3r-behaviour" class="md-nav__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    py3r-behaviour
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/oft_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OFT pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../animation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AnimationStream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking_mv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingMV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FeaturesCollection
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FeaturesCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FeaturesCollection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FeaturesCollection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.each" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        each
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.each_forcebatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        each_forcebatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.features_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        features_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.loc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        loc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.iloc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        iloc
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.is_grouped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        is_grouped
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.groupby_tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        groupby_tags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.group_keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        group_keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_tracking_collection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.concat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        concat
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.from_list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_list
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.to_summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cluster_embedding
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding_stream" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cluster_embedding_stream
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cluster_diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.cross_predict_rms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cross_predict_rms
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.plot_cross_predict_vs_within" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot_cross_predict_vs_within
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.plot_cross_predict_results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot_cross_predict_results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.dumbbell_plot_cross_predict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dumbbell_plot_cross_predict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.train_knn_regressor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        train_knn_regressor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.predict_knn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        predict_knn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.plot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        plot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.store" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        store
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.stored_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stored_info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.values" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        values
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.items" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        items
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.merge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        merge
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.groupby" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        groupby
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.flatten" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        flatten
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.get_group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.regroup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        regroup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.tags_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        tags_info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.map_leaves" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        map_leaves
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        copy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.features.features_collection.FeaturesCollection.load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../summary_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SummaryCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>FeaturesCollection</h1>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="py3r.behaviour.features.features_collection.FeaturesCollection" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">py3r.behaviour.features.features_collection.FeaturesCollection</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection" class="headerlink" title="Permanent link">¶</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">FeaturesCollection</span><span class="p">(</span><span class="n">features_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Features</span><span class="p">])</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="py3r.behaviour.util.base_collection.BaseCollection">BaseCollection</span></code></p>
+
+
+
+        <p>Collection of Features objects, keyed by name.
+note: type-hints refer to Features, but factory methods allow for other classes
+these are intended ONLY for subclasses of Features, and this is enforced</p>
+
+
+<p><span class="doc-section-title">Examples:</span></p>
+    <div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">tc</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'A.csv'</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'B.csv'</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fc</span> <span class="o">=</span> <span class="n">FeaturesCollection</span><span class="o">.</span><span class="n">from_tracking_collection</span><span class="p">(</span><span class="n">tc</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">fc</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="go">['A', 'B']</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.each" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">each</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.each" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">each</span><span class="p">:</span> <span class="n">Features</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.each_forcebatch" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">each_forcebatch</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.each_forcebatch" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">each_forcebatch</span><span class="p">:</span> <span class="n">Features</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.features_dict" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">features_dict</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.features_dict" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">features_dict</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.loc" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">loc</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.loc" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">loc</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.iloc" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">iloc</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.iloc" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">iloc</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.is_grouped" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">is_grouped</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.is_grouped" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">is_grouped</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>True if this collection is a grouped view.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.is_grouped--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.is_grouped--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">coll</span><span class="o">.</span><span class="n">is_grouped</span>
+<span class="go">False</span>
+</code></pre></div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.groupby_tags" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">groupby_tags</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.groupby_tags" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">groupby_tags</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The tag names used to form this grouped view (or None if flat).</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.group_keys" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">group_keys</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.group_keys" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">group_keys</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Keys for the groups in a grouped view. Empty list if not grouped.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.group_keys--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.group_keys--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G1'</span><span class="p">);</span> <span class="n">coll</span><span class="p">[</span><span class="s1">'B'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G2'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span> <span class="o">=</span> <span class="n">coll</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">'group'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">group_keys</span><span class="p">)</span>
+<span class="go">[('G1',), ('G2',)]</span>
+</code></pre></div>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">from_tracking_collection</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">from_tracking_collection</span><span class="p">(</span>
+    <span class="n">tracking_collection</span><span class="p">:</span> <span class="n">TrackingCollection</span><span class="p">,</span>
+    <span class="n">feature_cls</span><span class="o">=</span><span class="n">Features</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a FeaturesCollection from a TrackingCollection.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection--parameters">Parameters<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection--parameters" title="Permanent link">¶</a></h5>
+<p>tracking_collection : TrackingCollection
+    Source collection. Grouped structure is preserved.
+feature_cls : type, default=Features
+    <code>Features</code> subclass to instantiate for each session.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">tc</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'A.csv'</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'B.csv'</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fc</span> <span class="o">=</span> <span class="n">FeaturesCollection</span><span class="o">.</span><span class="n">from_tracking_collection</span><span class="p">(</span><span class="n">tc</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">fc</span><span class="p">[</span><span class="s1">'A'</span><span class="p">],</span> <span class="n">Features</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fc</span><span class="p">[</span><span class="s1">'B'</span><span class="p">],</span> <span class="n">Features</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.concat" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">concat</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.concat" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">concat</span><span class="p">(</span>
+    <span class="n">collections</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">FeaturesCollection</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">reindex</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">"rezero"</span><span class="p">,</span> <span class="s2">"follow_previous"</span><span class="p">,</span> <span class="s2">"keep_original"</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">"follow_previous"</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">FeaturesCollection</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Concatenate multiple FeaturesCollections along the time (frame) axis.</p>
+<p>Each collection must have the same handles (keys). For each handle,
+the corresponding Features objects are concatenated in order.
+Supports both flat and grouped collections.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.concat--parameters">Parameters<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.concat--parameters" title="Permanent link">¶</a></h5>
+<p>collections : list[FeaturesCollection]
+    List of FeaturesCollection objects to concatenate, in temporal order.
+    All must have matching keys (handles) and feature columns.
+reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
+    How to handle frame indices:
+    - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
+    - "follow_previous": Each chunk continues from where the previous
+      ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
+    - "keep_original": Leave indices untouched; duplicates are allowed.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.concat--returns">Returns<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.concat--returns" title="Permanent link">¶</a></h5>
+<p>FeaturesCollection
+    A new collection with concatenated Features objects for each handle.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.concat--raises">Raises<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.concat--raises" title="Permanent link">¶</a></h5>
+<p>ValueError
+    If collections is empty, keys don't match, or grouping structure differs.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.concat--notes">Notes<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.concat--notes" title="Permanent link">¶</a></h5>
+<p>For context-dependent features (normalization, embeddings with temporal
+windows, etc.), consider whether you need to recompute features on
+concatenated Tracking data rather than concatenating pre-computed features.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.concat--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.concat--examples" title="Permanent link">¶</a></h5>
+<p>Concatenate two flat collections:</p>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.features.features_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">FeaturesCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">tc1</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'A.csv'</span><span class="p">),</span>
+<span class="gp">... </span>                                      <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'B.csv'</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">tc2</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'A.csv'</span><span class="p">),</span>
+<span class="gp">... </span>                                       <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'B.csv'</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fc1</span> <span class="o">=</span> <span class="n">FeaturesCollection</span><span class="o">.</span><span class="n">from_tracking_collection</span><span class="p">(</span><span class="n">tc1</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fc2</span> <span class="o">=</span> <span class="n">FeaturesCollection</span><span class="o">.</span><span class="n">from_tracking_collection</span><span class="p">(</span><span class="n">tc2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Add a feature to all</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">fc1</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">fc2</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+<span class="gp">... </span>    <span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">tracking</span><span class="o">.</span><span class="n">data</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">f</span><span class="o">.</span><span class="n">tracking</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">'counter'</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="p">{})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">combined</span> <span class="o">=</span> <span class="n">FeaturesCollection</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">fc1</span><span class="p">,</span> <span class="n">fc2</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">combined</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">fc1</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">fc2</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="s1">'concat'</span> <span class="ow">in</span> <span class="n">combined</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">meta</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.from_list" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">from_list</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.from_list" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">from_list</span><span class="p">(</span><span class="n">features_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Features</span><span class="p">])</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a FeaturesCollection from a list of Features objects, keyed by handle.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.from_list--parameters">Parameters<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.from_list--parameters" title="Permanent link">¶</a></h5>
+<p>features_list : list[Features]
+    Features objects to collect. All handles must be unique.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.from_list--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.from_list--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">t1</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'A'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">t2</span> <span class="o">=</span> <span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">p</span><span class="p">),</span> <span class="n">handle</span><span class="o">=</span><span class="s1">'B'</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">f1</span><span class="p">,</span> <span class="n">f2</span> <span class="o">=</span> <span class="n">Features</span><span class="p">(</span><span class="n">t1</span><span class="p">),</span> <span class="n">Features</span><span class="p">(</span><span class="n">t2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fc</span> <span class="o">=</span> <span class="n">FeaturesCollection</span><span class="o">.</span><span class="n">from_list</span><span class="p">([</span><span class="n">f1</span><span class="p">,</span> <span class="n">f2</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">fc</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="go">['A', 'B']</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.to_summary" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_summary</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.to_summary" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">to_summary</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">SummaryCollection</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a <code>SummaryCollection</code> from this <code>FeaturesCollection</code>.</p>
+<p>This is a convenience wrapper around
+<code>SummaryCollection.from_features_collection(self)</code> and preserves grouped
+structure when the collection is grouped.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.to_summary--returns">Returns<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.to_summary--returns" title="Permanent link">¶</a></h5>
+<p>SummaryCollection
+    Collection containing one <code>Summary</code> object per features object in
+    this collection.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.to_summary--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.to_summary--examples" title="Permanent link">¶</a></h5>
+<p>```pycon
+    &gt;&gt;&gt; import tempfile, shutil
+    &gt;&gt;&gt; from pathlib import Path
+    &gt;&gt;&gt; from py3r.behaviour.features.features_collection import FeaturesCollection
+    &gt;&gt;&gt; from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+    &gt;&gt;&gt; from py3r.behaviour.util.docdata import data_path
+    &gt;&gt;&gt; with tempfile.TemporaryDirectory() as d:
+    ...     d = Path(d)
+    ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+    ...         a = d / 'A.csv'; b = d / 'B.csv'
+    ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+    ...     tc = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+    ...     fc = FeaturesCollection.from_tracking_collection(tc)
+    ...     sc = fc.to_summary()
+    &gt;&gt;&gt; from py3r.behaviour.summary.summary_collection import SummaryCollection
+    &gt;&gt;&gt; isinstance(sc, SummaryCollection)
+    True
+    &gt;&gt;&gt; sorted(sc.keys())
+    ['A', 'B']</p>
+<div class="language-text highlight"><pre><span></span><code>```
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">cluster_embedding</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">cluster_embedding</span><span class="p">(</span>
+    <span class="n">embedding_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">feature_weights</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">lowmem</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">decimation_factor</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="n">missing_policy</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">"drop"</span><span class="p">,</span> <span class="s2">"impute_weight"</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">"drop"</span><span class="p">,</span>
+    <span class="n">auto_normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">rescale_factors</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">custom_scaling</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Perform k-means clustering using the specified embedding.</p>
+<p>Returns <code>(BatchResult, centroids, scaling_factors)</code> where
+<em>scaling_factors</em> is a dict of one float per embedding column —
+the combined effect of normalisation and feature weights.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding--parameters">Parameters<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding--parameters" title="Permanent link">¶</a></h5>
+<p>normalize : bool
+    Divide each base feature by its global std before embedding.
+feature_weights : dict[str, float] | None
+    Substring → weight mapping, e.g. <code>{"speed": 4.0, "accel": 2.0}</code>.
+    Each key is matched against embedding column names by substring;
+    matched columns are multiplied by the value.  Resolved internally
+    via :func:<code>~py3r.behaviour.util.series_utils.build_column_weights</code>.
+    Raises if a rule matches no column (likely typo).
+Examples</p>
+<hr>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">tc</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'A.csv'</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'B.csv'</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fc</span> <span class="o">=</span> <span class="n">FeaturesCollection</span><span class="o">.</span><span class="n">from_tracking_collection</span><span class="p">(</span><span class="n">tc</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Create a trivial feature 'counter' in each Features to embed</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fc</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+<span class="gp">... </span>    <span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">tracking</span><span class="o">.</span><span class="n">data</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">f</span><span class="o">.</span><span class="n">tracking</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">'counter'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batch</span><span class="p">,</span> <span class="n">centroids</span><span class="p">,</span> <span class="n">norm</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">cluster_embedding</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="p">{</span><span class="s1">'counter'</span><span class="p">:[</span><span class="mi">0</span><span class="p">]},</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">lowmem</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">centroids</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batch</span><span class="p">,</span> <span class="n">centroids</span><span class="p">,</span> <span class="n">norm</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">cluster_embedding</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="p">{</span><span class="s1">'counter'</span><span class="p">:[</span><span class="mi">0</span><span class="p">]},</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">lowmem</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">missing_policy</span><span class="o">=</span><span class="s1">'impute_weight'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">centroids</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batch</span><span class="p">,</span> <span class="n">centroids</span><span class="p">,</span> <span class="n">norm</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">cluster_embedding</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="p">{</span><span class="s1">'counter'</span><span class="p">:[</span><span class="mi">0</span><span class="p">]},</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">lowmem</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">missing_policy</span><span class="o">=</span><span class="s1">'drop'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">centroids</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding_stream" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">cluster_embedding_stream</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding_stream" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">cluster_embedding_stream</span><span class="p">(</span>
+    <span class="n">embedding_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">normalize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">feature_weights</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">missing_policy</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
+        <span class="s2">"drop"</span><span class="p">,</span> <span class="s2">"impute_weight"</span>
+    <span class="p">]</span> <span class="o">=</span> <span class="s2">"drop"</span><span class="p">,</span>
+    <span class="n">chunk_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10000</span><span class="p">,</span>
+    <span class="n">n_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Memory-friendly clustering via streaming MiniBatchKMeans.</p>
+<p>Unlike <code>cluster_embedding</code>, this never builds a combined DataFrame.
+Embeddings are extracted one Features at a time, sliced into
+fixed-size chunks, and fed to <code>MiniBatchKMeans.partial_fit</code>.
+Multiple epochs improve convergence; uniform chunk sizes prevent
+large recordings from dominating centroid updates.</p>
+<p>Normalisation is computed on base feature columns (before embedding)
+so that all time-shifts of the same feature share the same std.
+The returned <code>scaling_factors</code> is a dict of one float per
+<em>embedding column</em> — the combined effect of normalisation and
+feature weights.  Multiply raw embedding values by these to reproduce
+the transform.</p>
+<p>Returns <code>(BatchResult, centroids, scaling_factors)</code>.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding_stream--parameters">Parameters<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding_stream--parameters" title="Permanent link">¶</a></h5>
+<p>embedding_dict : dict[str, list[int]]
+    Feature columns and their time shifts for the embedding.
+n_clusters : int
+    Number of clusters.
+random_state : int
+    Seed for reproducibility.
+normalize : bool
+    Divide each base feature by its global std before embedding.
+feature_weights : dict[str, float] | None
+    Substring → weight mapping, e.g. <code>{"speed": 4.0}</code>.
+    Resolved internally into per-column weights.  Raises if a
+    rule matches no column (likely typo).
+missing_policy : {"drop", "impute_weight"}
+    How to handle NaN rows.
+chunk_size : int
+    Max rows per partial_fit call.
+n_epochs : int
+    Number of full passes over the data.
+batch_size : int
+    MiniBatchKMeans internal mini-batch size.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding_stream--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding_stream--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">tc</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'A.csv'</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'B.csv'</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fc</span> <span class="o">=</span> <span class="n">FeaturesCollection</span><span class="o">.</span><span class="n">from_tracking_collection</span><span class="p">(</span><span class="n">tc</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fc</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+<span class="gp">... </span>    <span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">tracking</span><span class="o">.</span><span class="n">data</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">f</span><span class="o">.</span><span class="n">tracking</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">f</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="s1">'counter'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">batch</span><span class="p">,</span> <span class="n">centroids</span><span class="p">,</span> <span class="n">norm</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">cluster_embedding_stream</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="p">{</span><span class="s1">'counter'</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">]},</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">isinstance</span><span class="p">(</span><span class="n">centroids</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="ow">and</span> <span class="n">centroids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.cluster_diagnostics" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">cluster_diagnostics</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_diagnostics" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">cluster_diagnostics</span><span class="p">(</span>
+    <span class="n">labels_result</span><span class="p">,</span>
+    <span class="n">n_clusters</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">low</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span>
+    <span class="n">high</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span><span class="p">,</span>
+    <span class="n">verbose</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Compute diagnostic stats for cluster label assignments.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.cluster_diagnostics--parameters">Parameters<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_diagnostics--parameters" title="Permanent link">¶</a></h5>
+<p>labels_result:
+    Mapping from handle (or group-&gt;handle) to FeaturesResult of integer labels (with NA).
+    Accepts the return shape of <code>cluster_embedding(...)[0]</code> (BatchResult or dict).
+n_clusters:
+    Optional number of clusters. If None, inferred from labels (max label + 1).
+low, high:
+    Prevalence thresholds for low/high cluster labels per recording.
+verbose:
+    If True, print a compact summary.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.cluster_diagnostics--returns">Returns<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_diagnostics--returns" title="Permanent link">¶</a></h5>
+<p>dict with:
+    - 'global': {'cluster_prevalence': {label: frac, ...}, 'percent_nan': frac}
+    - 'per_recording': DataFrame, rows per recording, cols
+      ['percent_nan', 'num_missing', 'num_low', 'num_high']
+    - 'summary': min/median/max for the per_recording columns
+    - if grouped: 'per_group': {group_key: {'per_recording': df, 'summary': {...}}}</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.cross_predict_rms" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">cross_predict_rms</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.cross_predict_rms" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">cross_predict_rms</span><span class="p">(</span>
+    <span class="n">source_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">target_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">normalize_source</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">normalize_pred</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">set1</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">set2</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">predictor_cls</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">predictor_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Dev mode only: not available in public release yet.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.plot_cross_predict_vs_within" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">plot_cross_predict_vs_within</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.plot_cross_predict_vs_within" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">plot_cross_predict_vs_within</span><span class="p">(</span>
+    <span class="n">results</span><span class="p">,</span> <span class="n">from_group</span><span class="p">,</span> <span class="n">to_group</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Dev mode only: not available in public release yet.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.plot_cross_predict_results" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">plot_cross_predict_results</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.plot_cross_predict_results" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">plot_cross_predict_results</span><span class="p">(</span>
+    <span class="n">results</span><span class="p">,</span>
+    <span class="n">within_keys</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">between_keys</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">plot_type</span><span class="o">=</span><span class="s2">"bar"</span><span class="p">,</span>
+    <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>
+    <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Dev mode only: not available in public release yet.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.dumbbell_plot_cross_predict" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">dumbbell_plot_cross_predict</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.dumbbell_plot_cross_predict" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">dumbbell_plot_cross_predict</span><span class="p">(</span>
+    <span class="n">results</span><span class="p">,</span>
+    <span class="n">within_key</span><span class="p">,</span>
+    <span class="n">between_key</span><span class="p">,</span>
+    <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+    <span class="n">show</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Dev mode only: not available in public release yet.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.train_knn_regressor" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">train_knn_regressor</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.train_knn_regressor" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">train_knn_regressor</span><span class="p">(</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">source_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">target_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">predictor_cls</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">predictor_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">normalize_source</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Dev mode only: not available in public release yet.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.predict_knn" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">predict_knn</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.predict_knn" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">predict_knn</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">,</span>
+    <span class="n">source_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">target_embedding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+    <span class="n">rescale_factors</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Dev mode only: not available in public release yet.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.plot" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">plot</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.plot" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">plot</span><span class="p">(</span>
+    <span class="n">arg</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+    <span class="n">show</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Plot features for all collections in the MultipleFeaturesCollection.
+- If arg is a BatchResult or dict: treat as batch result and plot for each collection.
+- Otherwise: treat as column name(s) or None and plot for each collection.
+- If title is provided, it will be used as the overall title for the figure.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.store" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">store</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.store" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">store</span><span class="p">(</span>
+    <span class="n">results_dict</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">meta</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Store FeaturesResult objects returned by batch methods.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.store--parameters">Parameters<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.store--parameters" title="Permanent link">¶</a></h5>
+<p>results_dict : dict
+    Batch results to store. Flat: <code>{handle: FeaturesResult}</code>.
+    Grouped: <code>{group_key: {handle: FeaturesResult}}</code>.
+name : str | None, default=None
+    Column name to store under. If None, resolved automatically from
+    the result objects (all must agree on a single name).
+meta : dict | None, default=None
+    Metadata dict to attach alongside the stored column.
+overwrite : bool, default=False
+    If True, overwrite an existing column with the same name.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.store--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.store--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">tc</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'A.csv'</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'B.csv'</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fc</span> <span class="o">=</span> <span class="n">FeaturesCollection</span><span class="o">.</span><span class="n">from_tracking_collection</span><span class="p">(</span><span class="n">tc</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Build a simple FeaturesResult dict from distance_between</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">rd</span> <span class="o">=</span> <span class="p">{</span><span class="n">h</span><span class="p">:</span> <span class="n">feat</span><span class="o">.</span><span class="n">distance_between</span><span class="p">(</span><span class="s1">'p1'</span><span class="p">,</span><span class="s1">'p2'</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span><span class="p">,</span> <span class="n">feat</span> <span class="ow">in</span> <span class="n">fc</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fc</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">rd</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">'d12'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">all</span><span class="p">(</span><span class="s1">'d12'</span> <span class="ow">in</span> <span class="n">feat</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">columns</span> <span class="k">for</span> <span class="n">feat</span> <span class="ow">in</span> <span class="n">fc</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+<span class="go">True</span>
+</code></pre></div>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.store--returns">Returns<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.store--returns" title="Permanent link">¶</a></h5>
+<p>str
+    The resolved stored column name. If auto-naming would resolve to
+    multiple different names across leaves, raises ValueError.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.stored_info" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">stored_info</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.stored_info" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">stored_info</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Summarize stored feature columns across the collection's leaf Features objects.</p>
+<p>Returns a DataFrame indexed by <code>feature</code> with columns:
+- <code>attached_to</code>: number of recordings containing the feature
+- <code>missing_from</code>: number of recordings not containing the feature
+- <code>type</code>: pandas dtype string for the feature column when consistent, or a
+  list of dtype strings when mixed across recordings.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.values" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">values</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.values" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">values</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Values iterator (elements or sub-collections).</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.values--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.values--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">coll</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span> <span class="o">==</span> <span class="mi">2</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.items" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">items</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.items" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">items</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Items iterator (handle, element).</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.items--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.items--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">([</span><span class="n">h</span> <span class="k">for</span> <span class="n">h</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">coll</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
+<span class="go">['A', 'B']</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.keys" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">keys</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.keys" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">keys</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Keys iterator (handles or group keys).</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.keys--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.keys--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">coll</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="go">['A', 'B']</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.merge" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">merge</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.merge" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">merge</span><span class="p">(</span><span class="n">collections</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Merge multiple collections into a single flat collection containing
+all leaf elements from each input.</p>
+<p>Each input collection is flattened before merging, so grouped inputs
+are supported. The result is always a new flat collection. Leaves are
+shared by reference unless <code>copy=True</code>.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.merge--parameters">Parameters<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.merge--parameters" title="Permanent link">¶</a></h5>
+<p>collections : list[BaseCollection]
+    Two or more collections of the same concrete type. Every element
+    across all collections must have a unique handle.
+copy : bool, default False
+    If True, each leaf is copied (via its <code>.copy()</code> method) so that
+    the merged collection is fully independent of the originals.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.merge--returns">Returns<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.merge--returns" title="Permanent link">¶</a></h5>
+<p>BaseCollection
+    A new flat collection containing all leaves.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.merge--raises">Raises<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.merge--raises" title="Permanent link">¶</a></h5>
+<p>ValueError
+    If <em>collections</em> is empty, or if any handles are duplicated.
+TypeError
+    If any input is not an instance of the calling class.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.merge--warns">Warns<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.merge--warns" title="Permanent link">¶</a></h5>
+<p>UserWarning
+    If the tag key sets differ across input collections (the merged
+    collection will have mixed tag coverage).</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.merge--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.merge--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span><span class="p">)</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'C.csv'</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'D.csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">c1</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'A.csv'</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'B.csv'</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">c2</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'C'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'C.csv'</span><span class="p">),</span> <span class="s1">'D'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="o">/</span><span class="s1">'D.csv'</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">merged</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">merge</span><span class="p">([</span><span class="n">c1</span><span class="p">,</span> <span class="n">c2</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">merged</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="go">['A', 'B', 'C', 'D']</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">len</span><span class="p">(</span><span class="n">merged</span><span class="p">)</span>
+<span class="go">4</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.groupby" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">groupby</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.groupby" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">groupby</span><span class="p">(</span><span class="n">tags</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Group the collection by one or more existing tag names.
+Returns a grouped view (this same collection type) whose values are
+sub-collections keyed by a tuple of tag values in the order provided.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.groupby--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.groupby--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G1'</span><span class="p">);</span> <span class="n">coll</span><span class="p">[</span><span class="s1">'B'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G2'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span> <span class="o">=</span> <span class="n">coll</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">'group'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span><span class="o">.</span><span class="n">is_grouped</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">group_keys</span><span class="p">)</span>
+<span class="go">[('G1',), ('G2',)]</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.flatten" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">flatten</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.flatten" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">flatten</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Flatten a MultipleCollection to a flat Collection.
+If already flat, return self.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.flatten--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.flatten--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G1'</span><span class="p">);</span> <span class="n">coll</span><span class="p">[</span><span class="s1">'B'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G1'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">g</span> <span class="o">=</span> <span class="n">coll</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">'group'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flat</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flat</span><span class="o">.</span><span class="n">is_grouped</span>
+<span class="go">False</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">flat</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="go">['A', 'B']</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.get_group" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get_group</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.get_group" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">get_group</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get a sub-collection by group key from a grouped view.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.get_group--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.get_group--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G1'</span><span class="p">);</span> <span class="n">coll</span><span class="p">[</span><span class="s1">'B'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G2'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g</span> <span class="o">=</span> <span class="n">coll</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">'group'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sub</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">get_group</span><span class="p">((</span><span class="s1">'G1'</span><span class="p">,))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="go">['A']</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.regroup" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">regroup</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.regroup" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">regroup</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Recompute the same grouping using the current tags and the original
+grouping tag order. If not grouped, returns self.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.regroup--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.regroup--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G1'</span><span class="p">);</span> <span class="n">coll</span><span class="p">[</span><span class="s1">'B'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G1'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">g</span> <span class="o">=</span> <span class="n">coll</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">'group'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="p">[</span><span class="s1">'B'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'group'</span><span class="p">,</span><span class="s1">'G2'</span><span class="p">,</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># change tag</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">g2</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">regroup</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">g2</span><span class="o">.</span><span class="n">group_keys</span><span class="p">)</span>
+<span class="go">[('G1',), ('G2',)]</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.tags_info" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">tags_info</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.tags_info" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">tags_info</span><span class="p">(</span>
+    <span class="o">*</span><span class="p">,</span> <span class="n">include_value_counts</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Summarize tag presence across the collection's leaf objects.
+Works for flat and grouped collections. If <code>include_value_counts</code> is True,
+include a column 'value_counts' with a dict of <code>value-&gt;count</code> for each tag.
+Returns a <code>pandas.DataFrame</code> with columns:
+<code>['tag', 'attached_to', 'missing_from', 'unique_values', ('value_counts')]</code></p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.tags_info--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.tags_info--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="p">[</span><span class="s1">'A'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'genotype'</span><span class="p">,</span> <span class="s1">'WT'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="p">[</span><span class="s1">'B'</span><span class="p">]</span><span class="o">.</span><span class="n">add_tag</span><span class="p">(</span><span class="s1">'timepoint'</span><span class="p">,</span> <span class="s1">'T1'</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">info</span> <span class="o">=</span> <span class="n">coll</span><span class="o">.</span><span class="n">tags_info</span><span class="p">(</span><span class="n">include_value_counts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">int</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s1">'genotype'</span><span class="p">,</span><span class="s1">'attached_to'</span><span class="p">])</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">int</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s1">'genotype'</span><span class="p">,</span><span class="s1">'missing_from'</span><span class="p">])</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">int</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s1">'genotype'</span><span class="p">,</span><span class="s1">'unique_values'</span><span class="p">])</span>
+<span class="go">1</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s1">'genotype'</span><span class="p">,</span><span class="s1">'value_counts'</span><span class="p">]</span>
+<span class="go">{'WT': 1}</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">int</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="s1">'timepoint'</span><span class="p">,</span><span class="s1">'attached_to'</span><span class="p">])</span>
+<span class="go">1</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.map_leaves" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">map_leaves</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.map_leaves" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">map_leaves</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Apply a function to every leaf element and return a new collection of the
+same type. Preserves grouping shape and groupby metadata when grouped.</p>
+<p>fn: callable(Element) -&gt; ElementLike</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.map_leaves--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.map_leaves--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">sub</span> <span class="o">=</span> <span class="n">coll</span><span class="o">.</span><span class="n">map_leaves</span><span class="p">(</span><span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">t</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">])</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">all</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">data</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">sub</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.copy" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">copy</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.copy" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">copy</span><span class="p">()</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Creates a copy of the BaseCollection.
+Raises NotImplementedError if any leaf does not implement copy().</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.copy--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.copy--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tracking</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">)</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_folder</span><span class="p">(</span>
+<span class="gp">... </span>        <span class="nb">str</span><span class="p">(</span><span class="n">d</span><span class="p">),</span> <span class="n">tracking_loader</span><span class="o">=</span><span class="n">Tracking</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span>
+<span class="gp">... </span>    <span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">coll_copy</span> <span class="o">=</span> <span class="n">coll</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">sorted</span><span class="p">(</span><span class="n">coll_copy</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="go">['A', 'B']</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.save" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">save</span>
+
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.save" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">save</span><span class="p">(</span>
+    <span class="n">dirpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">overwrite</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">data_format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"parquet"</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Save this collection to a directory. Preserves grouping and delegates to
+leaf objects' save(dirpath, data_format, overwrite=True).</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.save--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.save--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">out</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'coll'</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">out</span><span class="p">),</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">data_format</span><span class="o">=</span><span class="s1">'csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="c1"># collection-level manifest at top-level</span>
+<span class="gp">... </span>    <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">out</span><span class="p">),</span> <span class="s1">'manifest.json'</span><span class="p">))</span>
+<span class="gp">... </span>    <span class="c1"># element-level manifests under elements/&lt;handle&gt;/</span>
+<span class="gp">... </span>    <span class="n">el_manifest</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">out</span><span class="p">),</span> <span class="s1">'elements'</span><span class="p">,</span> <span class="s1">'A'</span><span class="p">,</span> <span class="s1">'manifest.json'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">el_manifest</span><span class="p">)</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.features.features_collection.FeaturesCollection.load" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">load</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#py3r.behaviour.features.features_collection.FeaturesCollection.load" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">load</span><span class="p">(</span><span class="n">dirpath</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Load a collection previously saved with save(). Uses the class's
+_element_type.load to reconstruct leaves.</p>
+<h5 id="py3r.behaviour.features.features_collection.FeaturesCollection.load--examples">Examples<a class="headerlink" href="#py3r.behaviour.features.features_collection.FeaturesCollection.load--examples" title="Permanent link">¶</a></h5>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.util.docdata</span><span class="w"> </span><span class="kn">import</span> <span class="n">data_path</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.tracking.tracking_collection</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrackingCollection</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+<span class="gp">... </span>    <span class="n">d</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="k">with</span> <span class="n">data_path</span><span class="p">(</span><span class="s1">'py3r.behaviour.tracking._data'</span><span class="p">,</span> <span class="s1">'dlc_single.csv'</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+<span class="gp">... </span>        <span class="n">a</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'A.csv'</span><span class="p">;</span> <span class="n">b</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'B.csv'</span>
+<span class="gp">... </span>        <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">a</span><span class="p">);</span> <span class="n">_</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">from_dlc</span><span class="p">({</span><span class="s1">'A'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="s1">'B'</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">b</span><span class="p">)},</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">out</span> <span class="o">=</span> <span class="n">d</span> <span class="o">/</span> <span class="s1">'coll'</span>
+<span class="gp">... </span>    <span class="n">coll</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">out</span><span class="p">),</span> <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">data_format</span><span class="o">=</span><span class="s1">'csv'</span><span class="p">)</span>
+<span class="gp">... </span>    <span class="n">coll2</span> <span class="o">=</span> <span class="n">TrackingCollection</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">out</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">coll2</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+<span class="go">['A', 'B']</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "content.code.copy", "content.code.select", "toc.integrate", "toc.collapsible"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
