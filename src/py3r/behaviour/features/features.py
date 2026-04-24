@@ -1937,6 +1937,7 @@ class Features:
         random_state: int = 0,
         *,
         normalize: bool = False,
+        normalize_details: dict[str, Literal["individual", "global", "none"]] | None = None,
         feature_weights: dict[str, float] | None = None,
         lowmem: bool = False,
         decimation_factor: int = 10,
@@ -1954,7 +1955,7 @@ class Features:
 
         Returns
         -------
-        (FeaturesResult, centroids DataFrame, scaling_factors or None)
+        (FeaturesResult, CentroidsDf, scaling_factors or None)
 
         Examples
         --------
@@ -1968,7 +1969,7 @@ class Features:
         >>> f = Features(t)
         >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
         >>> result, centroids, norm = f.cluster_embedding({'counter': [0]}, n_clusters=2)
-        >>> isinstance(centroids, pd.DataFrame)
+        >>> hasattr(centroids, 'columns')
         True
         >>> len(result) == len(f.data)
         True
@@ -1991,6 +1992,7 @@ class Features:
             n_clusters,
             random_state,
             normalize=normalize,
+            normalize_details=normalize_details,
             feature_weights=feature_weights,
             lowmem=lowmem,
             decimation_factor=decimation_factor,
@@ -2008,6 +2010,7 @@ class Features:
         random_state: int = 0,
         *,
         normalize: bool = False,
+        normalize_details: dict[str, Literal["individual", "global", "none"]] | None = None,
         feature_weights: dict[str, float] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
         chunk_size: int = 10_000,
@@ -2022,7 +2025,7 @@ class Features:
 
         Returns
         -------
-        (FeaturesResult, centroids DataFrame, scaling_factors or None)
+        (FeaturesResult, CentroidsDf, scaling_factors or None)
 
         Examples
         --------
@@ -2037,7 +2040,7 @@ class Features:
         >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
         >>> result, centroids, norm = f.cluster_embedding_stream(
         ...     {'counter': [0]}, n_clusters=2)
-        >>> isinstance(centroids, pd.DataFrame)
+        >>> hasattr(centroids, 'columns')
         True
         >>> len(result) == len(f.data)
         True
@@ -2052,6 +2055,7 @@ class Features:
             n_clusters,
             random_state,
             normalize=normalize,
+            normalize_details=normalize_details,
             feature_weights=feature_weights,
             missing_policy=missing_policy,
             chunk_size=chunk_size,
@@ -2063,7 +2067,7 @@ class Features:
     def assign_clusters_by_centroids(
         self,
         embedding: dict[str, list[int]],
-        centroids_df: pd.DataFrame,
+        centroids_df,
         *,
         scaling_factors: dict[str, float] | None = None,
         impute_medians: pd.Series | None = None,
@@ -2078,14 +2082,21 @@ class Features:
         ----------
         embedding : dict[str, list[int]]
             Same embedding dict used during fitting.
-        centroids_df : pd.DataFrame
-            (n_clusters, n_features) DataFrame of cluster centres.
+        centroids_df : CentroidsDf or pd.DataFrame
+            Cluster centres.  Passing a
+            :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` (the
+            object returned by ``cluster_embedding*``) is preferred: the method
+            will automatically apply the stored ``scaling_recipe``, including any
+            per-recording individual normalisation.
+
+            If a plain ``pd.DataFrame`` is passed, *scaling_factors* is used
+            instead (legacy path).
         scaling_factors : dict[str, float] | None
-            Per-embedding-column multipliers (the "dumb" scalars returned by
-            ``cluster_embedding_stream``).  Each raw embedding column is
-            multiplied by the corresponding value before distance computation.
+            Per-embedding-column constant multipliers.  Applied only when
+            *centroids_df* is a plain DataFrame (legacy path).
         impute_medians : pd.Series | None
             Per-column fill values for NaN imputation (from training).
+
         Returns
         -------
         FeaturesResult
@@ -2115,6 +2126,8 @@ class Features:
         """
         from sklearn.metrics.pairwise import pairwise_distances_argmin
 
+        from py3r.behaviour.features.centroids_df import CentroidsDf
+
         if rescale_factors is not None:
             raise NotImplementedError("rescale_factors was removed; pass scaling_factors instead.")
         if custom_scaling is not None:
@@ -2123,12 +2136,50 @@ class Features:
                 "and pass scaling_factors instead."
             )
 
+        # Unwrap CentroidsDf and extract scaling recipe.
+        scaling_recipe: dict | None = None
+        underlying_df: pd.DataFrame
+        if isinstance(centroids_df, CentroidsDf):
+            scaling_recipe = centroids_df.scaling_recipe
+            underlying_df = centroids_df.df
+        else:
+            underlying_df = centroids_df
+
         embed_df = self.embedding_df(embedding)
 
-        if scaling_factors is not None:
+        if scaling_recipe is not None:
+            # Recipe path (authoritative): apply individual norm then constant factors.
+            cols_expected = scaling_recipe.get("columns")
+            if cols_expected is not None and list(embed_df.columns) != list(cols_expected):
+                raise ValueError("Embedding columns do not match centroids scaling recipe columns")
+            embed_df = embed_df.copy()
+            for base, do_individual in (
+                scaling_recipe.get("normalize_individual_base") or {}
+            ).items():
+                if not do_individual:
+                    continue
+                if base not in self.data.columns:
+                    raise ValueError(f"Base feature '{base}' missing for individual normalization")
+                vals = self.data[base].to_numpy(dtype=np.float64)
+                finite = vals[np.isfinite(vals)]
+                std = float(np.std(finite)) if finite.size > 0 else 1.0
+                std = std if std > 0 else 1.0
+                base_cols = [c for c in embed_df.columns if c.startswith(base + "_t")]
+                if not base_cols:
+                    raise ValueError(f"No embedding columns found for base feature '{base}'")
+                embed_df.loc[:, base_cols] = embed_df[base_cols] / std
+            constant = scaling_recipe.get("constant_factors") or {}
+            if constant:
+                embed_df = embed_df * pd.Series(constant)
+            applied_meta: dict = {"scaling_recipe": scaling_recipe}
+        elif scaling_factors is not None:
+            # Legacy path: plain constant multipliers.
             embed_df = embed_df * pd.Series(scaling_factors)
+            applied_meta = {"scaling_factors": scaling_factors}
+        else:
+            applied_meta = {}
 
-        if not embed_df.columns.equals(centroids_df.columns):
+        if not embed_df.columns.equals(underlying_df.columns):
             raise ValueError("Columns in embedding and centroids do not match")
 
         if impute_medians is not None:
@@ -2138,17 +2189,17 @@ class Features:
         else:
             mask = embed_df.notna().all(axis=1)
             embed_values = embed_df[mask].values
-        centroids_values = centroids_df.values
+        centroids_values = underlying_df.values
 
         labels = pd.Series(pd.NA, index=embed_df.index, dtype="Int64")
         if len(embed_values) > 0:
             labels[mask] = pairwise_distances_argmin(embed_values, centroids_values)
 
-        name = f"kmeans_{len(centroids_df.index)}"
+        name = f"kmeans_{len(underlying_df.index)}"
         meta = {
             "function": "assign_clusters_by_centroids",
             "embedding": embedding,
-            "scaling_factors": scaling_factors,
+            **applied_meta,
         }
         return FeaturesResult(labels, self, name, meta)
 

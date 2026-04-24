@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from py3r.behaviour.features.centroids_df import CentroidsDf
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.features.features_collection import FeaturesCollection
 from py3r.behaviour.tracking.tracking import Tracking
@@ -98,9 +99,10 @@ def _make_fc(
     return fc, embedding_dict
 
 
-def _sort_centroids(cents: pd.DataFrame) -> pd.DataFrame:
+def _sort_centroids(cents) -> pd.DataFrame:
     """Sort centroid rows for order-independent comparison."""
-    return cents.sort_values(by=list(cents.columns)).reset_index(drop=True)
+    df = cents.to_df() if isinstance(cents, CentroidsDf) else cents
+    return df.sort_values(by=list(df.columns)).reset_index(drop=True)
 
 
 def _label_agreement_permutation_invariant(lab_a: pd.Series, lab_b: pd.Series) -> float:
@@ -583,3 +585,194 @@ class TestEdgeCases:
             batch_size=16,
         )
         assert len(result) == len(feat.data)
+
+
+# ---------------------------------------------------------------------------
+# CentroidsDf wrapper
+# ---------------------------------------------------------------------------
+
+
+class TestCentroidsDf:
+    @pytest.fixture()
+    def setup(self):
+        fc, emb = _make_fc(
+            n_objects=2, n_frames=100, inject_nans=False, add_constant_feature=False, seed=21
+        )
+        batch, centroids, sf = fc.cluster_embedding(
+            emb, n_clusters=3, random_state=0, normalize=True
+        )
+        return fc, emb, batch, centroids, sf
+
+    def test_centroids_is_centroidsdf(self, setup):
+        _, _, _, centroids, _ = setup
+        assert isinstance(centroids, CentroidsDf)
+
+    def test_dataframe_delegation(self, setup):
+        _, _, _, centroids, _ = setup
+        assert hasattr(centroids, "columns")
+        assert hasattr(centroids, "shape")
+        assert centroids.shape[0] == 3
+        assert np.all(np.isfinite(centroids.values))
+
+    def test_scaling_recipe_present(self, setup):
+        _, emb, _, centroids, _ = setup
+        recipe = centroids.scaling_recipe
+        assert "version" in recipe
+        assert "embedding_dict" in recipe
+        assert "columns" in recipe
+        assert "normalize_individual_base" in recipe
+        assert "constant_factors" in recipe
+        assert recipe["embedding_dict"] == emb
+
+    def test_save_load_roundtrip(self, setup, tmp_path):
+        _, emb, _, centroids, _ = setup
+        centroids.save(tmp_path / "run/")
+        loaded = CentroidsDf.load(tmp_path / "run/")
+        pd.testing.assert_frame_equal(centroids.to_df(), loaded.to_df())
+        assert loaded.scaling_recipe == centroids.scaling_recipe
+
+    def test_assign_via_recipe_matches_scaling_factors(self, setup):
+        """Recipe-based assign on the same data should match scaling_factors assign."""
+        fc, emb, _, centroids, sf = setup
+        feat = fc[list(fc.keys())[0]]
+        # Via recipe (CentroidsDf)
+        result_recipe = feat.assign_clusters_by_centroids(emb, centroids)
+        # Via legacy scaling_factors (plain DF)
+        result_sf = feat.assign_clusters_by_centroids(emb, centroids.to_df(), scaling_factors=sf)
+        pd.testing.assert_series_equal(
+            pd.Series(result_recipe).astype("Int64"),
+            pd.Series(result_sf).astype("Int64"),
+        )
+
+    def test_stream_returns_centroidsdf(self):
+        fc, emb = _make_fc(
+            n_objects=2, n_frames=80, inject_nans=False, add_constant_feature=False, seed=22
+        )
+        _, centroids, _ = fc.cluster_embedding_stream(
+            emb, n_clusters=2, random_state=0, normalize=True, n_epochs=2
+        )
+        assert isinstance(centroids, CentroidsDf)
+        assert "scaling_recipe" in dir(centroids) or hasattr(centroids, "scaling_recipe")
+
+
+# ---------------------------------------------------------------------------
+# normalize_details parameter
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizeDetails:
+    @pytest.fixture()
+    def fc_and_emb(self):
+        return _make_fc(
+            n_objects=3, n_frames=150, inject_nans=False, add_constant_feature=False, seed=55
+        )
+
+    def test_all_global_matches_normalize_true(self, fc_and_emb):
+        """normalize_details={'speed':'global','accel':'global'} == normalize=True."""
+        fc, emb = fc_and_emb
+        _, cents_norm, sf_norm = fc.cluster_embedding(
+            emb, n_clusters=2, random_state=0, normalize=True
+        )
+        _, cents_det, sf_det = fc.cluster_embedding(
+            emb,
+            n_clusters=2,
+            random_state=0,
+            normalize_details={"speed": "global", "accel": "global"},
+        )
+        pd.testing.assert_frame_equal(
+            _sort_centroids(cents_norm).astype(np.float64),
+            _sort_centroids(cents_det).astype(np.float64),
+        )
+
+    def test_all_none_matches_no_normalization(self, fc_and_emb):
+        """normalize_details={'speed':'none','accel':'none'} == no normalization."""
+        fc, emb = fc_and_emb
+        _, cents_plain, _ = fc.cluster_embedding(emb, n_clusters=2, random_state=0)
+        _, cents_none, _ = fc.cluster_embedding(
+            emb,
+            n_clusters=2,
+            random_state=0,
+            normalize_details={"speed": "none", "accel": "none"},
+        )
+        pd.testing.assert_frame_equal(
+            _sort_centroids(cents_plain).astype(np.float64),
+            _sort_centroids(cents_none).astype(np.float64),
+        )
+
+    def test_individual_mode_recipe_captured(self, fc_and_emb):
+        """Individual mode columns appear in normalize_individual_base=True in recipe."""
+        fc, emb = fc_and_emb
+        _, centroids, _ = fc.cluster_embedding(
+            emb,
+            n_clusters=2,
+            random_state=0,
+            normalize_details={"speed": "individual", "accel": "global"},
+        )
+        recipe = centroids.scaling_recipe
+        assert recipe["normalize_individual_base"]["speed"] is True
+        assert recipe["normalize_individual_base"]["accel"] is False
+
+    def test_individual_mode_constant_factors_excludes_individual_std(self, fc_and_emb):
+        """scaling_factors should not include the per-recording std for individual cols."""
+        fc, emb = fc_and_emb
+        _, _, sf = fc.cluster_embedding(
+            emb,
+            n_clusters=2,
+            random_state=0,
+            normalize_details={"speed": "individual", "accel": "global"},
+        )
+        # Speed columns get weight 1.0 (no weight) and no global std applied,
+        # so their constant factor should be 1.0.
+        for col in sf or {}:
+            if col.startswith("speed"):
+                assert sf[col] == pytest.approx(1.0), (
+                    f"Expected constant=1.0 for individual column {col}, got {sf[col]}"
+                )
+
+    def test_overlap_rule_raises(self, fc_and_emb):
+        fc, emb = fc_and_emb
+        with pytest.raises(ValueError, match="overlap"):
+            fc.cluster_embedding(
+                emb,
+                n_clusters=2,
+                normalize_details={"speed": "global", "peed": "individual"},
+            )
+
+    def test_unmatched_rule_raises(self, fc_and_emb):
+        fc, emb = fc_and_emb
+        with pytest.raises(ValueError, match="matched no columns"):
+            fc.cluster_embedding(
+                emb,
+                n_clusters=2,
+                normalize_details={"typo_col": "global"},
+            )
+
+    def test_stream_individual_mode(self, fc_and_emb):
+        """Streaming path supports normalize_details with individual mode."""
+        fc, emb = fc_and_emb
+        _, centroids, sf = fc.cluster_embedding_stream(
+            emb,
+            n_clusters=2,
+            random_state=0,
+            normalize_details={"speed": "individual", "accel": "global"},
+            n_epochs=3,
+        )
+        assert isinstance(centroids, CentroidsDf)
+        recipe = centroids.scaling_recipe
+        assert recipe["normalize_individual_base"]["speed"] is True
+        assert recipe["normalize_individual_base"]["accel"] is False
+
+    def test_assign_via_recipe_individual(self, fc_and_emb):
+        """After fitting with individual mode, recipe-based assign works on new Features."""
+        fc, emb = fc_and_emb
+        _, centroids, _ = fc.cluster_embedding(
+            emb,
+            n_clusters=2,
+            random_state=0,
+            normalize_details={"speed": "individual", "accel": "global"},
+        )
+        feat = fc[list(fc.keys())[0]]
+        result = feat.assign_clusters_by_centroids(emb, centroids)
+        labels = pd.Series(result)
+        assert len(labels) == len(feat.data)
+        assert labels.notna().any()

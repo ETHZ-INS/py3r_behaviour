@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 import pandas as pd
 
+from py3r.behaviour.features.centroids_df import CentroidsDf
 from py3r.behaviour.features.cluster_pipeline import (
     ClusteringConfig,
     ClusteringPipeline,
@@ -345,6 +346,7 @@ class FeaturesCollection(BaseCollection):
         random_state: int = 0,
         *,
         normalize: bool = False,
+        normalize_details: dict[str, Literal["individual", "global", "none"]] | None = None,
         feature_weights: dict[str, float] | None = None,
         lowmem: bool = False,
         decimation_factor: int = 10,
@@ -357,20 +359,39 @@ class FeaturesCollection(BaseCollection):
         """
         Perform k-means clustering using the specified embedding.
 
-        Returns ``(BatchResult, centroids, scaling_factors)`` where
-        *scaling_factors* is a dict of one float per embedding column —
-        the combined effect of normalisation and feature weights.
+        Returns ``(BatchResult, centroids, scaling_factors)`` where *centroids*
+        is a :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` (a
+        DataFrame-like wrapper that also carries a ``scaling_recipe`` for
+        reproducing the transform on future datasets) and *scaling_factors* is a
+        dict of one float per embedding column — the constant part of the
+        normalisation and feature weights (for columns using ``"individual"``
+        normalisation, the per-recording std is *not* included here; it is
+        captured in the recipe).
 
         Parameters
         ----------
         normalize : bool
             Divide each base feature by its global std before embedding.
+            Equivalent to ``normalize_details={"<all>": "global"}``.
+        normalize_details : dict[str, {"individual","global","none"}] | None
+            Optional substring→mode rules.  Each key is matched by substring
+            against embedding column names (e.g. ``"speed"`` matches
+            ``"speed_t0"``, ``"speed_t+1"``).
+
+            - ``"global"`` — divide by std computed across the whole collection.
+            - ``"individual"`` — divide by std computed within each Features.
+            - ``"none"`` — no normalisation for matching columns.
+
+            Rules must not overlap and each rule must match at least one column.
+            Unmatched columns default to ``"global"`` if *normalize* is True,
+            otherwise ``"none"``.
         feature_weights : dict[str, float] | None
             Substring → weight mapping, e.g. ``{"speed": 4.0, "accel": 2.0}``.
             Each key is matched against embedding column names by substring;
             matched columns are multiplied by the value.  Resolved internally
             via :func:`~py3r.behaviour.util.series_utils.build_column_weights`.
             Raises if a rule matches no column (likely typo).
+
         Examples
         --------
         ```pycon
@@ -391,17 +412,17 @@ class FeaturesCollection(BaseCollection):
         ...     f.store(s, 'counter')
         >>> batch, centroids, norm = fc.cluster_embedding(
         ...     {'counter':[0]}, n_clusters=2, lowmem=True)
-        >>> isinstance(centroids, pd.DataFrame)
+        >>> hasattr(centroids, 'columns')
         True
         >>> batch, centroids, norm = fc.cluster_embedding(
         ...     {'counter':[0]}, n_clusters=2, lowmem=True,
         ...     missing_policy='impute_weight')
-        >>> isinstance(centroids, pd.DataFrame)
+        >>> hasattr(centroids, 'columns')
         True
         >>> batch, centroids, norm = fc.cluster_embedding(
         ...     {'counter':[0]}, n_clusters=2, lowmem=True,
         ...     missing_policy='drop')
-        >>> isinstance(centroids, pd.DataFrame)
+        >>> hasattr(centroids, 'columns')
         True
 
         ```
@@ -419,6 +440,7 @@ class FeaturesCollection(BaseCollection):
             n_clusters=n_clusters,
             random_state=random_state,
             normalize=normalize,
+            normalize_details=normalize_details,
             feature_weights=feature_weights,
             auto_normalize=auto_normalize,
             rescale_factors=rescale_factors,
@@ -427,7 +449,8 @@ class FeaturesCollection(BaseCollection):
             custom_scaling=custom_scaling,
             missing_policy=missing_policy,
         )
-        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
+        result_dict, centroids_df, scaling_factors, meta = pipeline.run(self, embedding_dict, cfg)
+        centroids = CentroidsDf(df=centroids_df, scaling_recipe=meta["scaling_recipe"])
         return BatchResult(result_dict, self), centroids, scaling_factors
 
     def cluster_embedding_stream(
@@ -437,6 +460,7 @@ class FeaturesCollection(BaseCollection):
         random_state: int = 0,
         *,
         normalize: bool = False,
+        normalize_details: dict[str, Literal["individual", "global", "none"]] | None = None,
         feature_weights: dict[str, float] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
         chunk_size: int = 10_000,
@@ -452,14 +476,10 @@ class FeaturesCollection(BaseCollection):
         Multiple epochs improve convergence; uniform chunk sizes prevent
         large recordings from dominating centroid updates.
 
-        Normalisation is computed on base feature columns (before embedding)
-        so that all time-shifts of the same feature share the same std.
-        The returned ``scaling_factors`` is a dict of one float per
-        *embedding column* — the combined effect of normalisation and
-        feature weights.  Multiply raw embedding values by these to reproduce
-        the transform.
-
-        Returns ``(BatchResult, centroids, scaling_factors)``.
+        Returns ``(BatchResult, centroids, scaling_factors)`` where *centroids*
+        is a :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` and
+        *scaling_factors* is the constant part of the transform (see
+        :meth:`cluster_embedding` for full parameter documentation).
 
         Parameters
         ----------
@@ -471,10 +491,10 @@ class FeaturesCollection(BaseCollection):
             Seed for reproducibility.
         normalize : bool
             Divide each base feature by its global std before embedding.
+        normalize_details : dict[str, {"individual","global","none"}] | None
+            Per-column normalisation modes; see :meth:`cluster_embedding`.
         feature_weights : dict[str, float] | None
             Substring → weight mapping, e.g. ``{"speed": 4.0}``.
-            Resolved internally into per-column weights.  Raises if a
-            rule matches no column (likely typo).
         missing_policy : {"drop", "impute_weight"}
             How to handle NaN rows.
         chunk_size : int
@@ -503,7 +523,7 @@ class FeaturesCollection(BaseCollection):
         ...     f.store(s, 'counter')
         >>> batch, centroids, norm = fc.cluster_embedding_stream(
         ...     {'counter': [0]}, n_clusters=2)
-        >>> isinstance(centroids, pd.DataFrame) and centroids.shape[0] == 2
+        >>> hasattr(centroids, 'columns') and centroids.shape[0] == 2
         True
 
         ```
@@ -513,13 +533,15 @@ class FeaturesCollection(BaseCollection):
             n_clusters=n_clusters,
             random_state=random_state,
             normalize=normalize,
+            normalize_details=normalize_details,
             feature_weights=feature_weights,
             missing_policy=missing_policy,
             chunk_size=chunk_size,
             n_epochs=n_epochs,
             batch_size=batch_size,
         )
-        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
+        result_dict, centroids_df, scaling_factors, meta = pipeline.run(self, embedding_dict, cfg)
+        centroids = CentroidsDf(df=centroids_df, scaling_recipe=meta["scaling_recipe"])
         return BatchResult(result_dict, self), centroids, scaling_factors
 
     def cluster_diagnostics(
