@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 import pandas as pd
 
-from py3r.behaviour.features.cluster_pipeline import ClusteringConfig, ClusteringPipeline
+from py3r.behaviour.features.cluster_pipeline import ClusteringConfig, fit_cluster_embedding
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import (
-    BatchResult,
     _Indexer,
     resolve_single_store_name,
 )
@@ -368,13 +367,12 @@ class FeaturesCollection(BaseCollection):
         combined DataFrame, so memory usage scales with the largest single
         recording rather than the whole collection.
 
-        Returns ``(BatchResult, centroids, scaling_factors)`` where *centroids*
-        is a :class:`~py3r.behaviour.features.centroids_df.CentroidsDf`
-        carrying a ``scaling_recipe`` (embedding, normalisation flags, constant
-        factors, imputation means) needed to reproduce the transform on future
-        datasets.  *scaling_factors* is the constant part of the transform
-        (weights + global normalisation; per-recording stds for
-        ``"individual"`` columns are captured in the recipe, not here).
+        Returns ``(BatchResult, centroids)`` where *centroids* is a
+        :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` carrying a
+        ``scaling_recipe`` (embedding, normalisation flags, constant factors,
+        imputation means) — everything needed to reproduce the transform on
+        future datasets via
+        :meth:`~py3r.behaviour.features.features.Features.assign_clusters_by_centroids`.
 
         **Algorithm note** — this method uses ``MiniBatchKMeans`` (stochastic
         online updates), which replaced the full-batch ``KMeans`` (Lloyd's
@@ -446,14 +444,13 @@ class FeaturesCollection(BaseCollection):
         >>> for f in fc.values():
         ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
         ...     f.store(s, 'counter')
-        >>> batch, centroids, norm = fc.cluster_embedding_stream(
+        >>> batch, centroids = fc.cluster_embedding_stream(
         ...     {'counter': [0]}, n_clusters=2)
         >>> hasattr(centroids, 'columns') and centroids.shape[0] == 2
         True
 
         ```
         """
-        pipeline = ClusteringPipeline()
         cfg = ClusteringConfig(
             n_clusters=n_clusters,
             random_state=random_state,
@@ -465,8 +462,9 @@ class FeaturesCollection(BaseCollection):
             n_epochs=n_epochs,
             batch_size=batch_size,
         )
-        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
-        return BatchResult(result_dict, self), centroids, scaling_factors
+        centroids = fit_cluster_embedding(self, embedding_dict, cfg)
+        batch = self.each.assign_clusters_by_centroids(centroids)
+        return batch, centroids
 
     def cluster_diagnostics(
         self,

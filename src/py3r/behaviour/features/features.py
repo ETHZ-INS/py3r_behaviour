@@ -1964,7 +1964,7 @@ class Features:
 
         Returns
         -------
-        (FeaturesResult, CentroidsDf, scaling_factors or None)
+        (FeaturesResult, CentroidsDf)
 
         Examples
         --------
@@ -1977,7 +1977,7 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
-        >>> result, centroids, norm = f.cluster_embedding_stream(
+        >>> result, centroids = f.cluster_embedding_stream(
         ...     {'counter': [0]}, n_clusters=2)
         >>> hasattr(centroids, 'columns')
         True
@@ -1989,7 +1989,7 @@ class Features:
         from py3r.behaviour.features.features_collection import FeaturesCollection
 
         fc = FeaturesCollection.from_list([self])
-        batch, centroids, scaling = fc.cluster_embedding_stream(
+        batch, centroids = fc.cluster_embedding_stream(
             embedding_dict,
             n_clusters,
             random_state,
@@ -2001,7 +2001,7 @@ class Features:
             n_epochs=n_epochs,
             batch_size=batch_size,
         )
-        return batch[self.handle], centroids, scaling
+        return batch[self.handle], centroids
 
     def assign_clusters_by_centroids(
         self,
@@ -2009,7 +2009,7 @@ class Features:
         embedding: dict[str, list[int]] | None = None,
         *,
         scaling_factors: dict[str, float] | None = None,
-        impute_medians: pd.Series | None = None,
+        impute_means: pd.Series | None = None,
         # Removed legacy params; retained for explicit migration errors.
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
@@ -2036,8 +2036,11 @@ class Features:
         scaling_factors : dict[str, float] | None
             Per-embedding-column constant multipliers.  Applied only when
             *centroids_df* is a plain DataFrame (legacy path).
-        impute_medians : pd.Series | None
-            Per-column fill values for NaN imputation (from training).
+        impute_means : pd.Series | None
+            Per-column fill values (training-set column means) for NaN
+            imputation.  When *centroids_df* is a :class:`CentroidsDf` this is
+            read automatically from the ``scaling_recipe``; pass explicitly only
+            to override.
 
         Returns
         -------
@@ -2147,18 +2150,21 @@ class Features:
             constant = scaling_recipe.get("constant_factors") or {}
             if constant:
                 embed_df = embed_df * pd.Series(constant)
-            # Read impute_medians from recipe unless the caller already provided one.
-            recipe_impute = scaling_recipe.get("impute_medians")
-            if impute_medians is not None and recipe_impute is not None:
+            # Read impute_means from recipe unless the caller already provided one.
+            # Backward-compat: old recipes used the key "impute_medians".
+            recipe_impute = scaling_recipe.get("impute_means") or scaling_recipe.get(
+                "impute_medians"
+            )
+            if impute_means is not None and recipe_impute is not None:
                 warnings.warn(
-                    "impute_medians is already stored in the CentroidsDf scaling recipe "
+                    "impute_means is already stored in the CentroidsDf scaling recipe "
                     "and would be used automatically; passing it explicitly overrides the "
                     "recipe values.",
                     UserWarning,
                     stacklevel=2,
                 )
-            elif impute_medians is None and recipe_impute is not None:
-                impute_medians = pd.Series(recipe_impute)
+            elif impute_means is None and recipe_impute is not None:
+                impute_means = pd.Series(recipe_impute)
             applied_meta: dict = {"scaling_recipe": scaling_recipe}
         elif scaling_factors is not None:
             # Legacy path: plain constant multipliers.
@@ -2170,8 +2176,8 @@ class Features:
         if not embed_df.columns.equals(underlying_df.columns):
             raise ValueError("Columns in embedding and centroids do not match")
 
-        if impute_medians is not None:
-            embed_df, _ = impute_frame(embed_df, impute_medians)
+        if impute_means is not None:
+            embed_df, _ = impute_frame(embed_df, impute_means)
             mask = pd.Series(True, index=embed_df.index)
             embed_values = embed_df.values
         else:

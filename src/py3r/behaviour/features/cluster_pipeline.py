@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -31,154 +31,103 @@ class ClusteringConfig:
 
 
 # ---------------------------------------------------------------------------
-# Injection seams (for testing)
+# Fitting
 # ---------------------------------------------------------------------------
 
 
-class Assigner(Protocol):
-    def assign_all(self, fc, centroids: CentroidsDf) -> dict: ...
-
-
-class DefaultAssigner:
-    def assign_all(self, fc, centroids: CentroidsDf) -> dict:
-        is_grouped = getattr(fc, "is_grouped", False)
-        result_dict: dict = {}
-        for gkey, feat_name, feat in _iter_features(fc):
-            # impute_medians is read automatically from centroids.scaling_recipe
-            fr = feat.assign_clusters_by_centroids(centroids)
-            if is_grouped:
-                result_dict.setdefault(gkey, {})[feat_name] = fr
-            else:
-                result_dict[feat_name] = fr
-        return result_dict
-
-
-# ---------------------------------------------------------------------------
-# Pipeline
-# ---------------------------------------------------------------------------
-
-
-class ClusteringPipeline:
+def fit_cluster_embedding(
+    fc,
+    embedding_dict: dict[str, list[int]],
+    cfg: ClusteringConfig,
+) -> CentroidsDf:
     """
-    Memory-friendly clustering via MiniBatchKMeans.partial_fit.
+    Fit MiniBatchKMeans on *fc* and return a ``CentroidsDf``.
 
     Phases
     ------
     1. Resolve normalisation modes and validate feature weights.
-    2. Compute global stds (if any column uses "global" normalisation).
-    3. Compute imputation means (if missing_policy="impute_weight").
-    4. n_epochs passes of partial_fit, one Features at a time, chunk by chunk.
-    5. Per-Features assignment using the fitted centroids.
+    2. Compute global stds (if any column uses ``"global"`` normalisation).
+    3. Compute imputation means (if ``missing_policy="impute_weight"``).
+    4. *n_epochs* passes of ``partial_fit``, one Features at a time, chunk by chunk.
 
-    The ``CentroidsDf`` returned as the second element of the result tuple
-    carries a ``scaling_recipe`` with everything needed to reproduce the
-    transform on future datasets (embedding, per-column norm flags, constant
-    factors, and imputation means).
+    The returned ``CentroidsDf`` carries a ``scaling_recipe`` with everything
+    needed to reproduce the transform on future datasets (embedding dict,
+    per-column normalisation flags, constant factors, imputation means).
+    Assignment is left to the caller.
     """
+    # -- Phase 1: resolve scaling -------------------------------------------
+    first_feat = next(_iter_features(fc))[2]
+    embed_cols = list(first_feat.embedding_df(embedding_dict).columns)
 
-    def __init__(self, assigner: Assigner | None = None):
-        self.assigner = assigner or DefaultAssigner()
+    resolved_weights: dict[str, float] | None = None
+    if cfg.feature_weights is not None:
+        resolved_weights = _resolve_feature_weights(embed_cols, cfg.feature_weights)
+        _validate_weights_consistent(fc, embedding_dict, resolved_weights)
 
-    def run(
-        self,
+    default_mode: Literal["global", "none"] = "global" if cfg.normalize else "none"
+    resolved_norm = _resolve_column_modes(embed_cols, cfg.normalize_details, default=default_mode)
+
+    # -- Phase 2: global stds -----------------------------------------------
+    bases_needed = {
+        _base_feature_for_column(c, embedding_dict)
+        for c, m in resolved_norm.items()
+        if m == "global"
+    }
+    global_base_stds = _compute_global_base_stds(fc, embedding_dict, bases_needed=bases_needed)
+
+    constant_factors = _constant_scaling_factors(
+        embed_cols,
+        embedding_dict,
+        resolved_norm=resolved_norm,
+        resolved_weights=resolved_weights,
+        global_base_stds=global_base_stds,
+    )
+
+    # -- Phase 3: imputation means ------------------------------------------
+    impute_means = _compute_impute_means(
         fc,
-        embedding_dict: dict[str, list[int]],
-        cfg: ClusteringConfig,
-    ) -> tuple[dict, CentroidsDf, dict[str, float] | None, dict]:
-        # -- Phase 1: resolve scaling -------------------------------------------
-        first_feat = next(_iter_features(fc))[2]
-        embed_cols = list(first_feat.embedding_df(embedding_dict).columns)
+        embedding_dict,
+        cfg,
+        embed_cols=embed_cols,
+        resolved_norm=resolved_norm,
+        resolved_weights=resolved_weights,
+        global_base_stds=global_base_stds,
+    )
 
-        resolved_weights: dict[str, float] | None = None
-        if cfg.feature_weights is not None:
-            resolved_weights = _resolve_feature_weights(embed_cols, cfg.feature_weights)
-            _validate_weights_consistent(fc, embedding_dict, resolved_weights)
+    # -- Phase 4: train -----------------------------------------------------
+    model = MiniBatchKMeans(
+        n_clusters=cfg.n_clusters,
+        random_state=cfg.random_state,
+        batch_size=cfg.batch_size,
+    )
 
-        default_mode: Literal["global", "none"] = "global" if cfg.normalize else "none"
-        resolved_norm = _resolve_column_modes(
-            embed_cols, cfg.normalize_details, default=default_mode
-        )
+    columns = None
+    for _epoch in range(cfg.n_epochs):
+        for _gkey, _fname, feat in _iter_features(fc):
+            embed_df = feat.embedding_df(embedding_dict).astype(np.float32)
+            per_sf = _scaling_for_features(
+                feat,
+                embedding_dict,
+                resolved_norm=resolved_norm,
+                resolved_weights=resolved_weights,
+                global_base_stds=global_base_stds,
+            )
+            if per_sf is not None:
+                embed_df = embed_df * pd.Series(per_sf)
+            columns = embed_df.columns
+            for start in range(0, len(embed_df), cfg.chunk_size):
+                chunk = embed_df.iloc[start : start + cfg.chunk_size]
+                X, w = _prepare_chunk(chunk, cfg.missing_policy, impute_means)
+                if len(X) == 0:
+                    continue
+                model.partial_fit(X, sample_weight=w)
 
-        # -- Phase 2: global stds -----------------------------------------------
-        bases_needed = {
-            _base_feature_for_column(c, embedding_dict)
-            for c, m in resolved_norm.items()
-            if m == "global"
-        }
-        global_base_stds = _compute_global_base_stds(fc, embedding_dict, bases_needed=bases_needed)
-
-        constant_factors = _constant_scaling_factors(
-            embed_cols,
-            embedding_dict,
-            resolved_norm=resolved_norm,
-            resolved_weights=resolved_weights,
-            global_base_stds=global_base_stds,
-        )
-
-        # -- Phase 3: imputation means ------------------------------------------
-        impute_means = _compute_impute_means(
-            fc,
-            embedding_dict,
-            cfg,
-            embed_cols=embed_cols,
-            resolved_norm=resolved_norm,
-            resolved_weights=resolved_weights,
-            global_base_stds=global_base_stds,
-        )
-
-        # -- Phase 4: train -----------------------------------------------------
-        model = MiniBatchKMeans(
-            n_clusters=cfg.n_clusters,
-            random_state=cfg.random_state,
-            batch_size=cfg.batch_size,
-        )
-
-        columns = None
-        for _epoch in range(cfg.n_epochs):
-            for _gkey, _fname, feat in _iter_features(fc):
-                embed_df = feat.embedding_df(embedding_dict).astype(np.float32)
-                per_sf = _scaling_for_features(
-                    feat,
-                    embedding_dict,
-                    resolved_norm=resolved_norm,
-                    resolved_weights=resolved_weights,
-                    global_base_stds=global_base_stds,
-                )
-                if per_sf is not None:
-                    embed_df = embed_df * pd.Series(per_sf)
-                columns = embed_df.columns
-                for start in range(0, len(embed_df), cfg.chunk_size):
-                    chunk = embed_df.iloc[start : start + cfg.chunk_size]
-                    X, w = _prepare_chunk(chunk, cfg.missing_policy, impute_means)
-                    if len(X) == 0:
-                        continue
-                    model.partial_fit(X, sample_weight=w)
-
-        # -- Phase 5: build centroids and assign --------------------------------
-        centroids_df = pd.DataFrame(model.cluster_centers_, columns=columns)
-        scaling_recipe = _build_scaling_recipe(
-            embedding_dict, list(embed_cols), resolved_norm, constant_factors, impute_means
-        )
-        centroids = CentroidsDf(df=centroids_df, scaling_recipe=scaling_recipe)
-
-        meta = {
-            "embedding_dict": embedding_dict,
-            "n_clusters": cfg.n_clusters,
-            "random_state": cfg.random_state,
-            "normalize": cfg.normalize,
-            "normalize_details": cfg.normalize_details,
-            "feature_weights": cfg.feature_weights,
-            "resolved_feature_weights": resolved_weights,
-            "missing_policy": cfg.missing_policy,
-            "chunk_size": cfg.chunk_size,
-            "n_epochs": cfg.n_epochs,
-            "batch_size": cfg.batch_size,
-            "impute_means": (impute_means.to_dict() if impute_means is not None else None),
-            "scaling_recipe": scaling_recipe,
-        }
-
-        result_dict = self.assigner.assign_all(fc, centroids)
-        return result_dict, centroids, constant_factors, meta
+    # -- Phase 5: build and return centroids --------------------------------
+    centroids_df = pd.DataFrame(model.cluster_centers_, columns=columns)
+    scaling_recipe = _build_scaling_recipe(
+        embedding_dict, list(embed_cols), resolved_norm, constant_factors, impute_means
+    )
+    return CentroidsDf(df=centroids_df, scaling_recipe=scaling_recipe)
 
 
 # ---------------------------------------------------------------------------
@@ -373,7 +322,7 @@ def _constant_scaling_factors(
     Constant per-embedding-column multipliers: weights plus global norm factors.
 
     Individual-mode columns contribute only their weight (not their per-Features
-    std, which varies).  This is the ``scaling_factors`` third return value.
+    std, which varies); the per-recording std is captured in the recipe.
 
     Returns ``None`` when all factors are 1.0.
     """
@@ -397,7 +346,7 @@ def _build_scaling_recipe(
     columns: list[str],
     resolved_norm: dict[str, Literal["individual", "global", "none"]],
     constant_factors: dict[str, float] | None,
-    impute_medians: pd.Series | None = None,
+    impute_means: pd.Series | None = None,
 ) -> dict:
     """
     Build the minimal scaling recipe stored inside a ``CentroidsDf``.
@@ -412,8 +361,8 @@ def _build_scaling_recipe(
         Per-column normalisation mode, already resolved from user rules.
     constant_factors :
         Constant multipliers (weights + global norms).
-    impute_medians :
-        Per-column fill values used during training when
+    impute_means :
+        Per-column fill values (training-set column means) used when
         ``missing_policy="impute_weight"``.  ``None`` when
         ``missing_policy="drop"``.
     """
@@ -429,7 +378,7 @@ def _build_scaling_recipe(
         "columns": columns,
         "normalize_individual_base": normalize_individual_base,
         "constant_factors": {} if constant_factors is None else dict(constant_factors),
-        "impute_medians": None if impute_medians is None else impute_medians.to_dict(),
+        "impute_means": None if impute_means is None else impute_means.to_dict(),
     }
 
 

@@ -31,7 +31,7 @@ class CentroidsDf:
             "columns": list[str],
             "normalize_individual_base": dict[str, bool],      # keyed by base feature name
             "constant_factors": dict[str, float],              # keyed by embedding column
-            "impute_medians": dict[str, float] | None,         # None when missing_policy="drop"
+            "impute_means": dict[str, float] | None,            # None when missing_policy="drop"
         }
 
     Workflow
