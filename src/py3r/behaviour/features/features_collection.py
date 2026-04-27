@@ -5,12 +5,7 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 import pandas as pd
 
-from py3r.behaviour.features.cluster_pipeline import (
-    ClusteringConfig,
-    ClusteringPipeline,
-    StreamingClusteringPipeline,
-    StreamingConfig,
-)
+from py3r.behaviour.features.cluster_pipeline import ClusteringConfig, ClusteringPipeline
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.util.base_collection import BaseCollection
@@ -338,118 +333,17 @@ class FeaturesCollection(BaseCollection):
 
         return SummaryCollection.from_features_collection(self)
 
-    def cluster_embedding(
-        self,
-        embedding_dict: dict[str, list[int]],
-        n_clusters: int,
-        random_state: int = 0,
-        *,
-        normalize: bool = False,
-        normalize_details: dict[str, Literal["individual", "global", "none"]] | None = None,
-        feature_weights: dict[str, float] | None = None,
-        lowmem: bool = False,
-        decimation_factor: int = 10,
-        missing_policy: Literal["drop", "impute_weight"] = "drop",
-        # removed legacy params; retained for a clear migration error
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
-        custom_scaling: dict[str, dict] | None = None,
-    ):
-        """
-        Perform k-means clustering using the specified embedding.
-
-        Returns ``(BatchResult, centroids, scaling_factors)`` where *centroids*
-        is a :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` (a
-        DataFrame-like wrapper that also carries a ``scaling_recipe`` for
-        reproducing the transform on future datasets) and *scaling_factors* is a
-        dict of one float per embedding column — the constant part of the
-        normalisation and feature weights (for columns using ``"individual"``
-        normalisation, the per-recording std is *not* included here; it is
-        captured in the recipe).
-
-        Parameters
-        ----------
-        normalize : bool
-            Divide each base feature by its global std before embedding.
-            Equivalent to ``normalize_details={"<all>": "global"}``.
-        normalize_details : dict[str, {"individual","global","none"}] | None
-            Optional substring→mode rules.  Each key is matched by substring
-            against embedding column names (e.g. ``"speed"`` matches
-            ``"speed_t0"``, ``"speed_t+1"``).
-
-            - ``"global"`` — divide by std computed across the whole collection.
-            - ``"individual"`` — divide by std computed within each Features.
-            - ``"none"`` — no normalisation for matching columns.
-
-            Rules must not overlap and each rule must match at least one column.
-            Unmatched columns default to ``"global"`` if *normalize* is True,
-            otherwise ``"none"``.
-        feature_weights : dict[str, float] | None
-            Substring → weight mapping, e.g. ``{"speed": 4.0, "accel": 2.0}``.
-            Each key is matched against embedding column names by substring;
-            matched columns are multiplied by the value.  Resolved internally
-            via :func:`~py3r.behaviour.util.series_utils.build_column_weights`.
-            Raises if a rule matches no column (likely typo).
-
-        Examples
-        --------
-        ```pycon
-        >>> import tempfile, shutil
-        >>> from pathlib import Path
-        >>> import pandas as pd
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-        >>> with tempfile.TemporaryDirectory() as d:
-        ...     d = Path(d)
-        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        >>> fc = FeaturesCollection.from_tracking_collection(tc)
-        >>> # Create a trivial feature 'counter' in each Features to embed
-        >>> for f in fc.values():
-        ...     s = pd.Series(range(len(f.tracking.data)), index=f.tracking.data.index)
-        ...     f.store(s, 'counter')
-        >>> batch, centroids, norm = fc.cluster_embedding(
-        ...     {'counter':[0]}, n_clusters=2, lowmem=True)
-        >>> hasattr(centroids, 'columns')
-        True
-        >>> batch, centroids, norm = fc.cluster_embedding(
-        ...     {'counter':[0]}, n_clusters=2, lowmem=True,
-        ...     missing_policy='impute_weight')
-        >>> hasattr(centroids, 'columns')
-        True
-        >>> batch, centroids, norm = fc.cluster_embedding(
-        ...     {'counter':[0]}, n_clusters=2, lowmem=True,
-        ...     missing_policy='drop')
-        >>> hasattr(centroids, 'columns')
-        True
-
-        ```
-        """
-        if auto_normalize:
-            raise NotImplementedError("auto_normalize was removed; use normalize=True instead.")
-        if rescale_factors is not None:
-            raise NotImplementedError(
-                "rescale_factors was removed; use normalize and/or feature_weights instead."
-            )
-        if custom_scaling is not None:
-            raise NotImplementedError("custom_scaling was removed; use feature_weights instead.")
-        pipeline = ClusteringPipeline()
-        cfg = ClusteringConfig(
-            n_clusters=n_clusters,
-            random_state=random_state,
-            normalize=normalize,
-            normalize_details=normalize_details,
-            feature_weights=feature_weights,
-            auto_normalize=auto_normalize,
-            rescale_factors=rescale_factors,
-            lowmem=lowmem,
-            decimation_factor=decimation_factor,
-            custom_scaling=custom_scaling,
-            missing_policy=missing_policy,
+    def cluster_embedding(self, *args, **kwargs):
+        """Removed in py3r.behaviour 3.3.0. Use :meth:`cluster_embedding_stream` instead."""
+        raise NotImplementedError(
+            "cluster_embedding() was removed in py3r.behaviour 3.3.0.  "
+            "Use cluster_embedding_stream() instead.\n"
+            "Note: cluster_embedding_stream uses MiniBatchKMeans (stochastic updates) "
+            "rather than the full-batch KMeans of the old method — results will not be "
+            "bit-for-bit identical.  For well-separated data the partition will match; "
+            "increase n_epochs and batch_size to improve convergence for harder cases.  "
+            "To reproduce results from py3r.behaviour ≤ 3.2.1 exactly, pin to that version."
         )
-        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
-        return BatchResult(result_dict, self), centroids, scaling_factors
 
     def cluster_embedding_stream(
         self,
@@ -466,18 +360,30 @@ class FeaturesCollection(BaseCollection):
         batch_size: int = 1024,
     ):
         """
-        Memory-friendly clustering via streaming MiniBatchKMeans.
+        K-means clustering via streaming ``MiniBatchKMeans``.
 
-        Unlike ``cluster_embedding``, this never builds a combined DataFrame.
-        Embeddings are extracted one Features at a time, sliced into
-        fixed-size chunks, and fed to ``MiniBatchKMeans.partial_fit``.
-        Multiple epochs improve convergence; uniform chunk sizes prevent
-        large recordings from dominating centroid updates.
+        Embeddings are extracted one ``Features`` at a time, sliced into
+        fixed-size chunks, and fed to ``MiniBatchKMeans.partial_fit`` over
+        multiple epochs.  The dataset is never concatenated into a single
+        combined DataFrame, so memory usage scales with the largest single
+        recording rather than the whole collection.
 
         Returns ``(BatchResult, centroids, scaling_factors)`` where *centroids*
-        is a :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` and
-        *scaling_factors* is the constant part of the transform (see
-        :meth:`cluster_embedding` for full parameter documentation).
+        is a :class:`~py3r.behaviour.features.centroids_df.CentroidsDf`
+        carrying a ``scaling_recipe`` (embedding, normalisation flags, constant
+        factors, imputation means) needed to reproduce the transform on future
+        datasets.  *scaling_factors* is the constant part of the transform
+        (weights + global normalisation; per-recording stds for
+        ``"individual"`` columns are captured in the recipe, not here).
+
+        **Algorithm note** — this method uses ``MiniBatchKMeans`` (stochastic
+        online updates), which replaced the full-batch ``KMeans`` (Lloyd's
+        algorithm) removed in py3r 3.3.0.  Results are not bit-for-bit
+        identical to the old ``cluster_embedding``: on well-separated data the
+        partition will be the same; on harder problems, increasing ``n_epochs``
+        (5–10+) and ``batch_size`` (e.g. 2048–8192) improves convergence
+        toward the same local optimum.  To reproduce results from py3r ≤ 3.2.1
+        exactly, pin to that version.
 
         Parameters
         ----------
@@ -489,18 +395,39 @@ class FeaturesCollection(BaseCollection):
             Seed for reproducibility.
         normalize : bool
             Divide each base feature by its global std before embedding.
+            Equivalent to ``normalize_details={"<all>": "global"}``.
         normalize_details : dict[str, {"individual","global","none"}] | None
-            Per-column normalisation modes; see :meth:`cluster_embedding`.
+            Per-column normalisation modes, keyed by substring matched against
+            embedding column names.
+
+            - ``"global"`` — divide by std pooled across the whole collection.
+            - ``"individual"`` — divide by std computed within each Features.
+            - ``"none"`` — no normalisation for matching columns.
+
+            Rules must not overlap; each rule must match at least one column.
+            Unmatched columns default to ``"global"`` if *normalize* is True,
+            otherwise ``"none"``.
         feature_weights : dict[str, float] | None
-            Substring → weight mapping, e.g. ``{"speed": 4.0}``.
+            Substring → weight mapping, e.g. ``{"speed": 4.0, "accel": 2.0}``.
+            Matched columns are multiplied by the value after normalisation.
+            Raises if a rule matches no column (likely a typo).
         missing_policy : {"drop", "impute_weight"}
-            How to handle NaN rows.
+            How to handle NaN rows during training.  ``"drop"`` excludes them;
+            ``"impute_weight"`` fills with training-set column means and
+            up-weights complete rows proportionally.  The chosen means are
+            stored in the ``scaling_recipe`` so that the same policy is applied
+            automatically when assigning clusters to future recordings.
         chunk_size : int
-            Max rows per partial_fit call.
+            Maximum number of rows passed to a single ``partial_fit`` call.
+            Larger values reduce noise in centroid updates at the cost of
+            higher per-iteration memory use.
         n_epochs : int
-            Number of full passes over the data.
+            Number of full passes over the data.  More epochs → better
+            convergence.  3–5 is usually sufficient; increase for small or
+            noisy datasets, or to approximate full-batch KMeans more closely.
         batch_size : int
-            MiniBatchKMeans internal mini-batch size.
+            ``MiniBatchKMeans`` internal mini-batch size (passed directly to
+            sklearn).  Larger values reduce variance in updates.
 
         Examples
         --------
@@ -526,8 +453,8 @@ class FeaturesCollection(BaseCollection):
 
         ```
         """
-        pipeline = StreamingClusteringPipeline()
-        cfg = StreamingConfig(
+        pipeline = ClusteringPipeline()
+        cfg = ClusteringConfig(
             n_clusters=n_clusters,
             random_state=random_state,
             normalize=normalize,

@@ -1930,78 +1930,17 @@ class Features:
         embed_df = pd.DataFrame(data, index=self.data.index)
         return embed_df
 
-    def cluster_embedding(
-        self,
-        embedding_dict: dict[str, list[int]],
-        n_clusters: int,
-        random_state: int = 0,
-        *,
-        normalize: bool = False,
-        normalize_details: dict[str, Literal["individual", "global", "none"]] | None = None,
-        feature_weights: dict[str, float] | None = None,
-        lowmem: bool = False,
-        decimation_factor: int = 10,
-        missing_policy: Literal["drop", "impute_weight"] = "drop",
-        # Removed legacy params; retained for explicit migration errors.
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
-        custom_scaling: dict[str, dict] | None = None,
-    ):
-        """
-        Perform k-means clustering on a single Features object.
-
-        Delegates to ``FeaturesCollection.cluster_embedding``.
-        See that method for full parameter documentation.
-
-        Returns
-        -------
-        (FeaturesResult, CentroidsDf, scaling_factors or None)
-
-        Examples
-        --------
-        ```pycon
-        >>> import pandas as pd
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking import Tracking
-        >>> from py3r.behaviour.features.features import Features
-        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> f = Features(t)
-        >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
-        >>> result, centroids, norm = f.cluster_embedding({'counter': [0]}, n_clusters=2)
-        >>> hasattr(centroids, 'columns')
-        True
-        >>> len(result) == len(f.data)
-        True
-
-        ```
-        """
-        if auto_normalize:
-            raise NotImplementedError("auto_normalize was removed; use normalize=True instead.")
-        if rescale_factors is not None:
-            raise NotImplementedError(
-                "rescale_factors was removed; use normalize and/or feature_weights instead."
-            )
-        if custom_scaling is not None:
-            raise NotImplementedError("custom_scaling was removed; use feature_weights instead.")
-        from py3r.behaviour.features.features_collection import FeaturesCollection
-
-        fc = FeaturesCollection.from_list([self])
-        batch, centroids, norm = fc.cluster_embedding(
-            embedding_dict,
-            n_clusters,
-            random_state,
-            normalize=normalize,
-            normalize_details=normalize_details,
-            feature_weights=feature_weights,
-            lowmem=lowmem,
-            decimation_factor=decimation_factor,
-            missing_policy=missing_policy,
-            auto_normalize=auto_normalize,
-            rescale_factors=rescale_factors,
-            custom_scaling=custom_scaling,
+    def cluster_embedding(self, *args, **kwargs):
+        """Removed in py3r.behaviour 3.3.0. Use :meth:`cluster_embedding_stream` instead."""
+        raise NotImplementedError(
+            "cluster_embedding() was removed in py3r.behaviour 3.3.0.  "
+            "Use cluster_embedding_stream() instead.\n"
+            "Note: cluster_embedding_stream uses MiniBatchKMeans (stochastic updates) "
+            "rather than the full-batch KMeans of the old method — results will not be "
+            "bit-for-bit identical.  For well-separated data the partition will match; "
+            "increase n_epochs and batch_size to improve convergence for harder cases.  "
+            "To reproduce results from py3r ≤ 3.2.1 exactly, pin to that version."
         )
-        return batch[self.handle], centroids, norm
 
     def cluster_embedding_stream(
         self,
