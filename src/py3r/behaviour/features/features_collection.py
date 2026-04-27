@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 import pandas as pd
 
-from py3r.behaviour.features.centroids_df import CentroidsDf
 from py3r.behaviour.features.cluster_pipeline import (
     ClusteringConfig,
     ClusteringPipeline,
@@ -449,8 +448,7 @@ class FeaturesCollection(BaseCollection):
             custom_scaling=custom_scaling,
             missing_policy=missing_policy,
         )
-        result_dict, centroids_df, scaling_factors, meta = pipeline.run(self, embedding_dict, cfg)
-        centroids = CentroidsDf(df=centroids_df, scaling_recipe=meta["scaling_recipe"])
+        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
         return BatchResult(result_dict, self), centroids, scaling_factors
 
     def cluster_embedding_stream(
@@ -540,8 +538,7 @@ class FeaturesCollection(BaseCollection):
             n_epochs=n_epochs,
             batch_size=batch_size,
         )
-        result_dict, centroids_df, scaling_factors, meta = pipeline.run(self, embedding_dict, cfg)
-        centroids = CentroidsDf(df=centroids_df, scaling_recipe=meta["scaling_recipe"])
+        result_dict, centroids, scaling_factors, _meta = pipeline.run(self, embedding_dict, cfg)
         return BatchResult(result_dict, self), centroids, scaling_factors
 
     def cluster_diagnostics(

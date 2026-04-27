@@ -429,9 +429,21 @@ class TestAssignClusters:
 
     def test_new_scaling_factors_param(self, setup):
         feat, emb, cents, sf = setup
-        result = feat.assign_clusters_by_centroids(emb, cents, scaling_factors=sf)
+        result = feat.assign_clusters_by_centroids(cents, emb, scaling_factors=sf)
         assert len(result) == len(feat.data)
         assert pd.Series(result).notna().sum() > 0
+
+    def test_centroidsdf_no_embedding_needed(self, setup):
+        feat, emb, cents, _ = setup
+        # CentroidsDf carries embedding in recipe — no need to pass it
+        result = feat.assign_clusters_by_centroids(cents)
+        assert len(result) == len(feat.data)
+        assert pd.Series(result).notna().sum() > 0
+
+    def test_plain_df_requires_embedding(self, setup):
+        feat, emb, cents, _ = setup
+        with pytest.raises(ValueError, match="embedding is required"):
+            feat.assign_clusters_by_centroids(cents.to_df())
 
     def test_removed_rescale_factors_raises(self, setup):
         feat, emb, cents, sf = setup
@@ -439,14 +451,14 @@ class TestAssignClusters:
         embed_cols = feat.embedding_df(emb).columns
         rf = {c: 1.0 for c in embed_cols}
         with pytest.raises(NotImplementedError, match="rescale_factors"):
-            feat.assign_clusters_by_centroids(emb, cents, rescale_factors=rf)
+            feat.assign_clusters_by_centroids(cents, emb, rescale_factors=rf)
 
     def test_removed_custom_scaling_raises(self, setup):
         feat, emb, cents, _ = setup
         with pytest.raises(NotImplementedError, match="custom_scaling"):
             feat.assign_clusters_by_centroids(
-                emb,
                 cents,
+                emb,
                 custom_scaling={"speed": {"scale": 1.0}, "accel": {"scale": 1.0}},
             )
 
@@ -635,10 +647,10 @@ class TestCentroidsDf:
         """Recipe-based assign on the same data should match scaling_factors assign."""
         fc, emb, _, centroids, sf = setup
         feat = fc[list(fc.keys())[0]]
-        # Via recipe (CentroidsDf)
-        result_recipe = feat.assign_clusters_by_centroids(emb, centroids)
-        # Via legacy scaling_factors (plain DF)
-        result_sf = feat.assign_clusters_by_centroids(emb, centroids.to_df(), scaling_factors=sf)
+        # Via recipe (CentroidsDf) — embedding inferred from recipe
+        result_recipe = feat.assign_clusters_by_centroids(centroids)
+        # Via legacy scaling_factors (plain DF) — embedding must be provided
+        result_sf = feat.assign_clusters_by_centroids(centroids.to_df(), emb, scaling_factors=sf)
         pd.testing.assert_series_equal(
             pd.Series(result_recipe).astype("Int64"),
             pd.Series(result_sf).astype("Int64"),
@@ -772,7 +784,7 @@ class TestNormalizeDetails:
             normalize_details={"speed": "individual", "accel": "global"},
         )
         feat = fc[list(fc.keys())[0]]
-        result = feat.assign_clusters_by_centroids(emb, centroids)
+        result = feat.assign_clusters_by_centroids(centroids)
         labels = pd.Series(result)
         assert len(labels) == len(feat.data)
         assert labels.notna().any()

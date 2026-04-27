@@ -2066,8 +2066,8 @@ class Features:
 
     def assign_clusters_by_centroids(
         self,
-        embedding: dict[str, list[int]],
         centroids_df,
+        embedding: dict[str, list[int]] | None = None,
         *,
         scaling_factors: dict[str, float] | None = None,
         impute_medians: pd.Series | None = None,
@@ -2080,17 +2080,20 @@ class Features:
 
         Parameters
         ----------
-        embedding : dict[str, list[int]]
-            Same embedding dict used during fitting.
         centroids_df : CentroidsDf or pd.DataFrame
             Cluster centres.  Passing a
             :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` (the
             object returned by ``cluster_embedding*``) is preferred: the method
             will automatically apply the stored ``scaling_recipe``, including any
-            per-recording individual normalisation.
+            per-recording individual normalisation, and infer the *embedding*
+            from the recipe so it need not be passed separately.
 
-            If a plain ``pd.DataFrame`` is passed, *scaling_factors* is used
-            instead (legacy path).
+            If a plain ``pd.DataFrame`` is passed, *embedding* and optionally
+            *scaling_factors* must be provided (legacy path).
+        embedding : dict[str, list[int]] | None
+            The embedding dict used during fitting.  Required when *centroids_df*
+            is a plain ``pd.DataFrame``; inferred from the recipe when
+            *centroids_df* is a :class:`CentroidsDf`.
         scaling_factors : dict[str, float] | None
             Per-embedding-column constant multipliers.  Applied only when
             *centroids_df* is a plain DataFrame (legacy path).
@@ -2118,12 +2121,14 @@ class Features:
         >>> df = f.embedding_df(emb)
         >>> # make 2 simple centroids matching columns
         >>> cents = pd.DataFrame([[0, 0], [1, 1]], columns=df.columns)
-        >>> labels = f.assign_clusters_by_centroids(emb, cents)
+        >>> labels = f.assign_clusters_by_centroids(cents, emb)
         >>> isinstance(labels, pd.Series) and len(labels) == len(t.data)
         True
 
         ```
         """
+        import warnings
+
         from sklearn.metrics.pairwise import pairwise_distances_argmin
 
         from py3r.behaviour.features.centroids_df import CentroidsDf
@@ -2136,14 +2141,46 @@ class Features:
                 "and pass scaling_factors instead."
             )
 
+        # Detect legacy argument order: assign_clusters_by_centroids(embedding, centroids_df).
+        # A dict can only be the embedding; a DataFrame/CentroidsDf can only be centroids.
+        if isinstance(centroids_df, dict):
+            warnings.warn(
+                "The argument order for assign_clusters_by_centroids has changed: "
+                "pass centroids first, then (optionally) embedding. "
+                "Old: feat.assign_clusters_by_centroids(embedding, centroids_df) — "
+                "New: feat.assign_clusters_by_centroids(centroids_df, embedding)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            centroids_df, embedding = embedding, centroids_df
+
         # Unwrap CentroidsDf and extract scaling recipe.
         scaling_recipe: dict | None = None
         underlying_df: pd.DataFrame
         if isinstance(centroids_df, CentroidsDf):
             scaling_recipe = centroids_df.scaling_recipe
             underlying_df = centroids_df.df
+            recipe_embedding = scaling_recipe.get("embedding_dict")
+            if embedding is not None and recipe_embedding is not None:
+                if embedding != recipe_embedding:
+                    raise ValueError(
+                        "The provided embedding dict does not match the one stored in the "
+                        "CentroidsDf scaling recipe. Pass centroids only (without embedding) "
+                        "to use the recipe's embedding, or ensure the dicts match."
+                    )
+                warnings.warn(
+                    "The embedding dict is already stored in the CentroidsDf scaling recipe "
+                    "and will be used automatically; passing it explicitly is redundant.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            if embedding is None:
+                embedding = recipe_embedding
         else:
             underlying_df = centroids_df
+
+        if embedding is None:
+            raise ValueError("embedding is required when centroids_df is a plain DataFrame")
 
         embed_df = self.embedding_df(embedding)
 
@@ -2171,6 +2208,18 @@ class Features:
             constant = scaling_recipe.get("constant_factors") or {}
             if constant:
                 embed_df = embed_df * pd.Series(constant)
+            # Read impute_medians from recipe unless the caller already provided one.
+            recipe_impute = scaling_recipe.get("impute_medians")
+            if impute_medians is not None and recipe_impute is not None:
+                warnings.warn(
+                    "impute_medians is already stored in the CentroidsDf scaling recipe "
+                    "and would be used automatically; passing it explicitly overrides the "
+                    "recipe values.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif impute_medians is None and recipe_impute is not None:
+                impute_medians = pd.Series(recipe_impute)
             applied_meta: dict = {"scaling_recipe": scaling_recipe}
         elif scaling_factors is not None:
             # Legacy path: plain constant multipliers.

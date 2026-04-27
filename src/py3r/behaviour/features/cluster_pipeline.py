@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans, MiniBatchKMeans
 
+from py3r.behaviour.features.centroids_df import CentroidsDf
 from py3r.behaviour.features.features import Features, FeaturesResult
 from py3r.behaviour.util.missing_tolerance import fit_frame_imputer, impute_frame
 from py3r.behaviour.util.series_utils import (
@@ -65,11 +66,7 @@ class Assigner(Protocol):
     def assign_lowmem(
         self,
         fc,
-        embedding_dict: dict[str, list[int]],
-        centroids: pd.DataFrame,
-        *,
-        scaling_factors: dict | None,
-        impute_medians: pd.Series | None,
+        centroids_obj: CentroidsDf,
     ) -> dict: ...
 
     def combined_labels(
@@ -183,11 +180,7 @@ class DefaultAssigner:
     def assign_lowmem(
         self,
         fc,
-        embedding_dict: dict[str, list[int]],
-        centroids: pd.DataFrame,
-        *,
-        scaling_factors: dict | None,
-        impute_medians: pd.Series | None,
+        centroids_obj: CentroidsDf,
     ) -> dict:
         is_grouped = getattr(fc, "is_grouped", False)
         result_dict = {}
@@ -201,12 +194,8 @@ class DefaultAssigner:
             else ((None, fn, f) for fn, f in fc.features_dict.items())
         )
         for gkey, feat_name, feat in items:
-            fr = feat.assign_clusters_by_centroids(
-                embedding_dict,
-                centroids,
-                scaling_factors=scaling_factors,
-                impute_medians=impute_medians,
-            )
+            # impute_medians is read automatically from centroids_obj.scaling_recipe
+            fr = feat.assign_clusters_by_centroids(centroids_obj)
             if is_grouped:
                 result_dict.setdefault(gkey, {})[feat_name] = fr
             else:
@@ -317,9 +306,6 @@ class ClusteringPipeline:
                 if constant_factors is not None:
                     combined = combined * pd.Series(constant_factors)
 
-            scaling_recipe = _build_scaling_recipe(
-                embedding_dict, embed_cols, resolved_norm, constant_factors
-            )
         else:
             combined, norm = self.pre.scale(
                 build.combined,
@@ -330,12 +316,22 @@ class ClusteringPipeline:
             first_feat = next(_iter_features(fc))[2]
             embed_cols = list(first_feat.embedding_df(embedding_dict).columns)
             resolved_norm = {c: "none" for c in embed_cols}
-            scaling_recipe = _build_scaling_recipe(embedding_dict, embed_cols, resolved_norm, norm)
 
         X, w, impute_medians, valid_mask = self.missing.prepare(combined, cfg.missing_policy)
-        model, centroids = self.clusterer.fit(
+        model, centroids_df = self.clusterer.fit(
             X, sample_weight=w, n_clusters=cfg.n_clusters, random_state=cfg.random_state
         )
+
+        # Build recipe after impute_medians is known (it depends on missing_policy).
+        if using_new:
+            scaling_recipe = _build_scaling_recipe(
+                embedding_dict, embed_cols, resolved_norm, constant_factors, impute_medians
+            )
+        else:
+            scaling_recipe = _build_scaling_recipe(
+                embedding_dict, embed_cols, resolved_norm, norm, impute_medians
+            )
+        centroids = CentroidsDf(df=centroids_df, scaling_recipe=scaling_recipe)
 
         meta = {
             "embedding_dict": embedding_dict,
@@ -355,35 +351,8 @@ class ClusteringPipeline:
         }
 
         if cfg.lowmem:
-            if using_new:
-                is_grouped = getattr(fc, "is_grouped", False)
-                result_dict = {}
-                for gkey, feat_name, feat in _iter_features(fc):
-                    per_sf = _scaling_for_features(
-                        feat,
-                        embedding_dict,
-                        resolved_norm=resolved_norm,
-                        resolved_weights=resolved_weights,
-                        global_base_stds=global_base_stds,
-                    )
-                    fr = feat.assign_clusters_by_centroids(
-                        embedding_dict,
-                        centroids,
-                        scaling_factors=per_sf,
-                        impute_medians=impute_medians,
-                    )
-                    if is_grouped:
-                        result_dict.setdefault(gkey, {})[feat_name] = fr
-                    else:
-                        result_dict[feat_name] = fr
-            else:
-                result_dict = self.assigner.assign_lowmem(
-                    fc,
-                    embedding_dict,
-                    centroids,
-                    scaling_factors=norm,
-                    impute_medians=impute_medians,
-                )
+            # impute_medians is embedded in centroids.scaling_recipe
+            result_dict = self.assigner.assign_lowmem(fc, centroids)
             return result_dict, centroids, norm, meta
 
         # Non-lowmem: reconstruct per-feature FeaturesResult from combined_labels
@@ -633,6 +602,7 @@ def _build_scaling_recipe(
     columns: list[str],
     resolved_norm: dict[str, Literal["individual", "global", "none"]],
     constant_factors: dict[str, float] | None,
+    impute_medians: pd.Series | None = None,
 ) -> dict:
     """
     Build the minimal scaling recipe stored inside a ``CentroidsDf``.
@@ -647,6 +617,11 @@ def _build_scaling_recipe(
         Per-column normalisation mode, already resolved from user rules.
     constant_factors :
         The ``scaling_factors`` constant multipliers (weights + global norms).
+    impute_medians :
+        Per-column fill values used during training when
+        ``missing_policy="impute_weight"``.  Stored so future calls to
+        ``assign_clusters_by_centroids`` can reproduce the same imputation.
+        ``None`` when ``missing_policy="drop"``.
     """
     normalize_individual_base: dict[str, bool] = {}
     for base in embedding_dict:
@@ -660,6 +635,7 @@ def _build_scaling_recipe(
         "columns": columns,
         "normalize_individual_base": normalize_individual_base,
         "constant_factors": {} if constant_factors is None else dict(constant_factors),
+        "impute_medians": None if impute_medians is None else impute_medians.to_dict(),
     }
 
 
@@ -784,11 +760,11 @@ class StreamingClusteringPipeline:
                         continue
                     model.partial_fit(X, sample_weight=w)
 
-        centroids = pd.DataFrame(model.cluster_centers_, columns=columns)
-
+        centroids_df = pd.DataFrame(model.cluster_centers_, columns=columns)
         scaling_recipe = _build_scaling_recipe(
-            embedding_dict, list(embed_cols), resolved_norm, constant_factors
+            embedding_dict, list(embed_cols), resolved_norm, constant_factors, impute_means
         )
+        centroids = CentroidsDf(df=centroids_df, scaling_recipe=scaling_recipe)
 
         meta = {
             "function": "cluster_embedding_stream",
@@ -807,16 +783,7 @@ class StreamingClusteringPipeline:
             "scaling_recipe": scaling_recipe,
         }
 
-        result_dict = self._assign_all(
-            fc,
-            embedding_dict,
-            centroids,
-            resolved_norm=resolved_norm,
-            resolved_weights=resolved_weights,
-            global_base_stds=global_base_stds,
-            impute_means=impute_means,
-            meta=meta,
-        )
+        result_dict = self._assign_all(fc, centroids, meta=meta)
         return result_dict, centroids, constant_factors, meta
 
     # -- internal helpers ---------------------------------------------------
@@ -884,31 +851,15 @@ class StreamingClusteringPipeline:
     @staticmethod
     def _assign_all(
         fc,
-        embedding_dict: dict[str, list[int]],
-        centroids: pd.DataFrame,
+        centroids: CentroidsDf,
         *,
-        resolved_norm: dict[str, Literal["individual", "global", "none"]],
-        resolved_weights: dict[str, float] | None,
-        global_base_stds: dict[str, float],
-        impute_means: pd.Series | None,
         meta: dict,
     ) -> dict:
         is_grouped = getattr(fc, "is_grouped", False)
         result_dict: dict = {}
         for gkey, feat_name, feat in _iter_features(fc):
-            per_sf = _scaling_for_features(
-                feat,
-                embedding_dict,
-                resolved_norm=resolved_norm,
-                resolved_weights=resolved_weights,
-                global_base_stds=global_base_stds,
-            )
-            fr = feat.assign_clusters_by_centroids(
-                embedding_dict,
-                centroids,
-                scaling_factors=per_sf,
-                impute_medians=impute_means,
-            )
+            # impute_medians is read automatically from centroids.scaling_recipe
+            fr = feat.assign_clusters_by_centroids(centroids)
             if is_grouped:
                 result_dict.setdefault(gkey, {})[feat_name] = fr
             else:

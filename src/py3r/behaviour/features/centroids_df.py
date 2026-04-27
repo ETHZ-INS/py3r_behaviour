@@ -29,8 +29,9 @@ class CentroidsDf:
             "version": 1,
             "embedding_dict": dict[str, list[int]],
             "columns": list[str],
-            "normalize_individual_base": dict[str, bool],  # keyed by base feature name
-            "constant_factors": dict[str, float],          # keyed by embedding column
+            "normalize_individual_base": dict[str, bool],      # keyed by base feature name
+            "constant_factors": dict[str, float],              # keyed by embedding column
+            "impute_medians": dict[str, float] | None,         # None when missing_policy="drop"
         }
 
     Workflow
@@ -50,7 +51,8 @@ class CentroidsDf:
 
     4. Apply to new data::
 
-           feat.assign_clusters_by_centroids(emb, centroids)
+           feat.assign_clusters_by_centroids(centroids)
+           # embedding and all necessary transformation info are contained in centroids object
     """
 
     df: pd.DataFrame
@@ -126,7 +128,7 @@ class CentroidsDf:
             meta_path = p.with_suffix(".json")
 
         self.df.to_parquet(df_path)
-        meta_path.write_text(json.dumps(self._meta_payload, indent=2, sort_keys=True))
+        meta_path.write_text(json.dumps(self._meta_payload, indent=2))
         return df_path
 
     @classmethod
