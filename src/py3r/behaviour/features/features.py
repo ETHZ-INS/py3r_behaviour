@@ -2008,6 +2008,7 @@ class Features:
         centroids_df,
         embedding: dict[str, list[int]] | None = None,
         *,
+        allow_missing_features: Literal["self", "centroids", "both"] | None = None,
         scaling_factors: dict[str, float] | None = None,
         impute_means: pd.Series | None = None,
         # Removed legacy params; retained for explicit migration errors.
@@ -2033,6 +2034,30 @@ class Features:
             The embedding dict used during fitting.  Required when *centroids_df*
             is a plain ``pd.DataFrame``; inferred from the recipe when
             *centroids_df* is a :class:`CentroidsDf`.
+        allow_missing_features : {"self", "centroids", "both"} or None
+            Controls whether cluster assignment is permitted when the full
+            embedding space is not available, by projecting into a shared
+            subspace of the columns that *both* sides can provide.
+
+            * ``"self"`` – tolerate base features missing from *this* object
+              (e.g. a missing animal in a multi-animal recording).  *centroids_df*
+              is expected to cover the full training embedding; only the columns
+              ``self`` can actually produce are used.
+            * ``"centroids"`` – tolerate the centroids having fewer columns
+              than the full embedding ``self`` would generate (e.g. centroids
+              fitted on a reduced feature set).  *self* must still carry all
+              requested base features; only the centroid columns are used.
+            * ``"both"`` – tolerate gaps on either side; the strict
+              intersection of what ``self`` can produce and what the centroids
+              contain is used.
+
+            In all three cases a :class:`UserWarning` is issued that
+            identifies which columns were dropped and from which side, so
+            the caller can verify the subspace is sensible.  A
+            :exc:`ValueError` is raised when no columns remain after
+            intersection regardless of the chosen mode.
+
+            ``None`` (default) raises if the column sets do not match exactly.
         scaling_factors : dict[str, float] | None
             Per-embedding-column constant multipliers.  Applied only when
             *centroids_df* is a plain DataFrame (legacy path).
@@ -2124,13 +2149,31 @@ class Features:
         if embedding is None:
             raise ValueError("embedding is required when centroids_df is a plain DataFrame")
 
+        # When self is allowed to have missing base features, pre-filter the
+        # embedding dict so that embedding_df() does not raise.
+        if allow_missing_features in ("self", "both"):
+            missing_bases = [k for k in embedding if k not in self.data.columns]
+            if missing_bases:
+                warnings.warn(
+                    f"allow_missing_features={allow_missing_features!r}: the following base "
+                    f"feature(s) are absent from self and their embedding columns will be "
+                    f"excluded from the subspace assignment: {missing_bases}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                embedding = {k: v for k, v in embedding.items() if k not in missing_bases}
+
         embed_df = self.embedding_df(embedding)
 
         if scaling_recipe is not None:
             # Recipe path (authoritative): apply individual norm then constant factors.
             cols_expected = scaling_recipe.get("columns")
             if cols_expected is not None and list(embed_df.columns) != list(cols_expected):
-                raise ValueError("Embedding columns do not match centroids scaling recipe columns")
+                if allow_missing_features is None:
+                    raise ValueError(
+                        "Embedding columns do not match centroids scaling recipe columns"
+                    )
+                # With allow_missing_features the column sets will be reconciled below.
             embed_df = embed_df.copy()
             for base, do_individual in (
                 scaling_recipe.get("normalize_individual_base") or {}
@@ -2138,6 +2181,9 @@ class Features:
                 if not do_individual:
                     continue
                 if base not in self.data.columns:
+                    if allow_missing_features in ("self", "both"):
+                        # Already warned above when filtering the embedding; just skip.
+                        continue
                     raise ValueError(f"Base feature '{base}' missing for individual normalization")
                 vals = self.data[base].to_numpy(dtype=np.float64)
                 finite = vals[np.isfinite(vals)]
@@ -2149,7 +2195,11 @@ class Features:
                 embed_df.loc[:, base_cols] = embed_df[base_cols] / std
             constant = scaling_recipe.get("constant_factors") or {}
             if constant:
-                embed_df = embed_df * pd.Series(constant)
+                # Only scale columns present in embed_df; extra recipe keys are ignored
+                # (they would otherwise inject NaN columns via DataFrame * Series alignment).
+                constant_aligned = {k: v for k, v in constant.items() if k in embed_df.columns}
+                if constant_aligned:
+                    embed_df = embed_df * pd.Series(constant_aligned)
             # Read impute_means from recipe unless the caller already provided one.
             # Backward-compat: old recipes used the key "impute_medians".
             recipe_impute = scaling_recipe.get("impute_means") or scaling_recipe.get(
@@ -2173,8 +2223,61 @@ class Features:
         else:
             applied_meta = {}
 
-        if not embed_df.columns.equals(underlying_df.columns):
-            raise ValueError("Columns in embedding and centroids do not match")
+        if allow_missing_features is not None:
+            # Reconcile columns: work in the intersection of what self produced
+            # and what the centroids contain, with side-specific diagnostics.
+            self_cols = set(embed_df.columns)
+            centroid_cols = set(underlying_df.columns)
+
+            only_in_self = sorted(self_cols - centroid_cols)
+            only_in_centroids = sorted(centroid_cols - self_cols)
+
+            if only_in_self and allow_missing_features in ("self", "both"):
+                warnings.warn(
+                    f"allow_missing_features={allow_missing_features!r}: {len(only_in_self)} "
+                    f"embedding column(s) produced by self have no counterpart in the centroids "
+                    f"and will be dropped: {only_in_self}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif only_in_self:
+                raise ValueError(
+                    f"Columns present in the self embedding but absent from the centroids "
+                    f"(pass allow_missing_features='centroids' or 'both' to allow this): "
+                    f"{only_in_self}"
+                )
+
+            if only_in_centroids and allow_missing_features in ("centroids", "both"):
+                warnings.warn(
+                    f"allow_missing_features={allow_missing_features!r}: {len(only_in_centroids)} "
+                    f"centroid column(s) have no counterpart in the self embedding "
+                    f"and will be dropped: {only_in_centroids}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif only_in_centroids:
+                raise ValueError(
+                    f"Columns present in the centroids but absent from the self embedding "
+                    f"(pass allow_missing_features='self' or 'both' to allow this): "
+                    f"{only_in_centroids}"
+                )
+
+            # Preserve embed_df column order for the shared subspace.
+            shared_cols = [c for c in embed_df.columns if c in centroid_cols]
+            if not shared_cols:
+                raise ValueError(
+                    "No columns remain in common between the self embedding and the centroids "
+                    "after filtering. self produced: "
+                    f"{sorted(self_cols)}, centroids have: {sorted(centroid_cols)}"
+                )
+
+            embed_df = embed_df[shared_cols]
+            underlying_df = underlying_df[shared_cols]
+            if impute_means is not None:
+                impute_means = impute_means[impute_means.index.isin(shared_cols)]
+        else:
+            if not embed_df.columns.equals(underlying_df.columns):
+                raise ValueError("Columns in embedding and centroids do not match")
 
         if impute_means is not None:
             embed_df, _ = impute_frame(embed_df, impute_means)
@@ -2193,6 +2296,7 @@ class Features:
         meta = {
             "function": "assign_clusters_by_centroids",
             "embedding": embedding,
+            "allow_missing_features": allow_missing_features,
             **applied_meta,
         }
         return FeaturesResult(labels, self, name, meta)
