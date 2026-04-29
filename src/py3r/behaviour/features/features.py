@@ -2232,7 +2232,9 @@ class Features:
             only_in_self = sorted(self_cols - centroid_cols)
             only_in_centroids = sorted(centroid_cols - self_cols)
 
-            if only_in_self and allow_missing_features in ("self", "both"):
+            # only_in_self: self produced columns the centroids don't have
+            #   → centroids are "missing" those → tolerated by "centroids" / "both"
+            if only_in_self and allow_missing_features in ("centroids", "both"):
                 warnings.warn(
                     f"allow_missing_features={allow_missing_features!r}: {len(only_in_self)} "
                     f"embedding column(s) produced by self have no counterpart in the centroids "
@@ -2247,7 +2249,9 @@ class Features:
                     f"{only_in_self}"
                 )
 
-            if only_in_centroids and allow_missing_features in ("centroids", "both"):
+            # only_in_centroids: centroids have columns self couldn't produce
+            #   → self is "missing" those base features → tolerated by "self" / "both"
+            if only_in_centroids and allow_missing_features in ("self", "both"):
                 warnings.warn(
                     f"allow_missing_features={allow_missing_features!r}: {len(only_in_centroids)} "
                     f"centroid column(s) have no counterpart in the self embedding "

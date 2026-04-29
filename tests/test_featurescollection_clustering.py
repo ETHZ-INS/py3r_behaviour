@@ -7,6 +7,7 @@ Checks:
   - CentroidsDf wrapper: delegation, scaling_recipe, save/load roundtrip.
   - Edge cases: NaNs in features, constant features, impute_weight policy.
   - build_column_weights utility correctness.
+  - assign_clusters_by_centroids allow_missing_features subspace assignment.
 """
 
 from __future__ import annotations
@@ -489,3 +490,284 @@ class TestNormalizeDetails:
         labels = pd.Series(result)
         assert len(labels) == len(feat.data)
         assert labels.notna().any()
+
+
+# ---------------------------------------------------------------------------
+# allow_missing_features subspace assignment
+# ---------------------------------------------------------------------------
+
+
+def _make_features_with(t, feature_names: list[str], *, seed: int) -> Features:
+    """Return a Features built on *t* with the given named features stored."""
+    rng = np.random.default_rng(seed)
+    n = len(t.data)
+    feat = Features(t)
+    for name in feature_names:
+        feat.store(pd.Series(rng.standard_normal(n) + 1.0, index=t.data.index), name)
+    return feat
+
+
+def _plain_cents(columns: list[str], n_clusters: int = 2) -> pd.DataFrame:
+    """Return a trivial centroid DataFrame with the given columns."""
+    rng = np.random.default_rng(0)
+    return pd.DataFrame(
+        rng.standard_normal((n_clusters, len(columns))),
+        columns=columns,
+    )
+
+
+class TestAssignClustersAllowMissingFeatures:
+    """
+    Tests for allow_missing_features in assign_clusters_by_centroids.
+
+    Topology used throughout
+    ------------------------
+    * feat_full   – Features with {speed, accel}
+    * feat_no_accel – Features with {speed} only (accel base column absent)
+    * emb_full    – {"speed": [0, 1], "accel": [0, 1]}
+    * emb_speed   – {"speed": [0, 1]}
+    * cents_full  – plain DataFrame with speed_t0/t+1 + accel_t0/t+1 columns
+    * cents_speed – plain DataFrame with speed_t0/t+1 columns only
+    """
+
+    @pytest.fixture()
+    def ctx(self):
+        t = _make_tracking("r", n_frames=80, seed=9)
+        feat_full = _make_features_with(t, ["speed", "accel"], seed=9)
+        feat_no_accel = _make_features_with(t, ["speed"], seed=9)
+
+        emb_full = {"speed": [0, 1], "accel": [0, 1]}
+        emb_speed = {"speed": [0, 1]}
+
+        cols_full = feat_full.embedding_df(emb_full).columns.tolist()
+        cols_speed = feat_full.embedding_df(emb_speed).columns.tolist()
+
+        cents_full = _plain_cents(cols_full)
+        cents_speed = _plain_cents(cols_speed)
+
+        return {
+            "t": t,
+            "feat_full": feat_full,
+            "feat_no_accel": feat_no_accel,
+            "emb_full": emb_full,
+            "emb_speed": emb_speed,
+            "cols_full": cols_full,
+            "cols_speed": cols_speed,
+            "cents_full": cents_full,
+            "cents_speed": cents_speed,
+        }
+
+    # --- "self" mode --------------------------------------------------------
+
+    def test_self_mode_warns_missing_base_and_assigns(self, ctx):
+        """
+        allow_missing_features='self': self is missing 'accel'.
+
+        Expected warnings
+        -----------------
+        1. Pre-filter: 'accel' base feature absent from self → embedding trimmed.
+        2. Reconciliation (only_in_centroids): accel_t0 / accel_t+1 present in
+           centroids but not in the reduced embed_df → dropped from centroids.
+
+        Assignment must succeed in the speed-only subspace.
+        """
+        c = ctx
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = c["feat_no_accel"].assign_clusters_by_centroids(
+                c["cents_full"],
+                c["emb_full"],
+                allow_missing_features="self",
+            )
+
+        messages = [str(w.message) for w in caught if issubclass(w.category, UserWarning)]
+        # Warning 1: missing base feature
+        assert any("absent from self" in m and "accel" in m for m in messages), messages
+        # Warning 2: centroid columns dropped
+        assert any("centroid column(s)" in m and "accel" in m for m in messages), messages
+
+        labels = pd.Series(result)
+        assert len(labels) == len(c["feat_no_accel"].data)
+        assert labels.notna().any()
+        assert set(labels.dropna().unique()).issubset({0, 1})
+
+    def test_self_mode_meta_records_flag(self, ctx):
+        """allow_missing_features is stored in _params."""
+        c = ctx
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = c["feat_no_accel"].assign_clusters_by_centroids(
+                c["cents_full"],
+                c["emb_full"],
+                allow_missing_features="self",
+            )
+        assert result._params["allow_missing_features"] == "self"
+
+    def test_self_mode_raises_when_self_has_extra_cols_not_in_centroids(self, ctx):
+        """
+        allow_missing_features='self' only covers self having *fewer* features.
+        If self produces columns the centroids don't have, that is a 'centroids'
+        problem and must raise with a helpful suggestion.
+        """
+        c = ctx
+        # feat_full has both speed + accel; cents_speed only has speed → only_in_self non-empty
+        with pytest.raises(ValueError, match="allow_missing_features='centroids' or 'both'"):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                c["feat_full"].assign_clusters_by_centroids(
+                    c["cents_speed"],
+                    c["emb_full"],
+                    allow_missing_features="self",
+                )
+
+    # --- "centroids" mode ---------------------------------------------------
+
+    def test_centroids_mode_warns_extra_self_cols_and_assigns(self, ctx):
+        """
+        allow_missing_features='centroids': centroids fitted on speed only, self
+        has speed + accel.
+
+        Expected warning
+        ----------------
+        Reconciliation (only_in_self): accel_t0 / accel_t+1 produced by self
+        have no counterpart in the speed-only centroids → dropped.
+
+        Assignment must succeed in the speed-only subspace.
+        """
+        c = ctx
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = c["feat_full"].assign_clusters_by_centroids(
+                c["cents_speed"],
+                c["emb_full"],
+                allow_missing_features="centroids",
+            )
+
+        messages = [str(w.message) for w in caught if issubclass(w.category, UserWarning)]
+        assert any(
+            "embedding column(s) produced by self" in m and "accel" in m for m in messages
+        ), messages
+
+        labels = pd.Series(result)
+        assert len(labels) == len(c["feat_full"].data)
+        assert labels.notna().any()
+        assert set(labels.dropna().unique()).issubset({0, 1})
+
+    def test_centroids_mode_raises_when_self_missing_base(self, ctx):
+        """
+        allow_missing_features='centroids' does NOT tolerate self missing base
+        features — the pre-filter only applies to 'self' / 'both'.
+        """
+        c = ctx
+        # feat_no_accel missing 'accel'; embedding_df would raise internally
+        with pytest.raises(ValueError, match="not present in self.data"):
+            c["feat_no_accel"].assign_clusters_by_centroids(
+                c["cents_full"],
+                c["emb_full"],
+                allow_missing_features="centroids",
+            )
+
+    # --- "both" mode --------------------------------------------------------
+
+    def test_both_mode_warns_all_sides_and_assigns(self, ctx):
+        """
+        allow_missing_features='both': self missing 'extra_feat', centroids built
+        on speed + extra_feat, embedding also asks for accel (present in self but
+        not in centroids).
+
+        Expected warnings
+        -----------------
+        1. Pre-filter: 'extra_feat' absent from self.
+        2. Reconciliation (only_in_self): accel_t0/t+1 produced by self but not
+           in the extra_feat centroids → dropped.
+        3. Reconciliation (only_in_centroids): extra_feat_t0/t+1 in centroids
+           but not produced by self → dropped.
+
+        Assignment succeeds in the speed-only subspace.
+        """
+        c = ctx
+        # Build centroids that have speed + an 'extra_feat' column
+        extra_cols = ["extra_feat_t0", "extra_feat_t+1"]
+        cols_speed_extra = c["cols_speed"] + extra_cols
+        cents_speed_extra = _plain_cents(cols_speed_extra)
+
+        # Embedding that requests speed + accel (both in self) + extra_feat (absent)
+        emb_three = {"speed": [0, 1], "accel": [0, 1], "extra_feat": [0, 1]}
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = c["feat_full"].assign_clusters_by_centroids(
+                cents_speed_extra,
+                emb_three,
+                allow_missing_features="both",
+            )
+
+        messages = [str(w.message) for w in caught if issubclass(w.category, UserWarning)]
+        # Warning 1: 'extra_feat' missing from self (pre-filter)
+        assert any("absent from self" in m and "extra_feat" in m for m in messages), messages
+        # Warning 2: accel columns dropped from self side
+        assert any(
+            "embedding column(s) produced by self" in m and "accel" in m for m in messages
+        ), messages
+        # Warning 3: extra_feat columns dropped from centroid side
+        assert any("centroid column(s)" in m and "extra_feat" in m for m in messages), messages
+
+        labels = pd.Series(result)
+        assert len(labels) == len(c["feat_full"].data)
+        assert labels.notna().any()
+        assert set(labels.dropna().unique()).issubset({0, 1})
+
+    # --- no shared columns --------------------------------------------------
+
+    def test_empty_intersection_raises_for_self_and_both_modes(self, ctx):
+        """
+        "self" and "both" reach the intersection check; with no columns in common
+        a ValueError is raised.
+
+        Scenario: self only has 'speed'; embedding asks for 'accel' only;
+        centroids also have only 'accel' columns.  After the pre-filter strips
+        'accel' from the embedding (absent from self) the embed_df is empty,
+        so the shared subspace is empty.
+        """
+        c = ctx
+        cols_accel = [col for col in c["cols_full"] if col.startswith("accel")]
+        cents_accel_only = _plain_cents(cols_accel)
+        emb_accel = {"accel": [0, 1]}
+
+        for mode in ("self", "both"):
+            with pytest.raises(ValueError, match="No columns remain in common"):
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    c["feat_no_accel"].assign_clusters_by_centroids(
+                        cents_accel_only,
+                        emb_accel,
+                        allow_missing_features=mode,
+                    )
+
+    def test_centroids_mode_raises_from_embedding_df_when_self_missing_base(self, ctx):
+        """
+        "centroids" mode does not pre-filter the embedding, so if self is missing
+        a base feature embedding_df raises before the intersection check is reached.
+        """
+        c = ctx
+        cols_accel = [col for col in c["cols_full"] if col.startswith("accel")]
+        cents_accel_only = _plain_cents(cols_accel)
+        emb_accel = {"accel": [0, 1]}
+
+        with pytest.raises(ValueError, match="not present in self.data"):
+            c["feat_no_accel"].assign_clusters_by_centroids(
+                cents_accel_only,
+                emb_accel,
+                allow_missing_features="centroids",
+            )
+
+    # --- default (None) still strict ----------------------------------------
+
+    def test_default_none_still_raises_on_mismatch(self, ctx):
+        """Without allow_missing_features the strict column-equality check is preserved."""
+        c = ctx
+        with pytest.raises(ValueError, match="Columns in embedding and centroids do not match"):
+            c["feat_full"].assign_clusters_by_centroids(
+                c["cents_speed"],
+                c["emb_full"],
+            )
