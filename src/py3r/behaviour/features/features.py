@@ -1930,76 +1930,17 @@ class Features:
         embed_df = pd.DataFrame(data, index=self.data.index)
         return embed_df
 
-    def cluster_embedding(
-        self,
-        embedding_dict: dict[str, list[int]],
-        n_clusters: int,
-        random_state: int = 0,
-        *,
-        normalize: bool = False,
-        feature_weights: dict[str, float] | None = None,
-        lowmem: bool = False,
-        decimation_factor: int = 10,
-        missing_policy: Literal["drop", "impute_weight"] = "drop",
-        # Removed legacy params; retained for explicit migration errors.
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
-        custom_scaling: dict[str, dict] | None = None,
-    ):
-        """
-        Perform k-means clustering on a single Features object.
-
-        Delegates to ``FeaturesCollection.cluster_embedding``.
-        See that method for full parameter documentation.
-
-        Returns
-        -------
-        (FeaturesResult, centroids DataFrame, scaling_factors or None)
-
-        Examples
-        --------
-        ```pycon
-        >>> import pandas as pd
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking import Tracking
-        >>> from py3r.behaviour.features.features import Features
-        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> f = Features(t)
-        >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
-        >>> result, centroids, norm = f.cluster_embedding({'counter': [0]}, n_clusters=2)
-        >>> isinstance(centroids, pd.DataFrame)
-        True
-        >>> len(result) == len(f.data)
-        True
-
-        ```
-        """
-        if auto_normalize:
-            raise NotImplementedError("auto_normalize was removed; use normalize=True instead.")
-        if rescale_factors is not None:
-            raise NotImplementedError(
-                "rescale_factors was removed; use normalize and/or feature_weights instead."
-            )
-        if custom_scaling is not None:
-            raise NotImplementedError("custom_scaling was removed; use feature_weights instead.")
-        from py3r.behaviour.features.features_collection import FeaturesCollection
-
-        fc = FeaturesCollection.from_list([self])
-        batch, centroids, norm = fc.cluster_embedding(
-            embedding_dict,
-            n_clusters,
-            random_state,
-            normalize=normalize,
-            feature_weights=feature_weights,
-            lowmem=lowmem,
-            decimation_factor=decimation_factor,
-            missing_policy=missing_policy,
-            auto_normalize=auto_normalize,
-            rescale_factors=rescale_factors,
-            custom_scaling=custom_scaling,
+    def cluster_embedding(self, *args, **kwargs):
+        """Removed in py3r.behaviour 3.3.0. Use :meth:`cluster_embedding_stream` instead."""
+        raise NotImplementedError(
+            "cluster_embedding() was removed in py3r.behaviour 3.3.0.  "
+            "Use cluster_embedding_stream() instead.\n"
+            "Note: cluster_embedding_stream uses MiniBatchKMeans (stochastic updates) "
+            "rather than the full-batch KMeans of the old method — results will not be "
+            "bit-for-bit identical.  For well-separated data the partition will match; "
+            "increase n_epochs and batch_size to improve convergence for harder cases.  "
+            "To reproduce results from py3r ≤ 3.2.1 exactly, pin to that version."
         )
-        return batch[self.handle], centroids, norm
 
     def cluster_embedding_stream(
         self,
@@ -2008,6 +1949,7 @@ class Features:
         random_state: int = 0,
         *,
         normalize: bool = False,
+        normalize_details: dict[str, Literal["individual", "global", "none"]] | None = None,
         feature_weights: dict[str, float] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
         chunk_size: int = 10_000,
@@ -2022,7 +1964,7 @@ class Features:
 
         Returns
         -------
-        (FeaturesResult, centroids DataFrame, scaling_factors or None)
+        (FeaturesResult, CentroidsDf)
 
         Examples
         --------
@@ -2035,9 +1977,9 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
-        >>> result, centroids, norm = f.cluster_embedding_stream(
+        >>> result, centroids = f.cluster_embedding_stream(
         ...     {'counter': [0]}, n_clusters=2)
-        >>> isinstance(centroids, pd.DataFrame)
+        >>> hasattr(centroids, 'columns')
         True
         >>> len(result) == len(f.data)
         True
@@ -2047,26 +1989,28 @@ class Features:
         from py3r.behaviour.features.features_collection import FeaturesCollection
 
         fc = FeaturesCollection.from_list([self])
-        batch, centroids, scaling = fc.cluster_embedding_stream(
+        batch, centroids = fc.cluster_embedding_stream(
             embedding_dict,
             n_clusters,
             random_state,
             normalize=normalize,
+            normalize_details=normalize_details,
             feature_weights=feature_weights,
             missing_policy=missing_policy,
             chunk_size=chunk_size,
             n_epochs=n_epochs,
             batch_size=batch_size,
         )
-        return batch[self.handle], centroids, scaling
+        return batch[self.handle], centroids
 
     def assign_clusters_by_centroids(
         self,
-        embedding: dict[str, list[int]],
-        centroids_df: pd.DataFrame,
+        centroids_df,
+        embedding: dict[str, list[int]] | None = None,
         *,
+        allow_missing_features: Literal["self", "centroids", "both"] | None = None,
         scaling_factors: dict[str, float] | None = None,
-        impute_medians: pd.Series | None = None,
+        impute_means: pd.Series | None = None,
         # Removed legacy params; retained for explicit migration errors.
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
@@ -2076,16 +2020,53 @@ class Features:
 
         Parameters
         ----------
-        embedding : dict[str, list[int]]
-            Same embedding dict used during fitting.
-        centroids_df : pd.DataFrame
-            (n_clusters, n_features) DataFrame of cluster centres.
+        centroids_df : CentroidsDf or pd.DataFrame
+            Cluster centres.  Passing a
+            :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` (the
+            object returned by ``cluster_embedding*``) is preferred: the method
+            will automatically apply the stored ``scaling_recipe``, including any
+            per-recording individual normalisation, and infer the *embedding*
+            from the recipe so it need not be passed separately.
+
+            If a plain ``pd.DataFrame`` is passed, *embedding* and optionally
+            *scaling_factors* must be provided (legacy path).
+        embedding : dict[str, list[int]] | None
+            The embedding dict used during fitting.  Required when *centroids_df*
+            is a plain ``pd.DataFrame``; inferred from the recipe when
+            *centroids_df* is a :class:`CentroidsDf`.
+        allow_missing_features : {"self", "centroids", "both"} or None
+            Controls whether cluster assignment is permitted when the full
+            embedding space is not available, by projecting into a shared
+            subspace of the columns that *both* sides can provide.
+
+            * ``"self"`` – tolerate base features missing from *this* object
+              (e.g. a missing animal in a multi-animal recording).  *centroids_df*
+              is expected to cover the full training embedding; only the columns
+              ``self`` can actually produce are used.
+            * ``"centroids"`` – tolerate the centroids having fewer columns
+              than the full embedding ``self`` would generate (e.g. centroids
+              fitted on a reduced feature set).  *self* must still carry all
+              requested base features; only the centroid columns are used.
+            * ``"both"`` – tolerate gaps on either side; the strict
+              intersection of what ``self`` can produce and what the centroids
+              contain is used.
+
+            In all three cases a :class:`UserWarning` is issued that
+            identifies which columns were dropped and from which side, so
+            the caller can verify the subspace is sensible.  A
+            :exc:`ValueError` is raised when no columns remain after
+            intersection regardless of the chosen mode.
+
+            ``None`` (default) raises if the column sets do not match exactly.
         scaling_factors : dict[str, float] | None
-            Per-embedding-column multipliers (the "dumb" scalars returned by
-            ``cluster_embedding_stream``).  Each raw embedding column is
-            multiplied by the corresponding value before distance computation.
-        impute_medians : pd.Series | None
-            Per-column fill values for NaN imputation (from training).
+            Per-embedding-column constant multipliers.  Applied only when
+            *centroids_df* is a plain DataFrame (legacy path).
+        impute_means : pd.Series | None
+            Per-column fill values (training-set column means) for NaN
+            imputation.  When *centroids_df* is a :class:`CentroidsDf` this is
+            read automatically from the ``scaling_recipe``; pass explicitly only
+            to override.
+
         Returns
         -------
         FeaturesResult
@@ -2107,13 +2088,17 @@ class Features:
         >>> df = f.embedding_df(emb)
         >>> # make 2 simple centroids matching columns
         >>> cents = pd.DataFrame([[0, 0], [1, 1]], columns=df.columns)
-        >>> labels = f.assign_clusters_by_centroids(emb, cents)
+        >>> labels = f.assign_clusters_by_centroids(cents, emb)
         >>> isinstance(labels, pd.Series) and len(labels) == len(t.data)
         True
 
         ```
         """
+        import warnings
+
         from sklearn.metrics.pairwise import pairwise_distances_argmin
+
+        from py3r.behaviour.features.centroids_df import CentroidsDf
 
         if rescale_factors is not None:
             raise NotImplementedError("rescale_factors was removed; pass scaling_factors instead.")
@@ -2123,32 +2108,200 @@ class Features:
                 "and pass scaling_factors instead."
             )
 
+        # Detect legacy argument order: assign_clusters_by_centroids(embedding, centroids_df).
+        # A dict can only be the embedding; a DataFrame/CentroidsDf can only be centroids.
+        if isinstance(centroids_df, dict):
+            warnings.warn(
+                "The argument order for assign_clusters_by_centroids has changed: "
+                "pass centroids first, then (optionally) embedding. "
+                "Old: feat.assign_clusters_by_centroids(embedding, centroids_df) — "
+                "New: feat.assign_clusters_by_centroids(centroids_df, embedding)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            centroids_df, embedding = embedding, centroids_df
+
+        # Unwrap CentroidsDf and extract scaling recipe.
+        scaling_recipe: dict | None = None
+        underlying_df: pd.DataFrame
+        if isinstance(centroids_df, CentroidsDf):
+            scaling_recipe = centroids_df.scaling_recipe
+            underlying_df = centroids_df.df
+            recipe_embedding = scaling_recipe.get("embedding_dict")
+            if embedding is not None and recipe_embedding is not None:
+                if embedding != recipe_embedding:
+                    raise ValueError(
+                        "The provided embedding dict does not match the one stored in the "
+                        "CentroidsDf scaling recipe. Pass centroids only (without embedding) "
+                        "to use the recipe's embedding, or ensure the dicts match."
+                    )
+                warnings.warn(
+                    "The embedding dict is already stored in the CentroidsDf scaling recipe "
+                    "and will be used automatically; passing it explicitly is redundant.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            if embedding is None:
+                embedding = recipe_embedding
+        else:
+            underlying_df = centroids_df
+
+        if embedding is None:
+            raise ValueError("embedding is required when centroids_df is a plain DataFrame")
+
+        # When self is allowed to have missing base features, pre-filter the
+        # embedding dict so that embedding_df() does not raise.
+        if allow_missing_features in ("self", "both"):
+            missing_bases = [k for k in embedding if k not in self.data.columns]
+            if missing_bases:
+                warnings.warn(
+                    f"allow_missing_features={allow_missing_features!r}: the following base "
+                    f"feature(s) are absent from self and their embedding columns will be "
+                    f"excluded from the subspace assignment: {missing_bases}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                embedding = {k: v for k, v in embedding.items() if k not in missing_bases}
+
         embed_df = self.embedding_df(embedding)
 
-        if scaling_factors is not None:
+        if scaling_recipe is not None:
+            # Recipe path (authoritative): apply individual norm then constant factors.
+            cols_expected = scaling_recipe.get("columns")
+            if cols_expected is not None and list(embed_df.columns) != list(cols_expected):
+                if allow_missing_features is None:
+                    raise ValueError(
+                        "Embedding columns do not match centroids scaling recipe columns"
+                    )
+                # With allow_missing_features the column sets will be reconciled below.
+            embed_df = embed_df.copy()
+            for base, do_individual in (
+                scaling_recipe.get("normalize_individual_base") or {}
+            ).items():
+                if not do_individual:
+                    continue
+                if base not in self.data.columns:
+                    if allow_missing_features in ("self", "both"):
+                        # Already warned above when filtering the embedding; just skip.
+                        continue
+                    raise ValueError(f"Base feature '{base}' missing for individual normalization")
+                vals = self.data[base].to_numpy(dtype=np.float64)
+                finite = vals[np.isfinite(vals)]
+                std = float(np.std(finite)) if finite.size > 0 else 1.0
+                std = std if std > 0 else 1.0
+                base_cols = [c for c in embed_df.columns if c.startswith(base + "_t")]
+                if not base_cols:
+                    raise ValueError(f"No embedding columns found for base feature '{base}'")
+                embed_df.loc[:, base_cols] = embed_df[base_cols] / std
+            constant = scaling_recipe.get("constant_factors") or {}
+            if constant:
+                # Only scale columns present in embed_df; extra recipe keys are ignored
+                # (they would otherwise inject NaN columns via DataFrame * Series alignment).
+                constant_aligned = {k: v for k, v in constant.items() if k in embed_df.columns}
+                if constant_aligned:
+                    embed_df = embed_df * pd.Series(constant_aligned)
+            # Read impute_means from recipe unless the caller already provided one.
+            # Backward-compat: old recipes used the key "impute_medians".
+            recipe_impute = scaling_recipe.get("impute_means") or scaling_recipe.get(
+                "impute_medians"
+            )
+            if impute_means is not None and recipe_impute is not None:
+                warnings.warn(
+                    "impute_means is already stored in the CentroidsDf scaling recipe "
+                    "and would be used automatically; passing it explicitly overrides the "
+                    "recipe values.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif impute_means is None and recipe_impute is not None:
+                impute_means = pd.Series(recipe_impute)
+            applied_meta: dict = {"scaling_recipe": scaling_recipe}
+        elif scaling_factors is not None:
+            # Legacy path: plain constant multipliers.
             embed_df = embed_df * pd.Series(scaling_factors)
+            applied_meta = {"scaling_factors": scaling_factors}
+        else:
+            applied_meta = {}
 
-        if not embed_df.columns.equals(centroids_df.columns):
-            raise ValueError("Columns in embedding and centroids do not match")
+        if allow_missing_features is not None:
+            # Reconcile columns: work in the intersection of what self produced
+            # and what the centroids contain, with side-specific diagnostics.
+            self_cols = set(embed_df.columns)
+            centroid_cols = set(underlying_df.columns)
 
-        if impute_medians is not None:
-            embed_df, _ = impute_frame(embed_df, impute_medians)
+            only_in_self = sorted(self_cols - centroid_cols)
+            only_in_centroids = sorted(centroid_cols - self_cols)
+
+            # only_in_self: self produced columns the centroids don't have
+            #   → centroids are "missing" those → tolerated by "centroids" / "both"
+            if only_in_self and allow_missing_features in ("centroids", "both"):
+                warnings.warn(
+                    f"allow_missing_features={allow_missing_features!r}: {len(only_in_self)} "
+                    f"embedding column(s) produced by self have no counterpart in the centroids "
+                    f"and will be dropped: {only_in_self}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif only_in_self:
+                raise ValueError(
+                    f"Columns present in the self embedding but absent from the centroids "
+                    f"(pass allow_missing_features='centroids' or 'both' to allow this): "
+                    f"{only_in_self}"
+                )
+
+            # only_in_centroids: centroids have columns self couldn't produce
+            #   → self is "missing" those base features → tolerated by "self" / "both"
+            if only_in_centroids and allow_missing_features in ("self", "both"):
+                warnings.warn(
+                    f"allow_missing_features={allow_missing_features!r}: {len(only_in_centroids)} "
+                    f"centroid column(s) have no counterpart in the self embedding "
+                    f"and will be dropped: {only_in_centroids}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif only_in_centroids:
+                raise ValueError(
+                    f"Columns present in the centroids but absent from the self embedding "
+                    f"(pass allow_missing_features='self' or 'both' to allow this): "
+                    f"{only_in_centroids}"
+                )
+
+            # Preserve embed_df column order for the shared subspace.
+            shared_cols = [c for c in embed_df.columns if c in centroid_cols]
+            if not shared_cols:
+                raise ValueError(
+                    "No columns remain in common between the self embedding and the centroids "
+                    "after filtering. self produced: "
+                    f"{sorted(self_cols)}, centroids have: {sorted(centroid_cols)}"
+                )
+
+            embed_df = embed_df[shared_cols]
+            underlying_df = underlying_df[shared_cols]
+            if impute_means is not None:
+                impute_means = impute_means[impute_means.index.isin(shared_cols)]
+        else:
+            if not embed_df.columns.equals(underlying_df.columns):
+                raise ValueError("Columns in embedding and centroids do not match")
+
+        if impute_means is not None:
+            embed_df, _ = impute_frame(embed_df, impute_means)
             mask = pd.Series(True, index=embed_df.index)
             embed_values = embed_df.values
         else:
             mask = embed_df.notna().all(axis=1)
             embed_values = embed_df[mask].values
-        centroids_values = centroids_df.values
+        centroids_values = underlying_df.values
 
         labels = pd.Series(pd.NA, index=embed_df.index, dtype="Int64")
         if len(embed_values) > 0:
             labels[mask] = pairwise_distances_argmin(embed_values, centroids_values)
 
-        name = f"kmeans_{len(centroids_df.index)}"
+        name = f"kmeans_{len(underlying_df.index)}"
         meta = {
             "function": "assign_clusters_by_centroids",
             "embedding": embedding,
-            "scaling_factors": scaling_factors,
+            "allow_missing_features": allow_missing_features,
+            **applied_meta,
         }
         return FeaturesResult(labels, self, name, meta)
 
