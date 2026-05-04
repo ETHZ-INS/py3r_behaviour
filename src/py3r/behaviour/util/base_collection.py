@@ -118,6 +118,14 @@ class BaseCollection(MutableMapping):
     ```
     """
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if not hasattr(cls, "_element_type"):
+            raise TypeError(
+                f"{cls.__name__} must define '_element_type' as a class attribute "
+                f"(e.g. '_element_type = MyClass')."
+            )
+
     def __init__(self, obj_dict):
         self._obj_dict = dict(obj_dict)  # {handle: element or sub-collection}
         self._groupby_tags = None
@@ -370,8 +378,8 @@ class BaseCollection(MutableMapping):
             return self._obj_dict[key]
 
     def __setitem__(self, key, value):
-        element_cls = type(self[0])
-        if not isinstance(value, element_cls):
+        element_cls = getattr(self, "_element_type", None)
+        if element_cls is not None and not isinstance(value, element_cls):
             raise TypeError(f"Value must be a {element_cls.__name__}, got {type(value).__name__}")
         cn = self.__class__.__name__
         warnings.warn(
