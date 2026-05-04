@@ -4,8 +4,10 @@ import cv2
 import numpy as np
 
 from ._projection import (
+    _clip_axis_to_canvas,
     _compute_bounds,
     _coords_to_pixels,
+    _data_to_pixel_float,
     _is_valid,
     _make_projector,
     _project_boundary_arrays_3d_to_2d,
@@ -17,10 +19,12 @@ from ._style import (
     _format_overlay_value,
     _is_dynamic_spec,
     _resolve_text_color_for_frame,
+    _style_for_axis,
     _style_for_boundary,
     _style_for_line,
     _style_for_point,
     _style_for_text,
+    _style_raw_for_axis,
     _style_raw_for_boundary,
     _style_raw_for_line,
     _style_raw_for_point,
@@ -50,6 +54,7 @@ class AnimationStream:
         lines_idx: list[tuple[int, int]],
         line_keys: list[tuple[str, str]],
         boundary_arrays: list[tuple[str, np.ndarray]],
+        axis_arrays: list[tuple[str, np.ndarray]] | None = None,
         text_overlays: list[tuple[str, np.ndarray | None]] | None,
         canvas_size: tuple[int, int],
         fps: float,
@@ -67,6 +72,11 @@ class AnimationStream:
             barr = np.asarray(arr)
             if barr.ndim != 3 or barr.shape[0] != points_xy.shape[0] or barr.shape[2] != 2:
                 raise ValueError("Boundary arrays must have shape (n_frames, n_vertices, 2)")
+        for _, arr in axis_arrays or []:
+            aarr = np.asarray(arr)
+            n = points_xy.shape[0]
+            if aarr.ndim != 3 or aarr.shape[0] != n or aarr.shape[1] != 2 or aarr.shape[2] != 2:
+                raise ValueError("Axis arrays must have shape (n_frames, 2, 2)")
         if text_overlays is None:
             text_overlays = []
         for label, values in text_overlays:
@@ -85,6 +95,9 @@ class AnimationStream:
         self._boundary_arrays = [
             (str(name), np.asarray(arr, dtype=float)) for name, arr in boundary_arrays
         ]
+        self._axis_arrays = [
+            (str(name), np.asarray(arr, dtype=float)) for name, arr in (axis_arrays or [])
+        ]
         self._style = style or {}
         self._style_sources = style_sources or {}
         self._text_overlays = []
@@ -97,6 +110,7 @@ class AnimationStream:
             "points": {},
             "lines": {},
             "boundaries": {},
+            "axes": {},
             "text": {},
         }
         n_frames = points_xy.shape[0]
@@ -129,6 +143,8 @@ class AnimationStream:
         boundary_names = {name for name, _ in self._boundary_arrays}
         for b in boundary_names:
             _populate("boundaries", b, _style_raw_for_boundary(self._style, b))
+        for ax_name, _ in self._axis_arrays:
+            _populate("axes", ax_name, _style_raw_for_axis(self._style, ax_name))
         for label, values in self._text_overlays:
             if values is None:
                 continue
@@ -139,7 +155,9 @@ class AnimationStream:
         self._bg_color = tuple(map(int, bg_color))
         self._pixel_coords = bool(pixel_coords)
         self._cursor = 0
-        self._bounds = _compute_bounds(points_xy, self._boundary_arrays, pad=bounds_pad)
+        self._bounds = _compute_bounds(
+            points_xy, self._boundary_arrays, self._axis_arrays, pad=bounds_pad
+        )
 
     @property
     def frame_count(self) -> int:
@@ -337,6 +355,25 @@ class AnimationStream:
                     color=edge_color,
                     thickness=edge_width,
                 )
+
+        w, h = target.shape[1], target.shape[0]
+        for ax_name, ax_arr in self._axis_arrays:
+            seg = ax_arr[frame_idx]  # (2, 2)
+            if not np.all(np.isfinite(seg)):
+                continue
+            pix_float = _data_to_pixel_float(seg, w, h, self._bounds, self._pixel_coords)
+            clipped = _clip_axis_to_canvas(pix_float[0], pix_float[1], w, h)
+            if clipped is None:
+                continue
+            cp1, cp2 = clipped
+            axstyle = _style_for_axis(self._style, ax_name)
+            axstyle = _apply_dynamic_overrides(
+                axstyle, self._dynamic_styles["axes"].get(ax_name), frame_idx
+            )
+            edge_width = int(axstyle["edge_width"])
+            edge_color = axstyle["edge_color"]
+            if edge_width > 0 and edge_color is not None:
+                cv2.line(target, tuple(cp1), tuple(cp2), edge_color, edge_width)
 
         pts = self._points_xy[frame_idx]
         pix_pts = _coords_to_pixels(
@@ -659,6 +696,7 @@ def build_animation_stream(
     frame_ids: np.ndarray,
     fps: float = 30.0,
     boundary_arrays: list[tuple[str, np.ndarray]] | None = None,
+    axis_arrays: list[tuple[str, np.ndarray]] | None = None,
     canvas_size: tuple[int, int] = (800, 800),
     bg_color: tuple[int, int, int] = (0, 0, 0),
     style: dict | None = None,
@@ -725,6 +763,13 @@ def build_animation_stream(
         barr = np.asarray(arr)
         if barr.ndim != 3 or barr.shape[0] != points.shape[0] or barr.shape[2] not in (2, 3):
             raise ValueError("Boundary arrays must have shape (n_frames, n_vertices, 2|3)")
+    if axis_arrays is None:
+        axis_arrays = []
+    for _, arr in axis_arrays:
+        aarr = np.asarray(arr)
+        n = points.shape[0]
+        if aarr.ndim != 3 or aarr.shape[0] != n or aarr.shape[1] != 2 or aarr.shape[2] != 2:
+            raise ValueError("Axis arrays must have shape (n_frames, 2, 2)")
     if text_overlays is None:
         text_overlays = []
 
@@ -763,6 +808,7 @@ def build_animation_stream(
         lines_idx=lines_idx,
         line_keys=line_keys,
         boundary_arrays=boundary_arrays,
+        axis_arrays=axis_arrays,
         text_overlays=text_overlays,
         canvas_size=canvas_size,
         fps=fps,

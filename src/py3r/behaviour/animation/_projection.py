@@ -10,21 +10,23 @@ def _is_valid(pix: np.ndarray, idx: int) -> bool:
 def _compute_bounds(
     points_xy: np.ndarray,
     boundary_arrays: list[tuple[str, np.ndarray]],
+    axis_arrays: list[tuple[str, np.ndarray]] | None = None,
     pad: float = 0.05,
 ) -> tuple[float, float, float, float]:
     flat = points_xy.reshape(-1, 2)
     valid = np.isfinite(flat[:, 0]) & np.isfinite(flat[:, 1])
     xs = [flat[valid, 0]] if np.any(valid) else []
     ys = [flat[valid, 1]] if np.any(valid) else []
-    for _, arr in boundary_arrays:
-        poly = np.asarray(arr, dtype=float)
-        if poly.ndim != 3 or poly.shape[2] != 2 or poly.shape[0] == 0 or poly.shape[1] == 0:
+    all_arrays = list(boundary_arrays) + list(axis_arrays or [])
+    for _, arr in all_arrays:
+        a = np.asarray(arr, dtype=float)
+        if a.ndim != 3 or a.shape[2] != 2 or a.shape[0] == 0 or a.shape[1] == 0:
             continue
-        flat_poly = poly.reshape(-1, 2)
-        ok = np.isfinite(flat_poly[:, 0]) & np.isfinite(flat_poly[:, 1])
+        flat_a = a.reshape(-1, 2)
+        ok = np.isfinite(flat_a[:, 0]) & np.isfinite(flat_a[:, 1])
         if np.any(ok):
-            xs.append(flat_poly[ok, 0])
-            ys.append(flat_poly[ok, 1])
+            xs.append(flat_a[ok, 0])
+            ys.append(flat_a[ok, 1])
     if not xs:
         return 0.0, 1.0, 0.0, 1.0
     xmin, xmax = float(np.min(np.concatenate(xs))), float(np.max(np.concatenate(xs)))
@@ -165,3 +167,91 @@ def _project_boundary_arrays_3d_to_2d(
             raise ValueError("Boundary array must have 2 or 3 dimensions on last axis")
         projected.append((str(name), _project_xyz_with_projector(xyz, projector)))
     return projected
+
+
+def _data_to_pixel_float(
+    data_xy: np.ndarray,
+    width: int,
+    height: int,
+    bounds: tuple[float, float, float, float],
+    pixel_coords: bool,
+) -> np.ndarray:
+    """Convert data-space coordinates to float pixel coordinates.
+
+    Unlike ``_coords_to_pixels``, this function does *not* clip to canvas
+    bounds or substitute a sentinel for out-of-bounds values.  It is intended
+    for computing axis line intersections with the canvas edge.
+
+    Parameters
+    ----------
+    data_xy : np.ndarray
+        Shape ``(n, 2)`` data coordinates.
+    width, height : int
+        Canvas dimensions in pixels.
+    bounds : tuple[float, float, float, float]
+        ``(xmin, xmax, ymin, ymax)`` data-space bounds.
+    pixel_coords : bool
+        If True, ``data_xy`` is already in pixel space and is returned
+        unchanged (rounded to float).
+
+    Returns
+    -------
+    np.ndarray
+        Shape ``(n, 2)`` float pixel coordinates.
+    """
+    arr = np.asarray(data_xy, dtype=float)
+    if pixel_coords:
+        return arr.copy()
+    xmin, xmax, ymin, ymax = bounds
+    sx = max(width - 1, 1) / (xmax - xmin)
+    sy = max(height - 1, 1) / (ymax - ymin)
+    px = (arr[:, 0] - xmin) * sx
+    py = (height - 1) - ((arr[:, 1] - ymin) * sy)
+    return np.stack([px, py], axis=1)
+
+
+def _clip_axis_to_canvas(
+    p1: np.ndarray,
+    p2: np.ndarray,
+    width: int,
+    height: int,
+) -> tuple[np.ndarray, np.ndarray] | None:
+    """Find the two canvas-edge intersection points of an infinite axis.
+
+    The axis is defined by two float pixel-space reference points ``p1`` and
+    ``p2`` (which may lie outside the canvas).
+
+    Returns ``None`` if the axis does not intersect the canvas, or if the two
+    reference points are coincident.
+    """
+    p1 = np.asarray(p1, dtype=float)
+    p2 = np.asarray(p2, dtype=float)
+    d = p2 - p1  # direction vector
+
+    ts: list[float] = []
+    eps = 1e-9
+
+    if abs(d[0]) > eps:
+        for x_edge in (0.0, float(width - 1)):
+            t = (x_edge - p1[0]) / d[0]
+            y = p1[1] + t * d[1]
+            if -0.5 <= y <= height - 0.5:
+                ts.append(t)
+
+    if abs(d[1]) > eps:
+        for y_edge in (0.0, float(height - 1)):
+            t = (y_edge - p1[1]) / d[1]
+            x = p1[0] + t * d[0]
+            if -0.5 <= x <= width - 0.5:
+                ts.append(t)
+
+    if len(ts) < 2:
+        return None
+
+    t_min, t_max = min(ts), max(ts)
+    if abs(t_max - t_min) < eps:
+        return None
+
+    cp1 = np.round(p1 + t_min * d).astype(np.int32)
+    cp2 = np.round(p1 + t_max * d).astype(np.int32)
+    return cp1, cp2

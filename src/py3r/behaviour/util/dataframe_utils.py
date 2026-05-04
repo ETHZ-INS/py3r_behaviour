@@ -175,6 +175,83 @@ def euclidean_distance(
     raise ValueError(f"Unknown method: {method}")
 
 
+def point_to_axis_distance(
+    P: np.ndarray,
+    A: np.ndarray,
+    B: np.ndarray,
+    *,
+    signed: bool = False,
+) -> np.ndarray:
+    """Compute framewise perpendicular distance from a point to an infinite axis.
+
+    The axis passes through A and B and extends infinitely in both directions.
+    All arrays must share the same shape ``(n_frames, n_dims)``.
+
+    Parameters
+    ----------
+    P : np.ndarray
+        Query point coordinates, shape ``(n_frames, n_dims)``.
+    A : np.ndarray
+        First axis reference point, shape ``(n_frames, n_dims)``.
+    B : np.ndarray
+        Second axis reference point, shape ``(n_frames, n_dims)``.
+    signed : bool, default False
+        If True, return a signed distance (2-D axes only).  Positive means P
+        is to the *right* when facing from A to B; negative means P is to the
+        *left*.  Raises ``ValueError`` for ``n_dims != 2`` when True.
+
+    Returns
+    -------
+    np.ndarray
+        Framewise (signed) perpendicular distances, shape ``(n_frames,)``.
+
+    Notes
+    -----
+    Degenerate frames where A == B (zero-length direction) return the distance
+    from P to A (unsigned) or zero (signed) without raising an error.
+
+    Examples
+    --------
+    ```pycon
+    >>> import numpy as np
+    >>> P = np.array([[0.0, 1.0], [3.0, 0.0], [0.0, -1.0]])
+    >>> A = np.array([[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
+    >>> B = np.array([[1.0, 0.0], [1.0, 0.0], [1.0, 0.0]])
+    >>> point_to_axis_distance(P, A, B)
+    array([1., 0., 1.])
+    >>> point_to_axis_distance(P, A, B, signed=True)
+    array([-1.,  0.,  1.])
+
+    ```
+    """
+    AP = P - A  # (n, d)
+    AB = B - A  # (n, d)
+
+    ab_sq = np.sum(AB * AB, axis=1)  # (n,)
+
+    if signed:
+        n_dims = P.shape[1]
+        if n_dims != 2:
+            raise ValueError(f"signed=True requires a 2-D axis; got n_dims={n_dims}.")
+        # Signed distance = projection of AP onto the right-hand perpendicular
+        # of the unit direction d = AB / |AB|.
+        # perp_right = (d[1], -d[0])  →  AP · perp_right / |AB| * |AB| simplifies to:
+        #   (AP[0] * AB[1] - AP[1] * AB[0]) / |AB|
+        # Degenerate frames (A == B) → signed distance = 0.
+        ab_norm = np.sqrt(ab_sq)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            cross = AP[:, 0] * AB[:, 1] - AP[:, 1] * AB[:, 0]
+            return np.where(ab_norm > 0, cross / ab_norm, 0.0)
+
+    # Scalar projection of P onto the infinite axis through A and B.
+    # Degenerate frames (A == B) get t = 0, i.e. closest point = A.
+    with np.errstate(invalid="ignore", divide="ignore"):
+        t = np.where(ab_sq > 0, np.sum(AP * AB, axis=1) / ab_sq, 0.0)
+
+    closest = A + t[:, np.newaxis] * AB  # (n, d)
+    return np.linalg.norm(P - closest, axis=1)  # (n,)
+
+
 def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.DataFrame:
     """
      Multiply selected DataFrame columns by a scalar factor.
