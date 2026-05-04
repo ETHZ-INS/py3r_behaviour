@@ -534,7 +534,6 @@ class TrackingCollection(BaseCollection):
                 result_dict[group_key] = cls(group_result)
 
             result = cls(result_dict)
-            result._is_grouped = True
             result._groupby_tags = getattr(first, "_groupby_tags", None)
             return result
 
