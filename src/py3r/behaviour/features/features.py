@@ -1232,11 +1232,23 @@ class Features:
         self,
         point: str,
         boundary: str | DynamicBoundary | StaticBoundary,
+        *,
+        signed: bool = False,
     ) -> FeaturesResult:
         """
         Main boundary distance API.
 
         Accepts a ``StaticBoundary`` or ``DynamicBoundary`` (or a stored boundary name).
+
+        Parameters
+        ----------
+        point :
+            Keypoint name whose coordinates are measured.
+        boundary :
+            A ``StaticBoundary``, ``DynamicBoundary``, or the string name of a stored boundary.
+        signed :
+            If ``True``, distances are negated for points inside the boundary (standard signed
+            distance field convention: negative = inside, positive = outside, zero = on boundary).
 
         Examples
         --------
@@ -1255,6 +1267,9 @@ class Features:
         >>> d2 = f.distance_to_boundary('p1', 'tri')
         >>> bool(isinstance(d2, pd.Series))
         True
+        >>> ds = f.distance_to_boundary('p1', b, signed=True)
+        >>> bool((ds <= 0).any() or (ds >= 0).any())
+        True
 
         ```
         """
@@ -1270,6 +1285,7 @@ class Features:
                 dims=boundary.dims,
                 boundary_label=boundary.name or self._short_boundary_id(list(boundary.vertices)),
                 boundary_meta=boundary.to_dict(),
+                signed=signed,
             )
         if isinstance(boundary, DynamicBoundary):
             return self._distance_to_boundary_dynamic_impl(
@@ -1283,10 +1299,11 @@ class Features:
                 else None,
                 boundary_label=boundary.name or self._short_boundary_id(list(boundary.points)),
                 boundary_meta=boundary.to_dict(),
+                signed=signed,
             )
         if isinstance(boundary, str):
             stored = self._resolve_boundary_ref(boundary)
-            return self.distance_to_boundary(point, stored)
+            return self.distance_to_boundary(point, stored, signed=signed)
         raise TypeError(
             "Unsupported boundary value. Expected StaticBoundary, DynamicBoundary, "
             "or stored boundary name."
@@ -1300,15 +1317,19 @@ class Features:
         dims: tuple[str, str],
         boundary_label: str,
         boundary_meta,
+        signed: bool = False,
     ) -> FeaturesResult:
         if len(boundary_vertices) < 3:
             raise Exception("boundary encloses no area")
         boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary_vertices)
         name = f"distance_to_boundary_static_{point}_in_{boundary_label}"
+        if signed:
+            name += "_signed"
         meta = {
             "function": "distance_to_boundary",
             "point": point,
             "boundary": boundary_meta,
+            "signed": signed,
         }
 
         df = self.tracking.data
@@ -1319,11 +1340,14 @@ class Features:
         if boundary_has_nan:
             result = pd.Series(np.nan, index=df.index)
         else:
-            exterior = Polygon(boundary_vertices).exterior
+            poly = Polygon(boundary_vertices)
             result = pd.Series(np.nan, index=df.index)
             if valid.any():
                 pts = shapely.points(px[valid], py[valid])
-                result[valid] = shapely.distance(exterior, pts)
+                result[valid] = shapely.distance(poly.exterior, pts)
+                if signed:
+                    inside = shapely.within(pts, poly)
+                    result[valid] *= np.where(inside, -1.0, 1.0)
         return FeaturesResult(result, self, name, meta)
 
     def _distance_to_boundary_dynamic_impl(
@@ -1337,14 +1361,18 @@ class Features:
         anchor_points: list[str] | None,
         boundary_label: str,
         boundary_meta,
+        signed: bool = False,
     ) -> FeaturesResult:
         if len(boundary_points) < 3:
             raise Exception("boundary encloses no area")
         name = f"distance_to_boundary_dynamic_{point}_in_{boundary_label}"
+        if signed:
+            name += "_signed"
         meta = {
             "function": "distance_to_boundary",
             "point": point,
             "boundary": boundary_meta,
+            "signed": signed,
         }
 
         df = self.tracking.data
@@ -1377,6 +1405,9 @@ class Features:
             exteriors = shapely.get_exterior_ring(polys)
             pts = shapely.points(px[valid], py[valid])
             result[valid] = shapely.distance(exteriors, pts)
+            if signed:
+                inside = shapely.within(pts, polys)
+                result[valid] *= np.where(inside, -1.0, 1.0)
         return FeaturesResult(result, self, name, meta)
 
     def distance_to_boundary_static(
