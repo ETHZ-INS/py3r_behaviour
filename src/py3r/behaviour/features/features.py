@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 import logging
 import os
-import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Literal, Self
 
@@ -52,9 +51,7 @@ if TYPE_CHECKING:
     from py3r.behaviour.summary.summary import Summary
 
 logger = logging.getLogger(__name__)
-logformat = "%(funcName)s(): %(message)s"
-logging.basicConfig(stream=sys.stdout, format=logformat)
-logger.setLevel(logging.INFO)
+logger.addHandler(logging.NullHandler())
 
 
 class Features:
