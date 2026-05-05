@@ -54,6 +54,76 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
+def _axis_boundary_intersections(
+    A: np.ndarray,
+    B: np.ndarray,
+    verts: np.ndarray,
+    zones: set[str],
+    *,
+    eps: float = 1e-10,
+) -> np.ndarray:
+    """Per-frame boolean: does the axis intersect the boundary in any of the given zones?
+
+    Parameters
+    ----------
+    A, B : np.ndarray, shape (n, 2)
+        Axis reference points per frame.
+    verts : np.ndarray
+        Either shape ``(N_verts, 2)`` for a static boundary or
+        ``(n, N_verts, 2)`` for a dynamic boundary.
+    zones : set of {"front", "within", "behind"}
+        Which zones count as an intersection.  Zones are defined by the scalar
+        projection parameter *t* of the intersection point onto A→B:
+
+        - ``"behind"``: t ≤ 0  (at or before A)
+        - ``"within"``: 0 < t < 1  (strictly between A and B)
+        - ``"front"``:  t ≥ 1  (at or beyond B)
+    eps : float
+        Tolerance for near-parallel axis/edge pairs (treated as no intersection).
+
+    Returns
+    -------
+    np.ndarray of bool, shape (n,)
+    """
+    static_boundary = verts.ndim == 2
+    n_verts = verts.shape[0] if static_boundary else verts.shape[1]
+    d = B - A  # (n, 2)
+    result = np.zeros(len(A), dtype=bool)
+
+    for i in range(n_verts):
+        if static_boundary:
+            V0 = verts[i]
+            V1 = verts[(i + 1) % n_verts]
+            e = V1 - V0  # (2,)
+            f = V0 - A  # (n, 2)
+            det = d[:, 1] * e[0] - d[:, 0] * e[1]
+            t_num = e[0] * f[:, 1] - e[1] * f[:, 0]
+            s_num = d[:, 0] * f[:, 1] - d[:, 1] * f[:, 0]
+        else:
+            V0 = verts[:, i, :]
+            V1 = verts[:, (i + 1) % n_verts, :]
+            e = V1 - V0  # (n, 2)
+            f = V0 - A  # (n, 2)
+            det = d[:, 1] * e[:, 0] - d[:, 0] * e[:, 1]
+            t_num = e[:, 0] * f[:, 1] - e[:, 1] * f[:, 0]
+            s_num = d[:, 0] * f[:, 1] - d[:, 1] * f[:, 0]
+
+        nonzero = np.abs(det) > eps
+        with np.errstate(invalid="ignore", divide="ignore"):
+            t_val = np.where(nonzero, t_num / det, np.nan)
+            s_val = np.where(nonzero, s_num / det, np.nan)
+
+        on_edge = nonzero & (s_val >= 0.0) & (s_val <= 1.0)
+        if "behind" in zones:
+            result |= on_edge & (t_val <= 0.0)
+        if "within" in zones:
+            result |= on_edge & (t_val > 0.0) & (t_val < 1.0)
+        if "front" in zones:
+            result |= on_edge & (t_val >= 1.0)
+
+    return result
+
+
 class Features:
     """
     generates features from a pre-processed Tracking object
@@ -1131,29 +1201,19 @@ class Features:
         df = self.tracking.data
         px = df[point + "." + dims[0]].to_numpy(dtype=float)
         py = df[point + "." + dims[1]].to_numpy(dtype=float)
-        bx = np.column_stack([df[b + "." + dims[0]].to_numpy(dtype=float) for b in boundary_points])
-        by = np.column_stack([df[b + "." + dims[1]].to_numpy(dtype=float) for b in boundary_points])
+        boundary_obj = DynamicBoundary(
+            points=tuple(boundary_points),
+            dims=dims,
+            anchor_points=tuple(anchor_points) if anchor_points is not None else None,
+            scale_dim1=scale_dim1,
+            scale_dim2=scale_dim2,
+        )
+        verts = boundary_obj.to_numpy_per_frame(df)  # (n, N_verts, 2), scaling applied
 
-        if scale_dim1 != 1.0 or scale_dim2 != 1.0:
-            if anchor_points is None:
-                ax = np.nanmean(bx, axis=1)
-                ay = np.nanmean(by, axis=1)
-            else:
-                ax = np.column_stack(
-                    [df[a + "." + dims[0]].to_numpy(dtype=float) for a in anchor_points]
-                )
-                ay = np.column_stack(
-                    [df[a + "." + dims[1]].to_numpy(dtype=float) for a in anchor_points]
-                )
-                ax = np.nanmean(ax, axis=1)
-                ay = np.nanmean(ay, axis=1)
-            bx = ax[:, None] + (bx - ax[:, None]) * scale_dim1
-            by = ay[:, None] + (by - ay[:, None]) * scale_dim2
-
-        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(bx) | np.isnan(by), axis=1))
+        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(verts), axis=(1, 2)))
         result = pd.Series(pd.array([pd.NA] * len(df), dtype="boolean"), index=df.index)
         if valid.any():
-            coords = np.stack([bx[valid], by[valid]], axis=-1)
+            coords = verts[valid]
             polys = shapely.polygons(shapely.linearrings(coords))
             pts = shapely.points(px[valid], py[valid])
             result[valid] = shapely.contains(polys, pts)
@@ -1387,29 +1447,19 @@ class Features:
         df = self.tracking.data
         px = df[point + "." + dims[0]].to_numpy(dtype=float)
         py = df[point + "." + dims[1]].to_numpy(dtype=float)
-        bx = np.column_stack([df[b + "." + dims[0]].to_numpy(dtype=float) for b in boundary_points])
-        by = np.column_stack([df[b + "." + dims[1]].to_numpy(dtype=float) for b in boundary_points])
+        boundary_obj = DynamicBoundary(
+            points=tuple(boundary_points),
+            dims=dims,
+            anchor_points=tuple(anchor_points) if anchor_points is not None else None,
+            scale_dim1=scale_dim1,
+            scale_dim2=scale_dim2,
+        )
+        verts = boundary_obj.to_numpy_per_frame(df)  # (n, N_verts, 2), scaling applied
 
-        if scale_dim1 != 1.0 or scale_dim2 != 1.0:
-            if anchor_points is None:
-                ax = np.nanmean(bx, axis=1)
-                ay = np.nanmean(by, axis=1)
-            else:
-                ax = np.column_stack(
-                    [df[a + "." + dims[0]].to_numpy(dtype=float) for a in anchor_points]
-                )
-                ay = np.column_stack(
-                    [df[a + "." + dims[1]].to_numpy(dtype=float) for a in anchor_points]
-                )
-                ax = np.nanmean(ax, axis=1)
-                ay = np.nanmean(ay, axis=1)
-            bx = ax[:, None] + (bx - ax[:, None]) * scale_dim1
-            by = ay[:, None] + (by - ay[:, None]) * scale_dim2
-
-        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(bx) | np.isnan(by), axis=1))
+        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(verts), axis=(1, 2)))
         result = pd.Series(np.nan, index=df.index)
         if valid.any():
-            coords = np.stack([bx[valid], by[valid]], axis=-1)
+            coords = verts[valid]
             polys = shapely.polygons(shapely.linearrings(coords))
             exteriors = shapely.get_exterior_ring(polys)
             pts = shapely.points(px[valid], py[valid])
@@ -1521,8 +1571,10 @@ class Features:
             axis_label = resolved.name
         elif isinstance(resolved, StaticAxis) and resolved.source_points:
             axis_label = "_".join(resolved.source_points)
-        else:
+        elif isinstance(resolved, DynamicAxis):
             axis_label = "_".join(resolved.points)
+        else:
+            axis_label = "axis"
 
         sign_suffix = "_signed" if signed else ""
         name_str = f"distance_to_axis_{point}_from_{axis_label}_in_{''.join(dims)}{sign_suffix}"
@@ -1533,6 +1585,146 @@ class Features:
             "signed": signed,
         }
         return FeaturesResult(series, self, name_str, meta)
+
+    def axis_intersects_boundary(
+        self,
+        axis: str | StaticAxis | DynamicAxis,
+        boundary: str | StaticBoundary | DynamicBoundary,
+        *,
+        dims: tuple[str, str] = ("x", "y"),
+        zones: set[Literal["front", "within", "behind"]] | None = None,
+    ) -> FeaturesResult:
+        """Per-frame boolean: does the axis line cross the boundary polygon?
+
+        The axis is always treated as infinite.  Each intersection point is
+        classified by its scalar projection *t* onto the A→B segment:
+
+        - ``"behind"``: t ≤ 0  (at or before the first reference point)
+        - ``"within"``: 0 < t < 1  (strictly between the two reference points)
+        - ``"front"``:  t ≥ 1  (at or beyond the second reference point)
+
+        A frame is ``True`` when at least one intersection with the boundary
+        falls inside any of the requested ``zones``.  Frames where the axis is
+        degenerate (A == B) or any coordinate is NaN are returned as ``pd.NA``.
+
+        Parameters
+        ----------
+        axis : str, StaticAxis, or DynamicAxis
+            Two-point axis asset, or the name of a registered one.
+        boundary : str, StaticBoundary, or DynamicBoundary
+            Polygon boundary asset, or the name of a registered one.
+        dims : tuple of (str, str), default ``("x", "y")``
+            The 2-D coordinate space for the intersection test.  Both the axis
+            and the boundary must have exactly these dims.
+        zones : set of {"front", "within", "behind"}, optional
+            Which zones count as an intersection.  Defaults to all three (any
+            intersection anywhere along the infinite axis).
+
+        Returns
+        -------
+        FeaturesResult
+            Boolean series (pandas nullable boolean dtype).
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> ax = f.define_dynamic_axis('p1', 'p2')
+        >>> b = f.define_dynamic_boundary(['p1', 'p2', 'p3'], name='tri')
+        >>> res = f.axis_intersects_boundary(ax, b)
+        >>> bool(isinstance(res, pd.Series))
+        True
+
+        ```
+        """
+        _VALID_ZONES: set[str] = {"front", "within", "behind"}
+        if zones is None:
+            zones = _VALID_ZONES
+        else:
+            unknown = zones - _VALID_ZONES
+            if unknown:
+                raise ValueError(
+                    f"Unknown zone(s): {unknown!r}.  Valid zones are {_VALID_ZONES!r}."
+                )
+            if not zones:
+                raise ValueError("zones must not be empty.")
+
+        resolved_axis = self._resolve_axis_ref(axis)
+        resolved_boundary = self._resolve_boundary_ref(boundary)
+
+        if tuple(resolved_axis.dims) != tuple(dims):
+            raise ValueError(f"axis dims {resolved_axis.dims!r} do not match dims={dims!r}.")
+        if tuple(resolved_boundary.dims) != tuple(dims):
+            raise ValueError(
+                f"boundary dims {resolved_boundary.dims!r} do not match dims={dims!r}."
+            )
+
+        df = self.tracking.data
+        for d in dims:
+            if not any(col.endswith(f".{d}") for col in df.columns):
+                raise ValueError(f"Dimension {d!r} not found in tracking data columns.")
+        n = len(df)
+
+        # Build A and B per frame.
+        if isinstance(resolved_axis, StaticAxis):
+            A = np.tile(np.array(resolved_axis.vertices[0], dtype=float), (n, 1))
+            B = np.tile(np.array(resolved_axis.vertices[1], dtype=float), (n, 1))
+        else:
+            arr = resolved_axis.to_numpy_per_frame(df)  # (n, 2, 2)
+            A = arr[:, 0, :]
+            B = arr[:, 1, :]
+
+        # Build boundary vertices per frame (scaling applied inside to_numpy_per_frame).
+        if isinstance(resolved_boundary, StaticBoundary):
+            verts = np.array(resolved_boundary.vertices, dtype=float)  # (N_verts, 2)
+            boundary_valid = ~np.any(np.isnan(verts))  # scalar; all-or-nothing for static
+            boundary_valid = np.full(n, boundary_valid)
+        else:
+            verts = resolved_boundary.to_numpy_per_frame(df)  # (n, N_verts, 2)
+            boundary_valid = ~np.any(np.isnan(verts), axis=(1, 2))
+
+        axis_nan = np.any(np.isnan(A) | np.isnan(B), axis=1)
+        axis_degenerate = np.linalg.norm(B - A, axis=1) == 0.0
+        valid = ~axis_nan & ~axis_degenerate & boundary_valid
+
+        result = pd.Series(pd.array([pd.NA] * n, dtype="boolean"), index=df.index)
+        if valid.any():
+            v = verts if verts.ndim == 2 else verts[valid]
+            result[valid] = _axis_boundary_intersections(A[valid], B[valid], v, zones)
+
+        if resolved_axis.name:
+            axis_label = resolved_axis.name
+        elif isinstance(resolved_axis, StaticAxis) and resolved_axis.source_points:
+            axis_label = "_".join(resolved_axis.source_points)
+        elif isinstance(resolved_axis, DynamicAxis):
+            axis_label = "_".join(resolved_axis.points)
+        else:
+            axis_label = "axis"
+
+        boundary_label = resolved_boundary.name or self._short_boundary_id(
+            list(
+                resolved_boundary.vertices
+                if isinstance(resolved_boundary, StaticBoundary)
+                else resolved_boundary.points
+            )
+        )
+
+        zones_str = "_".join(sorted(zones))
+        name_str = f"axis_intersects_boundary_{axis_label}_{boundary_label}_{zones_str}"
+        meta = {
+            "function": "axis_intersects_boundary",
+            "axis": resolved_axis.to_dict(),
+            "boundary": resolved_boundary.to_dict(),
+            "dims": list(dims),
+            "zones": sorted(zones),
+        }
+        return FeaturesResult(result, self, name_str, meta)
 
     def area_of_boundary(
         self, boundary: str | StaticBoundary | DynamicBoundary, **kwargs
@@ -1590,35 +1782,9 @@ class Features:
             name = f"area_of_boundary_{boundary_label}_dynamic"
             meta = {"function": "area_of_boundary", "boundary": boundary.to_dict()}
             df = self.tracking.data
-            bx = np.column_stack(
-                [df[b + "." + boundary.dims[0]].to_numpy(dtype=float) for b in boundary.points]
-            )
-            by = np.column_stack(
-                [df[b + "." + boundary.dims[1]].to_numpy(dtype=float) for b in boundary.points]
-            )
-
-            if boundary.scale_dim1 != 1.0 or boundary.scale_dim2 != 1.0:
-                if boundary.anchor_points is None:
-                    ax = np.nanmean(bx, axis=1)
-                    ay = np.nanmean(by, axis=1)
-                else:
-                    ax = np.column_stack(
-                        [
-                            df[a + "." + boundary.dims[0]].to_numpy(dtype=float)
-                            for a in boundary.anchor_points
-                        ]
-                    )
-                    ay = np.column_stack(
-                        [
-                            df[a + "." + boundary.dims[1]].to_numpy(dtype=float)
-                            for a in boundary.anchor_points
-                        ]
-                    )
-                    ax = np.nanmean(ax, axis=1)
-                    ay = np.nanmean(ay, axis=1)
-                bx = ax[:, None] + (bx - ax[:, None]) * boundary.scale_dim1
-                by = ay[:, None] + (by - ay[:, None]) * boundary.scale_dim2
-
+            verts = boundary.to_numpy_per_frame(df)  # (n, N_verts, 2), scaling applied
+            bx = verts[:, :, 0]
+            by = verts[:, :, 1]
             bx_next = np.roll(bx, -1, axis=1)
             by_next = np.roll(by, -1, axis=1)
             result = pd.Series(
