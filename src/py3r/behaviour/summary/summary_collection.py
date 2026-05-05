@@ -116,7 +116,6 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
                     {handle: summary_cls(f) for handle, f in sub_fc.features_dict.items()}
                 )
             grouped_sc = cls(grouped_dict)
-            grouped_sc._is_grouped = True
             grouped_sc._groupby_tags = getattr(features_collection, "groupby_tags", None)
             return grouped_sc
         # Flat case

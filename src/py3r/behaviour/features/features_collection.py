@@ -107,7 +107,6 @@ class FeaturesCollection(BaseCollection):
                     {handle: feature_cls(t) for handle, t in sub_tc._obj_dict.items()}
                 )
             grouped_fc = cls(grouped_dict)
-            grouped_fc._is_grouped = True
             grouped_fc._groupby_tags = getattr(tracking_collection, "groupby_tags", None)
             return grouped_fc
         # Flat case
@@ -238,7 +237,6 @@ class FeaturesCollection(BaseCollection):
                 result_dict[group_key] = cls(group_result)
 
             result = cls(result_dict)
-            result._is_grouped = True
             result._groupby_tags = getattr(first, "_groupby_tags", None)
             return result
 

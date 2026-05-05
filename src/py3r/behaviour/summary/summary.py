@@ -129,9 +129,17 @@ class Summary:
         self.data = dict()
         self.meta = dict()
         self.handle = trackingfeatures.handle
-        self.tags = trackingfeatures.tags
         if "usermeta" in trackingfeatures.meta:
             self.meta["usermeta"] = trackingfeatures.meta["usermeta"]
+
+    @property
+    def tags(self) -> dict:
+        """Tags delegate to the underlying Features (and transitively to Tracking)."""
+        return self.features.tags
+
+    @tags.setter
+    def tags(self, value: dict) -> None:
+        self.features.tags = value
 
     # Full round-trip persistence
     def save(

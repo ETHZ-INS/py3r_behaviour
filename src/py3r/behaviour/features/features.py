@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 import logging
 import os
-import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Literal, Self
 
@@ -52,9 +51,7 @@ if TYPE_CHECKING:
     from py3r.behaviour.summary.summary import Summary
 
 logger = logging.getLogger(__name__)
-logformat = "%(funcName)s(): %(message)s"
-logging.basicConfig(stream=sys.stdout, format=logformat)
-logger.setLevel(logging.INFO)
+logger.addHandler(logging.NullHandler())
 
 
 class Features:
@@ -68,7 +65,6 @@ class Features:
         self.meta = dict()
         self._assets: dict[str, Any] = {}
         self.handle = tracking.handle
-        self.tags = tracking.tags
         if "usermeta" in tracking.meta:
             self.meta["usermeta"] = tracking.meta["usermeta"]
 
@@ -78,6 +74,19 @@ class Features:
                 "some methods will be unavailable",
                 stacklevel=2,
             )
+
+    @property
+    def tags(self) -> dict:
+        """Tags delegate to the underlying Tracking — single source of truth."""
+        return self.tracking.tags
+
+    @tags.setter
+    def tags(self, value: dict) -> None:
+        self.tracking.tags = value
+
+    def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> None:
+        """Add or update a tag. Delegates to the underlying Tracking."""
+        self.tracking.add_tag(tagname, tagvalue, overwrite=overwrite)
 
     # Full round-trip persistence
     def save(
