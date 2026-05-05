@@ -173,3 +173,86 @@ class TestDistanceToBoundaryNewApi:
     def test_rejects_legacy_vertex_list(self, features):
         with pytest.raises(TypeError, match="Unsupported boundary value"):
             features.distance_to_boundary("q", STATIC_BOUNDARY)
+
+
+# Triangle [(0,0),(10,0),(0,10)]:
+#   frame 0  q=(3,3)   inside  – nearest edge is hypotenuse x+y=10, dist = 4/√2 = 2√2
+#   frame 1  q=(20,20) outside – nearest edge is hypotenuse,         dist = 30/√2 = 15√2
+#   frame 7  q=(5,0)   on edge – distance = 0, within() is strict False → signed = 0
+_INSIDE_DIST = 2 * np.sqrt(2)
+_OUTSIDE_DIST = 15 * np.sqrt(2)
+
+
+class TestDistanceToBoundarySignedArg:
+    # --- static boundary ---
+
+    def test_static_inside_is_negative(self, features):
+        boundary = features.define_static_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary, signed=True)
+        assert res.iloc[0] == pytest.approx(-_INSIDE_DIST)
+
+    def test_static_outside_is_positive(self, features):
+        boundary = features.define_static_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary, signed=True)
+        assert res.iloc[1] == pytest.approx(_OUTSIDE_DIST)
+
+    def test_static_on_boundary_is_zero(self, features):
+        boundary = features.define_static_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary, signed=True)
+        assert res.iloc[7] == pytest.approx(0.0)
+
+    def test_static_nan_propagates(self, features):
+        boundary = features.define_static_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary, signed=True)
+        # frames 2 (q.x NaN), 3 (q.y NaN), 4 (both NaN) must stay NaN
+        assert np.isnan(res.iloc[2])
+        assert np.isnan(res.iloc[3])
+        assert np.isnan(res.iloc[4])
+
+    def test_static_abs_equals_unsigned(self, features):
+        boundary = features.define_static_boundary(BOUNDARY_NAMES)
+        unsigned = features.distance_to_boundary("q", boundary)
+        signed = features.distance_to_boundary("q", boundary, signed=True)
+        valid = ~unsigned.isna()
+        np.testing.assert_allclose(signed[valid].abs().to_numpy(), unsigned[valid].to_numpy())
+
+    # --- dynamic boundary ---
+
+    def test_dynamic_inside_is_negative(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary, signed=True)
+        assert res.iloc[0] == pytest.approx(-_INSIDE_DIST)
+
+    def test_dynamic_outside_is_positive(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary, signed=True)
+        assert res.iloc[1] == pytest.approx(_OUTSIDE_DIST)
+
+    def test_dynamic_nan_propagates(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary, signed=True)
+        assert np.isnan(res.iloc[2])
+        assert np.isnan(res.iloc[5])  # b3 vertex NaN at frame 5
+        assert np.isnan(res.iloc[6])  # all NaN at frame 6
+
+    def test_dynamic_abs_equals_unsigned(self, features):
+        boundary = features.define_dynamic_boundary(BOUNDARY_NAMES)
+        unsigned = features.distance_to_boundary("q", boundary)
+        signed = features.distance_to_boundary("q", boundary, signed=True)
+        valid = ~unsigned.isna()
+        np.testing.assert_allclose(signed[valid].abs().to_numpy(), unsigned[valid].to_numpy())
+
+    # --- stored boundary name ---
+
+    def test_stored_name_forwards_signed(self, features):
+        features.define_static_boundary(BOUNDARY_NAMES, name="tri_s", overwrite=True)
+        res = features.distance_to_boundary("q", "tri_s", signed=True)
+        assert res.iloc[0] == pytest.approx(-_INSIDE_DIST)
+        assert res.iloc[1] == pytest.approx(_OUTSIDE_DIST)
+
+    # --- default unchanged ---
+
+    def test_default_is_unsigned(self, features):
+        boundary = features.define_static_boundary(BOUNDARY_NAMES)
+        res = features.distance_to_boundary("q", boundary)
+        assert (res.dropna() >= 0).all()

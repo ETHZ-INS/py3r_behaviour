@@ -13,6 +13,8 @@ import shapely
 from shapely.geometry import Polygon
 from sklearn.neighbors import KNeighborsRegressor
 
+from py3r.behaviour.features.assets import _ASSET_KINDS, _LEGACY_ASSET_KINDS
+from py3r.behaviour.features.axis import DynamicAxis, StaticAxis
 from py3r.behaviour.features.boundary import DynamicBoundary, StaticBoundary
 from py3r.behaviour.features.features_result import FeaturesResult
 from py3r.behaviour.tracking.tracking import Tracking
@@ -23,7 +25,7 @@ from py3r.behaviour.util.bmicro_utils import (
     train_knn_from_embeddings,
 )
 from py3r.behaviour.util.collection_utils import _Indexer
-from py3r.behaviour.util.dataframe_utils import coarse_grain_dataframe
+from py3r.behaviour.util.dataframe_utils import coarse_grain_dataframe, point_to_axis_distance
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
@@ -672,46 +674,89 @@ class Features:
             "or Features.define_dynamic_boundary() instead."
         )
 
-    def _get_boundaries(self) -> dict[str, StaticBoundary | DynamicBoundary]:
-        boundaries = self._assets.get("boundaries")
-        if boundaries is None:
-            boundaries = {}
-            self._assets["boundaries"] = boundaries
-        return boundaries
+    # ------------------------------------------------------------------
+    # Generic asset registry (flat dict keyed by name)
+    # ------------------------------------------------------------------
 
     def _serialize_assets(self) -> dict:
-        boundaries = self._assets.get("boundaries", {})
-        payload = {"boundaries": {name: b.to_dict() for name, b in boundaries.items()}}
-        # keep room for future assets
-        return payload
+        return {name: asset.to_dict() for name, asset in self._assets.items()}
 
     def _deserialize_assets(self, payload: dict | None) -> dict[str, Any]:
         payload = payload or {}
-        boundaries_payload = payload.get("boundaries", {})
-        boundaries: dict[str, StaticBoundary | DynamicBoundary] = {}
-        for name, b in boundaries_payload.items():
-            kind = b.get("kind")
-            if kind == "static":
-                boundaries[name] = StaticBoundary.from_dict(b)
-            elif kind == "dynamic":
-                boundaries[name] = DynamicBoundary.from_dict(b)
-            else:
-                raise ValueError(f"Unknown boundary kind '{kind}' in saved assets.")
-        return {"boundaries": boundaries}
+        result: dict[str, Any] = {}
 
-    def _register_boundary(
-        self, boundary: StaticBoundary | DynamicBoundary, *, name: str | None, overwrite: bool
-    ) -> StaticBoundary | DynamicBoundary:
+        # Backward compatibility: files saved before the asset refactor stored
+        # boundaries under a nested "boundaries" key with kinds "static"/"dynamic".
+        for name, data in payload.get("boundaries", {}).items():
+            kind = data.get("kind")
+            cls = _ASSET_KINDS.get(kind) or _LEGACY_ASSET_KINDS.get(kind)
+            if cls is None:
+                raise ValueError(f"Unknown asset kind {kind!r} in saved assets.")
+            result[name] = cls.from_dict(data)
+
+        # Current flat format: each top-level key is an asset name.
+        for name, data in payload.items():
+            if name == "boundaries":
+                continue
+            kind = data.get("kind")
+            cls = _ASSET_KINDS.get(kind)
+            if cls is None:
+                raise ValueError(f"Unknown asset kind {kind!r} in saved assets.")
+            result[name] = cls.from_dict(data)
+
+        return result
+
+    def _register_asset(self, asset, *, name: str | None, overwrite: bool):
         if name is None:
-            return boundary
-        boundaries = self._get_boundaries()
-        if name in boundaries and not overwrite:
+            return asset
+        if name in self._assets and not overwrite:
             raise ValueError(
-                f"Boundary with name '{name}' already exists. Set overwrite=True to replace it."
+                f"Asset with name {name!r} already exists. Set overwrite=True to replace it."
             )
-        named = boundary.with_name(name)
-        boundaries[name] = named
+        named = asset.with_name(name)
+        self._assets[name] = named
         return named
+
+    def get_asset(self, name: str):
+        """Return a named geometric asset (boundary or line) by name.
+
+        Raises
+        ------
+        KeyError
+            If no asset with ``name`` is registered.
+        """
+        try:
+            return self._assets[name]
+        except KeyError:
+            available = list(self._assets)
+            raise KeyError(f"No asset {name!r} registered. Available: {available}") from None
+
+    def list_assets(self) -> pd.DataFrame:
+        """Return a table of all named geometric assets on this Features object.
+
+        Returns
+        -------
+        pd.DataFrame
+            Indexed by asset name, columns: ``asset_type``, ``dims``, ``n_points``.
+        """
+        rows = []
+        for name, asset in self._assets.items():
+            n = (
+                len(asset.vertices)
+                if isinstance(asset, (StaticBoundary, StaticAxis))
+                else len(asset.points)
+            )
+            rows.append(
+                {
+                    "name": name,
+                    "asset_type": type(asset).__name__,
+                    "dims": asset.dims,
+                    "n_points": n,
+                }
+            )
+        if not rows:
+            return pd.DataFrame(columns=["asset_type", "dims", "n_points"])
+        return pd.DataFrame(rows).set_index("name")
 
     def _resolve_anchor(self, points: list[str], dims: tuple[str, str], anchor):
         if anchor is None:
@@ -775,7 +820,7 @@ class Features:
             scale_dim2=float(scale_dim2),
             name=name,
         )
-        return self._register_boundary(boundary, name=name, overwrite=overwrite)
+        return self._register_asset(boundary, name=name, overwrite=overwrite)
 
     def define_dynamic_boundary(
         self,
@@ -803,7 +848,7 @@ class Features:
             scale_dim2=float(scale_dim2),
             name=name,
         )
-        return self._register_boundary(boundary, name=name, overwrite=overwrite)
+        return self._register_asset(boundary, name=name, overwrite=overwrite)
 
     def import_static_boundary(
         self,
@@ -820,48 +865,188 @@ class Features:
             raise ValueError("Imported static boundary requires at least 3 vertices.")
         verts = tuple((float(x), float(y)) for x, y in vertices)
         boundary = StaticBoundary(vertices=verts, dims=(dims[0], dims[1]), name=name)
-        return self._register_boundary(boundary, name=name, overwrite=overwrite)
+        return self._register_asset(boundary, name=name, overwrite=overwrite)
+
+    # ------------------------------------------------------------------
+    # Axis asset factories
+    # ------------------------------------------------------------------
+
+    def define_static_axis(
+        self,
+        point1: str,
+        point2: str,
+        *,
+        dims: tuple[str, ...] = ("x", "y"),
+        offset: float = 0.0,
+        name: str | None = None,
+        overwrite: bool = False,
+    ) -> StaticAxis:
+        """Define a static axis from the medians of two keypoints.
+
+        The axis is fixed in space: median coordinates are computed once from
+        the full tracking session.  The offset is baked into the stored
+        reference points at definition time.  The axis is always treated as
+        infinite (no endpoints) in both distance computations and rendering.
+
+        Parameters
+        ----------
+        point1 : str
+            First keypoint defining the axis direction.
+        point2 : str
+            Second keypoint defining the axis direction.
+        dims : tuple[str, ...], default ``("x", "y")``
+            Coordinate dimensions.  Any number of dims is supported
+            (e.g. ``("x", "y", "z")`` for 3-D axis distance).
+        offset : float, default 0.0
+            Shift both reference points perpendicularly by this amount.
+            Positive is to the right when facing from ``point1`` to
+            ``point2``.  Only supported for 2-D axes.
+        name : str or None
+            If given, register the axis under this name.
+        overwrite : bool, default False
+            Allow replacing an existing asset with the same name.
+        """
+        from py3r.behaviour.features.axis import _transform_axis_endpoints
+
+        medians = [self.get_point_median(p, dims=dims) for p in (point1, point2)]
+        A = np.array(medians[0], dtype=float)
+        B = np.array(medians[1], dtype=float)
+        A_t, B_t = _transform_axis_endpoints(A, B, offset=offset)
+        axis = StaticAxis(
+            vertices=(tuple(float(c) for c in A_t), tuple(float(c) for c in B_t)),
+            dims=tuple(dims),
+            source_points=(point1, point2),
+            name=name,
+        )
+        return self._register_asset(axis, name=name, overwrite=overwrite)
+
+    def define_dynamic_axis(
+        self,
+        point1: str,
+        point2: str,
+        *,
+        dims: tuple[str, ...] = ("x", "y"),
+        offset: float = 0.0,
+        name: str | None = None,
+        overwrite: bool = False,
+    ) -> DynamicAxis:
+        """Define a dynamic axis from two keypoint names.
+
+        Reference-point coordinates are resolved per frame at compute time,
+        with offset applied during each resolution.  The axis is always treated
+        as infinite in both distance computations and rendering.
+
+        Parameters
+        ----------
+        point1 : str
+            First keypoint defining the axis direction.
+        point2 : str
+            Second keypoint defining the axis direction.
+        dims : tuple[str, ...], default ``("x", "y")``
+            Coordinate dimensions.
+        offset : float, default 0.0
+            Per-frame perpendicular displacement.  Positive is to the right
+            when facing from ``point1`` to ``point2``.  Only supported for
+            2-D axes.
+        name : str or None
+            If given, register the axis under this name.
+        overwrite : bool, default False
+            Allow replacing an existing asset with the same name.
+        """
+        self.tracking._assert_valid_point(point1)
+        self.tracking._assert_valid_point(point2)
+        axis = DynamicAxis(
+            points=(point1, point2),
+            dims=tuple(dims),
+            offset=offset,
+            name=name,
+        )
+        return self._register_asset(axis, name=name, overwrite=overwrite)
+
+    def import_static_axis(
+        self,
+        vertices: list[tuple[float, ...]],
+        *,
+        dims: tuple[str, ...] = ("x", "y"),
+        name: str | None = None,
+        overwrite: bool = False,
+    ) -> StaticAxis:
+        """Import a static axis from explicit reference-point coordinates.
+
+        Parameters
+        ----------
+        vertices : list of tuple
+            Exactly two coordinate tuples in ``dims`` space.
+        dims : tuple[str, ...], default ``("x", "y")``
+            Coordinate dimensions.
+        name : str or None
+            If given, register the axis under this name.
+        overwrite : bool, default False
+            Allow replacing an existing asset with the same name.
+        """
+        if len(vertices) != 2:
+            raise ValueError(f"An axis requires exactly 2 reference points; got {len(vertices)}.")
+        verts = tuple(tuple(float(c) for c in v) for v in vertices)
+        axis = StaticAxis(vertices=verts, dims=tuple(dims), name=name)
+        return self._register_asset(axis, name=name, overwrite=overwrite)
 
     def get_boundary(self, name: str) -> StaticBoundary | DynamicBoundary:
-        """Draft accessor for named boundary assets."""
-        return self._get_boundaries()[name]
+        """Return a named boundary asset.
+
+        Raises ``KeyError`` if the name is not registered, ``TypeError`` if the
+        registered asset is not a boundary.
+        """
+        asset = self.get_asset(name)
+        if not isinstance(asset, (StaticBoundary, DynamicBoundary)):
+            raise TypeError(
+                f"Asset {name!r} is a {type(asset).__name__}, not a boundary. "
+                "Use get_asset() to retrieve non-boundary assets."
+            )
+        return asset
 
     def list_boundaries(self) -> pd.DataFrame:
-        """Return a compact table of named boundaries on this Features object."""
+        """Return a compact table of named boundary assets on this Features object."""
         rows = []
-        for name, boundary in self._get_boundaries().items():
-            if isinstance(boundary, StaticBoundary):
-                points_n = len(boundary.vertices)
-                kind = "static"
-                has_vertices = True
-            elif isinstance(boundary, DynamicBoundary):
-                points_n = len(boundary.points)
-                kind = "dynamic"
-                has_vertices = False
-            else:
-                raise TypeError(f"Unsupported boundary type in assets: {type(boundary).__name__}")
-            rows.append(
-                {
-                    "name": name,
-                    "kind": kind,
-                    "n_points": points_n,
-                    "has_vertices": has_vertices,
-                }
-            )
+        for name, asset in self._assets.items():
+            if isinstance(asset, StaticBoundary):
+                rows.append(
+                    {
+                        "name": name,
+                        "kind": "static",
+                        "n_points": len(asset.vertices),
+                        "has_vertices": True,
+                    }
+                )
+            elif isinstance(asset, DynamicBoundary):
+                rows.append(
+                    {
+                        "name": name,
+                        "kind": "dynamic",
+                        "n_points": len(asset.points),
+                        "has_vertices": False,
+                    }
+                )
         if not rows:
             return pd.DataFrame(columns=["kind", "n_points", "has_vertices"])
         return pd.DataFrame(rows).set_index("name")
 
     def _resolve_boundary_ref(self, boundary) -> StaticBoundary | DynamicBoundary:
-        resolved = self.get_boundary(boundary) if isinstance(boundary, str) else boundary
-        if isinstance(resolved, StaticBoundary):
-            return resolved
-        if isinstance(resolved, DynamicBoundary):
-            return resolved
-        raise TypeError(
-            "boundary must be a boundary name, StaticBoundary, or DynamicBoundary. "
-            f"Got {type(resolved).__name__}."
-        )
+        resolved = self.get_asset(boundary) if isinstance(boundary, str) else boundary
+        if not isinstance(resolved, (StaticBoundary, DynamicBoundary)):
+            raise TypeError(
+                "boundary must be a boundary name, StaticBoundary, or DynamicBoundary. "
+                f"Got {type(resolved).__name__}."
+            )
+        return resolved
+
+    def _resolve_axis_ref(self, axis) -> StaticAxis | DynamicAxis:
+        resolved = self.get_asset(axis) if isinstance(axis, str) else axis
+        if not isinstance(resolved, (StaticAxis, DynamicAxis)):
+            raise TypeError(
+                "axis must be an axis name, StaticAxis, or DynamicAxis. "
+                f"Got {type(resolved).__name__}."
+            )
+        return resolved
 
     @staticmethod
     def _is_legacy_point_name_list(boundary) -> bool:
@@ -1009,6 +1194,11 @@ class Features:
 
         ```
         """
+        if isinstance(boundary, (StaticAxis, DynamicAxis)):
+            raise TypeError(
+                "within_boundary does not accept axis assets. "
+                "Use distance_to_axis() for axis-based features."
+            )
         if isinstance(boundary, StaticBoundary):
             return self._within_boundary_static_impl(
                 point,
@@ -1042,11 +1232,23 @@ class Features:
         self,
         point: str,
         boundary: str | DynamicBoundary | StaticBoundary,
+        *,
+        signed: bool = False,
     ) -> FeaturesResult:
         """
         Main boundary distance API.
 
         Accepts a ``StaticBoundary`` or ``DynamicBoundary`` (or a stored boundary name).
+
+        Parameters
+        ----------
+        point :
+            Keypoint name whose coordinates are measured.
+        boundary :
+            A ``StaticBoundary``, ``DynamicBoundary``, or the string name of a stored boundary.
+        signed :
+            If ``True``, distances are negated for points inside the boundary (standard signed
+            distance field convention: negative = inside, positive = outside, zero = on boundary).
 
         Examples
         --------
@@ -1065,9 +1267,17 @@ class Features:
         >>> d2 = f.distance_to_boundary('p1', 'tri')
         >>> bool(isinstance(d2, pd.Series))
         True
+        >>> ds = f.distance_to_boundary('p1', b, signed=True)
+        >>> bool((ds <= 0).any() or (ds >= 0).any())
+        True
 
         ```
         """
+        if isinstance(boundary, (StaticAxis, DynamicAxis)):
+            raise TypeError(
+                "distance_to_boundary does not accept axis assets. "
+                "Use distance_to_axis() for axis-based features."
+            )
         if isinstance(boundary, StaticBoundary):
             return self._distance_to_boundary_static_impl(
                 point,
@@ -1075,6 +1285,7 @@ class Features:
                 dims=boundary.dims,
                 boundary_label=boundary.name or self._short_boundary_id(list(boundary.vertices)),
                 boundary_meta=boundary.to_dict(),
+                signed=signed,
             )
         if isinstance(boundary, DynamicBoundary):
             return self._distance_to_boundary_dynamic_impl(
@@ -1088,10 +1299,11 @@ class Features:
                 else None,
                 boundary_label=boundary.name or self._short_boundary_id(list(boundary.points)),
                 boundary_meta=boundary.to_dict(),
+                signed=signed,
             )
         if isinstance(boundary, str):
             stored = self._resolve_boundary_ref(boundary)
-            return self.distance_to_boundary(point, stored)
+            return self.distance_to_boundary(point, stored, signed=signed)
         raise TypeError(
             "Unsupported boundary value. Expected StaticBoundary, DynamicBoundary, "
             "or stored boundary name."
@@ -1105,15 +1317,19 @@ class Features:
         dims: tuple[str, str],
         boundary_label: str,
         boundary_meta,
+        signed: bool = False,
     ) -> FeaturesResult:
         if len(boundary_vertices) < 3:
             raise Exception("boundary encloses no area")
         boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary_vertices)
         name = f"distance_to_boundary_static_{point}_in_{boundary_label}"
+        if signed:
+            name += "_signed"
         meta = {
             "function": "distance_to_boundary",
             "point": point,
             "boundary": boundary_meta,
+            "signed": signed,
         }
 
         df = self.tracking.data
@@ -1124,11 +1340,14 @@ class Features:
         if boundary_has_nan:
             result = pd.Series(np.nan, index=df.index)
         else:
-            exterior = Polygon(boundary_vertices).exterior
+            poly = Polygon(boundary_vertices)
             result = pd.Series(np.nan, index=df.index)
             if valid.any():
                 pts = shapely.points(px[valid], py[valid])
-                result[valid] = shapely.distance(exterior, pts)
+                result[valid] = shapely.distance(poly.exterior, pts)
+                if signed:
+                    inside = shapely.within(pts, poly)
+                    result[valid] *= np.where(inside, -1.0, 1.0)
         return FeaturesResult(result, self, name, meta)
 
     def _distance_to_boundary_dynamic_impl(
@@ -1142,14 +1361,18 @@ class Features:
         anchor_points: list[str] | None,
         boundary_label: str,
         boundary_meta,
+        signed: bool = False,
     ) -> FeaturesResult:
         if len(boundary_points) < 3:
             raise Exception("boundary encloses no area")
         name = f"distance_to_boundary_dynamic_{point}_in_{boundary_label}"
+        if signed:
+            name += "_signed"
         meta = {
             "function": "distance_to_boundary",
             "point": point,
             "boundary": boundary_meta,
+            "signed": signed,
         }
 
         df = self.tracking.data
@@ -1182,6 +1405,9 @@ class Features:
             exteriors = shapely.get_exterior_ring(polys)
             pts = shapely.points(px[valid], py[valid])
             result[valid] = shapely.distance(exteriors, pts)
+            if signed:
+                inside = shapely.within(pts, polys)
+                result[valid] *= np.where(inside, -1.0, 1.0)
         return FeaturesResult(result, self, name, meta)
 
     def distance_to_boundary_static(
@@ -1201,6 +1427,103 @@ class Features:
             "Features.distance_to_boundary(point, boundary) with a DynamicBoundary "
             "or stored boundary name instead."
         )
+
+    def distance_to_axis(
+        self,
+        point: str,
+        axis: str | StaticAxis | DynamicAxis,
+        *,
+        signed: bool = False,
+    ) -> FeaturesResult:
+        """Framewise perpendicular distance from a keypoint to an infinite axis.
+
+        The axis is always treated as extending infinitely in both directions.
+        Use :meth:`define_static_axis`, :meth:`define_dynamic_axis`, or
+        :meth:`import_static_axis` to create axis assets.
+
+        Parameters
+        ----------
+        point : str
+            Keypoint to measure from.
+        axis : str, StaticAxis, or DynamicAxis
+            A two-point axis asset, or the name of a registered one.
+        signed : bool, default False
+            If True, return a signed distance (2-D axes only).  Positive means
+            the point is to the *right* when facing from the first to the
+            second axis reference point; negative means it is to the *left*.
+            The sign convention matches :meth:`define_static_axis` ``offset``:
+            an ``offset > 0`` shifts the axis rightward, so a point that was
+            on the axis will have a negative signed distance from the
+            offset-shifted one.  Raises ``ValueError`` for non-2-D axes.
+
+        Returns
+        -------
+        FeaturesResult
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> ax = f.define_dynamic_axis('p1', 'p2')
+        >>> res = f.distance_to_axis('p3', ax)
+        >>> isinstance(res, pd.Series) and len(res) == len(t.data)
+        True
+        >>> res_signed = f.distance_to_axis('p3', ax, signed=True)
+        >>> isinstance(res_signed, pd.Series) and len(res_signed) == len(t.data)
+        True
+
+        ```
+        """
+        resolved = self._resolve_axis_ref(axis)
+        dims = resolved.dims
+
+        if signed and len(dims) != 2:
+            raise ValueError(
+                f"signed=True requires a 2-D axis; axis {resolved.name!r} has dims {dims}."
+            )
+
+        if "rescale_distance_method" not in self.tracking.meta:
+            warnings.warn("distance has not been calibrated", stacklevel=2)
+        if "smoothing" not in self.tracking.meta:
+            warnings.warn("tracking data have not been smoothed", stacklevel=2)
+
+        df = self.tracking.data
+        n = len(df)
+        P = self.tracking.get_point_data(point, dims=list(dims)).to_numpy(dtype=float)
+
+        if isinstance(resolved, StaticAxis):
+            A = np.tile(np.array(resolved.vertices[0], dtype=float), (n, 1))
+            B = np.tile(np.array(resolved.vertices[1], dtype=float), (n, 1))
+        else:
+            arr = resolved.to_numpy_per_frame(df)  # (n, 2, d)
+            A = arr[:, 0, :]
+            B = arr[:, 1, :]
+
+        dist = point_to_axis_distance(P, A, B, signed=signed)
+        series = pd.Series(dist, index=df.index)
+
+        if resolved.name:
+            axis_label = resolved.name
+        elif isinstance(resolved, StaticAxis) and resolved.source_points:
+            axis_label = "_".join(resolved.source_points)
+        else:
+            axis_label = "_".join(resolved.points)
+
+        sign_suffix = "_signed" if signed else ""
+        name_str = f"distance_to_axis_{point}_from_{axis_label}_in_{''.join(dims)}{sign_suffix}"
+        meta = {
+            "function": "distance_to_axis",
+            "point": point,
+            "axis": resolved.to_dict(),
+            "signed": signed,
+        }
+        return FeaturesResult(series, self, name_str, meta)
 
     def area_of_boundary(
         self, boundary: str | StaticBoundary | DynamicBoundary, **kwargs
@@ -2541,6 +2864,7 @@ class Features:
         points: list[str],
         lines: list[tuple[str, str]] | None = None,
         boundaries: list[str] | None = None,
+        axes: list[str] | None = None,
         features: list[str | None] | dict[str | None, str | None] | None = None,
         dims: tuple[str, ...] = ("x", "y"),
         view: dict | None = None,
@@ -2567,6 +2891,11 @@ class Features:
         boundaries : list[str] | None
             Boundary names (or refs resolvable by ``_resolve_boundary_ref``)
             to draw. Order controls draw stacking.
+        axes : list[str] | None
+            Axis asset names (registered via :meth:`define_static_axis`,
+            :meth:`define_dynamic_axis`, or :meth:`import_static_axis`) to
+            draw as infinite lines clipped to the canvas boundary.
+            Styled via ``style["axes"]``.
         features : list[str | None] | dict[str | None, str | None] | None
             Per-frame scalar feature columns from ``self.data`` to render as
             text overlays. If a list is provided, each column is shown as
@@ -2650,6 +2979,15 @@ class Features:
             if boundaries is not None
             else []
         )
+        axis_arrays = (
+            self.axes_to_arrays(
+                axes,
+                dims=(dims[0], dims[1]),
+                undo_meta_scaling=undo_meta_scaling,
+            )
+            if axes is not None
+            else []
+        )
         text_overlays = None
         if features is not None:
             text_overlays = []
@@ -2686,6 +3024,7 @@ class Features:
             frame_ids=self.tracking.data.index.to_numpy(copy=True),
             fps=float(self.tracking.meta.get("fps", 30.0)),
             boundary_arrays=boundary_arrays,
+            axis_arrays=axis_arrays,
             canvas_size=canvas_size,
             bg_color=bg_color,
             style=style,
@@ -2782,3 +3121,57 @@ class Features:
                 )
                 boundary_arrays.append((boundary_name, poly_stack))
         return boundary_arrays
+
+    def axes_to_arrays(
+        self,
+        axes: list[str],
+        *,
+        dims: tuple[str, str] = ("x", "y"),
+        undo_meta_scaling: bool = False,
+    ) -> list[tuple[str, np.ndarray]]:
+        """Resolve named axis assets into per-axis reference-point arrays for animation.
+
+        Parameters
+        ----------
+        axes : list[str]
+            Axis asset names (registered via :meth:`define_static_axis`,
+            :meth:`define_dynamic_axis`, or :meth:`import_static_axis`).
+        dims : tuple[str, str], default ``("x", "y")``
+            Coordinate dimensions.  Must be a 2-tuple; axis asset dims must
+            match.
+        undo_meta_scaling : bool, default False
+            If True, invert tracking meta scaling before resolving coordinates.
+
+        Returns
+        -------
+        list[tuple[str, np.ndarray]]
+            Axis arrays as ``[(axis_name, arr), ...]`` where each arr has
+            shape ``(n_frames, 2, 2)``.
+        """
+        source_df = self.tracking.data
+        factors = (
+            self.tracking._undo_rescale_factors((dims[0], dims[1])) if undo_meta_scaling else {}
+        )
+        result: list[tuple[str, np.ndarray]] = []
+        for axis_ref in axes:
+            axis = self._resolve_axis_ref(axis_ref)
+            if axis.dims != dims:
+                raise ValueError(
+                    f"Axis {axis.name or axis_ref!r} dims {axis.dims} "
+                    f"do not match requested dims {dims}"
+                )
+            axis_name = str(axis_ref)
+            if isinstance(axis, StaticAxis):
+                seg = axis.to_numpy()  # (2, 2)
+                seg_stack = np.repeat(seg[np.newaxis, :, :], len(source_df), axis=0)
+            else:
+                seg_stack = axis.to_numpy_per_frame(source_df)  # (n, 2, 2)
+            seg_stack = rescale_array_by_dim(
+                seg_stack,
+                dims=(dims[0], dims[1]),
+                factors=factors,
+                dim_axis=2,
+                copy=False,
+            )
+            result.append((axis_name, seg_stack))
+        return result
