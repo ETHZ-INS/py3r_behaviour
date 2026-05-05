@@ -35,7 +35,7 @@ class StaticBoundary:
 
     def to_dict(self) -> dict:
         return {
-            "kind": "static",
+            "kind": "static_boundary",
             "vertices": list(self.vertices),
             "dims": list(self.dims),
             "source_points": list(self.source_points) if self.source_points is not None else None,
@@ -89,7 +89,7 @@ class DynamicBoundary:
 
     def to_dict(self) -> dict:
         return {
-            "kind": "dynamic",
+            "kind": "dynamic_boundary",
             "points": list(self.points),
             "dims": list(self.dims),
             "anchor_points": list(self.anchor_points) if self.anchor_points is not None else None,

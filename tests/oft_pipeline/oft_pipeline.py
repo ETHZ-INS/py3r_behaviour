@@ -246,9 +246,13 @@ print("Tags, preprocessing, and trajectory plot tests passed.")
 # methods for computing time-series features.
 # Most feature methods return `FeaturesResult`; call `.store()` to persist
 # to `Features.data` and register metadata in `Features.meta`.
+#
+# `tc.to_features()` is the preferred shorthand for
+# `FeaturesCollection.from_tracking_collection(tc)` and preserves any
+# grouped structure on the collection.
 
 # %%
-fc = p3b.FeaturesCollection.from_tracking_collection(tc)
+fc = tc.to_features()
 
 # %% [markdown]
 # ### Spatial features — boundaries
@@ -436,22 +440,24 @@ fc[0].list_boundaries()
 # %% [markdown]
 # ### K-means clustering
 #
-# Embed the feature time-series with temporal offsets, then cluster
-# the embedded space with k-means.
-# Returns `(cluster_labels, centroids, scaling_factors)`, where:
+# Embed the feature time-series with temporal offsets, then cluster the embedded
+# space with streaming MiniBatchKMeans.
+# Returns `(cluster_labels, centroids)`, where:
 # - `cluster_labels` is a per-handle `BatchResult` of label series
-# - `centroids` is a DataFrame with `n_clusters` rows
+# - `centroids` is a `CentroidsDf` with `n_clusters` rows; its `scaling_recipe`
+#   captures the full transform (embedding, normalisation, imputation means) so
+#   that `assign_clusters_by_centroids` can reproduce it exactly on new data
 #
-# Option notes:
-# - `offset` controls temporal context window.
-# - `cluster_embedding` also supports weighting/normalization knobs for advanced runs.
+# `cluster_embedding_stream` processes one `Features` at a time in multiple epochs
+# so it never materialises a combined DataFrame — use this for any multi-recording
+# dataset. Supports `normalize`, `normalize_details`, and `feature_weights`.
 
 # %%
 cluster_features = list(set(fc[0].data.columns) - set(non_bfa_feats))
 offset = list(np.arange(-15, 16, 1))
 embedding_dict = {f: offset for f in cluster_features}
 
-cluster_labels, centroids, _ = fc.cluster_embedding_stream(
+cluster_labels, centroids = fc.cluster_embedding_stream(
     embedding_dict=embedding_dict, n_clusters=N_CLUSTERS
 )
 cluster_labels.store("kmeans_25", overwrite=True)
@@ -579,10 +585,13 @@ print("Feature computation, clustering, and save tests passed.")
 #
 # Each `Summary` object holds scalar (or Series) metrics computed from
 # a single recording's features.
-# Return type here is `SummaryCollection`.
+#
+# `fc.to_summary()` is the preferred shorthand for
+# `SummaryCollection.from_features_collection(fc)` and preserves any
+# grouped structure on the collection.
 
 # %%
-sc = p3b.SummaryCollection.from_features_collection(fc)
+sc = fc.to_summary()
 
 # %% [markdown]
 # ### Compute summary measures

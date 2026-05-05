@@ -118,6 +118,24 @@ def _style_for_boundary(style: dict, boundary_name: str) -> dict:
     return merged
 
 
+def _style_raw_for_axis(style: dict, name: str) -> dict:
+    section = style.get("axes", {})
+    merged = {"edge_color": (0, 255, 0), "edge_width": 1}
+    merged.update(section.get("default", {}))
+    merged.update(section.get(name, {}))
+    return merged
+
+
+def _style_for_axis(style: dict, name: str) -> dict:
+    merged = _style_raw_for_axis(style, name)
+    _replace_dynamic_specs(merged, {"edge_color": (0, 255, 0), "edge_width": 1})
+    merged["edge_color"] = (
+        None if merged["edge_color"] is None else tuple(map(int, merged["edge_color"]))
+    )
+    merged["edge_width"] = int(merged["edge_width"])
+    return merged
+
+
 def _style_raw_for_text(style: dict, label: str) -> dict:
     section = style.get("text", {})
     merged = {

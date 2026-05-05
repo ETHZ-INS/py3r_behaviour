@@ -14,6 +14,7 @@ import pandas as pd
 from py3r.behaviour.util.array_utils import rescale_array_by_dim
 from py3r.behaviour.util.collection_utils import _Indexer
 from py3r.behaviour.util.dataframe_utils import (
+    coarse_grain_dataframe,
     euclidean_distance,
     filter_by_threshold,
     scale_columns,
@@ -396,17 +397,133 @@ class Tracking:
             tags=copy.deepcopy(self.tags),
         )
 
+    def coarse_grain(
+        self: Self,
+        window: int,
+        method: Literal["mean", "median", "min", "max"] = "mean",
+        non_numeric: Literal["drop", "nan", "first", "mode", "error"] = "drop",
+    ) -> Self:
+        """
+        Coarse-grain tracking data over fixed, non-overlapping windows.
+
+        Numeric columns are aggregated with ``method`` within each window of
+        ``window`` rows.  The result is reindexed from 0 and ``fps`` is divided
+        by ``window`` to reflect the new effective frame rate.  A
+        ``"coarse_grain"`` entry is appended to ``meta["transforms"]``.
+
+        Non-numeric columns (e.g. string annotations) are handled according to
+        ``non_numeric``; the default ``"drop"`` removes them from the output.
+
+        Parameters
+        ----------
+        window : int
+            Number of consecutive rows to collapse into one.
+        method : {"mean", "median", "min", "max"}, default "mean"
+            Aggregation applied to numeric columns within each window.
+        non_numeric : {"drop", "nan", "first", "mode", "error"}, default "drop"
+            How to handle non-numeric columns.
+
+        Returns
+        -------
+        Tracking
+            New ``Tracking`` (or subclass) object with ``len(data) // window``
+            rows and ``fps`` reduced by a factor of ``window``.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> len(t.data)
+        5
+        >>> t.meta['fps']
+        30.0
+
+        ```
+
+        Coarse-graining by 2 halves the row count and fps (incomplete windows are kept):
+
+        ```pycon
+        >>> t2 = t.coarse_grain(2)
+        >>> len(t2.data)
+        3
+        >>> t2.meta['fps']
+        15.0
+        >>> t2.handle
+        'ex'
+
+        ```
+
+        The 5-row input produces 3 windows: two complete (rows 0–1, rows 2–3)
+        and one partial (row 4 alone).  Incomplete trailing windows are
+        retained rather than dropped, so no data is lost.
+
+        The first window's mean ``p1.x`` is (0.0 + 1.0) / 2 = 0.5:
+
+        ```pycon
+        >>> float(round(t2.data['p1.x'].iloc[0], 6))
+        0.5
+
+        ```
+
+        The transform is recorded in meta:
+
+        ```pycon
+        >>> t2.meta['transforms'][-1]
+        {'type': 'coarse_grain', 'window': 2, 'method': 'mean'}
+
+        ```
+
+        Using ``method='max'`` takes the per-window maximum instead:
+
+        ```pycon
+        >>> t_max = t.coarse_grain(2, method='max')
+        >>> float(round(t_max.data['p1.x'].iloc[0], 6))
+        1.0
+
+        ```
+        """
+        coarse_data = coarse_grain_dataframe(
+            self.data,
+            window=window,
+            method=method,
+            non_numeric=non_numeric,
+        )
+
+        coarse_meta = copy.deepcopy(self.meta)
+        coarse_meta["fps"] = float(self.meta["fps"]) / float(window)
+        coarse_meta["transforms"] = [
+            *coarse_meta.get("transforms", []),
+            {
+                "type": "coarse_grain",
+                "window": int(window),
+                "method": method,
+            },
+        ]
+
+        return type(self)(
+            data=coarse_data,
+            meta=coarse_meta,
+            handle=self.handle,
+            tags=copy.deepcopy(self.tags),
+        )
+
     def to_features(self) -> Features:
         """
         Create a `Features` object from this `Tracking`.
 
         This is a convenience wrapper around `Features(self)`.
 
-        Returns:
-            Features: A new features object linked to this tracking object.
+        Returns
+        -------
+        Features
+            A new features object linked to this tracking object.
 
-        Examples:
-            ```pycon
+        Examples
+        --------
+        ```pycon
             >>> from py3r.behaviour.util.docdata import data_path
             >>> from py3r.behaviour.tracking.tracking import Tracking
             >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
@@ -1019,16 +1136,19 @@ class Tracking:
         return df
 
     def set_point_data(self, df: pd.DataFrame, point: str, target_df: pd.DataFrame = None):
-        """Sets the data of a point to the values of an external df.
+        """
+        Set the data of a point from an external DataFrame.
 
-        Args:
-            df (pd.DataFrame):  the dataframe containing the point data that should be
-                writen into the trackingobject. colnames should reflect the dimension
-                name (i.e 'x', 'y' etc.)
-            point (str): the name of the point to overwrite
-            target_df (pd.DataFrame, Optional): An external copy of the self.data
-                dataframe can be specified. Usefull for operations that are not in
-                place. defaults to None = write into self.data
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame containing the point data to write. Column names must
+            reflect the dimension names (e.g. ``'x'``, ``'y'``).
+        point : str
+            Name of the point to overwrite.
+        target_df : pd.DataFrame | None, default=None
+            An external copy of ``self.data`` to write into. If None, writes
+            in-place into ``self.data``.
 
 
         Examples
@@ -1838,35 +1958,43 @@ class Tracking:
         - play live via ``stream.play(...)``
         - save video via ``stream.save(...)``
 
-        Args:
-            points (list[str]): Point names to render as circles.
-            lines (list[tuple[str, str]] | None): Line segments connecting point pairs.
-                Endpoints can include points not listed in ``points``.
-            features (list[str | None] | dict[str | None, str | None] | None):
-                Per-frame scalar columns to render as text overlays. If a list is
-                provided, each column is shown as ``name: value``. If a dict is
-                provided, keys are display labels and values are source column names.
-                ``None`` or ``""`` entries insert a blank spacer line.
-            dims (tuple[str, ...]): Coordinate dimensions. Use 2D (``("x","y")``)
-                or 3D (``("x","y","z")`` with ``view``). Defaults to ``("x", "y")``.
-            view (dict | None): 3D camera options used only when ``dims`` has
-                length 3. Supported keys include ``azim``, ``elev``, ``proj``
-                (``"ortho"`` or ``"persp"``), ``camera_distance``,
-                ``focal_length``, and ``pad``.
-            canvas_size (tuple[int, int]): Canvas size as ``(width, height)``.
-                Defaults to ``(800, 800)``.
-            bg_color (tuple[int, int, int]): Background color in BGR.
-                Defaults to ``(0, 0, 0)``.
-            style (dict | None): Style overrides for points/lines/boundaries.
-            pixel_coords (bool): If True, interpret coordinates as absolute pixel
-                locations. If False, auto-fit projected coordinates to the canvas.
-                Defaults to ``False``.
-            undo_meta_scaling (bool): If True, invert ``aspectratio_correction``
-                and ``meta["rescale_factor"]`` before rendering. Defaults to ``False``.
+        Parameters
+        ----------
+        points : list[str]
+            Point names to render as circles.
+        lines : list[tuple[str, str]] | None
+            Line segments connecting point pairs. Endpoints can include points
+            not listed in ``points``.
+        features : list[str | None] | dict[str | None, str | None] | None
+            Per-frame scalar columns to render as text overlays. If a list is
+            provided, each column is shown as ``name: value``. If a dict is
+            provided, keys are display labels and values are source column names.
+            ``None`` or ``""`` entries insert a blank spacer line.
+        dims : tuple[str, ...], default=("x", "y")
+            Coordinate dimensions. Use 2D (``("x","y")``) or 3D
+            (``("x","y","z")`` with ``view``).
+        view : dict | None
+            3D camera options used only when ``dims`` has length 3. Supported
+            keys include ``azim``, ``elev``, ``proj`` (``"ortho"`` or
+            ``"persp"``), ``camera_distance``, ``focal_length``, and ``pad``.
+        canvas_size : tuple[int, int], default=(800, 800)
+            Canvas size as ``(width, height)``.
+        bg_color : tuple[int, int, int], default=(0, 0, 0)
+            Background color in BGR.
+        style : dict | None
+            Style overrides for points/lines/boundaries.
+        pixel_coords : bool, default=False
+            If True, interpret coordinates as absolute pixel locations.
+            If False, auto-fit projected coordinates to the canvas.
+        undo_meta_scaling : bool, default=False
+            If True, invert ``aspectratio_correction`` and
+            ``meta["rescale_factor"]`` before rendering.
 
-        Returns:
-            AnimationStream: Stream object with ``get_frame()``, ``read()``,
-                ``play()``, and ``save()``.
+        Returns
+        -------
+        AnimationStream
+            Stream object with ``get_frame()``, ``read()``, ``play()``, and
+            ``save()``.
 
         Examples
         --------
@@ -1960,16 +2088,21 @@ class Tracking:
         """
         Resolve selected point coordinates to a NumPy array.
 
-        Args:
-            points (list[str]): Point names to extract.
-            dims (tuple[str, ...]): Coordinate dimensions to extract (2D or 3D).
-                Defaults to ``("x", "y")``.
-            undo_meta_scaling (bool): If True, invert ``aspectratio_correction``
-                and ``rescale_factor`` before extraction. Defaults to ``False``.
+        Parameters
+        ----------
+        points : list[str]
+            Point names to extract.
+        dims : tuple[str, ...], default=("x", "y")
+            Coordinate dimensions to extract (2D or 3D).
+        undo_meta_scaling : bool, default=False
+            If True, invert ``aspectratio_correction`` and ``rescale_factor``
+            before extraction.
 
-        Returns:
-            tuple[list[str], np.ndarray]: ``(point_names, array)`` where array has
-            shape ``(n_frames, n_points, len(dims))``.
+        Returns
+        -------
+        tuple[list[str], np.ndarray]
+            ``(point_names, array)`` where array has shape
+            ``(n_frames, n_points, len(dims))``.
 
         Examples
         --------

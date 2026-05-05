@@ -118,17 +118,23 @@ class BaseCollection(MutableMapping):
     ```
     """
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if not hasattr(cls, "_element_type"):
+            raise TypeError(
+                f"{cls.__name__} must define '_element_type' as a class attribute "
+                f"(e.g. '_element_type = MyClass')."
+            )
+
     def __init__(self, obj_dict):
         self._obj_dict = dict(obj_dict)  # {handle: element or sub-collection}
-        # Grouped-view metadata defaults: always start flat unless explicitly set later
-        self._is_grouped = False
         self._groupby_tags = None
         self._each_proxy: _EachProxy | None = None
         self._each_forcebatch_proxy: _EachProxy | None = None
 
     def _batch_error_context(self, key):
         # If this is a grouped view, treat top-level keys as collection names
-        if getattr(self, "_is_grouped", False):
+        if self.is_grouped:
             return dict(collection_name=key, object_name=None)
         # Default: flat collection (key refers to object name/handle)
         return dict(collection_name=None, object_name=key)
@@ -372,8 +378,8 @@ class BaseCollection(MutableMapping):
             return self._obj_dict[key]
 
     def __setitem__(self, key, value):
-        element_cls = type(self[0])
-        if not isinstance(value, element_cls):
+        element_cls = getattr(self, "_element_type", None)
+        if element_cls is not None and not isinstance(value, element_cls):
             raise TypeError(f"Value must be a {element_cls.__name__}, got {type(value).__name__}")
         cn = self.__class__.__name__
         warnings.warn(
@@ -526,7 +532,6 @@ class BaseCollection(MutableMapping):
                     return result
                 grouped_new[gkey] = subcoll.__class__(dict(subres))
             out = self.__class__(grouped_new)
-            out._is_grouped = True
             out._groupby_tags = list(self._groupby_tags) if self._groupby_tags else None
             return out
 
@@ -833,7 +838,6 @@ class BaseCollection(MutableMapping):
 
         group_collections = {key: self.__class__.from_list(objs) for key, objs in groups.items()}
         grouped = self.__class__(group_collections)
-        grouped._is_grouped = True
         grouped._groupby_tags = tags
         return grouped
 
@@ -870,28 +874,23 @@ class BaseCollection(MutableMapping):
             return self
 
         first_value = next(iter(self._obj_dict.values()))
-        # If the first value is not a collection (i.e., is a leaf), return self
-        if not hasattr(first_value, "values") or not callable(first_value.values):
+        # If the first value is not a sub-collection (i.e., is a leaf), return self
+        if not isinstance(first_value, BaseCollection):
             return self
 
         # Otherwise, flatten
         all_objs = []
         for obj in self.values():
-            if hasattr(obj, "values") and callable(obj.values):
+            if isinstance(obj, BaseCollection):
                 all_objs.extend(obj.values())
             else:
                 all_objs.append(obj)
         flat_cls = type(first_value)
-        flat = flat_cls.from_list(all_objs)
-        # Ensure returned flat collection is not marked grouped
-        if hasattr(flat, "_is_grouped"):
-            flat._is_grouped = False
-            flat._groupby_tags = None
-        return flat
+        return flat_cls.from_list(all_objs)
 
     def __repr__(self):
         cn = self.__class__.__name__
-        if getattr(self, "_is_grouped", False):
+        if self.is_grouped:
             return f"<{cn} grouped by {self._groupby_tags} with {len(self)} groups>"
         return f"<{cn} with {len(self)} {self._element_type.__name__} objects>"
 
@@ -919,7 +918,9 @@ class BaseCollection(MutableMapping):
 
         ```
         """
-        return getattr(self, "_is_grouped", False)
+        if not self._obj_dict:
+            return False
+        return isinstance(next(iter(self._obj_dict.values())), BaseCollection)
 
     @property
     def groupby_tags(self):
@@ -1139,7 +1140,6 @@ class BaseCollection(MutableMapping):
                 new_sub_dict = {handle: fn(obj) for handle, obj in sub.items()}
                 grouped_new[gkey] = sub.__class__(new_sub_dict)
             out = self.__class__(grouped_new)
-            out._is_grouped = True
             out._groupby_tags = list(self._groupby_tags) if self._groupby_tags else None
             return out
         # Flat case
@@ -1295,7 +1295,6 @@ class BaseCollection(MutableMapping):
                     sub[handle] = element_cls.load(os.path.join(dirpath, rel))
                 grouped[gkey] = cls(sub)
             out = cls(grouped)
-            out._is_grouped = True
             out._groupby_tags = manifest.get("groupby_tags")
             return out
         else:

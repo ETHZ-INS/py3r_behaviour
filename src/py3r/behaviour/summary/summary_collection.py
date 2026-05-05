@@ -65,7 +65,14 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     @classmethod
     def from_features_collection(cls, features_collection: FeaturesCollection, summary_cls=Summary):
         """
-        creates a SummaryCollection from a FeaturesCollection (flat or grouped)
+        Create a SummaryCollection from a FeaturesCollection.
+
+        Parameters
+        ----------
+        features_collection : FeaturesCollection
+            Source collection. Grouped structure is preserved.
+        summary_cls : type, default=Summary
+            ``Summary`` subclass to instantiate for each session.
 
         Examples
         --------
@@ -109,7 +116,6 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
                     {handle: summary_cls(f) for handle, f in sub_fc.features_dict.items()}
                 )
             grouped_sc = cls(grouped_dict)
-            grouped_sc._is_grouped = True
             grouped_sc._groupby_tags = getattr(features_collection, "groupby_tags", None)
             return grouped_sc
         # Flat case
@@ -123,7 +129,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     @classmethod
     def from_list(cls, summary_list: list[Summary]):
         """
-        creates a SummaryCollection from a list of Summary objects, keyed by handle
+        Create a SummaryCollection from a list of Summary objects, keyed by handle.
+
+        Parameters
+        ----------
+        summary_list : list[Summary]
+            Summary objects to collect. All handles must be unique.
 
         Examples
         --------
@@ -236,9 +247,16 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
             series_tables[metric_name] = table
         return scalars_df, series_tables
 
-    def make_bin(self, startframe, endframe):
+    def make_bin(self, startframe: int, endframe: int):
         """
-        returns a new SummaryCollection with binned summaries
+        Return a new SummaryCollection restricted to frames in [startframe, endframe).
+
+        Parameters
+        ----------
+        startframe : int
+            First frame index of the bin (inclusive).
+        endframe : int
+            Last frame index of the bin (exclusive).
 
         Examples
         --------
@@ -263,7 +281,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
     def make_bins(self, numbins):
         """
-        returns a list of SummaryCollection, one per bin
+        Divide the collection into equal time bins and return one SummaryCollection per bin.
+
+        Parameters
+        ----------
+        numbins : int
+            Number of equal-length bins to split each session into.
 
         Examples
         --------
@@ -299,8 +322,18 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         """
         Store SummaryResult objects returned by batch methods.
 
-        - Flat collection: results_dict is {handle: SummaryResult}
-        - Grouped collection: results_dict is {group_key: {handle: SummaryResult}}
+        Parameters
+        ----------
+        results_dict : dict
+            Batch results to store. Flat: ``{handle: SummaryResult}``.
+            Grouped: ``{group_key: {handle: SummaryResult}}``.
+        name : str | None, default=None
+            Metric name to store under. If None, resolved automatically from
+            the result objects (all must agree on a single name).
+        meta : dict | None, default=None
+            Metadata dict to attach alongside the stored metric.
+        overwrite : bool, default=False
+            If True, overwrite an existing metric with the same name.
 
         Examples
         --------
@@ -414,6 +447,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         numshuffles: int = 1000,
         pairs: list[tuple[str, str]] | None = None,
         random_state: int | None = 0,
+        scale_by_transitions: bool = False,
     ):
         """
         Behaviour Flow Analysis between groups for a grouped SummaryCollection.
@@ -427,9 +461,28 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
         Parameters
         ----------
-        random_state:
-            Optional seed for deterministic surrogate shuffling. ``None`` keeps
-            non-deterministic behavior.
+        column : str
+            Name of the column containing discrete state labels.
+        all_states : list | None
+            Explicit state ordering for the transition matrix.  ``None`` infers
+            states from the data.
+        numshuffles : int
+            Number of surrogate shuffles used to build the null distribution.
+        pairs : list[tuple[str, str]] | None
+            Group pairs to compare.  ``None`` evaluates all unique pairs.
+        random_state : int | None
+            Seed for reproducible surrogate shuffling.  ``None`` keeps
+            non-deterministic behaviour.  Pass the same seed to each ``bfa()``
+            call when combining scales so that surrogate shuffles are
+            synchronised; see :meth:`combine_bfa_results`.
+        scale_by_transitions : bool, default False
+            If ``True``, each pairwise Manhattan distance (observed and all
+            surrogates) is divided by the total number of transitions across
+            both groups for that pair.  This rescales raw-count distances to a
+            per-transition unit, making distances comparable across temporal
+            resolutions with different numbers of observations.  Defaults to
+            ``False`` to preserve legacy behaviour and retain the information
+            contained in total transition counts.
 
         Examples
         --------
@@ -455,13 +508,17 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         ...     f.tracking.add_tag('group', f'G{i+1}')
         >>> gfc = fc.groupby('group')
         >>> sc = SummaryCollection.from_features_collection(gfc)
-        >>> # compute all pairs
+        >>> # compute all pairs (raw transition counts)
         >>> res = sc.bfa('state', all_states=['A','B'], numshuffles=2)
         >>> isinstance(res, dict) and 'observed' in next(iter(res.values()))
         True
         >>> # compute only specific pair(s)
         >>> res2 = sc.bfa('state', all_states=['A','B'], numshuffles=2, pairs=[('G1','G2')])
         >>> list(res2.keys()) == ['G1_vs_G2']
+        True
+        >>> # scale distances by total transition count (comparable across resolutions)
+        >>> res3 = sc.bfa('state', all_states=['A','B'], numshuffles=2, scale_by_transitions=True)
+        >>> isinstance(res3, dict) and 'observed' in next(iter(res3.values()))
         True
 
         ```
@@ -510,9 +567,14 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
             _ = {}
             list1 = list(transition_matrices[group1].values())
             list2 = list(transition_matrices[group2].values())
-            _["observed"] = self._manhattan_distance_twogroups(list1, list2)
+            if scale_by_transitions:
+                total_T = float(sum(tm.to_numpy().sum() for tm in list1 + list2))
+                scale = 1.0 / total_T if total_T > 0 else 1.0
+            else:
+                scale = 1.0
+            _["observed"] = self._manhattan_distance_twogroups(list1, list2) * scale
             _["surrogates"] = [
-                self._manhattan_distance_twogroups(*self._shuffle_lists(list1, list2, rng))
+                self._manhattan_distance_twogroups(*self._shuffle_lists(list1, list2, rng)) * scale
                 for _ in range(numshuffles)
             ]
             # use formatted labels for result key
@@ -726,7 +788,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         self,
         column: str,
         all_states=None,
-        groups: list[str] | list[list[str]] | None = None,
+        groups: list[str | tuple[str, ...]] | list[list[str | tuple[str, ...]]] | None = None,
         n_neighbors: int = 15,
         min_dist: float = 0.1,
         random_state: int = 0,
@@ -735,56 +797,149 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         save_dir: str | None = None,
     ):
         """
-        Plot a simple UMAP embedding of per-subject transition matrices for selected groups.
+        Plot a UMAP embedding of per-subject transition matrices for selected groups.
+
+        Transition matrices are computed for each subject within each group, flattened,
+        scaled, and embedded with UMAP. The collection must already be grouped, for
+        example via ``groupby``.
 
         Parameters
         ----------
-        column:
+        column
             Name of the categorical column used to compute transition matrices.
-        all_states:
-            Optional explicit state ordering for transition matrices.
-        groups:
-            - Optional list of group keys (strings) to include; defaults to all.
-            - Or a list of lists for sequential groups, e.g.
-              ``[['control_pre','control_45min','control_90min'],
-              ['treatment_pre','treatment_45min','treatment_90min']]``.
-              Each sequence is plotted with a monochrome gradient.
-        n_neighbors, min_dist, random_state:
-            UMAP hyperparameters.
-        figsize, show:
-            Matplotlib options.
+        all_states
+            Optional explicit state ordering used when constructing transition matrices.
+        groups
+            Optional group selection. If omitted, all groups are included.
+
+            This argument supports three forms:
+
+            - A flat list of single-tag group labels, for example
+              ``['control', 'treatment']``.
+            - A flat list of multi-tag group keys (tuples), for example
+              ``[('control', 'time1'), ('control', 'time2')]``.
+            - A list of lists defining ordered sequences of groups, for example
+              ``[[('control', 'time1'), ('control', 'time2')],
+              [('treatment', 'time1'), ('treatment', 'time2')]]``.
+
+            When sequences are provided, each sequence is plotted using a monochrome
+            gradient to indicate progression within that sequence.
+        n_neighbors
+            Number of neighbors used by UMAP.
+        min_dist
+            Minimum distance parameter passed to UMAP.
+        random_state
+            Seed for reproducible UMAP embeddings.
+        figsize
+            Figure size passed to Matplotlib.
+        show
+            If True, display the figure.
+        save_dir
+            Optional directory in which to save the plot as
+            ``transition_umap.png``.
 
         Returns
         -------
-        (fig, ax): Matplotlib figure and axis.
+        fig, ax
+            Matplotlib figure and axis.
+
+        Raises
+        ------
+        ValueError
+            If the collection is not grouped, or if no data are found for the
+            requested groups.
+        ImportError
+            If ``umap-learn`` is not installed.
 
         Examples
         --------
         ```pycon
         >>> # xdoctest: +REQUIRES(module: umap)
-        >>> import tempfile, shutil, os, pandas as pd
+        >>> import os, shutil, tempfile
         >>> from pathlib import Path
+        >>> import pandas as pd
         >>> from py3r.behaviour.util.docdata import data_path
         >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
         >>> from py3r.behaviour.features.features_collection import FeaturesCollection
         >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+
         >>> with tempfile.TemporaryDirectory() as d:
         ...     d = Path(d)
+        ...     paths = {}
         ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
-        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
-        >>> fc = FeaturesCollection.from_tracking_collection(tc)
-        >>> for i, (h, f) in enumerate(fc.items()):
-        ...     pat = ['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1)
-        ...     states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
-        ...     f.store(states, 'state', meta={})
-        ...     f.tracking.add_tag('group', f'G{i+1}')
-        >>> sc = SummaryCollection.from_features_collection(fc.groupby('group'))
-        >>> with tempfile.TemporaryDirectory() as outdir:
+        ...         for name in ['A', 'B', 'C', 'D']:
+        ...             dst = d / f'{name}.csv'
+        ...             _ = shutil.copy(p, dst)
+        ...             paths[name] = str(dst)
+        ...     tc = TrackingCollection.from_dlc(paths, fps=30)
+        ...     fc = FeaturesCollection.from_tracking_collection(tc)
+        ...
+        ...     tags = {
+        ...         'A': ('control', 'time1'),
+        ...         'B': ('control', 'time2'),
+        ...         'C': ('treatment', 'time1'),
+        ...         'D': ('treatment', 'time2'),
+        ...     }
+        ...
+        ...     for h, f in fc.items():
+        ...         pat = ['A', 'A', 'B', 'B', 'A'] * (len(f.tracking.data) // 5 + 1)
+        ...         states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
+        ...         f.store(states, 'state', meta={})
+        ...         condition, time = tags[h]
+        ...         f.tracking.add_tag('condition', condition)
+        ...         f.tracking.add_tag('time', time)
+        ...
+        ...     sc = SummaryCollection.from_features_collection(fc.groupby(['condition', 'time']))
+        ...
+        ...     with tempfile.TemporaryDirectory() as outdir:
+        ...         fig, ax = sc.plot_transition_umap(
+        ...             column='state',
+        ...             all_states=['A', 'B'],
+        ...             groups=[('control', 'time1'), ('control', 'time2')],
+        ...             show=False,
+        ...             save_dir=outdir,
+        ...         )
+        ...         os.path.exists(os.path.join(outdir, 'transition_umap.png'))
+        True
+
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     paths = {}
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         for name in ['A', 'B', 'C', 'D']:
+        ...             dst = d / f'{name}.csv'
+        ...             _ = shutil.copy(p, dst)
+        ...             paths[name] = str(dst)
+        ...     tc = TrackingCollection.from_dlc(paths, fps=30)
+        ...     fc = FeaturesCollection.from_tracking_collection(tc)
+        ...
+        ...     tags = {
+        ...         'A': ('control', 'time1'),
+        ...         'B': ('control', 'time2'),
+        ...         'C': ('treatment', 'time1'),
+        ...         'D': ('treatment', 'time2'),
+        ...     }
+        ...
+        ...     for h, f in fc.items():
+        ...         pat = ['A', 'A', 'B', 'B', 'A'] * (len(f.tracking.data) // 5 + 1)
+        ...         states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
+        ...         f.store(states, 'state', meta={})
+        ...         condition, time = tags[h]
+        ...         f.tracking.add_tag('condition', condition)
+        ...         f.tracking.add_tag('time', time)
+        ...
+        ...     sc = SummaryCollection.from_features_collection(fc.groupby(['condition', 'time']))
+        ...
         ...     fig, ax = sc.plot_transition_umap(
-        ...         column='state', all_states=['A','B'], groups=['G1','G2'],
-        ...         show=False, save_dir=outdir)
-        ...     os.path.exists(os.path.join(outdir, 'transition_umap.png'))
+        ...         column='state',
+        ...         all_states=['A', 'B'],
+        ...         groups=[
+        ...             [('control', 'time1'), ('control', 'time2')],
+        ...             [('treatment', 'time1'), ('treatment', 'time2')],
+        ...         ],
+        ...         show=False,
+        ...     )
+        ...     fig is not None and ax is not None
         True
 
         ```
@@ -823,7 +978,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         if groups is None:
             selected = list(matrices.keys())
         else:
-            if any(isinstance(g, (list, tuple)) for g in groups):
+            if any(isinstance(g, (list)) for g in groups):
                 # sequence mode
                 sequence_mode = True
                 sequences = [list(seq) for seq in groups]  # type: ignore[arg-type]
@@ -1011,6 +1166,372 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         new_group1 = combined[:n1]
         new_group2 = combined[n1:]
         return new_group1, new_group2
+
+    @staticmethod
+    def combine_bfa_results(
+        results_list: list[dict],
+        *,
+        scale_weights: list[float] | None = None,
+        per_scale: bool = True,
+    ) -> dict:
+        """
+        Combine BFA results from multiple temporal scales into a single result.
+
+        .. note::
+            **This is an escape-hatch for advanced workflows.**  If you are
+            starting a multi-scale BFA from scratch, use :meth:`bfa_multiscale`
+            instead — it handles scale generation, surrogate synchronisation,
+            and result combination automatically.
+
+            Only use this helper directly when you have already computed
+            per-scale results through a custom pipeline and know that their
+            surrogate shuffles are synchronised (same ``random_state``, same
+            group/handle order, same ``pairs``, same ``numshuffles``).
+
+        Each entry in ``results_list`` is a dict returned by :meth:`bfa`.  The
+        ``observed`` distances and the per-surrogate surrogate distances are
+        summed (optionally weighted) across scales, yielding a combined result
+        in the same format as a single :meth:`bfa` call.
+
+        For valid multi-scale statistics the surrogate shuffles must be
+        synchronised across scales — pass the same ``random_state`` to every
+        :meth:`bfa` call, use the same group structure and the same ``pairs``
+        ordering, and the shuffles will be identical by construction.
+
+        Parameters
+        ----------
+        results_list : list[dict]
+            BFA result dicts, one per scale, in the same format returned by
+            :meth:`bfa`.  All dicts must contain the same pair keys and the
+            same number of surrogates.
+        scale_weights : list[float] | None
+            Optional per-scale multiplicative weights (must have the same length
+            as ``results_list``).  Defaults to uniform weighting (all 1.0).
+        per_scale : bool, default True
+            If True, each combined pair entry includes a ``"per_scale_observed"``
+            list containing the individual scale contributions.
+
+        Returns
+        -------
+        dict
+            Same structure as :meth:`bfa` output, with an optional extra key
+            ``"per_scale_observed"`` per comparison when ``per_scale=True``.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> for i, (h, f) in enumerate(fc.items()):
+        ...     pat = ['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1)
+        ...     states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
+        ...     f.store(states, 'state', meta={})
+        ...     f.tracking.add_tag('group', f'G{i+1}')
+        >>> gfc = fc.groupby('group')
+        >>> sc1 = SummaryCollection.from_features_collection(gfc)
+        >>> sc4 = SummaryCollection.from_features_collection(
+        ...     gfc.each.coarse_grain(4, non_numeric='mode'))
+        >>> res1 = sc1.bfa('state', all_states=['A','B'], numshuffles=2, random_state=0)
+        >>> res4 = sc4.bfa('state', all_states=['A','B'], numshuffles=2, random_state=0)
+        >>> combined = SummaryCollection.combine_bfa_results([res1, res4])
+        >>> 'observed' in combined['G1_vs_G2'] and 'surrogates' in combined['G1_vs_G2']
+        True
+        >>> len(combined['G1_vs_G2']['surrogates']) == 2
+        True
+        >>> 'per_scale_observed' in combined['G1_vs_G2']
+        True
+        >>> len(combined['G1_vs_G2']['per_scale_observed']) == 2
+        True
+
+        ```
+        """
+        if not results_list:
+            raise ValueError("results_list must not be empty")
+
+        if scale_weights is not None:
+            if len(scale_weights) != len(results_list):
+                raise ValueError(
+                    f"scale_weights has {len(scale_weights)} entries but "
+                    f"results_list has {len(results_list)}"
+                )
+            weights = list(scale_weights)
+        else:
+            weights = [1.0] * len(results_list)
+
+        pair_keys = list(results_list[0].keys())
+        # validate all scales expose the same pair keys
+        for i, r in enumerate(results_list[1:], start=1):
+            if list(r.keys()) != pair_keys:
+                raise ValueError(
+                    f"results_list[{i}] has different pair keys than results_list[0]: "
+                    f"{list(r.keys())} vs {pair_keys}"
+                )
+
+        n_surrogates = len(results_list[0][pair_keys[0]]["surrogates"])
+        for i, r in enumerate(results_list):
+            for key in pair_keys:
+                n = len(r[key]["surrogates"])
+                if n != n_surrogates:
+                    raise ValueError(
+                        f"results_list[{i}]['{key}'] has {n} surrogates; expected {n_surrogates}"
+                    )
+
+        combined = {}
+        for key in pair_keys:
+            scale_observed = [
+                w * r[key]["observed"] for w, r in zip(weights, results_list, strict=True)
+            ]
+            combined_observed = sum(scale_observed)
+            combined_surrogates = [
+                sum(w * r[key]["surrogates"][i] for w, r in zip(weights, results_list, strict=True))
+                for i in range(n_surrogates)
+            ]
+            entry: dict = {"observed": combined_observed, "surrogates": combined_surrogates}
+            if per_scale:
+                entry["per_scale_observed"] = scale_observed
+            combined[key] = entry
+
+        return combined
+
+    @staticmethod
+    def bfa_multiscale(
+        scs: list[SummaryCollection],
+        columns: list[str] | str,
+        all_states: list[list | None] | list | None = None,
+        numshuffles: int = 1000,
+        pairs: list[tuple[str, str]] | None = None,
+        random_state: int | None = 0,
+        scale_by_transitions: bool = True,
+        scale_weights: list[float] | None = None,
+    ) -> dict:
+        """
+        Multi-scale Behaviour Flow Analysis across pre-built SummaryCollections.
+
+        Each entry in ``scs`` is an independently prepared grouped
+        ``SummaryCollection`` — typically derived from data at a different
+        temporal resolution (e.g. raw, 4x coarse-grained, 16x coarse-grained).
+        The relevant state column at each scale is specified via ``columns``.
+
+        The state column is expected to have been computed directly on the data
+        at that scale (e.g. via cluster labels computed on coarse-grained
+        features), not simply aggregated from a finer scale.
+
+        Surrogate shuffles are automatically synchronised: the same
+        ``random_state`` is passed to every :meth:`bfa` call, which — given
+        that QC has verified identical group/handle order — guarantees that
+        surrogate *i* at scale A and surrogate *i* at scale B used the same
+        animal shuffle.  The combined surrogate distribution is therefore the
+        correct null for the combined statistic.
+
+        Parameters
+        ----------
+        scs : list[SummaryCollection]
+            Grouped ``SummaryCollection`` objects, one per scale, in the order
+            they should be combined.
+        columns : list[str] or str
+            State column name to use for each scale's transition matrix.  Pass
+            a single string to use the same column name for all scales.
+        all_states : list[list | None] | list | None, default None
+            Explicit state ordering for transition matrices.  Three forms are
+            accepted:
+
+            - ``None`` — states are inferred from the data at every scale.
+            - A flat list (e.g. ``[0, 1, 2]``) — the same state set is used
+              for all scales.
+            - A list of lists / ``None`` values whose length equals ``len(scs)``
+              (e.g. ``[[0,...,49], [0,...,9], None]``) — each scale uses its
+              own state set, or ``None`` to infer for that scale.
+
+            The per-scale form is detected when every element of the outer list
+            is itself a list or ``None``.
+        numshuffles : int
+            Number of surrogate shuffles per scale.
+        pairs : list[tuple[str, str]] | None
+            Group pairs to compare.  ``None`` evaluates all unique pairs.
+            Must be the same for all scales.
+        random_state : int | None
+            Seed for reproducible surrogate shuffling.  The same seed is used
+            at every scale to synchronise surrogates.
+        scale_by_transitions : bool, default True
+            Divide each pairwise Manhattan distance by the total number of
+            transitions across both groups for that pair.  This is enabled by
+            default here because distances across scales must be on a common
+            per-transition unit before they can be meaningfully combined.
+            Set to ``False`` only if you need raw-count distances and are
+            handling comparability yourself.
+        scale_weights : list[float] | None
+            Per-scale multipliers for the combined distance, in the same order
+            as ``scs``.  Defaults to uniform weighting.
+
+        Returns
+        -------
+        dict with keys:
+
+        - ``"combined"`` : combined result in :meth:`bfa` format, with an
+          additional ``"per_scale_observed"`` list per comparison.
+        - ``"scales"`` : dict mapping integer index (0, 1, …) to the
+          individual :meth:`bfa` result for that scale.
+
+        Raises
+        ------
+        ValueError
+            If any SC is not grouped, group keys / handle order differ across
+            SCs, a requested column is missing, or ``columns`` length mismatches
+            ``scs``.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         _ = shutil.copy(p, d / 'A.csv'); _ = shutil.copy(p, d / 'B.csv')
+        ...     tc = TrackingCollection.from_dlc({'A': str(d/'A.csv'), 'B': str(d/'B.csv')}, fps=30)
+        >>> fc = FeaturesCollection.from_tracking_collection(tc)
+        >>> for i, (h, f) in enumerate(fc.items()):
+        ...     pat = ['A','A','B','B','A'] * (len(f.tracking.data)//5 + 1)
+        ...     states = pd.Series(pat[:len(f.tracking.data)], index=f.tracking.data.index)
+        ...     f.store(states, 'state', meta={})
+        ...     f.tracking.add_tag('group', f'G{i+1}')
+        >>> gfc = fc.groupby('group')
+        >>> sc1 = SummaryCollection.from_features_collection(gfc)
+        >>> # sc2 would normally come from independently-clustered coarse-grained data;
+        >>> # here we reuse sc1 with the same column purely for doctest purposes.
+        >>> # shared all_states (broadcast form)
+        >>> ms = SummaryCollection.bfa_multiscale(
+        ...     [sc1, sc1], 'state', all_states=['A', 'B'], numshuffles=2)
+        >>> # per-scale all_states (list-of-lists form)
+        >>> ms2 = SummaryCollection.bfa_multiscale(
+        ...     [sc1, sc1], 'state',
+        ...     all_states=[['A', 'B'], ['A', 'B']],
+        ...     numshuffles=2)
+        >>> bool(ms['combined']['G1_vs_G2']['observed'] == ms2['combined']['G1_vs_G2']['observed'])
+        True
+        >>> set(ms.keys()) == {'combined', 'scales'}
+        True
+        >>> set(ms['scales'].keys()) == {0, 1}
+        True
+        >>> 'observed' in ms['combined']['G1_vs_G2']
+        True
+        >>> 'per_scale_observed' in ms['combined']['G1_vs_G2']
+        True
+        >>> len(ms['combined']['G1_vs_G2']['per_scale_observed']) == 2
+        True
+
+        ```
+        """
+        if not scs:
+            raise ValueError("scs must not be empty")
+
+        # Normalise columns to a per-scale list
+        if isinstance(columns, str):
+            columns_list = [columns] * len(scs)
+        else:
+            columns_list = list(columns)
+            if len(columns_list) != len(scs):
+                raise ValueError(f"columns has {len(columns_list)} entries but scs has {len(scs)}")
+
+        # Normalise all_states to a per-scale list.
+        # Per-scale form is detected when every element is a list or None.
+        def _is_per_scale_states(v):
+            return (
+                isinstance(v, list)
+                and len(v) > 0
+                and all(isinstance(s, (list, type(None))) for s in v)
+            )
+
+        if _is_per_scale_states(all_states):
+            all_states_list = list(all_states)
+            if len(all_states_list) != len(scs):
+                raise ValueError(
+                    f"all_states has {len(all_states_list)} entries but scs has {len(scs)}"
+                )
+        else:
+            all_states_list = [all_states] * len(scs)
+
+        # --- QC ---
+        # 1. All SCs must be grouped
+        for i, sc in enumerate(scs):
+            if not getattr(sc, "is_grouped", False):
+                raise ValueError(
+                    f"scs[{i}] is not grouped. "
+                    "Call .groupby() on the FeaturesCollection before building the SC."
+                )
+
+        # 2. Group keys must be identical and in the same order
+        ref_group_keys = list(scs[0].keys())
+        for i, sc in enumerate(scs[1:], start=1):
+            sc_keys = list(sc.keys())
+            if sc_keys != ref_group_keys:
+                raise ValueError(
+                    f"scs[{i}] has different or differently-ordered group keys "
+                    f"than scs[0].\n  scs[0]:   {ref_group_keys}\n  scs[{i}]: {sc_keys}"
+                )
+
+        # 3. Within each group, handles must be identical and in the same order
+        for gkey in ref_group_keys:
+            ref_handles = list(scs[0][gkey].keys())
+            for i, sc in enumerate(scs[1:], start=1):
+                sc_handles = list(sc[gkey].keys())
+                if sc_handles != ref_handles:
+                    raise ValueError(
+                        f"scs[{i}]['{gkey}'] has different or differently-ordered handles "
+                        f"than scs[0]['{gkey}'].\n"
+                        f"  scs[0]:   {ref_handles}\n  scs[{i}]: {sc_handles}\n"
+                        "Handle order must match for surrogate synchronisation to be valid."
+                    )
+
+        # 4. Each requested column must exist (spot-check first animal per group)
+        for i, (sc, col) in enumerate(zip(scs, columns_list, strict=True)):
+            gkey = ref_group_keys[0]
+            handle = list(sc[gkey].keys())[0]
+            summary = sc[gkey][handle]
+            if col not in summary.features.data.columns:
+                available = sorted(summary.features.data.columns)
+                raise ValueError(
+                    f"Column '{col}' not found in scs[{i}]['{gkey}']['{handle}'].features.data. "
+                    f"Available columns: {available}"
+                )
+
+        # --- Run bfa at each scale with the same seed ---
+        scale_results: dict[int, dict] = {}
+        for idx, (sc, col, states) in enumerate(
+            zip(scs, columns_list, all_states_list, strict=True)
+        ):
+            scale_results[idx] = sc.bfa(
+                col,
+                all_states=states,
+                numshuffles=numshuffles,
+                pairs=pairs,
+                random_state=random_state,
+                scale_by_transitions=scale_by_transitions,
+            )
+
+        combined = SummaryCollection.combine_bfa_results(
+            [scale_results[i] for i in range(len(scs))],
+            scale_weights=scale_weights,
+            per_scale=True,
+        )
+
+        return {"combined": combined, "scales": scale_results}
 
     # ---- Chord diagram (state transitions) ----
     def plot_chord(

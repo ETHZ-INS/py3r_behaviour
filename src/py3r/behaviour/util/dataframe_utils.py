@@ -175,6 +175,83 @@ def euclidean_distance(
     raise ValueError(f"Unknown method: {method}")
 
 
+def point_to_axis_distance(
+    P: np.ndarray,
+    A: np.ndarray,
+    B: np.ndarray,
+    *,
+    signed: bool = False,
+) -> np.ndarray:
+    """Compute framewise perpendicular distance from a point to an infinite axis.
+
+    The axis passes through A and B and extends infinitely in both directions.
+    All arrays must share the same shape ``(n_frames, n_dims)``.
+
+    Parameters
+    ----------
+    P : np.ndarray
+        Query point coordinates, shape ``(n_frames, n_dims)``.
+    A : np.ndarray
+        First axis reference point, shape ``(n_frames, n_dims)``.
+    B : np.ndarray
+        Second axis reference point, shape ``(n_frames, n_dims)``.
+    signed : bool, default False
+        If True, return a signed distance (2-D axes only).  Positive means P
+        is to the *right* when facing from A to B; negative means P is to the
+        *left*.  Raises ``ValueError`` for ``n_dims != 2`` when True.
+
+    Returns
+    -------
+    np.ndarray
+        Framewise (signed) perpendicular distances, shape ``(n_frames,)``.
+
+    Notes
+    -----
+    Degenerate frames where A == B (zero-length direction) return the distance
+    from P to A (unsigned) or zero (signed) without raising an error.
+
+    Examples
+    --------
+    ```pycon
+    >>> import numpy as np
+    >>> P = np.array([[0.0, 1.0], [3.0, 0.0], [0.0, -1.0]])
+    >>> A = np.array([[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
+    >>> B = np.array([[1.0, 0.0], [1.0, 0.0], [1.0, 0.0]])
+    >>> point_to_axis_distance(P, A, B)
+    array([1., 0., 1.])
+    >>> point_to_axis_distance(P, A, B, signed=True)
+    array([-1.,  0.,  1.])
+
+    ```
+    """
+    AP = P - A  # (n, d)
+    AB = B - A  # (n, d)
+
+    ab_sq = np.sum(AB * AB, axis=1)  # (n,)
+
+    if signed:
+        n_dims = P.shape[1]
+        if n_dims != 2:
+            raise ValueError(f"signed=True requires a 2-D axis; got n_dims={n_dims}.")
+        # Signed distance = projection of AP onto the right-hand perpendicular
+        # of the unit direction d = AB / |AB|.
+        # perp_right = (d[1], -d[0])  →  AP · perp_right / |AB| * |AB| simplifies to:
+        #   (AP[0] * AB[1] - AP[1] * AB[0]) / |AB|
+        # Degenerate frames (A == B) → signed distance = 0.
+        ab_norm = np.sqrt(ab_sq)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            cross = AP[:, 0] * AB[:, 1] - AP[:, 1] * AB[:, 0]
+            return np.where(ab_norm > 0, cross / ab_norm, 0.0)
+
+    # Scalar projection of P onto the infinite axis through A and B.
+    # Degenerate frames (A == B) get t = 0, i.e. closest point = A.
+    with np.errstate(invalid="ignore", divide="ignore"):
+        t = np.where(ab_sq > 0, np.sum(AP * AB, axis=1) / ab_sq, 0.0)
+
+    closest = A + t[:, np.newaxis] * AB  # (n, d)
+    return np.linalg.norm(P - closest, axis=1)  # (n,)
+
+
 def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.DataFrame:
     """
      Multiply selected DataFrame columns by a scalar factor.
@@ -223,3 +300,119 @@ def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.Da
         out[c] *= factor
 
     return out
+
+
+def normalize_transition_matrix(tm: pd.DataFrame) -> pd.DataFrame:
+    """
+    Row-normalise a transition-count matrix to transition probabilities.
+
+    Each row is divided by its row sum so that non-zero rows become probability
+    distributions that sum to 1.  Rows whose sum is zero (a state that was
+    observed but never left in this recording) are filled with ``0.0`` rather
+    than ``NaN``, treating an unseen transition as having probability 0.
+
+    Parameters
+    ----------
+    tm : pd.DataFrame
+        Square (or rectangular) transition-count matrix with matching index
+        and columns.
+
+    Returns
+    -------
+    pd.DataFrame
+        Row-normalised DataFrame with the same shape, index, and columns as
+        the input.
+
+    Example
+
+    ```pycon
+    >>> import pandas as pd
+    >>> tm = pd.DataFrame({'A': [3, 0], 'B': [1, 0]}, index=['A', 'B'])
+    >>> result = normalize_transition_matrix(tm)
+    >>> float(result.loc['A', 'A'])
+    0.75
+    >>> float(result.loc['A', 'B'])
+    0.25
+    >>> float(result.loc['B', 'A'])
+    0.0
+    >>> float(result.loc['B', 'B'])
+    0.0
+
+    ```
+    """
+    row_sums = tm.sum(axis=1)
+    return tm.div(row_sums.replace(0, float("nan")), axis=0).fillna(0.0)
+
+
+def coarse_grain_dataframe(
+    data: pd.DataFrame,
+    *,
+    window: int,
+    method: Literal["mean", "median", "min", "max"] = "mean",
+    non_numeric: Literal["drop", "nan", "first", "mode", "error"] = "drop",
+) -> pd.DataFrame:
+    """
+    Coarse-grain a DataFrame over fixed, non-overlapping row windows.
+
+    Numeric columns are aggregated with ``method``. Boolean and other
+    non-numeric columns are handled according to ``non_numeric``.
+    """
+    valid_methods = {"mean", "median", "min", "max"}
+    if not isinstance(window, int) or window < 1:
+        raise ValueError(f"window must be a positive integer, got {window!r}")
+    if method not in valid_methods:
+        raise ValueError(f"method must be one of {sorted(valid_methods)}, got {method!r}")
+
+    bins = np.arange(len(data)) // window
+    grouped = data.groupby(bins, sort=True)
+
+    non_numeric_cols = [
+        col
+        for col in data.columns
+        if pd.api.types.is_bool_dtype(data[col]) or not pd.api.types.is_numeric_dtype(data[col])
+    ]
+    numeric_cols = [col for col in data.columns if col not in non_numeric_cols]
+
+    if non_numeric == "error" and non_numeric_cols:
+        raise TypeError(
+            "coarse_grain encountered non-numeric columns "
+            f"(including boolean dtypes): {non_numeric_cols}"
+        )
+
+    coarse_data = (
+        grouped[numeric_cols].aggregate(method)
+        if numeric_cols
+        else pd.DataFrame(index=grouped.size().index)
+    )
+
+    if non_numeric_cols and non_numeric != "drop":
+        if non_numeric == "nan":
+            extra = pd.DataFrame(
+                {
+                    col: pd.Series(pd.NA, index=coarse_data.index, dtype="object")
+                    for col in non_numeric_cols
+                }
+            )
+        elif non_numeric == "first":
+            extra = grouped[non_numeric_cols].first()
+        elif non_numeric == "mode":
+
+            def _mode_or_na(s: pd.Series):
+                modes = s.mode(dropna=True)
+                return modes.iloc[0] if not modes.empty else pd.NA
+
+            extra = grouped[non_numeric_cols].agg(_mode_or_na)
+        else:
+            extra = pd.DataFrame(index=coarse_data.index)
+
+        coarse_data = pd.concat([coarse_data, extra], axis=1)[data.columns]
+    else:
+        coarse_data = coarse_data[numeric_cols]
+
+    coarse_data.index = pd.RangeIndex(
+        start=0,
+        stop=len(coarse_data),
+        step=1,
+        name=data.index.name or "frame",
+    )
+    return coarse_data

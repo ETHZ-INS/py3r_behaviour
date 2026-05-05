@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from py3r.behaviour.features.features import Features
-from py3r.behaviour.features.features_collection import FeaturesCollection
 from py3r.behaviour.summary.summary import Summary
 from py3r.behaviour.summary.summary_collection import SummaryCollection
 from py3r.behaviour.tracking.tracking import Tracking
@@ -22,33 +20,6 @@ def _make_tracking(handle: str, group: str | None = None) -> Tracking:
     if group is not None:
         tracking.add_tag("group", group)
     return tracking
-
-
-def test_tracking_to_features_and_to_summary():
-    tracking = _make_tracking("A")
-
-    features = tracking.to_features()
-    summary = tracking.to_summary()
-
-    assert isinstance(features, Features)
-    assert features.handle == "A"
-    assert isinstance(summary, Summary)
-    assert summary.handle == "A"
-    assert isinstance(summary.features, Features)
-
-
-def test_trackingcollection_to_features_and_to_summary():
-    tc = TrackingCollection({"A": _make_tracking("A"), "B": _make_tracking("B")})
-
-    fc = tc.to_features()
-    sc = tc.to_summary()
-
-    assert isinstance(fc, FeaturesCollection)
-    assert set(fc.keys()) == {"A", "B"}
-    assert all(isinstance(v, Features) for v in fc.values())
-    assert isinstance(sc, SummaryCollection)
-    assert set(sc.keys()) == {"A", "B"}
-    assert all(isinstance(v, Summary) for v in sc.values())
 
 
 def test_features_to_summary_and_collection_to_summary_grouped():

@@ -510,15 +510,16 @@ class TrackingMV:
             plt.show()
         return fig, axes
 
-    def __getattr__(self, name):
-        def batch_method(*args, **kwargs):
-            results = {}
-            for view, track in self.views.items():
-                method = getattr(track, name)
-                results[view] = method(*args, **kwargs)
-            return results
+    def __getattr__(self, name: str):
+        if not hasattr(Tracking, name):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
-        return batch_method
+        def _dispatch(*args, **kwargs):
+            return {
+                view: getattr(track, name)(*args, **kwargs) for view, track in self.views.items()
+            }
+
+        return _dispatch
 
     def __repr__(self) -> str:
         views_str = ", ".join(self.views.keys())
