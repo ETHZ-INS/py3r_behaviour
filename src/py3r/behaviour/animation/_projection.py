@@ -11,6 +11,7 @@ def _compute_bounds(
     points_xy: np.ndarray,
     boundary_arrays: list[tuple[str, np.ndarray]],
     pad: float = 0.05,
+    clip_percentile: float = 99.5,
 ) -> tuple[float, float, float, float]:
     flat = points_xy.reshape(-1, 2)
     valid = np.isfinite(flat[:, 0]) & np.isfinite(flat[:, 1])
@@ -27,8 +28,16 @@ def _compute_bounds(
             ys.append(flat_poly[ok, 1])
     if not xs:
         return 0.0, 1.0, 0.0, 1.0
-    xmin, xmax = float(np.min(np.concatenate(xs))), float(np.max(np.concatenate(xs)))
-    ymin, ymax = float(np.min(np.concatenate(ys))), float(np.max(np.concatenate(ys)))
+    all_x = np.concatenate(xs)
+    all_y = np.concatenate(ys)
+    clip_percentile = float(np.clip(clip_percentile, 50.0, 100.0))
+    if clip_percentile < 100.0:
+        lo = 100.0 - clip_percentile
+        xmin, xmax = float(np.percentile(all_x, lo)), float(np.percentile(all_x, clip_percentile))
+        ymin, ymax = float(np.percentile(all_y, lo)), float(np.percentile(all_y, clip_percentile))
+    else:
+        xmin, xmax = float(np.min(all_x)), float(np.max(all_x))
+        ymin, ymax = float(np.min(all_y)), float(np.max(all_y))
     if xmin == xmax:
         xmax = xmin + 1.0
     if ymin == ymax:
@@ -104,7 +113,7 @@ def _make_projector(points_xyz: np.ndarray, view: dict | None) -> dict:
     finite_vals = centered[np.isfinite(centered)]
     max_abs = float(np.nanmax(np.abs(finite_vals))) if finite_vals.size > 0 else 1.0
     camera_distance = float(v.get("camera_distance", max(1.0, 4.0 * max_abs)))
-    focal_length = float(v.get("focal_length", camera_distance))
+    focal_length = float(v.get("focal_length", max_abs))
     return {
         "center": center,
         "rotm": rz.T @ rx.T,
