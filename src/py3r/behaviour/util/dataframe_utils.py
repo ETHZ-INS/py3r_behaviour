@@ -207,8 +207,8 @@ def point_to_axis_distance(
 
     Notes
     -----
-    Degenerate frames where A == B (zero-length direction) return the distance
-    from P to A (unsigned) or zero (signed) without raising an error.
+    Degenerate frames where A == B (zero-length direction) return ``nan``
+    for both the signed and unsigned cases, as the axis direction is undefined.
 
     Examples
     --------
@@ -237,16 +237,16 @@ def point_to_axis_distance(
         # of the unit direction d = AB / |AB|.
         # perp_right = (d[1], -d[0])  →  AP · perp_right / |AB| * |AB| simplifies to:
         #   (AP[0] * AB[1] - AP[1] * AB[0]) / |AB|
-        # Degenerate frames (A == B) → signed distance = 0.
+        # Degenerate frames (A == B) → axis undefined, return NaN.
         ab_norm = np.sqrt(ab_sq)
         with np.errstate(invalid="ignore", divide="ignore"):
             cross = AP[:, 0] * AB[:, 1] - AP[:, 1] * AB[:, 0]
-            return np.where(ab_norm > 0, cross / ab_norm, 0.0)
+            return np.where(ab_norm > 0, cross / ab_norm, np.nan)
 
     # Scalar projection of P onto the infinite axis through A and B.
-    # Degenerate frames (A == B) get t = 0, i.e. closest point = A.
+    # Degenerate frames (A == B) → axis undefined, return NaN.
     with np.errstate(invalid="ignore", divide="ignore"):
-        t = np.where(ab_sq > 0, np.sum(AP * AB, axis=1) / ab_sq, 0.0)
+        t = np.where(ab_sq > 0, np.sum(AP * AB, axis=1) / ab_sq, np.nan)
 
     closest = A + t[:, np.newaxis] * AB  # (n, d)
     return np.linalg.norm(P - closest, axis=1)  # (n,)
