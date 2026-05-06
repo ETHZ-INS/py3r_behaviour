@@ -1592,7 +1592,9 @@ class Features:
         boundary: str | StaticBoundary | DynamicBoundary,
         *,
         dims: tuple[str, str] = ("x", "y"),
-        zones: set[Literal["front", "within", "behind"]] | None = None,
+        zones: Literal["front", "within", "behind"]
+        | set[Literal["front", "within", "behind"]]
+        | None = None,
     ) -> FeaturesResult:
         """Per-frame boolean: does the axis line cross the boundary polygon?
 
@@ -1616,8 +1618,9 @@ class Features:
         dims : tuple of (str, str), default ``("x", "y")``
             The 2-D coordinate space for the intersection test.  Both the axis
             and the boundary must have exactly these dims.
-        zones : set of {"front", "within", "behind"}, optional
-            Which zones count as an intersection.  Defaults to all three (any
+        zones : {"front", "within", "behind"} or set thereof, optional
+            Which zones count as an intersection.  A single zone name (e.g.
+            ``"front"``) or a set of names.  Defaults to all three (any
             intersection anywhere along the infinite axis).
 
         Returns
@@ -1644,6 +1647,8 @@ class Features:
         ```
         """
         _VALID_ZONES: set[str] = {"front", "within", "behind"}
+        if isinstance(zones, str):
+            zones = {zones}
         if zones is None:
             zones = _VALID_ZONES
         else:

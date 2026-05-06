@@ -230,6 +230,11 @@ class TestStaticVariants:
 
 
 class TestValidation:
+    def test_zones_string_shorthand_matches_set(self, f, dyn_axis, dyn_boundary):
+        str_result = _call(f, dyn_axis, dyn_boundary, zones="within")
+        set_result = _call(f, dyn_axis, dyn_boundary, zones={"within"})
+        pd.testing.assert_series_equal(pd.Series(str_result), pd.Series(set_result))
+
     def test_unknown_zone_raises(self, f, dyn_axis, dyn_boundary):
         with pytest.raises(ValueError, match="Unknown zone"):
             _call(f, dyn_axis, dyn_boundary, zones={"sideways"})
