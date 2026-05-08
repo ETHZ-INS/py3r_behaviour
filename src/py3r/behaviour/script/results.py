@@ -8,7 +8,7 @@ import pandas as pd
 _SIZE_WARN_BYTES = 1 * 1024**3  # 1 GB
 
 
-class SensitivityResults:
+class ScriptResults:
     """
     Container for sensitivity analysis results.
 
@@ -55,7 +55,7 @@ class SensitivityResults:
             import warnings
 
             warnings.warn(
-                f"SensitivityResults is holding approximately {total / 1e9:.1f} GB in memory. "
+                f"ScriptResults is holding approximately {total / 1e9:.1f} GB in memory. "
                 "Consider saving outputs to disk instead.",
                 ResourceWarning,
                 stacklevel=3,
@@ -83,15 +83,15 @@ class SensitivityResults:
         return pd.DataFrame(records)
 
     @property
-    def errors(self) -> dict[dict, str]:
-        """Failed iterations as ``{param_dict: error_message}``."""
-        return {dict(zip(self._param_names, k, strict=True)): v for k, v in self._errors.items()}
+    def errors(self) -> list[tuple[dict, str]]:
+        """Failed iterations as a list of ``(param_dict, error_message)`` pairs."""
+        return [(dict(zip(self._param_names, k, strict=True)), v) for k, v in self._errors.items()]
 
     def __repr__(self) -> str:
         n_ok = len(self._results)
         n_err = len(self._errors)
         lines = [
-            "SensitivityResults",
+            "ScriptResults",
             f"  parameters : {self._param_names}",
             f"  outputs    : {self._output_names}",
             f"  iterations : {n_ok} completed, {n_err} failed",

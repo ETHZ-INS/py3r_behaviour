@@ -1,8 +1,8 @@
 """
-Internal script executed in each sensitivity analysis subprocess.
+Internal script executed in each script runner subprocess.
 
 Called as:
-    python _subprocess_wrapper.py <script_path> <param_json> <output_pkl>
+    python _subprocess_wrapper.py <script_path> <param_json> <output_pkl> [stop_after_output]
 """
 
 from __future__ import annotations
@@ -11,6 +11,10 @@ import json
 import pickle
 import sys
 from pathlib import Path
+
+
+class _StopAfterOutput(Exception):
+    pass
 
 
 def _make_param(param_values: dict):
@@ -22,9 +26,11 @@ def _make_param(param_values: dict):
     return Param
 
 
-def _make_output(store: dict):
+def _make_output(store: dict, stop_after: str | None):
     def Output(value, *, name: str):
         store[name] = value
+        if stop_after is not None and name == stop_after:
+            raise _StopAfterOutput(name)
         return value
 
     return Output
@@ -34,17 +40,18 @@ def main() -> None:
     script_path = sys.argv[1]
     param_values: dict = json.loads(sys.argv[2])
     output_path = Path(sys.argv[3])
+    stop_after: str | None = sys.argv[4] if len(sys.argv) > 4 else None
 
     outputs: dict = {}
     capturing_param = _make_param(param_values)
-    capturing_output = _make_output(outputs)
+    capturing_output = _make_output(outputs, stop_after)
 
-    # Patch the installed module so that `from py3r.behaviour.sensitivity import Param, Output`
+    # Patch the installed module so that `from py3r.behaviour.script import Param, Output`
     # in the user's script gets our capturing versions rather than the transparent defaults.
-    import py3r.behaviour.sensitivity as _sens
+    import py3r.behaviour.script as _script
 
-    _sens.Param = capturing_param  # type: ignore[attr-defined]
-    _sens.Output = capturing_output  # type: ignore[attr-defined]
+    _script.Param = capturing_param  # type: ignore[attr-defined]
+    _script.Output = capturing_output  # type: ignore[attr-defined]
 
     namespace = {
         "__name__": "__main__",
@@ -56,6 +63,8 @@ def main() -> None:
     source = Path(script_path).read_text()
     try:
         exec(compile(source, script_path, "exec"), namespace)  # noqa: S102
+    except _StopAfterOutput:
+        pass  # intentional early exit — outputs already captured
     except Exception as exc:
         output_path.write_bytes(
             pickle.dumps({"__error__": str(exc), "__type__": type(exc).__name__})
