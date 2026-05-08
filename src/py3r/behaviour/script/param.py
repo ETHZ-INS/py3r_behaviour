@@ -2,20 +2,28 @@ from __future__ import annotations
 
 _ALLOWED_TYPES = (bool, int, float, str)  # bool before int: bool subclasses int
 
+# Sentinel for a Param with no default (required param).
+_MISSING = object()
 
-def Param(default: bool | int | float | str, *, name: str) -> bool | int | float | str:
+
+def Param(default=_MISSING, *, name: str) -> bool | int | float | str:
     """
-    Mark a script variable as a sensitivity analysis parameter.
+    Mark a script variable as a runner parameter.
 
-    In normal script execution, returns ``default`` unchanged. When run via
-    :func:`run_sensitivity`, returns the value injected for this parameter.
+    In normal script execution, returns ``default``. If no default is given,
+    raises ``RuntimeError`` to signal that the script must be run via
+    :func:`run` or :func:`sensitivity` with a value supplied for this parameter.
+
+    When run via :func:`run` or :func:`sensitivity`, returns the injected value.
 
     Parameters
     ----------
-    default : bool | int | float | str
-        Value used during normal (non-sensitivity) execution.
+    default : bool | int | float | str, optional
+        Value used during normal execution. Omit to mark the parameter as required
+        (no default — must always be supplied by the runner).
     name : str
-        Parameter name, matched against keys passed to :func:`run_sensitivity`.
+        Parameter name, matched against keys passed to :func:`run` or
+        :func:`sensitivity`.
 
     Examples
     --------
@@ -28,6 +36,11 @@ def Param(default: bool | int | float | str, *, name: str) -> bool | int | float
 
     ```
     """
+    if default is _MISSING:
+        raise RuntimeError(
+            f"Parameter {name!r} has no default and was not provided by the runner. "
+            "Run this script via run() or sensitivity(), supplying a value for this parameter."
+        )
     if not isinstance(default, _ALLOWED_TYPES):
         raise TypeError(
             f"Param default must be a scalar (bool, int, float, or str); "
@@ -39,17 +52,18 @@ def Param(default: bool | int | float | str, *, name: str) -> bool | int | float
 
 def Output(value: object, *, name: str) -> object:
     """
-    Mark a script value as a sensitivity analysis output to capture.
+    Mark a script value as a runner output to capture.
 
     In normal script execution, returns ``value`` unchanged. When run via
-    :func:`run_sensitivity`, captures the value under ``name`` in the results.
+    :func:`run` or :func:`sensitivity`, captures the value under ``name``
+    in the results.
 
     Parameters
     ----------
     value : object
         The value to capture. Any type is accepted.
     name : str
-        Output name, used to key results in :class:`SensitivityResults`.
+        Output name, used to key results in :class:`ScriptResults`.
 
     Examples
     --------

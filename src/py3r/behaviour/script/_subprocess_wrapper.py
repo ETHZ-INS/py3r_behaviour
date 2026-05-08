@@ -12,15 +12,23 @@ import pickle
 import sys
 from pathlib import Path
 
+_MISSING = object()
+
 
 class _StopAfterOutput(Exception):
     pass
 
 
 def _make_param(param_values: dict):
-    def Param(default, *, name: str):
+    def Param(default=_MISSING, *, name: str):
         if name in param_values:
-            return type(default)(param_values[name])
+            v = param_values[name]
+            # Cast to match default type when a default is available.
+            return type(default)(v) if default is not _MISSING else v
+        if default is _MISSING:
+            raise ValueError(
+                f"Required parameter {name!r} was not provided. Pass it via run() or sensitivity()."
+            )
         return default
 
     return Param

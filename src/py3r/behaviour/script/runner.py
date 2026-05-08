@@ -9,15 +9,18 @@ import tempfile
 import time
 import warnings
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from tqdm import tqdm
 
-from py3r.behaviour.script.discovery import discover_outputs, discover_params
+from py3r.behaviour.script.discovery import discover_outputs, discover_params, validate_names
 from py3r.behaviour.script.results import ScriptResults
 
 _WRAPPER = Path(__file__).parent / "_subprocess_wrapper.py"
 _COMBINATORIAL_WARN = 100
+
+# Sentinel returned by discover_params for required (no-default) params.
+_REQUIRED = None
 
 
 def inspect(script_path: str | Path) -> None:
@@ -30,6 +33,7 @@ def inspect(script_path: str | Path) -> None:
         Path to a Python script containing :func:`Param` and/or :func:`Output` calls.
     """
     script_path = Path(script_path)
+    validate_names(script_path)
     params = discover_params(script_path)
     outputs = discover_outputs(script_path)
 
@@ -38,8 +42,10 @@ def inspect(script_path: str | Path) -> None:
     if params:
         print("Parameters:")
         for name, default in params.items():
-            type_name = type(default).__name__ if default is not None else "unknown"
-            print(f"  {name:<20} default={default!r:<12} type={type_name}")
+            if default is _REQUIRED:
+                print(f"  {name:<20} required")
+            else:
+                print(f"  {name:<20} default={default!r:<12} type={type(default).__name__}")
     else:
         print("Parameters: none")
     print()
@@ -53,6 +59,7 @@ def inspect(script_path: str | Path) -> None:
 
 def _build_iterations(
     params: dict[str, list],
+    nominal: dict[str, Any],
     mode: Literal["independent", "grid"],
 ) -> list[dict]:
     if mode == "grid":
@@ -61,8 +68,7 @@ def _build_iterations(
             dict(zip(keys, combo, strict=True)) for combo in itertools.product(*params.values())
         ]
 
-    # independent: vary one param at a time, others held at their first (nominal) value
-    nominal = {k: vs[0] for k, vs in params.items()}
+    # independent: vary one param at a time, others held at nominal
     seen: set[tuple] = set()
     iterations: list[dict] = []
     for name, values in params.items():
@@ -73,6 +79,30 @@ def _build_iterations(
                 seen.add(key)
                 iterations.append(candidate)
     return iterations
+
+
+def _resolve_outputs(
+    requested: list[str] | None,
+    script_outputs: list[str],
+) -> list[str]:
+    if requested is None:
+        return script_outputs
+    unknown = set(requested) - set(script_outputs)
+    if unknown:
+        raise ValueError(
+            f"Outputs not found in script: {sorted(unknown)}. Script exposes: {script_outputs}."
+        )
+    return requested
+
+
+def _stop_after_name(
+    requested_outputs: list[str],
+    script_outputs: list[str],
+    stop_after_outputs: bool,
+) -> str | None:
+    if not stop_after_outputs or not requested_outputs:
+        return None
+    return max(requested_outputs, key=lambda n: script_outputs.index(n))
 
 
 def _run_one(
@@ -111,10 +141,95 @@ def _run_one(
         output_path.unlink(missing_ok=True)
 
 
+def _make_results_recorder(
+    results: ScriptResults,
+    requested_outputs: list[str],
+):
+    def _record(param_values: dict, raw_outputs: dict | None, error: str | None) -> None:
+        if error:
+            results._add_error(param_values, error)
+        else:
+            filtered = {k: v for k, v in raw_outputs.items() if k in requested_outputs}
+            results._add(param_values, filtered)
+
+    return _record
+
+
 def run(
+    script_path: str | Path,
+    params: dict[str, Any] | None = None,
+    *,
+    outputs: list[str] | None = None,
+    stop_after_outputs: bool = False,
+) -> ScriptResults:
+    """
+    Run a parameterised script exactly once with the given parameter values.
+
+    Unspecified parameters use their script default. Parameters with no default
+    must be provided.
+
+    Parameters
+    ----------
+    script_path : str | Path
+        Path to a Python script containing :func:`Param` and/or :func:`Output` calls.
+    params : dict[str, scalar] | None
+        Parameter values to inject, keyed by name. Unspecified params use their
+        script default.
+    outputs : list[str] | None
+        Names of :func:`Output` values to capture. Defaults to all outputs.
+    stop_after_outputs : bool
+        If True, the subprocess is terminated immediately after the last requested
+        output is captured.
+
+    Returns
+    -------
+    ScriptResults
+    """
+    script_path = Path(script_path)
+    params = params or {}
+    validate_names(script_path)
+
+    script_params = discover_params(script_path)
+    script_outputs = discover_outputs(script_path)
+
+    unknown = set(params) - set(script_params)
+    if unknown:
+        raise ValueError(
+            f"Parameters not found in script: {sorted(unknown)}. "
+            f"Script exposes: {sorted(script_params)}."
+        )
+
+    missing_required = [
+        name
+        for name, default in script_params.items()
+        if default is _REQUIRED and name not in params
+    ]
+    if missing_required:
+        raise ValueError(
+            f"Required parameters not provided: {missing_required}. "
+            "These parameters have no default and must be supplied via params=."
+        )
+
+    requested_outputs = _resolve_outputs(outputs, script_outputs)
+    stop_after = _stop_after_name(requested_outputs, script_outputs, stop_after_outputs)
+
+    raw_outputs, error = _run_one(script_path, params, stop_after)
+
+    results = ScriptResults(param_names=list(params.keys()), output_names=requested_outputs)
+    record = _make_results_recorder(results, requested_outputs)
+    record(params, raw_outputs, error)
+
+    if error:
+        warnings.warn(f"Script run failed: {error}", UserWarning, stacklevel=2)
+
+    return results
+
+
+def sensitivity(
     script_path: str | Path,
     params: dict[str, list],
     *,
+    nominal: dict[str, Any] | None = None,
     outputs: list[str] | None = None,
     stop_after_outputs: bool = False,
     mode: Literal["independent", "grid"] = "independent",
@@ -126,29 +241,35 @@ def run(
     returned in a :class:`ScriptResults` container. Failed iterations are recorded
     but do not stop the run.
 
+    For each swept parameter, its script default is automatically included in the
+    sweep (deduplicated silently) and used as the nominal value for independent-mode
+    sweeps. Use ``nominal`` to override this.
+
     Parameters
     ----------
     script_path : str | Path
         Path to a Python script containing :func:`Param` and :func:`Output` calls.
     params : dict[str, list]
         Mapping of parameter name to list of values to sweep.
-        Names must match the ``name`` argument of :func:`Param` calls in the script.
+    nominal : dict[str, scalar] | None
+        Nominal (baseline) values for independent-mode sweeps. Overrides script
+        defaults. Required for any swept parameter that has no script default.
     outputs : list[str] | None
-        Names of :func:`Output` values to capture. Defaults to all outputs in the script.
+        Names of :func:`Output` values to capture. Defaults to all outputs.
     stop_after_outputs : bool
-        If True, each subprocess is terminated immediately after the last requested
-        output is captured. Useful when outputs appear early in a long pipeline.
-        Defaults to False.
+        If True, each subprocess is terminated after the last requested output
+        is captured. Useful when outputs appear early in a long pipeline.
     mode : "independent" | "grid"
         ``"independent"`` varies one parameter at a time, holding the others at
-        their first (nominal) value — the default for most sensitivity analyses.
-        ``"grid"`` tests every combination.
+        their nominal value. ``"grid"`` tests every combination.
 
     Returns
     -------
     ScriptResults
     """
     script_path = Path(script_path)
+    nominal = nominal or {}
+    validate_names(script_path)
 
     script_params = discover_params(script_path)
     script_outputs = discover_outputs(script_path)
@@ -160,29 +281,67 @@ def run(
             f"Script exposes: {sorted(script_params)}."
         )
 
-    if outputs is not None:
-        unknown_outputs = set(outputs) - set(script_outputs)
-        if unknown_outputs:
+    unknown_nominal = set(nominal) - set(script_params)
+    if unknown_nominal:
+        raise ValueError(
+            f"nominal keys not found in script: {sorted(unknown_nominal)}. "
+            f"Script exposes: {sorted(script_params)}."
+        )
+
+    # Build resolved nominal and sweep lists for swept params.
+    resolved_nominal: dict[str, Any] = {}
+    resolved_params: dict[str, list] = {}
+
+    for name, values in params.items():
+        script_default = script_params[name]
+
+        # Nominal: explicit override > script default > error.
+        if name in nominal:
+            nom_value = nominal[name]
+        elif script_default is not _REQUIRED:
+            nom_value = script_default
+        else:
             raise ValueError(
-                f"Outputs not found in script: {sorted(unknown_outputs)}. "
-                f"Script exposes: {script_outputs}."
+                f"Parameter {name!r} has no script default and no nominal value. "
+                "Provide a nominal value via nominal={name!r: <value>}."
             )
-        requested_outputs = outputs
-    else:
-        requested_outputs = script_outputs
+        resolved_nominal[name] = nom_value
 
-    # The subprocess stops after the last requested output in script order.
-    stop_after: str | None = None
-    if stop_after_outputs and requested_outputs:
-        # Find which requested output appears last in the script.
-        stop_after = max(requested_outputs, key=lambda n: script_outputs.index(n))
+        # Append nominal to sweep list if not already present (deduplicate).
+        deduped = list(dict.fromkeys(values))  # preserve order, remove dups within list
+        if nom_value not in deduped:
+            deduped.append(nom_value)
+        resolved_params[name] = deduped
 
-    iterations = _build_iterations(params, mode)
+    # Non-swept params: validate required ones are covered, build injection base.
+    non_swept_injected: dict[str, Any] = {}
+    for name, script_default in script_params.items():
+        if name in params:
+            continue  # swept — handled above
+        if name in nominal:
+            non_swept_injected[name] = nominal[name]
+        elif script_default is _REQUIRED:
+            raise ValueError(
+                f"Required parameter {name!r} is not being swept and has no value in nominal. "
+                "Provide a value via nominal=."
+            )
+        # else: has a script default — subprocess handles it, no injection needed
+
+    # Every iteration gets non-swept injected values merged in.
+    full_nominal = {**resolved_nominal, **non_swept_injected}
+
+    requested_outputs = _resolve_outputs(outputs, script_outputs)
+    stop_after = _stop_after_name(requested_outputs, script_outputs, stop_after_outputs)
+
+    iterations = _build_iterations(resolved_params, full_nominal, mode)
+    # Merge non-swept injections into every iteration dict.
+    if non_swept_injected:
+        iterations = [{**non_swept_injected, **it} for it in iterations]
     n = len(iterations)
 
     if n > _COMBINATORIAL_WARN:
         warnings.warn(
-            f"run() will execute {n} iterations. "
+            f"sensitivity() will execute {n} iterations. "
             "Use mode='independent' or reduce value lists to lower this.",
             UserWarning,
             stacklevel=2,
@@ -195,20 +354,13 @@ def run(
     print(f"{first_elapsed:.1f}s  →  estimated total: {first_elapsed * n:.0f}s for {n} iterations")
 
     results = ScriptResults(param_names=list(params.keys()), output_names=requested_outputs)
+    record = _make_results_recorder(results, requested_outputs)
+    record(iterations[0], first_outputs, first_error)
 
-    def _record(param_values: dict, raw_outputs: dict | None, error: str | None) -> None:
-        if error:
-            results._add_error(param_values, error)
-        else:
-            filtered = {k: v for k, v in raw_outputs.items() if k in requested_outputs}
-            results._add(param_values, filtered)
-
-    _record(iterations[0], first_outputs, first_error)
-
-    with tqdm(total=n, initial=1, desc="running") as bar:
+    with tqdm(total=n, initial=1, desc="sensitivity") as bar:
         for param_values in iterations[1:]:
             raw_outputs, error = _run_one(script_path, param_values, stop_after)
-            _record(param_values, raw_outputs, error)
+            record(param_values, raw_outputs, error)
             bar.set_postfix(params=str(param_values), error=bool(error))
             bar.update()
 
