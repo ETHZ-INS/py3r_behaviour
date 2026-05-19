@@ -91,13 +91,13 @@ def euclidean_distance(
     """
      Compute Euclidean distance between two DataFrames in N-dimensional space.
 
-     Methods
-     -------
+    Methods
+    -------
      - 'median'      : distance between column-wise median vectors (scalar)
      - 'element_wise': row-wise Euclidean distance (pd.Series)
 
-     Parameters
-     ----------
+    Parameters
+    ----------
      df1 : pd.DataFrame
          First DataFrame.
      df2 : pd.DataFrame
@@ -107,14 +107,14 @@ def euclidean_distance(
      dims : Tuple of str, optional
          Columns to use. If None, uses the intersection of numeric columns.
 
-     Returns
-     -------
+    Returns
+    -------
      float or pd.Series
          Scalar distance for 'median';
          Series of row-wise distances for 'element_wise'.
 
-     Raises
-     ------
+    Raises
+    ------
      ValueError
          If no common numeric columns are found or indices mismatch for element-wise.
      KeyError
@@ -256,8 +256,8 @@ def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.Da
     """
      Multiply selected DataFrame columns by a scalar factor.
 
-     Parameters
-     ----------
+    Parameters
+    ----------
      df : pd.DataFrame
          Input DataFrame.
      factor : float
@@ -265,8 +265,8 @@ def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.Da
      cols : Tuple[str]
          Columns to scale.
 
-     Returns
-     -------
+    Returns
+    -------
      pd.DataFrame
          DataFrame with scaled columns.
 

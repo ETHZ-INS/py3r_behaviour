@@ -73,9 +73,7 @@ class TrackingMV:
         fps: float,
         aspectratio_correction: float = 1.0,
     ) -> TrackingMV:
-        """
-        Build a TrackingMV from a folder containing view CSVs and calibration.json.
-        """
+        """Build a TrackingMV from a folder containing view CSVs and calibration.json."""
         import json
         import os
         from pathlib import Path as _Path

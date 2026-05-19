@@ -173,7 +173,8 @@ class AnimationStream:
         """
         Reset the internal sequential cursor.
 
-        Examples:
+        Examples
+        --------
             ```pycon
             >>> from py3r.behaviour.util.docdata import data_path
             >>> from py3r.behaviour.tracking.tracking import Tracking
@@ -194,11 +195,13 @@ class AnimationStream:
         """
         Return the next rendered frame using VideoCapture-style semantics.
 
-        Returns:
+        Returns
+        -------
             tuple[bool, np.ndarray | None]: ``(True, frame)`` while frames remain;
             otherwise ``(False, None)``.
 
-        Examples:
+        Examples
+        --------
             ```pycon
             >>> from py3r.behaviour.util.docdata import data_path
             >>> from py3r.behaviour.tracking.tracking import Tracking
@@ -234,13 +237,16 @@ class AnimationStream:
         Args:
             frame_idx: Zero-based frame index.
 
-        Returns:
+        Returns
+        -------
             np.ndarray: Rendered BGR image with shape ``(H, W, 3)``.
 
-        Raises:
+        Raises
+        ------
             IndexError: If ``frame_idx`` is out of range.
 
-        Examples:
+        Examples
+        --------
             ```pycon
             >>> from py3r.behaviour.util.docdata import data_path
             >>> from py3r.behaviour.tracking.tracking import Tracking
@@ -268,14 +274,17 @@ class AnimationStream:
             frame_idx: Stream frame index to render.
             copy: If ``True``, draw into a copy. If ``False``, draw in-place.
 
-        Returns:
+        Returns
+        -------
             np.ndarray: Rendered frame buffer.
 
-        Raises:
+        Raises
+        ------
             IndexError: If ``frame_idx`` is out of range.
             ValueError: If ``frame`` does not have shape ``(H, W, 3)``.
 
-        Examples:
+        Examples
+        --------
             ```pycon
             >>> import numpy as np
             >>> from py3r.behaviour.util.docdata import data_path
@@ -546,10 +555,12 @@ class AnimationStream:
             video_path: Optional source video to draw overlays on.
             align_to_frame_ids: If ``True``, seek source video to first ``frame_id``.
 
-        Raises:
+        Raises
+        ------
             ValueError: If ``frame_step < 1`` or ``speed <= 0``.
 
-        Examples:
+        Examples
+        --------
             ```pycon
             >>> from py3r.behaviour.util.docdata import data_path
             >>> from py3r.behaviour.tracking.tracking import Tracking
@@ -629,10 +640,12 @@ class AnimationStream:
             align_to_frame_ids: If ``True``, seek source video to first ``frame_id``.
             codec: FourCC codec string (for example ``"mp4v"``).
 
-        Raises:
+        Raises
+        ------
             ValueError: If ``frame_step < 1`` or writer/capture cannot be opened.
 
-        Examples:
+        Examples
+        --------
             ```pycon
             >>> import tempfile
             >>> from py3r.behaviour.util.docdata import data_path

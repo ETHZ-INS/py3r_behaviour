@@ -120,9 +120,7 @@ class _ByStateDispatcher:
 
 
 class Summary:
-    """
-    stores and computes summary statistics from features objects
-    """
+    """stores and computes summary statistics from features objects"""
 
     def __init__(self, trackingfeatures: Features) -> None:
         self.features = trackingfeatures
@@ -422,7 +420,6 @@ class Summary:
 
         ```
         """
-
         if column not in self.features.data.columns:
             raise ValueError(f"Column '{column}' not found in features.data")
 
@@ -460,7 +457,7 @@ class Summary:
     @by_state_ok
     def time_true(self, column: str) -> SummaryResult:
         """
-        returns time in seconds that condition in the given column is true
+        Returns time in seconds that condition in the given column is true
 
         Examples
         --------
@@ -497,7 +494,7 @@ class Summary:
     @by_state_ok
     def time_false(self, column: str) -> SummaryResult:
         """
-        returns time in seconds that condition in the given column is false
+        Returns time in seconds that condition in the given column is false
 
         Examples
         --------
@@ -536,7 +533,8 @@ class Summary:
         self, point: str, startframe: int | None = None, endframe: int | None = None
     ) -> SummaryResult:
         """
-        returns total distance traveled by a tracked point between optional start and end frames
+        Returns total distance traveled by a tracked point between optional start and end frames
+
         Examples
         --------
         ```pycon
@@ -579,9 +577,7 @@ class Summary:
         return SummaryResult(value, self, name, meta, ylabel=ylabel)
 
     def _apply_column(self, column: str, func, **kwargs) -> SummaryResult:
-        """
-        Internal method to apply aggregation function to a column
-        """
+        """Internal method to apply aggregation function to a column"""
         if column not in self.features.data.columns:
             raise ValueError(f"Column '{column}' not found in features.data")
 
@@ -595,9 +591,7 @@ class Summary:
         raise TypeError("func must be callable.")
 
     def _infer_column_ylabel(self, column: str) -> str | None:
-        """
-        Infer a human-readable y-axis label from feature metadata.
-        """
+        """Infer a human-readable y-axis label from feature metadata."""
         feature_meta = self.features.meta.get(column)
         if not isinstance(feature_meta, dict):
             return None
@@ -805,7 +799,8 @@ class Summary:
 
     def store(self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None) -> None:
         """
-        stores a summary statistic and optional metadata, with optional overwrite protection
+        Stores a summary statistic and optional metadata, with optional overwrite protection
+
         Examples
         --------
         ```pycon
@@ -870,8 +865,9 @@ class Summary:
 
     def make_bin(self, startframe: int, endframe: int) -> Summary:
         """
-        creates a copy of the Summary object with the dataframes
+        Creates a copy of the Summary object with the dataframes
         restricted from startframe to endframe, inclusive
+
         Examples
         --------
         ```pycon
@@ -906,10 +902,11 @@ class Summary:
 
     def make_bins(self, numbins: int) -> list[Summary]:
         """
-        creates a list of Summary objects, with frames restricted into
+        Creates a list of Summary objects, with frames restricted into
         numbins even intervals.
         start/endpoints are duplicated between intervals to ensure no loss
         in e.g. distance calculations
+
         Examples
         --------
         ```pycon
@@ -940,6 +937,7 @@ class Summary:
         """
         Returns a transition matrix for a given column in self.features.data,
         with rows and columns as the unique values of the column or as specified by all_states.
+
         Examples
         --------
         ```pycon
@@ -981,7 +979,7 @@ class Summary:
 
     def count_state_onsets(self, column: str, all_states: list | None = None) -> SummaryResult:
         """
-        counts the number of times a state is entered in a given column
+        Counts the number of times a state is entered in a given column
 
         Parameters
         ----------
@@ -991,6 +989,7 @@ class Summary:
             Optional explicit state ordering to control index presence/order in the
             returned Series. When provided, the output is reindexed to ``all_states``
             and missing states are filled with ``0``.
+
         Examples
         --------
         ```pycon
@@ -1037,7 +1036,7 @@ class Summary:
 
     def time_in_state(self, column: str, all_states: list | None = None) -> SummaryResult:
         """
-        returns the time spent in each state in a given column
+        Returns the time spent in each state in a given column
 
         Parameters
         ----------
@@ -1047,6 +1046,7 @@ class Summary:
             Optional explicit state ordering to control index presence/order in the
             returned Series. When provided, the output is reindexed to ``all_states``
             and missing states are filled with ``0``.
+
         Examples
         --------
         ```pycon

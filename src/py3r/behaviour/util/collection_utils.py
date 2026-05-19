@@ -8,9 +8,7 @@ class _Indexer:
 
 
 def iter_store_leaves(results_dict):
-    """
-    Yield non-dict leaves from a flat or nested mapping of batch results.
-    """
+    """Yield non-dict leaves from a flat or nested mapping of batch results."""
     stack = [results_dict]
     while stack:
         current = stack.pop()
@@ -183,9 +181,7 @@ class BatchResult(dict):
         return self._apply_to_leaves(fn)
 
     def astype(self, dtype):
-        """
-        Call .astype(dtype) on each leaf Series-like value.
-        """
+        """Call .astype(dtype) on each leaf Series-like value."""
         return self._apply_to_leaves(lambda v: v.astype(dtype))
 
     def _binary_op(self, other, op):
@@ -322,9 +318,7 @@ class BatchResult(dict):
         return self._binary_op(other, lambda a, b: operator.xor(b, a))
 
     def __invert__(self):
-        """
-        Elementwise logical NOT on leaves.
-        """
+        """Elementwise logical NOT on leaves."""
 
         def _not(v):
             return ~v

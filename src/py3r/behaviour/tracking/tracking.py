@@ -56,7 +56,8 @@ class Tracking:
     - Save and slice (`loc` / `iloc`)
     - Minimal plotting
 
-    Examples:
+    Examples
+    --------
     Minimal DLC example:
 
     ```pycon
@@ -215,7 +216,7 @@ class Tracking:
         tags: dict[str, str] | None = None,
     ) -> Self:
         """
-        loads a Tracking object from a (single animal) deeplabcut tracking csv
+        Loads a Tracking object from a (single animal) deeplabcut tracking csv
 
         Examples
         --------
@@ -271,7 +272,7 @@ class Tracking:
         tags: dict[str, str] | None = None,
     ) -> Self:
         """
-        loads a Tracking object from a multi-animal deeplabcut tracking csv
+        Loads a Tracking object from a multi-animal deeplabcut tracking csv
 
         Examples
         --------
@@ -328,7 +329,7 @@ class Tracking:
         tags: dict[str, str] | None = None,
     ) -> Self:
         """
-        loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format
+        Loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format
 
         Examples
         --------
@@ -741,9 +742,7 @@ class Tracking:
 
     @staticmethod
     def _apply_aspectratio_correction(df: pd.DataFrame, correction: float) -> pd.DataFrame:
-        """
-        rescales all x values within tracking object by aspectratio correction factor
-        """
+        """Rescales all x values within tracking object by aspectratio correction factor"""
         if correction == 1.0:
             return df
 
@@ -774,7 +773,7 @@ class Tracking:
 
     def add_usermeta(self, usermeta: dict, overwrite: bool = False) -> None:
         """
-        adds or updates user-defined metadata
+        Adds or updates user-defined metadata
 
         Examples
         --------
@@ -800,7 +799,7 @@ class Tracking:
 
     def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> None:
         """
-        adds or updates a tag
+        Adds or updates a tag
 
         Examples
         --------
@@ -893,7 +892,7 @@ class Tracking:
         return cls(df, meta, handle, tags)
 
     def strip_column_names(self, *, inplace: bool = True) -> Tracking | None:
-        """strip column names to the last two dot-delimited sections
+        """Strip column names to the last two dot-delimited sections
 
         Examples
         --------
@@ -918,7 +917,7 @@ class Tracking:
 
     def time_as_expected(self, mintime: float, maxtime: float) -> bool:
         """
-        check that total tracking duration (seconds) is between mintime and maxtime.
+        Check that total tracking duration (seconds) is between mintime and maxtime.
 
         Examples
         --------
@@ -948,7 +947,7 @@ class Tracking:
         inplace: bool = True,
     ) -> Tracking | None:
         """
-        trims the tracking data object between startframe and endframe
+        Trims the tracking data object between startframe and endframe
 
         Examples
         --------
@@ -980,7 +979,7 @@ class Tracking:
         self.meta["trim"] = {"startframe": startframe, "endframe": endframe}
 
     def filter_likelihood(self, threshold: float, *, inplace: bool = True) -> Tracking | None:
-        """set position values with likelihood below threshold to np.nan.
+        """Set position values with likelihood below threshold to np.nan.
 
         Examples
         --------
@@ -1019,7 +1018,7 @@ class Tracking:
         self.meta["filter_likelihood_threshold"] = threshold
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> pd.Series:
-        """framewise distance between two points
+        """Framewise distance between two points
 
         Examples
         --------
@@ -1042,7 +1041,7 @@ class Tracking:
         return distance
 
     def get_point_names(self) -> list:
-        """list of tracked point names, sorted alphabetically (ascending)
+        """List of tracked point names, sorted alphabetically (ascending)
 
         Examples
         --------
@@ -1097,7 +1096,6 @@ class Tracking:
 
         ```
         """
-
         self._assert_valid_point(point)
         prefix = f"{point}."
         dimensions = self.data.columns.str.removeprefix(prefix)[
@@ -1440,7 +1438,7 @@ class Tracking:
         *,
         inplace: bool = True,
     ) -> Tracking | None:
-        """rescale all dims by known distance between two points
+        """Rescale all dims by known distance between two points
 
         Examples
         --------
@@ -1498,24 +1496,20 @@ class Tracking:
         self.meta["distance_units"] = "m"
 
     def _generate_partial_smoothdict(self, points: list, window: int, smoothtype: str) -> dict:
-        """make partial smoothdict for points"""
+        """Make partial smoothdict for points"""
         smoothdict = dict()
         for key in points:
             smoothdict[key] = {"window": window, "type": smoothtype}
         return smoothdict
 
     def generate_smoothdict(self, pointslists: list, windows: list, smoothtypes: list) -> dict:
-        """
-        deprecated, use smooth_all instead
-        """
+        """deprecated, use smooth_all instead"""
         raise NotImplementedError(
             "Tracking.generate_smoothdict() was removed; use Tracking.smooth_all() instead."
         )
 
     def smooth(self, smoothing_params: dict) -> None:
-        """
-        deprecated, use smooth_all instead
-        """
+        """deprecated, use smooth_all instead"""
         raise NotImplementedError(
             "Tracking.smooth() was removed; use Tracking.smooth_all() instead."
         )
@@ -1669,7 +1663,7 @@ class Tracking:
         self, method: str = "linear", limit: int = 1, *, inplace: bool = True, **kwargs
     ) -> Tracking | None:
         """
-        interpolates missing data in the tracking data, and sets likelihood to np.nan
+        Interpolates missing data in the tracking data, and sets likelihood to np.nan
         uses pandas.DataFrame.interpolate() with kwargs
 
         Examples
@@ -2386,9 +2380,7 @@ class Tracking:
         return list(points), out
 
     def _undo_rescale_factors(self, dims: tuple[str, ...]) -> dict[str, float]:
-        """
-        Return per-dimension multipliers that invert meta coordinate scaling.
-        """
+        """Return per-dimension multipliers that invert meta coordinate scaling."""
         factors: dict[str, float] = {}
         rescale_factors = self.meta.get("rescale_factor")
         if isinstance(rescale_factors, dict):

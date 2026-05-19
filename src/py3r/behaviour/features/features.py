@@ -125,9 +125,7 @@ def _axis_boundary_intersections(
 
 
 class Features:
-    """
-    generates features from a pre-processed Tracking object
-    """
+    """generates features from a pre-processed Tracking object"""
 
     def __init__(self, tracking: Tracking) -> None:
         self.tracking = tracking
@@ -638,7 +636,7 @@ class Features:
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns distance from point1 to point2
+        Returns distance from point1 to point2
 
         Examples
         --------
@@ -675,7 +673,7 @@ class Features:
         self, point1: str, point2: str, distance: float, dims=("x", "y")
     ) -> FeaturesResult:
         """
-        returns True for frames where point1 is within specified distance of point2
+        Returns True for frames where point1 is within specified distance of point2
         NA is propagated where inputs are missing (pd.NA).
 
         Examples
@@ -745,9 +743,7 @@ class Features:
         scaling_y: float = None,
         centre: str | list[str] = None,
     ) -> list[tuple[float, float]]:
-        """
-        Deprecated: use define_static_boundary or define_dynamic_boundary instead.
-        """
+        """Deprecated: use define_static_boundary or define_dynamic_boundary instead."""
         raise NotImplementedError(
             "Features.define_boundary() was removed; use Features.define_static_boundary() "
             "or Features.define_dynamic_boundary() instead."
@@ -912,9 +908,7 @@ class Features:
         name: str | None = None,
         overwrite: bool = False,
     ) -> DynamicBoundary:
-        """
-        Define a dynamic boundary from ordered point names and optional scaling.
-        """
+        """Define a dynamic boundary from ordered point names and optional scaling."""
         if len(points) < 3:
             raise ValueError("Dynamic boundary requires at least 3 point names.")
         # validate anchor eagerly for clearer user feedback
@@ -937,9 +931,7 @@ class Features:
         name: str | None = None,
         overwrite: bool = False,
     ) -> StaticBoundary:
-        """
-        Escape hatch: import a precomputed static polygon in selected dims.
-        """
+        """Escape hatch: import a precomputed static polygon in selected dims."""
         if len(vertices) < 3:
             raise ValueError("Imported static boundary requires at least 3 vertices.")
         verts = tuple((float(x), float(y)) for x, y in vertices)
@@ -1830,7 +1822,7 @@ class Features:
 
     def acceleration(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns acceleration of point from previous frame to current frame, for each frame
+        Returns acceleration of point from previous frame to current frame, for each frame
 
         Examples
         --------
@@ -1858,7 +1850,7 @@ class Features:
 
     def azimuth(self, point1: str, point2: str) -> FeaturesResult:
         """
-        returns azimuth in radians from tracked point1 to tracked point2
+        Returns azimuth in radians from tracked point1 to tracked point2
         for each frame in the data, relative to the direction of the x-axis
 
         Examples
@@ -1973,7 +1965,7 @@ class Features:
 
     def speed(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns average speed of point from previous frame to current frame, for each frame
+        Returns average speed of point from previous frame to current frame, for each frame
 
         Examples
         --------

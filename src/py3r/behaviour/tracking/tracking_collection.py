@@ -255,7 +255,6 @@ class TrackingCollection(BaseCollection):
         Loads a TrackingCollection from a dict of dogfeather tracking csvs.
         handles_and_filepaths: dict mapping handles to file paths.
         """
-
         trackings = {}
         for handle, fp in handles_and_filepaths.items():
             trackings[handle] = tracking_cls.from_dogfeather(

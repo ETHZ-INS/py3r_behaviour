@@ -723,9 +723,7 @@ class FeaturesCollection(BaseCollection):
         predictor_cls=None,
         predictor_kwargs=None,
     ):
-        """
-        Dev mode only: not available in public release yet.
-        """
+        """Dev mode only: not available in public release yet."""
         if predictor_cls is None:
             from py3r.behaviour.predictors import KNNPredictor
 
@@ -861,9 +859,7 @@ class FeaturesCollection(BaseCollection):
     @dev_mode
     @staticmethod
     def plot_cross_predict_vs_within(results, from_group, to_group, show=True):
-        """
-        Dev mode only: not available in public release yet.
-        """
+        """Dev mode only: not available in public release yet."""
         import matplotlib.pyplot as plt
         import numpy as np
 
@@ -921,9 +917,7 @@ class FeaturesCollection(BaseCollection):
         figsize=(10, 6),
         show=True,
     ):
-        """
-        Dev mode only: not available in public release yet.
-        """
+        """Dev mode only: not available in public release yet."""
         import matplotlib.pyplot as plt
         import pandas as pd
         import seaborn as sns
@@ -991,9 +985,7 @@ class FeaturesCollection(BaseCollection):
     @dev_mode
     @staticmethod
     def dumbbell_plot_cross_predict(results, within_key, between_key, figsize=(3, 3), show=True):
-        """
-        Dev mode only: not available in public release yet.
-        """
+        """Dev mode only: not available in public release yet."""
         import matplotlib.pyplot as plt
         import pandas as pd
 
@@ -1037,9 +1029,7 @@ class FeaturesCollection(BaseCollection):
         normalize_source: bool = False,
         **kwargs,
     ):
-        """
-        Dev mode only: not available in public release yet.
-        """
+        """Dev mode only: not available in public release yet."""
         if predictor_cls is None:
             from py3r.behaviour.predictors import KNNPredictor
 
@@ -1066,9 +1056,7 @@ class FeaturesCollection(BaseCollection):
         target_embedding: dict[str, list[int]],
         rescale_factors: dict = None,
     ) -> pd.DataFrame:
-        """
-        Dev mode only: not available in public release yet.
-        """
+        """Dev mode only: not available in public release yet."""
         test_embed = self.embedding_df(source_embedding)
         if rescale_factors is not None:
             test_embed = apply_normalization_to_df(test_embed, rescale_factors)

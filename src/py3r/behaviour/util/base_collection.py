@@ -924,9 +924,7 @@ class BaseCollection(MutableMapping):
 
     @property
     def groupby_tags(self):
-        """
-        The tag names used to form this grouped view (or None if flat).
-        """
+        """The tag names used to form this grouped view (or None if flat)."""
         return getattr(self, "_groupby_tags", None)
 
     @property

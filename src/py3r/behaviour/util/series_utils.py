@@ -12,7 +12,7 @@ def mode(series: pd.Series):
 
 
 def rolling_apply(frame: pd.Series, window: int, func, center: bool = True) -> pd.Series:
-    """a custom rolling_apply that accepts non-numeric input"""
+    """A custom rolling_apply that accepts non-numeric input"""
     if center:
         index = frame.index[ceil(window / 2) - 1 : -floor(window / 2)]
         values = [func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)]
@@ -24,8 +24,7 @@ def rolling_apply(frame: pd.Series, window: int, func, center: bool = True) -> p
 
 
 def gen_encoder_decoder(s: pd.Series):
-    """generates a numeric encoder/decoder pair for categorical non-numeric data"""
-
+    """Generates a numeric encoder/decoder pair for categorical non-numeric data"""
     labels = list(set(s))
     encoding = list(np.arange(len(labels)))
     encoder = dict(zip(labels, encoding, strict=True))
@@ -43,7 +42,6 @@ def smooth_block(s: pd.Series, window: int) -> pd.Series:
     unless there is no previous block, in which case it fills
     from next block
     """
-
     warnings.warn(
         "smooth_block is deprecated, use block_filter and block_fill instead",
         DeprecationWarning,
@@ -166,12 +164,11 @@ def block_fill(
 
 def get_block(s: pd.Series, window: int) -> pd.Series:
     """
-    drop labels that occur in blocks of less than window
+    Drop labels that occur in blocks of less than window
     replace them with value from previous block in the series
     unless there is no previous block, in which case it fills
     from next block
     """
-
     encoder, decoder = gen_encoder_decoder(s)
 
     _ = pd.DataFrame()
@@ -187,11 +184,10 @@ def get_block(s: pd.Series, window: int) -> pd.Series:
 
 def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     """
-    drop labels that occur in blocks where the second
+    Drop labels that occur in blocks where the second
     series is equal to True and
     replace them with value from previous block
     """
-
     mask = s1.astype("Int64").to_numpy()
     diffs = np.diff(np.concatenate(([0], mask, [0])))
     starts = np.where(diffs == 1)[0]
@@ -374,10 +370,12 @@ def latencies_from_bool(ser: pd.Series) -> list[int]:
     Args:
         ser (pd.Series): a series of boolean type
 
-    Returns:
+    Returns
+    -------
         list[int]: a list of onset positions (integer indices)
 
-    Examples:
+    Examples
+    --------
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -412,10 +410,12 @@ def smooth_bool_series(ser: pd.Series, window: int = 1) -> pd.Series:
     Args:
         ser (pd.Series): boolean time series
 
-    Returns:
+    Returns
+    -------
         pd.Series: smoothed boolean series
 
-    Examples:
+    Examples
+    --------
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -475,7 +475,8 @@ def latencies_from_series(
         If `threshold_op` is invalid, `target_value` is missing for a
         non-boolean series, or an invalid operator is used for string data.
 
-    Examples:
+    Examples
+    --------
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -508,7 +509,6 @@ def latencies_from_series(
 
      ```
     """
-
     ops = {
         ">": lambda s: s > target_value,
         "<": lambda s: s < target_value,
