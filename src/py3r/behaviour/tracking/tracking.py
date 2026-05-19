@@ -1202,6 +1202,235 @@ class Tracking:
         # Assign with guaranteed column order
         target_df.loc[:, target_cols] = df.to_numpy()
 
+    def _define_point(
+        self,
+        name: str,
+        arr: np.ndarray,
+        dims: tuple[str, ...],
+        likelihood: np.ndarray | None = None,
+    ) -> None:
+        """Add or overwrite a point in ``self.data`` from precomputed arrays.
+
+        Parameters
+        ----------
+        name : str
+            Name for the new point. Existing columns are overwritten.
+        arr : np.ndarray
+            Shape ``(n_frames, n_dims)``, one column per element of ``dims``.
+        dims : tuple[str, ...]
+            Spatial dimension names, e.g. ``("x", "y")`` or ``("x", "y", "z")``.
+        likelihood : np.ndarray | None
+            Per-frame likelihood array of shape ``(n_frames,)``. If ``None``,
+            no likelihood column is written; any pre-existing likelihood column
+            for ``name`` is removed.
+        """
+        n = len(self.data)
+        if arr.ndim != 2 or arr.shape != (n, len(dims)):
+            raise ValueError(
+                f"arr must have shape (n_frames, n_dims) = ({n}, {len(dims)}), got {arr.shape}"
+            )
+        for i, dim in enumerate(dims):
+            self.data[f"{name}.{dim}"] = arr[:, i]
+        lik_col = f"{name}.likelihood"
+        if likelihood is not None:
+            self.data[lik_col] = np.asarray(likelihood, dtype=float)
+        elif lik_col in self.data.columns:
+            self.data.drop(columns=[lik_col], inplace=True)
+
+    def define_midpoint(
+        self,
+        name: str,
+        points: list[str] | dict[str, float],
+        *,
+        inplace: bool = True,
+    ) -> Tracking | None:
+        """Define a new point as the (optionally weighted) midpoint of existing points.
+
+        Spatial dimensions are inferred from the source points and must be
+        consistent across all of them. Likelihood is taken as the per-frame
+        minimum across all source points.
+
+        Parameters
+        ----------
+        name : str
+            Name for the new derived point.
+        points : list[str] | dict[str, float]
+            Source point names with equal weighting (list), or a mapping of
+            point name to relative weight (dict). Weights are normalised
+            internally, so ``{"nose": 1, "tail": 3}`` is equivalent to
+            ``{"nose": 0.25, "tail": 0.75}``.
+        inplace : bool, default=True
+            If ``True``, modifies ``self.data`` in place and returns ``None``.
+            If ``False``, returns a new ``Tracking`` with the point added.
+
+        Returns
+        -------
+        Tracking | None
+            ``None`` when ``inplace=True``; a new ``Tracking`` otherwise.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> t.define_midpoint("mid12", ["p1", "p2"])
+        >>> "mid12" in t.get_point_names()
+        True
+        >>> mid_x = float(t.data["mid12.x"].iloc[0])
+        >>> p1_x = float(t.data["p1.x"].iloc[0])
+        >>> p2_x = float(t.data["p2.x"].iloc[0])
+        >>> mid_x == (p1_x + p2_x) / 2
+        True
+        >>> "mid12.z" in t.data.columns
+        True
+        >>> bool(all(t.data["mid12.likelihood"] <= t.data["p1.likelihood"]))
+        True
+        >>> bool(all(t.data["mid12.likelihood"] <= t.data["p2.likelihood"]))
+        True
+
+        ```
+
+        Weighted example — ``p1`` carries three times the weight of ``p2``:
+
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> t.define_midpoint("wt_mid", {"p1": 3, "p2": 1})
+        >>> val = float(t.data["wt_mid.x"].iloc[0])
+        >>> expected = 0.75 * float(t.data["p1.x"].iloc[0]) + 0.25 * float(t.data["p2.x"].iloc[0])
+        >>> abs(val - expected) < 1e-10
+        True
+
+        ```
+        """
+        if not inplace:
+            new = self.copy()
+            new.define_midpoint(name, points, inplace=True)
+            return new
+
+        if isinstance(points, list):
+            if len(points) < 2:
+                raise ValueError("define_midpoint requires at least two source points")
+            weights: dict[str, float] = {p: 1.0 for p in points}
+        elif isinstance(points, dict):
+            if len(points) < 2:
+                raise ValueError("define_midpoint requires at least two source points")
+            weights = {p: float(w) for p, w in points.items()}
+        else:
+            raise TypeError("points must be a list of point names or a dict of {name: weight}")
+
+        for p in weights:
+            self._assert_valid_point(p)
+
+        def _spatial_dims(p: str) -> tuple[str, ...]:
+            return tuple(d for d in self.get_point_dimensions(p) if d != "likelihood")
+
+        dim_sets = {p: _spatial_dims(p) for p in weights}
+        unique_dims = set(dim_sets.values())
+        if len(unique_dims) > 1:
+            detail = ", ".join(f"'{p}': {d}" for p, d in dim_sets.items())
+            raise ValueError(f"source points have inconsistent dims — {detail}")
+        dims = next(iter(unique_dims))
+
+        total = sum(weights.values())
+        if total == 0.0:
+            raise ValueError("weights must not sum to zero")
+        norm_weights = {p: w / total for p, w in weights.items()}
+
+        n = len(self.data)
+        arr = np.zeros((n, len(dims)), dtype=float)
+        for p, w in norm_weights.items():
+            for i, dim in enumerate(dims):
+                arr[:, i] += w * self.data[f"{p}.{dim}"].to_numpy(dtype=float)
+
+        source_liks = [
+            self.data[f"{p}.likelihood"].to_numpy(dtype=float)
+            for p in weights
+            if f"{p}.likelihood" in self.data.columns
+        ]
+        likelihood = np.min(np.stack(source_liks, axis=0), axis=0) if source_liks else None
+
+        self._define_point(name, arr, dims, likelihood)
+
+    def define_offset_point(
+        self,
+        name: str,
+        reference: str,
+        offset: tuple[float, ...],
+        *,
+        inplace: bool = True,
+    ) -> Tracking | None:
+        """Define a new point as a fixed spatial offset from an existing point.
+
+        The offset is added to every frame's coordinates of the reference
+        point. Likelihood is inherited directly from the reference point.
+
+        Parameters
+        ----------
+        name : str
+            Name for the new derived point.
+        reference : str
+            Name of the existing point to offset from.
+        offset : tuple[float, ...]
+            Per-dimension displacement, e.g. ``(dx, dy)`` for 2D or
+            ``(dx, dy, dz)`` for 3D. Length must match the spatial
+            dimensions of ``reference``.
+        inplace : bool, default=True
+            If ``True``, modifies ``self.data`` in place and returns ``None``.
+            If ``False``, returns a new ``Tracking`` with the point added.
+
+        Returns
+        -------
+        Tracking | None
+            ``None`` when ``inplace=True``; a new ``Tracking`` otherwise.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> t.define_offset_point("p1_shifted", "p1", offset=(10.0, 0.0, 0.0))
+        >>> bool(all(t.data["p1_shifted.x"] == t.data["p1.x"] + 10.0))
+        True
+        >>> bool(all(t.data["p1_shifted.y"] == t.data["p1.y"]))
+        True
+        >>> bool(all(t.data["p1_shifted.likelihood"] == t.data["p1.likelihood"]))
+        True
+
+        ```
+        """
+        if not inplace:
+            new = self.copy()
+            new.define_offset_point(name, reference, offset, inplace=True)
+            return new
+
+        self._assert_valid_point(reference)
+        spatial_dims = tuple(d for d in self.get_point_dimensions(reference) if d != "likelihood")
+
+        if len(offset) != len(spatial_dims):
+            raise ValueError(
+                f"offset length {len(offset)} does not match dims {spatial_dims} "
+                f"of reference point '{reference}'"
+            )
+
+        n = len(self.data)
+        arr = np.empty((n, len(spatial_dims)), dtype=float)
+        for i, (dim, delta) in enumerate(zip(spatial_dims, offset, strict=True)):
+            arr[:, i] = self.data[f"{reference}.{dim}"].to_numpy(dtype=float) + float(delta)
+
+        lik_col = f"{reference}.likelihood"
+        likelihood = (
+            self.data[lik_col].to_numpy(dtype=float) if lik_col in self.data.columns else None
+        )
+
+        self._define_point(name, arr, spatial_dims, likelihood)
+
     def rescale_by_known_distance(
         self,
         point1: str,
