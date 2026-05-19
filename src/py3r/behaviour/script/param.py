@@ -6,7 +6,11 @@ _ALLOWED_TYPES = (bool, int, float, str)  # bool before int: bool subclasses int
 _MISSING = object()
 
 
-def Param(default=_MISSING, *, name: str) -> bool | int | float | str:
+def Param(
+    default: bool | int | float | str | None = _MISSING,
+    *,
+    name: str,
+) -> bool | int | float | str:
     """
     Mark a script variable as a runner parameter.
 
@@ -18,10 +22,10 @@ def Param(default=_MISSING, *, name: str) -> bool | int | float | str:
 
     Parameters
     ----------
-    default : bool | int | float | str, optional
+    default :
         Value used during normal execution. Omit to mark the parameter as required
         (no default — must always be supplied by the runner).
-    name : str
+    name :
         Parameter name, matched against keys passed to :func:`run` or
         :func:`sensitivity`.
 
