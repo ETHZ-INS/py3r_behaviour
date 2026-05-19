@@ -27,7 +27,7 @@ class FeaturesCollection(BaseCollection):
     """
     Collection of Features objects, keyed by name.
     note: type-hints refer to Features, but factory methods allow for other classes
-    these are intended ONLY for subclasses of Features, and this is enforced
+    these are intended ONLY for subclasses of Features, and this is enforced.
 
     Examples
     --------

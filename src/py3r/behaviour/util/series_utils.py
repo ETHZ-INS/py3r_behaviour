@@ -12,7 +12,7 @@ def mode(series: pd.Series):
 
 
 def rolling_apply(frame: pd.Series, window: int, func, center: bool = True) -> pd.Series:
-    """A custom rolling_apply that accepts non-numeric input"""
+    """A custom rolling_apply that accepts non-numeric input."""
     if center:
         index = frame.index[ceil(window / 2) - 1 : -floor(window / 2)]
         values = [func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)]
@@ -24,7 +24,7 @@ def rolling_apply(frame: pd.Series, window: int, func, center: bool = True) -> p
 
 
 def gen_encoder_decoder(s: pd.Series):
-    """Generates a numeric encoder/decoder pair for categorical non-numeric data"""
+    """Generates a numeric encoder/decoder pair for categorical non-numeric data."""
     labels = list(set(s))
     encoding = list(np.arange(len(labels)))
     encoder = dict(zip(labels, encoding, strict=True))
@@ -35,7 +35,7 @@ def gen_encoder_decoder(s: pd.Series):
 
 def smooth_block(s: pd.Series, window: int) -> pd.Series:
     """
-    deprecated: use block_filter and block_fill instead
+    deprecated: use block_filter and block_fill instead.
 
     drop labels that occur in blocks of less than window
     replace them with value from previous block in the series
@@ -167,7 +167,7 @@ def get_block(s: pd.Series, window: int) -> pd.Series:
     Drop labels that occur in blocks of less than window
     replace them with value from previous block in the series
     unless there is no previous block, in which case it fills
-    from next block
+    from next block.
     """
     encoder, decoder = gen_encoder_decoder(s)
 
@@ -186,7 +186,7 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     """
     Drop labels that occur in blocks where the second
     series is equal to True and
-    replace them with value from previous block
+    replace them with value from previous block.
     """
     mask = s1.astype("Int64").to_numpy()
     diffs = np.diff(np.concatenate(([0], mask, [0])))

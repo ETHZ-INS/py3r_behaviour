@@ -92,7 +92,7 @@ class BaseCollection(MutableMapping):
     Subclasses must define:
         - _element_type: the type of elements (e.g., Features)
         - _multiple_collection_type: the MultipleCollection class to return from groupby
-        - from_list(cls, objs): classmethod to construct from a list of elements
+        - from_list(cls, objs): classmethod to construct from a list of elements.
 
     Examples
     --------
@@ -1027,7 +1027,7 @@ class BaseCollection(MutableMapping):
         Works for flat and grouped collections. If `include_value_counts` is True,
         include a column 'value_counts' with a dict of `value->count` for each tag.
         Returns a `pandas.DataFrame` with columns:
-        `['tag', 'attached_to', 'missing_from', 'unique_values', ('value_counts')]`
+        `['tag', 'attached_to', 'missing_from', 'unique_values', ('value_counts')]`.
 
         Examples
         --------

@@ -188,7 +188,7 @@ class BatchResult(dict):
         """
         Elementwise binary op with:
           - scalar 'other'
-          - another BatchResult with the same key structure
+          - another BatchResult with the same key structure.
         """
         from collections.abc import Mapping
 

@@ -19,7 +19,7 @@ class TrackingCollection(BaseCollection):
     """
     Collection of Tracking objects, keyed by name (e.g. for grouping individuals)
     note: type-hints refer to Tracking, but factory methods allow for other classes
-    these are intended ONLY for subclasses of Tracking, and this is enforced
+    these are intended ONLY for subclasses of Tracking, and this is enforced.
     """
 
     _element_type = Tracking
@@ -557,7 +557,7 @@ class TrackingCollection(BaseCollection):
         """
         Adds tags to all Tracking objects in the collection from a csv file.
         csv_path: path to a csv file with first column: "handle"
-        and other columns with tagnames as titles and tagvalues as values
+        and other columns with tagnames as titles and tagvalues as values.
 
         Examples
         --------

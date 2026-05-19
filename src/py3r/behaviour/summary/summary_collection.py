@@ -21,7 +21,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     collection of Summary objects
     (e.g. for grouping individuals)
     note: type-hints refer to Summary, but factory methods allow for other classes
-    these are intended ONLY for subclasses of Summary, and this is enforced
+    these are intended ONLY for subclasses of Summary, and this is enforced.
 
     Examples
     --------

@@ -125,7 +125,7 @@ def _axis_boundary_intersections(
 
 
 class Features:
-    """generates features from a pre-processed Tracking object"""
+    """generates features from a pre-processed Tracking object."""
 
     def __init__(self, tracking: Tracking) -> None:
         self.tracking = tracking
@@ -636,7 +636,7 @@ class Features:
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> FeaturesResult:
         """
-        Returns distance from point1 to point2
+        Returns distance from point1 to point2.
 
         Examples
         --------
@@ -1822,7 +1822,7 @@ class Features:
 
     def acceleration(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
-        Returns acceleration of point from previous frame to current frame, for each frame
+        Returns acceleration of point from previous frame to current frame, for each frame.
 
         Examples
         --------
@@ -1851,7 +1851,7 @@ class Features:
     def azimuth(self, point1: str, point2: str) -> FeaturesResult:
         """
         Returns azimuth in radians from tracked point1 to tracked point2
-        for each frame in the data, relative to the direction of the x-axis
+        for each frame in the data, relative to the direction of the x-axis.
 
         Examples
         --------
@@ -1965,7 +1965,7 @@ class Features:
 
     def speed(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
-        Returns average speed of point from previous frame to current frame, for each frame
+        Returns average speed of point from previous frame to current frame, for each frame.
 
         Examples
         --------

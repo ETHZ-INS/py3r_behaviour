@@ -216,7 +216,7 @@ class Tracking:
         tags: dict[str, str] | None = None,
     ) -> Self:
         """
-        Loads a Tracking object from a (single animal) deeplabcut tracking csv
+        Loads a Tracking object from a (single animal) deeplabcut tracking csv.
 
         Examples
         --------
@@ -272,7 +272,7 @@ class Tracking:
         tags: dict[str, str] | None = None,
     ) -> Self:
         """
-        Loads a Tracking object from a multi-animal deeplabcut tracking csv
+        Loads a Tracking object from a multi-animal deeplabcut tracking csv.
 
         Examples
         --------
@@ -329,7 +329,7 @@ class Tracking:
         tags: dict[str, str] | None = None,
     ) -> Self:
         """
-        Loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format
+        Loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format.
 
         Examples
         --------
@@ -377,7 +377,7 @@ class Tracking:
         return cls(data, meta, handle, tags)
 
     def copy(self) -> Self:
-        """Creates a copy of an existing tracking object
+        """Creates a copy of an existing tracking object.
 
         Examples
         --------
@@ -742,7 +742,7 @@ class Tracking:
 
     @staticmethod
     def _apply_aspectratio_correction(df: pd.DataFrame, correction: float) -> pd.DataFrame:
-        """Rescales all x values within tracking object by aspectratio correction factor"""
+        """Rescales all x values within tracking object by aspectratio correction factor."""
         if correction == 1.0:
             return df
 
@@ -773,7 +773,7 @@ class Tracking:
 
     def add_usermeta(self, usermeta: dict, overwrite: bool = False) -> None:
         """
-        Adds or updates user-defined metadata
+        Adds or updates user-defined metadata.
 
         Examples
         --------
@@ -799,7 +799,7 @@ class Tracking:
 
     def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> None:
         """
-        Adds or updates a tag
+        Adds or updates a tag.
 
         Examples
         --------
@@ -892,7 +892,7 @@ class Tracking:
         return cls(df, meta, handle, tags)
 
     def strip_column_names(self, *, inplace: bool = True) -> Tracking | None:
-        """Strip column names to the last two dot-delimited sections
+        """Strip column names to the last two dot-delimited sections.
 
         Examples
         --------
@@ -947,7 +947,7 @@ class Tracking:
         inplace: bool = True,
     ) -> Tracking | None:
         """
-        Trims the tracking data object between startframe and endframe
+        Trims the tracking data object between startframe and endframe.
 
         Examples
         --------
@@ -1018,7 +1018,7 @@ class Tracking:
         self.meta["filter_likelihood_threshold"] = threshold
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> pd.Series:
-        """Framewise distance between two points
+        """Framewise distance between two points.
 
         Examples
         --------
@@ -1041,7 +1041,7 @@ class Tracking:
         return distance
 
     def get_point_names(self) -> list:
-        """List of tracked point names, sorted alphabetically (ascending)
+        """List of tracked point names, sorted alphabetically (ascending).
 
         Examples
         --------
@@ -1105,7 +1105,7 @@ class Tracking:
 
     def get_point_data(self, point: str, dims: Iterable[str] | None = None) -> pd.DataFrame:
         """For a specific point, returns the DataFrame with all dimensions data.
-        colnames are reformated to drop the pointname (i.e p1.x -> x)
+        colnames are reformated to drop the pointname (i.e p1.x -> x).
 
         Args:
             point (str): name of the point for which data should be exteracted
@@ -1438,7 +1438,7 @@ class Tracking:
         *,
         inplace: bool = True,
     ) -> Tracking | None:
-        """Rescale all dims by known distance between two points
+        """Rescale all dims by known distance between two points.
 
         Examples
         --------
@@ -1496,20 +1496,20 @@ class Tracking:
         self.meta["distance_units"] = "m"
 
     def _generate_partial_smoothdict(self, points: list, window: int, smoothtype: str) -> dict:
-        """Make partial smoothdict for points"""
+        """Make partial smoothdict for points."""
         smoothdict = dict()
         for key in points:
             smoothdict[key] = {"window": window, "type": smoothtype}
         return smoothdict
 
     def generate_smoothdict(self, pointslists: list, windows: list, smoothtypes: list) -> dict:
-        """deprecated, use smooth_all instead"""
+        """deprecated, use smooth_all instead."""
         raise NotImplementedError(
             "Tracking.generate_smoothdict() was removed; use Tracking.smooth_all() instead."
         )
 
     def smooth(self, smoothing_params: dict) -> None:
-        """deprecated, use smooth_all instead"""
+        """deprecated, use smooth_all instead."""
         raise NotImplementedError(
             "Tracking.smooth() was removed; use Tracking.smooth_all() instead."
         )
@@ -1664,7 +1664,7 @@ class Tracking:
     ) -> Tracking | None:
         """
         Interpolates missing data in the tracking data, and sets likelihood to np.nan
-        uses pandas.DataFrame.interpolate() with kwargs
+        uses pandas.DataFrame.interpolate() with kwargs.
 
         Examples
         --------
@@ -1707,7 +1707,7 @@ class Tracking:
     @property
     def loc(self):
         """
-        Return a new Tracking object with self.data sliced by np.loc
+        Return a new Tracking object with self.data sliced by np.loc.
 
         Examples
         --------
@@ -1729,7 +1729,7 @@ class Tracking:
     @property
     def iloc(self):
         """
-        Return a new Tracking object with self.data sliced by np.iloc
+        Return a new Tracking object with self.data sliced by np.iloc.
 
         Examples
         --------
@@ -1786,7 +1786,7 @@ class Tracking:
             show: whether to call plt.show()
             savedir: optional directory path to save the plot image. If provided,
                      figure is saved as '<handle>_plot.png' inside this directory.
-        Returns: fig, ax
+        Returns: fig, ax.
 
         Examples
         --------
