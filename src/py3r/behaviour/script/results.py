@@ -10,16 +10,25 @@ _SIZE_WARN_BYTES = 1 * 1024**3  # 1 GB
 
 class ScriptResults:
     """
-    Container for sensitivity analysis results.
+    Container for results returned by :func:`run` and :func:`sensitivity`.
 
-    Keyed by parameter combination, holds captured :func:`Output` values per iteration.
-    Access a result with a param dict::
+    Keyed by parameter combination; holds captured :func:`Output` values per
+    iteration. Access individual outputs by passing a parameter dict:
 
-        sr[{"window": 5, "fps": 30}]["summary"]
+    ```python
+    sr[{"window": 5}]["summary"]
+    ```
 
-    Or flatten scalar outputs to a DataFrame::
+    Flatten scalar outputs across all iterations to a ``DataFrame``:
 
-        sr.to_dataframe()
+    ```python
+    df = sr.to_dataframe()
+    ```
+
+    Attributes
+    ----------
+    errors : list[tuple[dict, str]]
+        Failed iterations as ``(param_dict, error_message)`` pairs.
     """
 
     def __init__(self, param_names: list[str], output_names: list[str]) -> None:
@@ -66,8 +75,15 @@ class ScriptResults:
         """
         Flatten scalar outputs into a DataFrame (one row per iteration).
 
-        Raises ``TypeError`` for any non-scalar output — access those directly
-        via indexing instead.
+        Each row contains the parameter values for that iteration plus one
+        column per captured scalar output. Raises ``TypeError`` if any output
+        is not a scalar — access those directly via indexing instead.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per completed iteration; columns are parameter names
+            followed by output names.
         """
         records = []
         for key, outputs in self._results.items():

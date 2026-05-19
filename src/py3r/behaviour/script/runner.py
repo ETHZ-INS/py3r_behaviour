@@ -27,10 +27,30 @@ def inspect(script_path: str | Path) -> None:
     """
     Print a summary of the :func:`Param` and :func:`Output` calls in a script.
 
+    Useful for quickly checking what parameters a script exposes, which have
+    defaults, and what outputs it produces — without actually running it.
+
     Parameters
     ----------
     script_path : str | Path
         Path to a Python script containing :func:`Param` and/or :func:`Output` calls.
+
+    Examples
+    --------
+    ```python
+    from py3r.behaviour.script import inspect
+    inspect("pipeline.py")
+    # Script: pipeline.py
+    #
+    # Parameters:
+    #   data_path            default='/my/data'  type=str
+    #   smooth_window        default=5           type=int
+    #   threshold            required
+    #
+    # Outputs:
+    #   tracking
+    #   summary
+    ```
     """
     script_path = Path(script_path)
     validate_names(script_path)
@@ -184,6 +204,24 @@ def run(
     Returns
     -------
     ScriptResults
+        Single-entry results container. Access outputs via
+        ``sr[params]["output_name"]``.
+
+    Examples
+    --------
+    ```python
+    from py3r.behaviour.script import run
+
+    sr = run("pipeline.py", {"data_path": "/data/session1", "threshold": 0.8})
+    summary = sr[{"data_path": "/data/session1", "threshold": 0.8}]["summary"]
+    ```
+
+    Capture only an early output and stop the subprocess before downstream
+    stages run:
+
+    ```python
+    sr = run("pipeline.py", {"threshold": 0.8}, outputs=["tracking"], stop_after_outputs=True)
+    ```
     """
     script_path = Path(script_path)
     params = params or {}
@@ -266,6 +304,52 @@ def sensitivity(
     Returns
     -------
     ScriptResults
+        Results container keyed by parameter combination. Access individual
+        outputs via ``sr[{"param": value}]["output_name"]``, or flatten
+        scalar outputs with ``sr.to_dataframe()``.
+
+    Examples
+    --------
+    Independent sweep (default mode) — one parameter varies at a time:
+
+    ```python
+    from py3r.behaviour.script import sensitivity
+
+    sr = sensitivity("pipeline.py", {"smooth_window": [3, 5, 7], "threshold": [0.5, 0.8]})
+    df = sr.to_dataframe()
+    ```
+
+    Grid sweep — every combination of parameter values:
+
+    ```python
+    sr = sensitivity(
+        "pipeline.py",
+        {"smooth_window": [3, 5, 7], "threshold": [0.5, 0.8]},
+        mode="grid",
+    )
+    ```
+
+    Required parameter not being swept must be supplied via ``nominal``:
+
+    ```python
+    sr = sensitivity(
+        "pipeline.py",
+        {"smooth_window": [3, 5, 7]},
+        nominal={"threshold": 0.8},
+    )
+    ```
+
+    Early termination — stop each subprocess after the first output is
+    captured, skipping downstream pipeline stages:
+
+    ```python
+    sr = sensitivity(
+        "pipeline.py",
+        {"smooth_window": [3, 5, 7]},
+        outputs=["tracking"],
+        stop_after_outputs=True,
+    )
+    ```
     """
     script_path = Path(script_path)
     nominal = nominal or {}
