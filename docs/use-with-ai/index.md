@@ -70,11 +70,29 @@ Then fetch the layer-specific page as needed:
   https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/features/
 - Summary (aggregating features into statistics):
   https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/summary/
+- Plotting (sns* methods, group order, statannotations):
+  https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/plotting/
 - Script (operationalising a finished pipeline, sensitivity analysis):
   https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/script/
 
 Full API reference (signatures and parameters):
   https://ETHZ-INS.github.io/py3r_behaviour/api/tracking/
+
+## Fallback: reading the source code
+
+If the docs do not answer the question, read the source code directly on GitHub:
+  https://github.com/ETHZ-INS/py3r_behaviour
+
+The source for the main package is under src/py3r/behaviour/.
+
+Before reading source, ask the user which version they have installed:
+  "Please run: python -c \"import py3r.behaviour; print(py3r.behaviour.__version__)\""
+
+Then navigate to the matching release tag, for example for version 0.4.2:
+  https://github.com/ETHZ-INS/py3r_behaviour/tree/v0.4.2/src/py3r/behaviour/
+
+This ensures you are reading the exact code the user has installed, not a
+newer version where the API may differ.
 
 ## When the user asks about something not covered
 
@@ -87,7 +105,9 @@ above. Do not implement a custom solution.
 
 ## Detail pages
 
-- [Tracking](tracking.md) — loading data, filtering, smoothing, calibration
-- [Features](features.md) — computing distances, speed, boundaries, axes
+- [Collections](collections.md) — loading, merging, tagging, grouping, batch dispatch
+- [Tracking](tracking.md) — preprocessing, calibration, TrackingMV
+- [Features](features.md) — distances, boundaries, axes, speed, AnimationStream
 - [Summary](summary.md) — aggregating features into statistics
-- [Collections](collections.md) — batch processing across multiple recordings
+- [Plotting](plotting.md) — sns* methods, group order, statannotations
+- [Script](script.md) — operationalising finished pipelines
