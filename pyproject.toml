@@ -67,11 +67,13 @@ target-version = "py312"
 extend-exclude = ["build", "dist", ".venv"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
+select = ["E", "F", "I", "B", "UP", "D"]
+ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D400", "D401"]
 # E/F  = pycodestyle + pyflakes
 # I    = import sorting (replaces isort)
 # B    = bugbear (common footguns)
 # UP   = pyupgrade (modern syntax)
+# D105 = magic method docstrings — not required
 
 # pipeline notebook .py files: E402 because imports not at top of file by design
 [tool.ruff.lint.extend-per-file-ignores]
