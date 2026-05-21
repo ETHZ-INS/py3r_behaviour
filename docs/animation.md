@@ -89,10 +89,10 @@ The dict has one section per geometry type. Within each section, `"default"`
 applies to every element of that type; a named key overrides only that specific
 element. Named overrides are merged on top of `"default"` rather than replacing
 it, so you only need to specify what differs. This pattern is the same across
-all sections, including `"text"` — where the named keys are the display label
-strings passed via `features=`.
+all sections, including `"text"` (where the named keys are the display label
+strings passed via `features=` in `Features.animation_stream`).
 
-The `"text"` section follows the same pattern, with one addition: `"origin"`
+The `"text"` section has one addition, however: `"origin"`
 sits at the top level of the section (outside `"default"`) because it
 positions the whole text panel and is not a per-label property.
 
@@ -242,7 +242,7 @@ Any color or numeric style property can be driven by a column in
 `Features.data` instead of a fixed value. This applies to colors, radii,
 line widths, `fill_alpha`, font sizes — anything numeric. Dynamic specs
 require `Features.animation_stream`; they are resolved once at construction
-time, not per frame.
+time, not during rendering.
 
 There are two dynamic spec forms:
 
