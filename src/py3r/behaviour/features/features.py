@@ -3049,6 +3049,9 @@ class Features:
         """
         Build an OpenCV-backed animation stream from Features + boundary assets.
 
+        **For style dict documentation and worked examples, see the
+        [Animation guide](../animation.md).**
+
         This wraps the same renderer used by :meth:`Tracking.animation_stream`,
         while additionally resolving named boundaries stored in ``self._assets``.
         Static and dynamic boundaries are resolved to per-boundary arrays and

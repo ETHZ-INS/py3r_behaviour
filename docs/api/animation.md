@@ -1,3 +1,5 @@
+**For style dict documentation and worked examples, see the [Animation guide](../animation.md).**
+
 ::: py3r.behaviour.animation.animation_stream.AnimationStream
     options:
       docstring_style: google

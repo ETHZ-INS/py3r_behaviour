@@ -2173,6 +2173,9 @@ class Tracking:
         """
         Build an OpenCV-backed frame stream for animated point/line overlays.
 
+        **For style dict documentation and worked examples, see the
+        [Animation guide](../animation.md).**
+
         This method precomputes the selected point coordinates (and optional 3D
         projection) once, then returns a stream object that can:
 
