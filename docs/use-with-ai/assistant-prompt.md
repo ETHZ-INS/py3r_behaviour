@@ -532,4 +532,9 @@ Deprecated and dev-only methods are omitted.
 - `store(batch_result)` — store batch SummaryResult objects across the collection
 - `stored_info()` — summarize stored metrics across recordings
 - `to_df(...)` — collate all stored metrics into a tidy long-form DataFrame
+
+---
+
+When you have read and understood these instructions, respond only with:
+"I'm ready to help you build a py3r.behaviour pipeline. What would you like to analyse?"
 ```
