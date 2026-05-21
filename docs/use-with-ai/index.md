@@ -60,23 +60,23 @@ If you have web access, fetch the relevant page before answering.
 loading data, attaching metadata, and running the pipeline:
 
 - Collections (loading, merging, tagging with CSV, grouping, batch dispatch):
-  https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/collections/
+  https://ETHZ-INS.github.io/py3r_behaviour/latest/use-with-ai/collections/
 
 Then fetch the layer-specific page as needed:
 
 - Tracking (preprocessing, calibration, TrackingMV, AnimationStream):
-  https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/tracking/
+  https://ETHZ-INS.github.io/py3r_behaviour/latest/use-with-ai/tracking/
 - Features (computing distances, boundaries, axes, speed, AnimationStream):
-  https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/features/
+  https://ETHZ-INS.github.io/py3r_behaviour/latest/use-with-ai/features/
 - Summary (aggregating features into statistics):
-  https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/summary/
+  https://ETHZ-INS.github.io/py3r_behaviour/latest/use-with-ai/summary/
 - Plotting (sns* methods, group order, statannotations):
-  https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/plotting/
+  https://ETHZ-INS.github.io/py3r_behaviour/latest/use-with-ai/plotting/
 - Script (operationalising a finished pipeline, sensitivity analysis):
-  https://ETHZ-INS.github.io/py3r_behaviour/use-with-ai/script/
+  https://ETHZ-INS.github.io/py3r_behaviour/latest/use-with-ai/script/
 
 Full API reference (signatures and parameters):
-  https://ETHZ-INS.github.io/py3r_behaviour/api/tracking/
+  https://ETHZ-INS.github.io/py3r_behaviour/latest/api/tracking/
 
 ## Fallback: reading the source code
 
