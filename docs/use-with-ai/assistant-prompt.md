@@ -272,4 +272,264 @@ Each iteration runs in a subprocess. Results are in a `ScriptResults`
 container keyed by the parameter dict used for that run.
 
 For all parameter details: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/script/
+
+---
+
+## Method index
+
+This is a complete index of public methods. Use it to identify the right
+method, then direct the user to the API reference for exact parameters.
+Methods marked (classmethod) are called on the class, not an instance.
+Deprecated and dev-only methods are omitted.
+
+### Tracking
+
+**Loading (classmethods):**
+- `from_dlc(filepath, handle, fps)` — load a single DLC CSV
+- `from_dlcma(filepath, handle, fps)` — load a DLC multi-animal CSV
+- `from_yolo3r(filepath, handle, fps)` — load a YOLO3R CSV
+- `load(dirpath)` — load from a saved directory
+
+**Preprocessing:**
+- `filter_likelihood(...)` — set low-confidence frames to NaN
+- `interpolate(...)` — fill NaN gaps left by likelihood filtering
+- `smooth_all(...)` — smooth all keypoints with a rolling window
+- `rescale_by_known_distance(...)` — calibrate pixel units to real-world units
+- `trim(...)` — restrict to a frame range
+- `coarse_grain(...)` — downsample into fixed non-overlapping windows
+
+**Inspection:**
+- `get_point_names()` — list all tracked keypoint names
+- `get_point_data(point)` — return all coordinate columns for a keypoint
+- `get_point_dimensions(point)` — return available dimensions for a keypoint (x, y, z...)
+- `time_as_expected(...)` — check recording duration is within expected bounds
+
+**Defining synthetic keypoints:**
+- `define_midpoint(name, points)` — add a point at the weighted midpoint of existing points
+- `define_offset_point(name, ref, offset)` — add a point at a fixed offset from another
+
+**Other:**
+- `add_tag(key, value)` — attach a key-value label to this recording
+- `to_features()` — convert to a Features object
+- `animation_stream(...)` — create an AnimationStream for video overlay rendering
+- `plot(...)` — plot trajectories
+- `copy()` — return an independent copy
+- `save(dirpath)` — save to directory
+- `.loc` / `.iloc` — pandas-style frame indexing
+
+---
+
+### TrackingMV
+
+- `stereo_triangulate(...)` — triangulate multi-view data into a 3D Tracking object
+- `align_ids_by_keypoints(...)` — align animal IDs across views by keypoint proximity
+
+---
+
+### TrackingCollection
+
+**Loading (classmethods):**
+- `from_dlc_folder(path, fps)` — load all DLC CSVs from a folder
+- `from_dlcma_folder(path, fps)` — load all DLC multi-animal CSVs from a folder
+- `from_yolo3r_folder(path, fps)` — load all YOLO3R CSVs from a folder
+- `from_dlc({handle: filepath, ...}, fps)` — load from an explicit mapping
+- `from_list([t1, t2, ...])` — build from a list of Tracking objects
+- `merge([batch1, batch2, ...])` — combine multiple collections into one
+- `load(dirpath)` — load from a saved directory
+
+**Pipeline:**
+- `to_features()` — convert to FeaturesCollection
+
+**Other:**
+- `add_tags_from_csv(filepath)` — load tags from a CSV with a handle column
+- `stored_info()` — summarize tracked keypoints across recordings
+- `stereo_triangulate(...)` — triangulate a TrackingMV collection to 3D Tracking
+- `plot(...)` — plot all recordings
+
+---
+
+### BaseCollection — inherited by all \*Collection classes
+
+**Batch dispatch:**
+- `.each.<method>(...)` — call a method across all recordings; returns collection or BatchResult
+- `.each.forcebatch.<method>(...)` — like `.each` but always returns a BatchResult
+
+**Grouping:**
+- `groupby(tag_or_tags)` — group by one or more tag names; keys become tuples
+- `flatten()` — flatten a grouped collection back to flat
+- `regroup()` — recompute grouping after tags have changed
+- `get_group(key_tuple)` — retrieve a sub-collection by group key tuple
+- `tags_info(...)` — summarize tag coverage across the collection
+
+**Access:**
+- `keys()`, `values()`, `items()` — dict-like iteration
+- `.is_grouped`, `.group_keys`, `.groupby_tags` — inspect grouping state
+- `.loc[handle]` / `.iloc[i]` — access by handle string or integer position
+
+**Persistence:**
+- `save(dirpath)` — save to directory
+- `load(dirpath)` (classmethod) — load from a saved directory
+- `copy()` — return an independent copy
+
+**Other:**
+- `map_leaves(fn)` — apply a function to every leaf object; return new collection
+
+---
+
+### Features
+
+**Loading:**
+- `load(dirpath)` (classmethod) — load from a saved directory
+
+**Motion:**
+- `speed(point)` — framewise speed of a keypoint
+- `acceleration(point)` — framewise acceleration of a keypoint
+- `distance_between(p1, p2)` — framewise distance between two keypoints
+- `distance_change(point)` — unsigned distance moved by a keypoint per frame
+- `azimuth(p1, p2)` — heading angle from p1 toward p2, per frame (radians)
+- `azimuth_deviation(...)` — signed angular deviation between two directions
+- `above_speed(point, threshold)` — boolean: speed ≥ threshold each frame?
+- `below_speed(point, threshold)` — boolean: speed < threshold each frame?
+- `all_above_speed(points, threshold)` — boolean: all listed points above threshold?
+- `all_below_speed(points, threshold)` — boolean: all listed points below threshold?
+- `within_distance(p1, p2, distance)` — boolean: p1 within distance of p2 each frame?
+- `within_azimuth_deviation(...)` — boolean: angular deviation within threshold each frame?
+
+**Boundaries:**
+- `define_static_boundary(points, name, ...)` — fixed polygon from keypoint medians
+- `define_dynamic_boundary(points, name, ...)` — per-frame polygon from live keypoints
+- `define_elliptical_boundary_from_points(points, name, ...)` — ellipse fitted to keypoint medians
+- `define_elliptical_boundary_from_params(...)` — ellipse from explicit parameters
+- `import_static_boundary(polygon, name, ...)` — import a precomputed polygon
+- `within_boundary(point, boundary)` — boolean: point inside boundary each frame?
+- `distance_to_boundary(point, boundary, signed)` — distance to boundary edge per frame
+- `area_of_boundary(boundary)` — boundary area as a FeaturesResult
+- `list_boundaries()` — table of all named boundaries
+- `get_boundary(name)` — retrieve a named boundary
+
+**Axes:**
+- `define_static_axis(p1, p2, name)` — fixed axis from keypoint medians
+- `define_dynamic_axis(p1, p2, name, ...)` — per-frame axis from live keypoints
+- `import_static_axis(coords, name)` — import an axis from explicit coordinates
+- `distance_to_axis(point, axis, signed)` — perpendicular distance to axis per frame
+- `axis_intersects_boundary(axis, boundary)` — boolean: axis crosses boundary each frame?
+
+**Composing and storing:**
+- `store(result, name)` — persist a FeaturesResult into features.data
+- `compose_state_from_booleans(sources)` — build a categorical column from boolean columns
+- `smooth(column, ...)` — smooth a stored feature column with a rolling window
+- `embedding_df(...)` — build a time-shifted embedding DataFrame from stored features
+
+**Inspection:**
+- `get_point_median(point)` — median coordinate for a keypoint across all frames
+- `get_asset(name)` — retrieve a named boundary or axis
+- `list_assets()` — table of all named boundaries and axes
+
+**Clustering:**
+- `cluster_embedding_stream(...)` — cluster a feature embedding on this single object
+- `assign_clusters_by_centroids(...)` — assign cluster labels from pre-fitted centroids
+- `classify(...)` — classify behaviour using a fitted classifier
+
+**Other:**
+- `add_tag(key, value)` — delegate tag to underlying Tracking
+- `to_summary()` — convert to a Summary object
+- `animation_stream(...)` — AnimationStream with boundary/feature overlays
+- `copy()` — return an independent copy
+- `save(dirpath)` — save to directory (includes nested Tracking)
+- `.tags` — access tags from the underlying Tracking
+- `.loc` / `.iloc` — pandas-style frame indexing
+
+---
+
+### FeaturesCollection
+
+**Loading:**
+- `load(dirpath)` (classmethod) — load from a saved directory
+
+**Pipeline:**
+- `to_summary()` — convert to SummaryCollection
+- `store(batch_result)` — store batch FeaturesResult objects across the collection
+
+**Clustering:**
+- `cluster_embedding_stream(...)` — fit MiniBatchKMeans clustering across the collection
+- `cluster_diagnostics(...)` — compute diagnostic stats for cluster assignments
+
+**Other:**
+- `stored_info()` — summarize stored feature columns across recordings
+- `plot(...)` — plot features across the collection
+
+---
+
+### Summary
+
+**Loading:**
+- `load(dirpath)` (classmethod) — load from a saved directory
+
+**Statistics:**
+- `time_true(column)` — total seconds a boolean column is True
+- `time_false(column)` — total seconds a boolean column is False
+- `count_onset(column)` — count False→True transitions in a boolean column
+- `total_distance(point, ...)` — total distance traveled by a keypoint
+- `sum_column(column)` — sum of a feature column across the recording
+- `mean_column(column)` — mean of a feature column
+- `median_column(column)` — median of a feature column
+- `max_column(column)` — max of a feature column
+- `min_column(column)` — min of a feature column
+- `calculate_latency_nth_onset(column, ...)` — seconds until the Nth onset of an event
+
+**State-based:**
+- `by_state(column, all_states)` — dispatcher: apply a method per state in a categorical column
+- `time_in_state(column, all_states)` — total seconds spent in each state
+- `count_state_onsets(column, all_states)` — count entries into each state
+- `transition_matrix(column, all_states)` — DataFrame of state-to-state transition counts
+
+**Temporal bins:**
+- `make_bins(numbins)` — split into N equal-duration Summary objects
+- `make_bin(startframe, endframe)` — return a Summary restricted to a frame range
+
+**Storing and access:**
+- `store(result, name)` — persist a SummaryResult into summary.data
+- `.data` — dict of name → stored value
+- `.meta` — dict of name → metadata for each stored value
+
+**Other:**
+- `plot_chord(column, ...)` — chord diagram of state transitions
+- `snsstrip/snsswarm/snsbar/snsbox/snsviolin/snspoint/snssuperplot(metric)` — single-recording plots (exploratory only; use SummaryCollection for publication figures)
+- `copy()` — return an independent copy
+- `save(dirpath)` — save to directory
+
+---
+
+### SummaryCollection
+
+**Loading:**
+- `load(dirpath)` (classmethod) — load from a saved directory
+
+**Plotting (must be grouped first):**
+- `snsstrip(metric, ...)` — jittered scatter plot
+- `snsswarm(metric, ...)` — non-overlapping scatter plot
+- `snsbar(metric, ...)` — bar plot with error bars
+- `snsbox(metric, ...)` — box plot
+- `snsviolin(metric, ...)` — violin plot
+- `snspoint(metric, ...)` — mean ± CI point plot
+- `snssuperplot(metric, ...)` — bar + strip overlay (recommended default)
+- `prepare_plot(metric, ...)` — return PlotSpec for custom seaborn composition
+
+**State and BFA:**
+- `plot_chord(...)` — chord diagrams of state transitions
+- `plot_transition_umap(...)` — UMAP of per-subject transition matrices
+- `bfa(...)` — Behaviour Flow Analysis between groups
+- `bfa_multiscale(...)` — BFA across pre-built collections at multiple temporal scales
+- `bfa_stats(...)` — compute statistics from BFA results
+- `combine_bfa_results(...)` — combine BFA results from multiple scales
+- `plot_bfa_results(...)` — plot BFA comparison figures
+
+**Temporal bins:**
+- `make_bins(numbins)` — divide into equal time bins; returns one SummaryCollection per bin
+- `make_bin(startframe, endframe)` — restrict collection to a frame range
+
+**Other:**
+- `store(batch_result)` — store batch SummaryResult objects across the collection
+- `stored_info()` — summarize stored metrics across recordings
+- `to_df(...)` — collate all stored metrics into a tidy long-form DataFrame
 ```
