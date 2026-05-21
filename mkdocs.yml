@@ -13,13 +13,6 @@ theme:
     - scheme: default
       primary: indigo
       accent: indigo
-not_in_nav: |
-  use-with-ai/collections.md
-  use-with-ai/tracking.md
-  use-with-ai/features.md
-  use-with-ai/summary.md
-  use-with-ai/plotting.md
-  use-with-ai/script.md
 
 nav:
   - Home: index.md
