@@ -175,19 +175,19 @@ class AnimationStream:
 
         Examples
         --------
-            ```pycon
-            >>> from py3r.behaviour.util.docdata import data_path
-            >>> from py3r.behaviour.tracking.tracking import Tracking
-            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
-            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
-            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
-            >>> _ = s.read()
-            >>> s.reset()
-            >>> ok, _ = s.read()
-            >>> ok
-            True
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
+        >>> _ = s.read()
+        >>> s.reset()
+        >>> ok, _ = s.read()
+        >>> ok
+        True
 
-            ```
+        ```
         """
         self._cursor = 0
 
@@ -195,24 +195,22 @@ class AnimationStream:
         """
         Return the next rendered frame using VideoCapture-style semantics.
 
-        Returns
-        -------
-            tuple[bool, np.ndarray | None]: ``(True, frame)`` while frames remain;
-            otherwise ``(False, None)``.
+        Returns:
+            ``(True, frame)`` while frames remain; otherwise ``(False, None)``.
 
         Examples
         --------
-            ```pycon
-            >>> from py3r.behaviour.util.docdata import data_path
-            >>> from py3r.behaviour.tracking.tracking import Tracking
-            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
-            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
-            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
-            >>> ok, frame = s.read()
-            >>> ok and frame is not None
-            True
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
+        >>> ok, frame = s.read()
+        >>> ok and frame is not None
+        True
 
-            ```
+        ```
         """
         if self._cursor >= self.frame_count:
             return False, None
@@ -237,27 +235,25 @@ class AnimationStream:
         Args:
             frame_idx: Zero-based frame index.
 
-        Returns
-        -------
-            np.ndarray: Rendered BGR image with shape ``(H, W, 3)``.
+        Returns:
+            Rendered BGR image with shape ``(H, W, 3)``.
 
-        Raises
-        ------
+        Raises:
             IndexError: If ``frame_idx`` is out of range.
 
         Examples
         --------
-            ```pycon
-            >>> from py3r.behaviour.util.docdata import data_path
-            >>> from py3r.behaviour.tracking.tracking import Tracking
-            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
-            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
-            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
-            >>> frame0 = s.get_frame(0)
-            >>> frame0.ndim
-            3
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
+        >>> frame0 = s.get_frame(0)
+        >>> frame0.ndim
+        3
 
-            ```
+        ```
         """
         if frame_idx < 0 or frame_idx >= self.frame_count:
             raise IndexError(f"frame_idx {frame_idx} out of range")
@@ -274,30 +270,28 @@ class AnimationStream:
             frame_idx: Stream frame index to render.
             copy: If ``True``, draw into a copy. If ``False``, draw in-place.
 
-        Returns
-        -------
-            np.ndarray: Rendered frame buffer.
+        Returns:
+            Rendered frame buffer.
 
-        Raises
-        ------
+        Raises:
             IndexError: If ``frame_idx`` is out of range.
             ValueError: If ``frame`` does not have shape ``(H, W, 3)``.
 
         Examples
         --------
-            ```pycon
-            >>> import numpy as np
-            >>> from py3r.behaviour.util.docdata import data_path
-            >>> from py3r.behaviour.tracking.tracking import Tracking
-            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
-            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
-            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(32, 24))
-            >>> base = np.zeros((24, 32, 3), dtype=np.uint8)
-            >>> out = s.render_into(base, frame_idx=0, copy=True)
-            >>> out.shape
-            (24, 32, 3)
+        ```pycon
+        >>> import numpy as np
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(32, 24))
+        >>> base = np.zeros((24, 32, 3), dtype=np.uint8)
+        >>> out = s.render_into(base, frame_idx=0, copy=True)
+        >>> out.shape
+        (24, 32, 3)
 
-            ```
+        ```
         """
         if frame_idx < 0 or frame_idx >= self.frame_count:
             raise IndexError(f"frame_idx {frame_idx} out of range")
@@ -555,21 +549,20 @@ class AnimationStream:
             video_path: Optional source video to draw overlays on.
             align_to_frame_ids: If ``True``, seek source video to first ``frame_id``.
 
-        Raises
-        ------
+        Raises:
             ValueError: If ``frame_step < 1`` or ``speed <= 0``.
 
         Examples
         --------
-            ```pycon
-            >>> from py3r.behaviour.util.docdata import data_path
-            >>> from py3r.behaviour.tracking.tracking import Tracking
-            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
-            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
-            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
-            >>> s.play(loop=False, speed=1.0)  # xdoctest: +SKIP
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
+        >>> s.play(loop=False, speed=1.0)  # xdoctest: +SKIP
 
-            ```
+        ```
         """
         if frame_step < 1:
             raise ValueError("frame_step must be >= 1")
@@ -640,23 +633,22 @@ class AnimationStream:
             align_to_frame_ids: If ``True``, seek source video to first ``frame_id``.
             codec: FourCC codec string (for example ``"mp4v"``).
 
-        Raises
-        ------
+        Raises:
             ValueError: If ``frame_step < 1`` or writer/capture cannot be opened.
 
         Examples
         --------
-            ```pycon
-            >>> import tempfile
-            >>> from py3r.behaviour.util.docdata import data_path
-            >>> from py3r.behaviour.tracking.tracking import Tracking
-            >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
-            ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
-            >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
-            >>> with tempfile.NamedTemporaryFile(suffix=".mp4") as f:
-            ...     s.save(f.name)  # xdoctest: +SKIP
+        ```pycon
+        >>> import tempfile
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> s = t.animation_stream(points=["p1"], pixel_coords=True, canvas_size=(64, 48))
+        >>> with tempfile.NamedTemporaryFile(suffix=".mp4") as f:
+        ...     s.save(f.name)  # xdoctest: +SKIP
 
-            ```
+        ```
         """
         if frame_step < 1:
             raise ValueError("frame_step must be >= 1")
@@ -721,23 +713,30 @@ def build_animation_stream(
     """
     Build stream from precomputed point arrays.
 
-    Parameters
-    ----------
-    points : np.ndarray
-        Shape ``(n_frames, n_points, 2|3)``. If 3D, points are projected using
-        ``view`` and optional ``boundary_z``.
-    point_names : list[str]
-        Names for the second axis in ``points``.
-    draw_points : list[str], optional
-        Subset of ``point_names`` to draw as circles.
-    lines : list[tuple[str, str]], optional
-        Point-pair line segments.
-    frame_ids : np.ndarray
-        Source frame identifiers aligned to stream rows.
+    Args:
+        points: Shape ``(n_frames, n_points, 2|3)``. If 3D, points are projected
+            using ``view`` and optional ``boundary_z``.
+        point_names: Names for the second axis in ``points``.
+        draw_points: Subset of ``point_names`` to render as circles.
+        lines: Point-pair line segments.
+        view: 3D camera options (``azim``, ``elev``, ``proj``, etc.).
+            Only used when ``points`` has 3 spatial dimensions.
+        boundary_z: Z-depth for 2-D boundary polygons when projecting into 3-D.
+        frame_ids: Source frame identifiers aligned to stream rows.
+        fps: Playback frame rate.
+        boundary_arrays: Pre-resolved boundary vertex arrays as
+            ``[(name, (n_frames, n_verts, 2)), ...]``.
+        axis_arrays: Pre-resolved axis reference-point arrays as
+            ``[(name, (n_frames, 2, 2)), ...]``.
+        canvas_size: Output canvas as ``(width, height)`` in pixels.
+        bg_color: Background color in BGR.
+        style: Style overrides for points, lines, and boundaries.
+        style_sources: Per-column scalar arrays used by dynamic style specs.
+        text_overlays: Text overlay spec as ``[(label, values_array), ...]``.
+        pixel_coords: If True, treat coordinates as absolute pixel values.
+        bounds_pad: Fractional padding added around the data bounds.
 
-    Returns
-    -------
-    AnimationStream
+    Returns:
         Lazy stream object supporting ``read()``, ``get_frame()``, ``play()``,
         and ``save()``.
 
