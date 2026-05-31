@@ -41,7 +41,6 @@ def filter_by_threshold(
         A new DataFrame where rows failing the comparison are set entirely to NaN.
 
     Example
-
     ```pycon
     >>> import pandas as pd
     >>> import pytest
@@ -120,8 +119,7 @@ def euclidean_distance(
      KeyError
          If specified dims are missing from either DataFrame.
 
-     Example
-
+    Example
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -270,8 +268,7 @@ def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.Da
      pd.DataFrame
          DataFrame with scaled columns.
 
-     Example
-
+    Example
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -324,7 +321,6 @@ def normalize_transition_matrix(tm: pd.DataFrame) -> pd.DataFrame:
         the input.
 
     Example
-
     ```pycon
     >>> import pandas as pd
     >>> tm = pd.DataFrame({'A': [3, 0], 'B': [1, 0]}, index=['A', 'B'])

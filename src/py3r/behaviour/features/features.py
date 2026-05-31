@@ -312,7 +312,7 @@ class Features:
 
         Returns
         -------
-        Features
+        int
             New ``Features`` (or subclass) object with ``len(data) // window``
             rows and reduced fps.
 

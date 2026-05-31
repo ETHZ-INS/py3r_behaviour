@@ -184,9 +184,9 @@ def get_block(s: pd.Series, window: int) -> pd.Series:
 
 def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     """
-    Drop labels that occur in blocks where the second
-    series is equal to True and
-    replace them with value from previous block.
+    Selectively remove blocks from the first series where second series True.
+
+    Values will be replaced with the value from the previous block.
     """
     mask = s1.astype("Int64").to_numpy()
     diffs = np.diff(np.concatenate(([0], mask, [0])))
@@ -211,6 +211,7 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
 def normalize_df(df: pd.DataFrame, z_score: bool = False) -> tuple[pd.DataFrame, dict]:
     """
     Normalize the columns of a DataFrame.
+
     If z_score is True, subtract mean and divide by std (z-score normalization).
     Returns the normalized DataFrame and a dict of the rescaling factors.
     If z_score is True, rescale_factors is {col: {'mean': mean, 'std': std}}.
@@ -231,6 +232,7 @@ def normalize_df(df: pd.DataFrame, z_score: bool = False) -> tuple[pd.DataFrame,
 def apply_normalization_to_df(df: pd.DataFrame, rescale_factors: dict) -> pd.DataFrame:
     """
     Apply normalization to a DataFrame using the provided rescale factors.
+
     Supports both std-only and mean+std (z-score) normalization.
     """
     normalized = df.copy()
@@ -408,11 +410,11 @@ def smooth_bool_series(ser: pd.Series, window: int = 1) -> pd.Series:
     Removes single-sample spikes and dropouts.
 
     Args:
-        ser (pd.Series): boolean time series
+        ser: Boolean time series.
+        window: Rolling window size for majority voting.
 
-    Returns
-    -------
-        pd.Series: smoothed boolean series
+    Returns:
+        Smoothed boolean series.
 
     Examples
     --------

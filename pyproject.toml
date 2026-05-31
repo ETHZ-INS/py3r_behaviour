@@ -68,12 +68,16 @@ extend-exclude = ["build", "dist", ".venv"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "D"]
-ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D400", "D401"]
+ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D107", "D205", "D212", "D400", "D401", "D416"]
 # E/F  = pycodestyle + pyflakes
 # I    = import sorting (replaces isort)
 # B    = bugbear (common footguns)
 # UP   = pyupgrade (modern syntax)
 # D105 = magic method docstrings — not required
+# D107 = __init__ docstrings not required (class docstring covers it)
+# D205 = blank-line-after-summary not enforced; zero effect on rendering
+# D212 = we use second-line summary style (D213), not first-line
+# D416 = Examples sections tolerate numpy underline format
 
 # pipeline notebook .py files: E402 because imports not at top of file by design
 [tool.ruff.lint.extend-per-file-ignores]
@@ -83,4 +87,4 @@ ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D400", "D401"]
 # defaults intentionally left alone
 
 [tool.ruff.lint.pydocstyle]
-convention = "numpy"
+convention = "google"
