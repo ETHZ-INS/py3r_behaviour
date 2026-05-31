@@ -20,14 +20,11 @@ def Param(
 
     When run via :func:`run` or :func:`sensitivity`, returns the injected value.
 
-    Parameters
-    ----------
-    default :
-        Value used during normal execution. Omit to mark the parameter as required
-        (no default — must always be supplied by the runner).
-    name :
-        Parameter name, matched against keys passed to :func:`run` or
-        :func:`sensitivity`.
+    Args:
+        default: Value used during normal execution. Omit to mark the parameter
+            as required (no default — must always be supplied by the runner).
+        name: Parameter name, matched against keys passed to ``run`` or
+            ``sensitivity``.
 
     Examples
     --------
@@ -62,12 +59,9 @@ def Output(value: object, *, name: str) -> object:
     :func:`run` or :func:`sensitivity`, captures the value under ``name``
     in the results.
 
-    Parameters
-    ----------
-    value : object
-        The value to capture. Any type is accepted.
-    name : str
-        Output name, used to key results in :class:`ScriptResults`.
+    Args:
+        value: The value to capture. Any type is accepted.
+        name: Output name, used to key results in ``ScriptResults``.
 
     Examples
     --------
