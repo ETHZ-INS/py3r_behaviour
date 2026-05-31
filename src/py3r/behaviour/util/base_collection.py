@@ -1100,7 +1100,9 @@ class BaseCollection(MutableMapping):
         Apply a function to every leaf element and return a new collection of the
         same type. Preserves grouping shape and groupby metadata when grouped.
 
-        fn: callable(Element) -> ElementLike
+        Args:
+            fn: Callable applied to each leaf element. Must return an element
+                compatible with this collection type.
 
         Examples
         --------
