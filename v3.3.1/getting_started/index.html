@@ -1,0 +1,1555 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ETHZ-INS.github.io/py3r_behaviour/v3.3.1/getting_started/">
+      
+      
+        <link rel="prev" href="../install/">
+      
+      
+        <link rel="next" href="../animation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Getting Started - py3r-behaviour</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../css/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#core-objects" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="py3r-behaviour" class="md-header__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            py3r-behaviour
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Getting Started
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-hidden="true" type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="py3r-behaviour" class="md-nav__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    py3r-behaviour
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#core-objects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core objects
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#collection-helpers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Collection helpers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Collection helpers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#each-batch-dispatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .each batch dispatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#grouping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grouping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#save-and-load" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Save and load
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#copy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        copy()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#typical-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Typical workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Typical workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-load-a-trackingcollection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Load a TrackingCollection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-add-experimental-tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Add experimental tags
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-batch-preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Batch preprocessing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-create-a-featurescollection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Create a FeaturesCollection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-compute-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Compute features
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-embeddings-and-clustering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Embeddings and clustering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-create-a-summarycollection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Create a SummaryCollection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-generate-summary-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Generate summary statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-export-per-recording-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Export per-recording results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10-group-analyses-and-plotting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Group analyses and plotting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#working-with-individual-recordings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Working with individual recordings
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../animation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Animation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-with-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use with AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/oft_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OFT pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7">
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/animation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AnimationStream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tracking_mv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingMV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tracking_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/features_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FeaturesCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/summary_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SummaryCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/script/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    script
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>Getting Started</h1>
+
+<p>This guide explains the end‑to‑end workflow with collections as the primary entry point.
+It focuses on "what" and "where" — not code.</p>
+<p><em>For detailed methods and syntax examples, see API</em></p>
+<p><em>For a runnable code pipeline, see Examples</em></p>
+<hr>
+<h2 id="core-objects">Core objects<a class="headerlink" href="#core-objects" title="Permanent link">¶</a></h2>
+<p>The library is organised around three paired layers — a single-recording object and a
+collection that batches over many recordings. In normal use you operate on collections
+and let <code>.each</code> dispatch to individual recordings.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Purpose</th>
+<th>Single</th>
+<th>Collection</th>
+<th>Created via</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tracking</strong></td>
+<td>Raw keypoint coordinates — load, preprocess, QA</td>
+<td><a class="autorefs autorefs-internal" title="py3r.behaviour.tracking.tracking.Tracking" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking"><code>Tracking</code></a></td>
+<td><a class="autorefs autorefs-internal" title="py3r.behaviour.tracking.tracking_collection.TrackingCollection" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection"><code>TrackingCollection</code></a></td>
+<td>loaders (<code>from_dlc_folder</code>, …)</td>
+</tr>
+<tr>
+<td><strong>Features</strong></td>
+<td>Per-frame derived signals — speeds, distances, boundaries, cluster labels</td>
+<td><a class="autorefs autorefs-internal" title="py3r.behaviour.features.features.Features" href="../api/features/#py3r.behaviour.features.features.Features"><code>Features</code></a></td>
+<td><a class="autorefs autorefs-internal" title="py3r.behaviour.features.features_collection.FeaturesCollection" href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection"><code>FeaturesCollection</code></a></td>
+<td><code>tc.to_features()</code></td>
+</tr>
+<tr>
+<td><strong>Summary</strong></td>
+<td>Per-recording scalars and statistics — time in zone, total distance, transition matrices</td>
+<td><a class="autorefs autorefs-internal" title="py3r.behaviour.summary.summary.Summary" href="../api/summary/#py3r.behaviour.summary.summary.Summary"><code>Summary</code></a></td>
+<td><a class="autorefs autorefs-internal" title="py3r.behaviour.summary.summary_collection.SummaryCollection" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection"><code>SummaryCollection</code></a></td>
+<td><code>fc.to_summary()</code></td>
+</tr>
+</tbody>
+</table>
+<p>A fourth object, <a class="autorefs autorefs-internal" title="py3r.behaviour.tracking.tracking_mv.TrackingMV" href="../api/tracking_mv/#py3r.behaviour.tracking.tracking_mv.TrackingMV"><code>TrackingMV</code></a>, wraps
+multiple views plus calibration for 3D / stereo setups.</p>
+<hr>
+<h2 id="collection-helpers">Collection helpers<a class="headerlink" href="#collection-helpers" title="Permanent link">¶</a></h2>
+<p>These behaviours are shared by all three collection types (<code>TrackingCollection</code>,
+<code>FeaturesCollection</code>, <code>SummaryCollection</code>).</p>
+<h3 id="each-batch-dispatch"><code>.each</code> batch dispatch<a class="headerlink" href="#each-batch-dispatch" title="Permanent link">¶</a></h3>
+<p><code>.each</code> is the primary way to call a method on every element of a collection at once.
+<code>coll.each.method(arg)</code> runs <code>element.method(arg)</code> for each element and collects the
+results.</p>
+<ul>
+<li><strong>Inplace methods</strong> (most <code>Tracking</code> preprocessing) return a
+  <code>BatchResult</code> — a handle-keyed dict of the return values.</li>
+<li><strong>Non-inplace methods</strong> (when <code>inplace=False</code>) return a new collection of the same
+  type.</li>
+<li>A <code>BatchResult</code> passed as an argument to a subsequent <code>.each</code> call is automatically
+  mapped per-handle rather than broadcast.</li>
+</ul>
+<h3 id="grouping">Grouping<a class="headerlink" href="#grouping" title="Permanent link">¶</a></h3>
+<p>Collections can be grouped by any subset of tags. Groupings persist when you convert
+between layers (e.g. a grouped <code>TrackingCollection</code> produces a grouped
+<code>FeaturesCollection</code>).</p>
+<ul>
+<li><a class="autorefs autorefs-internal" title="groupby" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.groupby"><code>.groupby(tags)</code></a>
+  — returns a grouped view keyed by <code>(tag_value, …)</code> tuples.</li>
+<li><a class="autorefs autorefs-internal" title="groupby" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.groupby"><code>.flatten()</code></a>
+  — collapse back to a flat collection.</li>
+<li><a class="autorefs autorefs-internal" title="groupby" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.groupby"><code>.regroup()</code></a>
+  — recompute grouping after tags have changed.</li>
+<li><a class="autorefs autorefs-internal" title="groupby" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.groupby"><code>.get_group(key)</code></a>
+  — retrieve a sub-collection for one group.</li>
+</ul>
+<h3 id="indexing">Indexing<a class="headerlink" href="#indexing" title="Permanent link">¶</a></h3>
+<ul>
+<li><code>coll["recording1"]</code> — by handle string</li>
+<li><code>coll[0]</code> — by integer position</li>
+<li><code>coll[0:3]</code> — by slice</li>
+<li><code>.loc[]</code> / <code>.iloc[]</code> — label- or integer-based slicing applied in batch to each leaf</li>
+</ul>
+<h3 id="metadata">Metadata<a class="headerlink" href="#metadata" title="Permanent link">¶</a></h3>
+<ul>
+<li><code>.tags_info()</code> — coverage and unique-value counts per tag across the collection.</li>
+<li><code>.stored_info()</code> — overview of what is stored in each element
+  (tracked points / feature columns / summary metrics depending on layer).</li>
+</ul>
+<h3 id="save-and-load">Save and load<a class="headerlink" href="#save-and-load" title="Permanent link">¶</a></h3>
+<p>All objects and collections implement <code>.save(path)</code> / <code>.load(path)</code> that serialise
+the full object tree — data, metadata, boundaries, groupings, and tags.
+Parquet is the default format; CSV is available as a fallback.</p>
+<h3 id="copy"><code>copy()</code><a class="headerlink" href="#copy" title="Permanent link">¶</a></h3>
+<p>All objects and collections implement <code>.copy()</code> for deep copies — useful when
+exploring parameters without altering the main pipeline object.</p>
+<hr>
+<h2 id="typical-workflow">Typical workflow<a class="headerlink" href="#typical-workflow" title="Permanent link">¶</a></h2>
+<p>The typical flow is: <strong>load → preprocess → features and clustering → summary stats → group comparisons and plots</strong>.</p>
+<h3 id="1-load-a-trackingcollection">1. Load a <code>TrackingCollection</code><a class="headerlink" href="#1-load-a-trackingcollection" title="Permanent link">¶</a></h3>
+<p><code>Tracking</code> holds the raw frame-by-frame keypoint coordinates for one recording, together
+with fps, rescaling metadata, and tags. A <code>TrackingCollection</code> is a keyed mapping of
+these, loaded from a folder in a single call — each file becomes a <code>Tracking</code> keyed by
+its filename stem.</p>
+<ul>
+<li><a class="autorefs autorefs-internal" title="from_dlc_folder
+
+
+  
+      classmethod
+  " href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.from_dlc_folder"><code>TrackingCollection.from_dlc_folder</code></a></li>
+<li><a class="autorefs autorefs-internal" title="from_yolo3r_folder
+
+
+  
+      classmethod
+  " href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.from_yolo3r_folder"><code>TrackingCollection.from_yolo3r_folder</code></a></li>
+<li><a class="autorefs autorefs-internal" title="from_dlcma_folder
+
+
+  
+      classmethod
+  " href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.from_dlcma_folder"><code>TrackingCollection.from_dlcma_folder</code></a></li>
+</ul>
+<p>Or from an explicit <code>{handle: filepath}</code> mapping:
+<a class="autorefs autorefs-internal" title="from_dlc
+
+
+  
+      classmethod
+  " href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.from_dlc"><code>TrackingCollection.from_dlc</code></a>.</p>
+<p>If files are grouped into a few separate directories, each directory can be loaded into a separate <code>TrackingCollection</code> using the relevant from_folder method and then combined using <a class="autorefs autorefs-internal" title="merge
+
+
+  
+      classmethod
+  " href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.merge"><code>TrackingCollection.merge</code></a>.</p>
+<hr>
+<h3 id="2-add-experimental-tags">2. Add experimental tags<a class="headerlink" href="#2-add-experimental-tags" title="Permanent link">¶</a></h3>
+<p>A tags CSV maps handles to experimental metadata (treatment, genotype, timepoint, …).
+The <code>handle</code> column must match the filename stems. Tags are preserved through all
+downstream conversions and drive grouping and CSV export.</p>
+<ul>
+<li><a class="autorefs autorefs-internal" title="add_tags_from_csv" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.add_tags_from_csv"><code>TrackingCollection.add_tags_from_csv</code></a>
+  — mutates all matching <code>Tracking</code> objects in‑place.</li>
+</ul>
+<hr>
+<h3 id="3-batch-preprocessing">3. Batch preprocessing<a class="headerlink" href="#3-batch-preprocessing" title="Permanent link">¶</a></h3>
+<p>Standard preprocessing order — all run via <code>.each</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Remove low-confidence detections</td>
+<td><a class="autorefs autorefs-internal" title="filter_likelihood" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.filter_likelihood"><code>Tracking.filter_likelihood</code></a></td>
+</tr>
+<tr>
+<td>Interpolate short gaps</td>
+<td><a class="autorefs autorefs-internal" title="interpolate" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.interpolate"><code>Tracking.interpolate</code></a></td>
+</tr>
+<tr>
+<td>Smooth trajectories</td>
+<td><a class="autorefs autorefs-internal" title="smooth_all" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.smooth_all"><code>Tracking.smooth_all</code></a></td>
+</tr>
+<tr>
+<td>Rescale pixels → metres</td>
+<td><a class="autorefs autorefs-internal" title="rescale_by_known_distance" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.rescale_by_known_distance"><code>Tracking.rescale_by_known_distance</code></a></td>
+</tr>
+<tr>
+<td>Trim start/end</td>
+<td><a class="autorefs autorefs-internal" title="trim" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.trim"><code>Tracking.trim</code></a></td>
+</tr>
+</tbody>
+</table>
+<p>Most preprocessing methods guard against re-application; use <code>inplace=False</code> on a
+copy when iterating on parameters.</p>
+<p><strong>QA checks:</strong></p>
+<ul>
+<li><a class="autorefs autorefs-internal" title="time_as_expected" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.time_as_expected"><code>Tracking.time_as_expected</code></a>
+  — assert recording duration is within bounds.</li>
+<li><a class="autorefs autorefs-internal" title="plot" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.plot"><code>TrackingCollection.plot</code></a>
+  — batch-save trajectory plots; call on a single <code>Tracking</code> for inline QC.</li>
+</ul>
+<hr>
+<h3 id="4-create-a-featurescollection">4. Create a <code>FeaturesCollection</code><a class="headerlink" href="#4-create-a-featurescollection" title="Permanent link">¶</a></h3>
+<p><code>Features</code> wraps a <code>Tracking</code> and provides methods that compute per-frame derived signals
+— speeds, distances, boundary membership, cluster labels — stored as named columns in
+<code>Features.data</code>. Convert the whole preprocessed collection:</p>
+<div class="language-text highlight"><pre><span></span><code>fc = tc.to_features()
+</code></pre></div>
+<p><a class="autorefs autorefs-internal" title="to_features" href="../api/tracking_collection/#py3r.behaviour.tracking.tracking_collection.TrackingCollection.to_features"><code>TrackingCollection.to_features</code></a>
+preserves grouped structure. The underlying classmethod is
+<a class="autorefs autorefs-internal" title="from_tracking_collection
+
+
+  
+      classmethod
+  " href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection.from_tracking_collection"><code>FeaturesCollection.from_tracking_collection</code></a>.</p>
+<hr>
+<h3 id="5-compute-features">5. Compute features<a class="headerlink" href="#5-compute-features" title="Permanent link">¶</a></h3>
+<p>All feature methods return a <code>FeaturesResult</code>
+(a <code>pd.Series</code> subclass). Call <code>.store()</code> on the result to persist it with an
+auto-generated name in <code>Features.data</code>.  Batch via <code>.each</code>:
+<code>fc.each.speed("bodycentre").store()</code>.</p>
+<h4 id="distance-and-movement">Distance and movement<a class="headerlink" href="#distance-and-movement" title="Permanent link">¶</a></h4>
+<ul>
+<li><a class="autorefs autorefs-internal" title="speed" href="../api/features/#py3r.behaviour.features.features.Features.speed"><code>Features.speed</code></a></li>
+<li><a class="autorefs autorefs-internal" title="distance_between" href="../api/features/#py3r.behaviour.features.features.Features.distance_between"><code>Features.distance_between</code></a></li>
+<li><a class="autorefs autorefs-internal" title="distance_change" href="../api/features/#py3r.behaviour.features.features.Features.distance_change"><code>Features.distance_change</code></a></li>
+<li><a class="autorefs autorefs-internal" title="acceleration" href="../api/features/#py3r.behaviour.features.features.Features.acceleration"><code>Features.acceleration</code></a></li>
+</ul>
+<h4 id="orientation">Orientation<a class="headerlink" href="#orientation" title="Permanent link">¶</a></h4>
+<ul>
+<li><a class="autorefs autorefs-internal" title="azimuth" href="../api/features/#py3r.behaviour.features.features.Features.azimuth"><code>Features.azimuth</code></a></li>
+<li><a class="autorefs autorefs-internal" title="azimuth_deviation" href="../api/features/#py3r.behaviour.features.features.Features.azimuth_deviation"><code>Features.azimuth_deviation</code></a></li>
+<li><a class="autorefs autorefs-internal" title="within_azimuth_deviation" href="../api/features/#py3r.behaviour.features.features.Features.within_azimuth_deviation"><code>Features.within_azimuth_deviation</code></a></li>
+</ul>
+<h4 id="boundaries-and-locations">Boundaries and locations<a class="headerlink" href="#boundaries-and-locations" title="Permanent link">¶</a></h4>
+<p>Define named boundary regions first, then query against them:</p>
+<ul>
+<li><a class="autorefs autorefs-internal" title="define_static_boundary" href="../api/features/#py3r.behaviour.features.features.Features.define_static_boundary"><code>Features.define_static_boundary</code></a>
+  — convex hull from named keypoints; supports <code>anchor</code> and <code>scale_dim1</code>/<code>scale_dim2</code> for sizing.</li>
+<li><a class="autorefs autorefs-internal" title="define_dynamic_boundary" href="../api/features/#py3r.behaviour.features.features.Features.define_dynamic_boundary"><code>Features.define_dynamic_boundary</code></a>
+  — convex hull that moves with the animal (uses per-frame keypoint positions).</li>
+<li><a class="autorefs autorefs-internal" title="import_static_boundary" href="../api/features/#py3r.behaviour.features.features.Features.import_static_boundary"><code>Features.import_static_boundary</code></a>
+  — define a boundary from explicit vertex coordinates.</li>
+<li><a class="autorefs autorefs-internal" title="within_boundary" href="../api/features/#py3r.behaviour.features.features.Features.within_boundary"><code>Features.within_boundary</code></a>
+  — Boolean per-frame membership; accepts a boundary object or stored name.</li>
+<li><a class="autorefs autorefs-internal" title="distance_to_boundary" href="../api/features/#py3r.behaviour.features.features.Features.distance_to_boundary"><code>Features.distance_to_boundary</code></a></li>
+<li><a class="autorefs autorefs-internal" title="area_of_boundary" href="../api/features/#py3r.behaviour.features.features.Features.area_of_boundary"><code>Features.area_of_boundary</code></a></li>
+<li><a class="autorefs autorefs-internal" title="list_boundaries" href="../api/features/#py3r.behaviour.features.features.Features.list_boundaries"><code>Features.list_boundaries</code></a>
+  — tabular summary of all named boundaries.</li>
+</ul>
+<h4 id="speed-thresholds">Speed thresholds<a class="headerlink" href="#speed-thresholds" title="Permanent link">¶</a></h4>
+<ul>
+<li><a class="autorefs autorefs-internal" title="above_speed" href="../api/features/#py3r.behaviour.features.features.Features.above_speed"><code>Features.above_speed</code></a>,
+  <a class="autorefs autorefs-internal" title="all_above_speed" href="../api/features/#py3r.behaviour.features.features.Features.all_above_speed"><code>Features.all_above_speed</code></a></li>
+<li><a class="autorefs autorefs-internal" title="below_speed" href="../api/features/#py3r.behaviour.features.features.Features.below_speed"><code>Features.below_speed</code></a>,
+  <a class="autorefs autorefs-internal" title="all_below_speed" href="../api/features/#py3r.behaviour.features.features.Features.all_below_speed"><code>Features.all_below_speed</code></a></li>
+</ul>
+<h4 id="batchresult-composition">BatchResult composition<a class="headerlink" href="#batchresult-composition" title="Permanent link">¶</a></h4>
+<p><code>BatchResult</code> objects returned by <code>.each</code> support element-wise operations, letting you
+build compound features without loops:</p>
+<ul>
+<li>Logical: <code>in_centre &amp; above_speed</code>, <code>~in_centre</code>, <code>a | b</code></li>
+<li>Arithmetic: <code>in_centre.astype("Int64") * dist_change</code></li>
+<li>Comparison: <code>(fc.each.speed("bodycentre") * 100) &gt; 10.0</code></li>
+</ul>
+<p>The composed <code>BatchResult</code> can be stored directly with <code>.store("name")</code>.</p>
+<h4 id="state-composition-from-booleans">State composition from booleans<a class="headerlink" href="#state-composition-from-booleans" title="Permanent link">¶</a></h4>
+<p><a class="autorefs autorefs-internal" title="compose_state_from_booleans" href="../api/features/#py3r.behaviour.features.features.Features.compose_state_from_booleans"><code>Features.compose_state_from_booleans</code></a>
+collapses multiple Boolean columns into a single categorical state column via a
+<code>{label: series_or_column_name}</code> dict. Frames that are unassigned or overlap become
+<code>NaN</code>.</p>
+<hr>
+<h3 id="6-embeddings-and-clustering">6. Embeddings and clustering<a class="headerlink" href="#6-embeddings-and-clustering" title="Permanent link">¶</a></h3>
+<p>Build time-shifted embeddings and run k-means to obtain per-frame behavioural cluster
+labels, then store them as a feature column for downstream summary.</p>
+<ul>
+<li><a class="autorefs autorefs-internal" title="cluster_embedding_stream" href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding_stream"><code>FeaturesCollection.cluster_embedding_stream</code></a>
+  — <strong>preferred</strong> for multi-recording datasets: streaming MiniBatchKMeans that
+  processes one <code>Features</code> at a time in multiple epochs, keeping memory low.
+  Returns <code>(cluster_labels BatchResult, centroids DataFrame, scaling_factors dict)</code>.</li>
+<li><a class="autorefs autorefs-internal" title="cluster_embedding" href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_embedding"><code>FeaturesCollection.cluster_embedding</code></a>
+  — standard in-memory k-means; same return signature.</li>
+<li><a class="autorefs autorefs-internal" title="assign_clusters_by_centroids" href="../api/features/#py3r.behaviour.features.features.Features.assign_clusters_by_centroids"><code>Features.assign_clusters_by_centroids</code></a>
+  — assign labels from precomputed centroids (e.g. from a reference dataset).</li>
+<li><a class="autorefs autorefs-internal" title="cluster_diagnostics" href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection.cluster_diagnostics"><code>FeaturesCollection.cluster_diagnostics</code></a>
+  — per-cluster size statistics to assess quality.</li>
+<li><a class="autorefs autorefs-internal" title="embedding_df" href="../api/features/#py3r.behaviour.features.features.Features.embedding_df"><code>Features.embedding_df</code></a>
+  — build an embedding DataFrame directly (for inspection or custom clustering).</li>
+</ul>
+<p>Use <a class="autorefs autorefs-internal" title="stored_info" href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection.stored_info"><code>fc.stored_info()</code></a>
+to inspect all stored feature columns.</p>
+<hr>
+<h3 id="7-create-a-summarycollection">7. Create a <code>SummaryCollection</code><a class="headerlink" href="#7-create-a-summarycollection" title="Permanent link">¶</a></h3>
+<p><code>Summary</code> collapses the per-frame feature time-series for one recording into scalars and
+Series — total distance, time in zone, state-transition matrices. <code>SummaryCollection</code>
+batches these and provides group-level analyses and export.</p>
+<div class="language-text highlight"><pre><span></span><code>sc = fc.to_summary()
+</code></pre></div>
+<p><a class="autorefs autorefs-internal" title="to_summary" href="../api/features_collection/#py3r.behaviour.features.features_collection.FeaturesCollection.to_summary"><code>FeaturesCollection.to_summary</code></a>
+preserves grouped structure. The underlying classmethod is
+<a class="autorefs autorefs-internal" title="from_features_collection
+
+
+  
+      classmethod
+  " href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.from_features_collection"><code>SummaryCollection.from_features_collection</code></a>.</p>
+<hr>
+<h3 id="8-generate-summary-statistics">8. Generate summary statistics<a class="headerlink" href="#8-generate-summary-statistics" title="Permanent link">¶</a></h3>
+<p>All summary methods return a <code>SummaryResult</code>. Call <code>.store()</code> to persist with a name.
+Batch via <code>sc.each.method(...).store(...)</code>.</p>
+<h4 id="scalar-metrics">Scalar metrics<a class="headerlink" href="#scalar-metrics" title="Permanent link">¶</a></h4>
+<ul>
+<li><a class="autorefs autorefs-internal" title="total_distance" href="../api/summary/#py3r.behaviour.summary.summary.Summary.total_distance"><code>Summary.total_distance</code></a></li>
+<li><a class="autorefs autorefs-internal" title="time_true" href="../api/summary/#py3r.behaviour.summary.summary.Summary.time_true"><code>Summary.time_true</code></a>,
+  <a class="autorefs autorefs-internal" title="time_false" href="../api/summary/#py3r.behaviour.summary.summary.Summary.time_false"><code>Summary.time_false</code></a></li>
+<li><a class="autorefs autorefs-internal" title="sum_column" href="../api/summary/#py3r.behaviour.summary.summary.Summary.sum_column"><code>Summary.sum_column</code></a></li>
+<li><a class="autorefs autorefs-internal" title="mean_column" href="../api/summary/#py3r.behaviour.summary.summary.Summary.mean_column"><code>Summary.mean_column</code></a>,
+  <a class="autorefs autorefs-internal" title="median_column" href="../api/summary/#py3r.behaviour.summary.summary.Summary.median_column"><code>Summary.median_column</code></a>,
+  <a class="autorefs autorefs-internal" title="max_column" href="../api/summary/#py3r.behaviour.summary.summary.Summary.max_column"><code>Summary.max_column</code></a>,
+  <a class="autorefs autorefs-internal" title="min_column" href="../api/summary/#py3r.behaviour.summary.summary.Summary.min_column"><code>Summary.min_column</code></a></li>
+</ul>
+<h4 id="state-sequence-metrics-return-series">State / sequence metrics (return Series)<a class="headerlink" href="#state-sequence-metrics-return-series" title="Permanent link">¶</a></h4>
+<ul>
+<li><a class="autorefs autorefs-internal" title="time_in_state" href="../api/summary/#py3r.behaviour.summary.summary.Summary.time_in_state"><code>Summary.time_in_state</code></a>
+  — seconds spent in each state.</li>
+<li><a class="autorefs autorefs-internal" title="count_state_onsets" href="../api/summary/#py3r.behaviour.summary.summary.Summary.count_state_onsets"><code>Summary.count_state_onsets</code></a>
+  — number of entries into each state.</li>
+<li><a class="autorefs autorefs-internal" title="transition_matrix" href="../api/summary/#py3r.behaviour.summary.summary.Summary.transition_matrix"><code>Summary.transition_matrix</code></a>
+  — state-transition matrix.</li>
+</ul>
+<p>Pass <code>all_states=</code> to any of these to guarantee a fixed state domain (including states
+absent in a recording) — important for comparisons across recordings.</p>
+<h4 id="per-state-dispatch-with-by_state">Per-state dispatch with <code>.by_state</code><a class="headerlink" href="#per-state-dispatch-with-by_state" title="Permanent link">¶</a></h4>
+<p><a class="autorefs autorefs-internal" title="by_state" href="../api/summary/#py3r.behaviour.summary.summary.Summary.by_state"><code>Summary.by_state(column)</code></a> returns a
+proxy that re-runs an aggregate method separately for each value of a state column,
+returning a Series indexed by state. Supports <code>mean_column</code>, <code>median_column</code>,
+<code>max_column</code>, <code>min_column</code>.</p>
+<h4 id="temporal-binning">Temporal binning<a class="headerlink" href="#temporal-binning" title="Permanent link">¶</a></h4>
+<ul>
+<li><a class="autorefs autorefs-internal" title="make_bin" href="../api/summary/#py3r.behaviour.summary.summary.Summary.make_bin"><code>Summary.make_bin</code></a>
+  — create a <code>Summary</code> from a frame-range slice.</li>
+<li><a class="autorefs autorefs-internal" title="make_bins" href="../api/summary/#py3r.behaviour.summary.summary.Summary.make_bins"><code>Summary.make_bins</code></a>
+  — divide a recording into <code>n</code> equal-length <code>Summary</code> objects.</li>
+</ul>
+<hr>
+<h3 id="9-export-per-recording-results">9. Export per-recording results<a class="headerlink" href="#9-export-per-recording-results" title="Permanent link">¶</a></h3>
+<ul>
+<li><a class="autorefs autorefs-internal" title="to_df" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.to_df"><code>SummaryCollection.to_df</code></a>
+  — flatten stored scalar metrics + tag columns into one tidy DataFrame indexed by
+  handle. Use <code>series="separate"</code> to also export Series metrics (time_in_state, …) as
+  separate DataFrames.</li>
+<li><a class="autorefs autorefs-internal" title="stored_info" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.stored_info"><code>SummaryCollection.stored_info</code></a>
+  — overview of stored metrics across the collection.</li>
+</ul>
+<hr>
+<h3 id="10-group-analyses-and-plotting">10. Group analyses and plotting<a class="headerlink" href="#10-group-analyses-and-plotting" title="Permanent link">¶</a></h3>
+<p>Group-level analyses require a grouped <code>SummaryCollection</code> — i.e. one produced from a
+grouped <code>FeaturesCollection</code>, or grouped after the fact with <code>.groupby(tags)</code>.
+Groupings control how data is split for comparisons, how plot colours are assigned, and
+which groups BFA contrasts.</p>
+<h4 id="seaborn-wrapper-plots">seaborn wrapper plots<a class="headerlink" href="#seaborn-wrapper-plots" title="Permanent link">¶</a></h4>
+<p><code>SummaryCollection</code> provides a family of <code>sns*</code> convenience methods that turn stored
+metrics into publication-ready group comparison plots. Each accepts a metric name (or a
+<code>BatchResult</code>) and handles tidy-data preparation, group colouring, and axis layout
+automatically. All support <code>annotate=</code> for statistical annotations (see below).</p>
+<ul>
+<li><a class="autorefs autorefs-internal" title="snsstrip" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.snsstrip"><code>SummaryCollection.snsstrip</code></a>
+  — strip plot (jittered scatter, one point per recording).</li>
+<li><a class="autorefs autorefs-internal" title="snsswarm" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.snsswarm"><code>SummaryCollection.snsswarm</code></a>
+  — swarm plot (non-overlapping scatter).</li>
+<li><a class="autorefs autorefs-internal" title="snsbox" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.snsbox"><code>SummaryCollection.snsbox</code></a>
+  — box plot.</li>
+<li><a class="autorefs autorefs-internal" title="snsviolin" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.snsviolin"><code>SummaryCollection.snsviolin</code></a>
+  — violin plot.</li>
+<li><a class="autorefs autorefs-internal" title="snsbar" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.snsbar"><code>SummaryCollection.snsbar</code></a>
+  — bar plot (mean ± error).</li>
+<li><a class="autorefs autorefs-internal" title="snspoint" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.snspoint"><code>SummaryCollection.snspoint</code></a>
+  — point plot.</li>
+<li><a class="autorefs autorefs-internal" title="snssuperplot" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.snssuperplot"><code>SummaryCollection.snssuperplot</code></a>
+  — superplot (strip plot overlaid on bar plot).</li>
+<li><a class="autorefs autorefs-internal" title="prepare_plot" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.prepare_plot"><code>SummaryCollection.prepare_plot</code></a>
+  — prepare the tidy DataFrame and seaborn kwargs without drawing, for full manual
+  control.</li>
+</ul>
+<h4 id="statistical-annotations">Statistical annotations<a class="headerlink" href="#statistical-annotations" title="Permanent link">¶</a></h4>
+<p>All <code>sns*</code> methods accept an <code>annotate=</code> argument that passes through to
+<a href="https://github.com/trevismd/statannotations"><code>statannotations</code></a>. Pass <code>"help"</code> to
+print available tests and options, or a dict with <code>pairs</code>, <code>test</code>, <code>correction</code>, and
+other <code>statannotations.Annotator.configure</code> kwargs.</p>
+<h4 id="chord-diagrams-state-transitions">Chord diagrams (state transitions)<a class="headerlink" href="#chord-diagrams-state-transitions" title="Permanent link">¶</a></h4>
+<ul>
+<li><a class="autorefs autorefs-internal" title="plot_chord" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.plot_chord"><code>SummaryCollection.plot_chord</code></a>
+  — batch chord diagrams across the collection (one per recording or per group).</li>
+</ul>
+<h4 id="transition-umap">Transition UMAP<a class="headerlink" href="#transition-umap" title="Permanent link">¶</a></h4>
+<ul>
+<li><a class="autorefs autorefs-internal" title="plot_transition_umap" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.plot_transition_umap"><code>SummaryCollection.plot_transition_umap</code></a>
+  — UMAP embedding of per-recording transition matrices, coloured by group; useful for
+  visualising behavioural similarity structure across the dataset.</li>
+</ul>
+<h4 id="behaviour-flow-analysis-bfa">Behaviour Flow Analysis (BFA)<a class="headerlink" href="#behaviour-flow-analysis-bfa" title="Permanent link">¶</a></h4>
+<p>BFA tests whether state-transition patterns differ between groups using a
+shuffle-based null distribution over Manhattan distances between group-level transition
+matrices.</p>
+<ul>
+<li><a class="autorefs autorefs-internal" title="bfa" href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.bfa"><code>SummaryCollection.bfa</code></a>
+  — compute observed and shuffled Manhattan distances for each group pair.</li>
+<li><a class="autorefs autorefs-internal" title="bfa_stats
+
+
+  
+      staticmethod
+  " href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.bfa_stats"><code>SummaryCollection.bfa_stats</code></a>
+  — derive percentile, z-score, and right-tail p from BFA results.</li>
+<li><a class="autorefs autorefs-internal" title="plot_bfa_results
+
+
+  
+      staticmethod
+  " href="../api/summary_collection/#py3r.behaviour.summary.summary_collection.SummaryCollection.plot_bfa_results"><code>SummaryCollection.plot_bfa_results</code></a>
+  — histograms of BFA distance distributions with significance annotations per compared group pair.</li>
+</ul>
+<hr>
+<h2 id="working-with-individual-recordings">Working with individual recordings<a class="headerlink" href="#working-with-individual-recordings" title="Permanent link">¶</a></h2>
+<p>All methods are available directly on the leaf objects when you don't need the
+collection layer.</p>
+<ul>
+<li><code>Tracking</code> → <code>Features</code>: <a class="autorefs autorefs-internal" title="to_features" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.to_features"><code>Tracking.to_features()</code></a></li>
+<li><code>Features</code> → <code>Summary</code>: <a class="autorefs autorefs-internal" title="to_summary" href="../api/features/#py3r.behaviour.features.features.Features.to_summary"><code>Features.to_summary()</code></a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "content.code.copy", "content.code.select", "toc.integrate", "toc.collapsible"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
