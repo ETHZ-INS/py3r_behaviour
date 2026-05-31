@@ -10,6 +10,7 @@ from py3r.behaviour.features.features import Features
 from py3r.behaviour.tracking.tracking_collection import TrackingCollection
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import (
+    BatchResult,
     _Indexer,
     resolve_single_store_name,
 )
@@ -20,6 +21,7 @@ from py3r.behaviour.util.series_utils import (
 )
 
 if TYPE_CHECKING:
+    from py3r.behaviour.features.centroids_df import CentroidsDf
     from py3r.behaviour.summary.summary_collection import SummaryCollection
 
 
@@ -61,17 +63,14 @@ class FeaturesCollection(BaseCollection):
 
     @classmethod
     def from_tracking_collection(
-        cls, tracking_collection: TrackingCollection, feature_cls=Features
+        cls, tracking_collection: TrackingCollection, feature_cls: type[Features] = Features
     ):
         """
         Create a FeaturesCollection from a TrackingCollection.
 
-        Parameters
-        ----------
-        tracking_collection : TrackingCollection
-            Source collection. Grouped structure is preserved.
-        feature_cls : type, default=Features
-            ``Features`` subclass to instantiate for each session.
+        Args:
+            tracking_collection: Source collection. Grouped structure is preserved.
+            feature_cls: ``Features`` subclass to instantiate for each session.
 
         Examples
         --------
@@ -129,33 +128,27 @@ class FeaturesCollection(BaseCollection):
         the corresponding Features objects are concatenated in order.
         Supports both flat and grouped collections.
 
-        Parameters
-        ----------
-        collections : list[FeaturesCollection]
-            List of FeaturesCollection objects to concatenate, in temporal order.
-            All must have matching keys (handles) and feature columns.
-        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
-            How to handle frame indices:
-            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
-            - "follow_previous": Each chunk continues from where the previous
-              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
-            - "keep_original": Leave indices untouched; duplicates are allowed.
+        Args:
+            collections: List of FeaturesCollection objects to concatenate, in temporal
+                order. All must have matching keys (handles) and feature columns.
+            reindex: How to handle frame indices:
 
-        Returns
-        -------
-        FeaturesCollection
+                * ``"rezero"`` — Reindex all frames starting from 0.
+                * ``"follow_previous"`` — Each chunk continues from where the previous
+                  ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
+                * ``"keep_original"`` — Leave indices untouched; duplicates are allowed.
+
+        Returns:
             A new collection with concatenated Features objects for each handle.
 
-        Raises
-        ------
-        ValueError
-            If collections is empty, keys don't match, or grouping structure differs.
+        Raises:
+            ValueError: If collections is empty, keys don't match, or grouping structure
+                differs.
 
-        Notes
-        -----
-        For context-dependent features (normalization, embeddings with temporal
-        windows, etc.), consider whether you need to recompute features on
-        concatenated Tracking data rather than concatenating pre-computed features.
+        Note:
+            For context-dependent features (normalization, embeddings with temporal
+            windows, etc.), consider whether you need to recompute features on
+            concatenated Tracking data rather than concatenating pre-computed features.
 
         Examples
         --------
@@ -262,10 +255,8 @@ class FeaturesCollection(BaseCollection):
         """
         Create a FeaturesCollection from a list of Features objects, keyed by handle.
 
-        Parameters
-        ----------
-        features_list : list[Features]
-            Features objects to collect. All handles must be unique.
+        Args:
+            features_list: Features objects to collect. All handles must be unique.
 
         Examples
         --------
@@ -296,10 +287,8 @@ class FeaturesCollection(BaseCollection):
         `SummaryCollection.from_features_collection(self)` and preserves grouped
         structure when the collection is grouped.
 
-        Returns
-        -------
-        SummaryCollection
-            Collection containing one `Summary` object per features object in
+        Returns:
+            Collection containing one ``Summary`` object per features object in
             this collection.
 
         Examples
@@ -355,7 +344,7 @@ class FeaturesCollection(BaseCollection):
         chunk_size: int = 10_000,
         n_epochs: int = 3,
         batch_size: int = 1024,
-    ):
+    ) -> tuple[BatchResult, CentroidsDf]:
         """
         K-means clustering via streaming ``MiniBatchKMeans``.
 
@@ -365,65 +354,51 @@ class FeaturesCollection(BaseCollection):
         combined DataFrame, so memory usage scales with the largest single
         recording rather than the whole collection.
 
-        Returns ``(BatchResult, centroids)`` where *centroids* is a
-        :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` carrying a
-        ``scaling_recipe`` (embedding, normalisation flags, constant factors,
-        imputation means) — everything needed to reproduce the transform on
-        future datasets via
-        :meth:`~py3r.behaviour.features.features.Features.assign_clusters_by_centroids`.
+        Note:
+            This method uses ``MiniBatchKMeans`` (stochastic online updates), which
+            replaced the full-batch ``KMeans`` removed in py3r 3.3.0. Results are not
+            bit-for-bit identical to the old ``cluster_embedding``: on well-separated
+            data the partition will be the same; on harder problems, increasing
+            ``n_epochs`` (5–10+) and ``batch_size`` (e.g. 2048–8192) improves
+            convergence. To reproduce results from py3r ≤ 3.2.1, pin to that version.
 
-        **Algorithm note** — this method uses ``MiniBatchKMeans`` (stochastic
-        online updates), which replaced the full-batch ``KMeans`` (Lloyd's
-        algorithm) removed in py3r 3.3.0.  Results are not bit-for-bit
-        identical to the old ``cluster_embedding``: on well-separated data the
-        partition will be the same; on harder problems, increasing ``n_epochs``
-        (5–10+) and ``batch_size`` (e.g. 2048–8192) improves convergence
-        toward the same local optimum.  To reproduce results from py3r ≤ 3.2.1
-        exactly, pin to that version.
+        Args:
+            embedding_dict: Feature columns and their time shifts for the embedding.
+            n_clusters: Number of clusters.
+            random_state: Seed for reproducibility.
+            normalize: Divide each base feature by its global std before embedding.
+                Equivalent to ``normalize_details={"<all>": "global"}``.
+            normalize_details: Per-column normalisation modes, keyed by substring
+                matched against embedding column names.
 
-        Parameters
-        ----------
-        embedding_dict : dict[str, list[int]]
-            Feature columns and their time shifts for the embedding.
-        n_clusters : int
-            Number of clusters.
-        random_state : int
-            Seed for reproducibility.
-        normalize : bool
-            Divide each base feature by its global std before embedding.
-            Equivalent to ``normalize_details={"<all>": "global"}``.
-        normalize_details : dict[str, {"individual","global","none"}] | None
-            Per-column normalisation modes, keyed by substring matched against
-            embedding column names.
+                * ``"global"`` — divide by std pooled across the whole collection.
+                * ``"individual"`` — divide by std computed within each Features.
+                * ``"none"`` — no normalisation for matching columns.
 
-            - ``"global"`` — divide by std pooled across the whole collection.
-            - ``"individual"`` — divide by std computed within each Features.
-            - ``"none"`` — no normalisation for matching columns.
+                Rules must not overlap; each rule must match at least one column.
+                Unmatched columns default to ``"global"`` if *normalize* is True,
+                otherwise ``"none"``.
+            feature_weights: Substring → weight mapping, e.g.
+                ``{"speed": 4.0, "accel": 2.0}``. Matched columns are multiplied by
+                the value after normalisation. Raises if a rule matches no column.
+            missing_policy: How to handle NaN rows during training. ``"drop"``
+                excludes them; ``"impute_weight"`` fills with training-set column
+                means and up-weights complete rows proportionally. The chosen means
+                are stored in the ``scaling_recipe`` for automatic reuse when
+                assigning clusters to future recordings.
+            chunk_size: Maximum number of rows passed to a single ``partial_fit``
+                call. Larger values reduce noise in centroid updates at the cost of
+                higher per-iteration memory use.
+            n_epochs: Number of full passes over the data. More epochs → better
+                convergence. 3–5 is usually sufficient; increase for small or noisy
+                datasets, or to approximate full-batch KMeans more closely.
+            batch_size: ``MiniBatchKMeans`` internal mini-batch size (passed directly
+                to sklearn). Larger values reduce variance in updates.
 
-            Rules must not overlap; each rule must match at least one column.
-            Unmatched columns default to ``"global"`` if *normalize* is True,
-            otherwise ``"none"``.
-        feature_weights : dict[str, float] | None
-            Substring → weight mapping, e.g. ``{"speed": 4.0, "accel": 2.0}``.
-            Matched columns are multiplied by the value after normalisation.
-            Raises if a rule matches no column (likely a typo).
-        missing_policy : {"drop", "impute_weight"}
-            How to handle NaN rows during training.  ``"drop"`` excludes them;
-            ``"impute_weight"`` fills with training-set column means and
-            up-weights complete rows proportionally.  The chosen means are
-            stored in the ``scaling_recipe`` so that the same policy is applied
-            automatically when assigning clusters to future recordings.
-        chunk_size : int
-            Maximum number of rows passed to a single ``partial_fit`` call.
-            Larger values reduce noise in centroid updates at the cost of
-            higher per-iteration memory use.
-        n_epochs : int
-            Number of full passes over the data.  More epochs → better
-            convergence.  3–5 is usually sufficient; increase for small or
-            noisy datasets, or to approximate full-batch KMeans more closely.
-        batch_size : int
-            ``MiniBatchKMeans`` internal mini-batch size (passed directly to
-            sklearn).  Larger values reduce variance in updates.
+        Returns:
+            Batch cluster labels and fitted centroids. The ``CentroidsDf``
+                carries a ``scaling_recipe`` for future use with
+                ``Features.assign_clusters_by_centroids``.
 
         Examples
         --------
@@ -466,36 +441,34 @@ class FeaturesCollection(BaseCollection):
 
     def cluster_diagnostics(
         self,
-        labels_result,
+        labels_result: BatchResult | dict,
         n_clusters: int | None = None,
         *,
         low: float = 0.05,
         high: float = 0.90,
         verbose: bool = True,
-    ):
+    ) -> dict:
         """
         Compute diagnostic stats for cluster label assignments.
 
-        Parameters
-        ----------
-        labels_result:
-            Mapping from handle (or group->handle) to FeaturesResult of integer labels (with NA).
-            Accepts the return shape of `cluster_embedding(...)[0]` (BatchResult or dict).
-        n_clusters:
-            Optional number of clusters. If None, inferred from labels (max label + 1).
-        low, high:
-            Prevalence thresholds for low/high cluster labels per recording.
-        verbose:
-            If True, print a compact summary.
+        Args:
+            labels_result: Mapping from handle (or group→handle) to FeaturesResult of
+                integer labels (with NA). Accepts the return shape of
+                ``cluster_embedding_stream(...)[0]`` (BatchResult or dict).
+            n_clusters: Number of clusters. If None, inferred from labels (max label + 1).
+            low: Prevalence threshold below which a cluster is flagged as low.
+            high: Prevalence threshold above which a cluster is flagged as high.
+            verbose: If True, print a compact summary.
 
-        Returns
-        -------
-        dict with:
-            - 'global': {'cluster_prevalence': {label: frac, ...}, 'percent_nan': frac}
-            - 'per_recording': DataFrame, rows per recording, cols
-              ['percent_nan', 'num_missing', 'num_low', 'num_high']
-            - 'summary': min/median/max for the per_recording columns
-            - if grouped: 'per_group': {group_key: {'per_recording': df, 'summary': {...}}}
+        Returns:
+            Dict with keys:
+
+                * ``'global'`` — ``{'cluster_prevalence': {label: frac}, 'percent_nan': frac}``
+                * ``'per_recording'`` — DataFrame with columns
+                    ``['percent_nan', 'num_missing', 'num_low', 'num_high']``
+                * ``'summary'`` — min/median/max for the per_recording columns
+                * ``'per_group'`` — (grouped only)
+                    ``{group_key: {'per_recording': df, 'summary': {...}}}``
         """
         import pandas as pd
 
@@ -1138,26 +1111,21 @@ class FeaturesCollection(BaseCollection):
 
     def store(
         self,
-        results_dict,
-        name: str = None,
-        meta: dict = None,
+        results_dict: BatchResult | dict,
+        name: str | None = None,
+        meta: dict | None = None,
         overwrite: bool = False,
-    ):
+    ) -> str:
         """
         Store FeaturesResult objects returned by batch methods.
 
-        Parameters
-        ----------
-        results_dict : dict
-            Batch results to store. Flat: ``{handle: FeaturesResult}``.
-            Grouped: ``{group_key: {handle: FeaturesResult}}``.
-        name : str | None, default=None
-            Column name to store under. If None, resolved automatically from
-            the result objects (all must agree on a single name).
-        meta : dict | None, default=None
-            Metadata dict to attach alongside the stored column.
-        overwrite : bool, default=False
-            If True, overwrite an existing column with the same name.
+        Args:
+            results_dict: Batch results to store. Flat: ``{handle: FeaturesResult}``.
+                Grouped: ``{group_key: {handle: FeaturesResult}}``.
+            name: Column name to store under. If None, resolved automatically from
+                the result objects (all must agree on a single name).
+            meta: Metadata dict to attach alongside the stored column.
+            overwrite: If True, overwrite an existing column with the same name.
 
         Examples
         --------
@@ -1180,11 +1148,9 @@ class FeaturesCollection(BaseCollection):
 
         ```
 
-        Returns
-        -------
-        str
-            The resolved stored column name. If auto-naming would resolve to
-            multiple different names across leaves, raises ValueError.
+        Returns:
+            The resolved stored column name. Raises ``ValueError`` if auto-naming
+            resolves to multiple different names across leaves.
         """
 
         def _resolve_leaf_name(v):

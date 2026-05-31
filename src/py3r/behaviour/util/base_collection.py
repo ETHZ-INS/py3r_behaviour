@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import os
 import warnings
-from collections.abc import MutableMapping
+from collections.abc import Callable, MutableMapping
 from typing import Any, Self
 
 import pandas as pd
@@ -1095,7 +1095,7 @@ class BaseCollection(MutableMapping):
         leaves = list(self.flatten().values())
         return summarize_leaves(leaves)
 
-    def map_leaves(self, fn):
+    def map_leaves(self, fn: Callable[[Any], Any]):
         """
         Apply a function to every leaf element and return a new collection of the
         same type. Preserves grouping shape and groupby metadata when grouped.
