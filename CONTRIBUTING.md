@@ -94,10 +94,13 @@ mkdocs build --strict
 - Keep control-flow shallow; avoid deep nesting; prefer early returns; avoid broad try/except.
 - Code is formatted and linted by ruff (see `pyproject.toml`) with pre-commit checks
 - Docstrings:
-  - Use `pycon` fenced blocks for examples with a blank line before the closing fence.
+  - Use **Google style** (`Args:`, `Returns:`, `Raises:`, `Note:`). Do not use NumPy style (`Parameters\n----------`).
+  - No type annotations inside the docstring body — types live in the function signature; griffe picks them up automatically.
+  - Continuation lines in `Args:` / `Returns:` blocks are indented 4 extra spaces past the description start.
+  - `Examples:` sections use Google format with `pycon` fenced blocks and a blank line before the closing fence. (The legacy numpy underline format `Examples\n--------` is tolerated but not preferred for new code.)
   - Examples should be lightweight and runnable under CI (avoid heavy dependencies).
   - Convert NumPy booleans to Python bools in doctest asserts, e.g., `bool(...)`.
-  - For collections/folder examples, it’s fine to use illustrative paths in docs pages; for doctests, isolate with temp dirs.
+  - For collections/folder examples, isolate with temp dirs in doctests.
 
 ## Commit messages and labels
 - Commit messages: use clear, descriptive subject lines. Conventional Commits style is welcome (`feat:`, `fix:`, `docs:`, `chore:`), but not required.
