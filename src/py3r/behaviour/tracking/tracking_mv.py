@@ -12,7 +12,7 @@ class TrackingMV:
     """
     multi-view tracking object for stereo or multi-camera setups
     can be used as a drop-in replacement for Tracking in TrackingCollection
-    stores dict of view name -> Tracking, calibration, and handle
+    stores dict of view name -> Tracking, calibration, and handle.
     """
 
     def __init__(self, views: dict[str, Tracking], calibration: dict, handle: str):
@@ -73,9 +73,7 @@ class TrackingMV:
         fps: float,
         aspectratio_correction: float = 1.0,
     ) -> TrackingMV:
-        """
-        Build a TrackingMV from a folder containing view CSVs and calibration.json.
-        """
+        """Build a TrackingMV from a folder containing view CSVs and calibration.json."""
         import json
         import os
         from pathlib import Path as _Path
@@ -510,15 +508,16 @@ class TrackingMV:
             plt.show()
         return fig, axes
 
-    def __getattr__(self, name):
-        def batch_method(*args, **kwargs):
-            results = {}
-            for view, track in self.views.items():
-                method = getattr(track, name)
-                results[view] = method(*args, **kwargs)
-            return results
+    def __getattr__(self, name: str):
+        if not hasattr(Tracking, name):
+            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
-        return batch_method
+        def _dispatch(*args, **kwargs):
+            return {
+                view: getattr(track, name)(*args, **kwargs) for view, track in self.views.items()
+            }
+
+        return _dispatch
 
     def __repr__(self) -> str:
         views_str = ", ".join(self.views.keys())

@@ -56,7 +56,8 @@ class Tracking:
     - Save and slice (`loc` / `iloc`)
     - Minimal plotting
 
-    Examples:
+    Examples
+    --------
     Minimal DLC example:
 
     ```pycon
@@ -215,7 +216,7 @@ class Tracking:
         tags: dict[str, str] | None = None,
     ) -> Self:
         """
-        loads a Tracking object from a (single animal) deeplabcut tracking csv
+        Loads a Tracking object from a (single animal) deeplabcut tracking csv.
 
         Examples
         --------
@@ -271,7 +272,7 @@ class Tracking:
         tags: dict[str, str] | None = None,
     ) -> Self:
         """
-        loads a Tracking object from a multi-animal deeplabcut tracking csv
+        Loads a Tracking object from a multi-animal deeplabcut tracking csv.
 
         Examples
         --------
@@ -328,7 +329,7 @@ class Tracking:
         tags: dict[str, str] | None = None,
     ) -> Self:
         """
-        loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format
+        Loads a Tracking object from a single- or multi-animal yolo csv in 3R hub format.
 
         Examples
         --------
@@ -376,7 +377,7 @@ class Tracking:
         return cls(data, meta, handle, tags)
 
     def copy(self) -> Self:
-        """Creates a copy of an existing tracking object
+        """Creates a copy of an existing tracking object.
 
         Examples
         --------
@@ -414,20 +415,14 @@ class Tracking:
         Non-numeric columns (e.g. string annotations) are handled according to
         ``non_numeric``; the default ``"drop"`` removes them from the output.
 
-        Parameters
-        ----------
-        window : int
-            Number of consecutive rows to collapse into one.
-        method : {"mean", "median", "min", "max"}, default "mean"
-            Aggregation applied to numeric columns within each window.
-        non_numeric : {"drop", "nan", "first", "mode", "error"}, default "drop"
-            How to handle non-numeric columns.
+        Args:
+            window: Number of consecutive rows to collapse into one.
+            method: Aggregation applied to numeric columns within each window.
+            non_numeric: How to handle non-numeric columns.
 
-        Returns
-        -------
-        Tracking
+        Returns:
             New ``Tracking`` (or subclass) object with ``len(data) // window``
-            rows and ``fps`` reduced by a factor of ``window``.
+                rows and ``fps`` reduced by a factor of ``window``.
 
         Examples
         --------
@@ -516,26 +511,24 @@ class Tracking:
 
         This is a convenience wrapper around `Features(self)`.
 
-        Returns
-        -------
-        Features
+        Returns:
             A new features object linked to this tracking object.
 
         Examples
         --------
         ```pycon
-            >>> from py3r.behaviour.util.docdata import data_path
-            >>> from py3r.behaviour.tracking.tracking import Tracking
-            >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-            ...     t = Tracking.from_dlc(str(p), handle='demo', fps=30)
-            >>> f = t.to_features()
-            >>> from py3r.behaviour.features.features import Features
-            >>> isinstance(f, Features)
-            True
-            >>> f.handle
-            'demo'
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='demo', fps=30)
+        >>> f = t.to_features()
+        >>> from py3r.behaviour.features.features import Features
+        >>> isinstance(f, Features)
+        True
+        >>> f.handle
+        'demo'
 
-            ```
+        ```
         """
         from py3r.behaviour.features.features import Features
 
@@ -556,66 +549,56 @@ class Tracking:
         - Matching fps
         - Identical column names (same tracked points and dimensions)
 
-        Parameters
-        ----------
-        trackings : list[Tracking]
-            List of Tracking objects to concatenate, in temporal order.
-        handle : str, optional
-            Handle for the concatenated object. If None, uses first object's handle.
-        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
-            How to handle frame indices:
-            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
-            - "follow_previous": Each chunk continues from where the previous
-              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
-            - "keep_original": Leave indices untouched; duplicates are allowed.
+        Args:
+            trackings: List of Tracking objects to concatenate, in temporal order.
+            handle: Handle for the concatenated object. If None, uses first object's handle.
+            reindex: How to handle frame indices. ``"rezero"`` reindexes all frames
+                starting from 0. ``"follow_previous"`` continues from where the previous
+                chunk ended. ``"keep_original"`` leaves indices untouched; duplicates
+                are allowed.
 
-        Returns
-        -------
-        Tracking
+        Returns:
             A new Tracking object containing all frames from input objects.
 
-        Raises
-        ------
-        ValueError
-            If trackings is empty, fps values don't match, or columns differ.
+        Raises:
+            ValueError: If trackings is empty, fps values don't match, or columns differ.
 
-        Examples
-        --------
-        Concatenate two tracking objects:
+        Examples:
+            Concatenate two tracking objects:
 
-        ```pycon
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking import Tracking
-        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...     t1 = Tracking.from_dlc(str(p), handle='ex1', fps=30)
-        ...     t2 = Tracking.from_dlc(str(p), handle='ex2', fps=30)
-        >>> combined = Tracking.concat([t1, t2], handle='combined')
-        >>> len(combined.data) == len(t1.data) + len(t2.data)
-        True
-        >>> combined.handle
-        'combined'
-        >>> combined.meta['fps']
-        30.0
+            ```pycon
+            >>> from py3r.behaviour.util.docdata import data_path
+            >>> from py3r.behaviour.tracking.tracking import Tracking
+            >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+            ...     t1 = Tracking.from_dlc(str(p), handle='ex1', fps=30)
+            ...     t2 = Tracking.from_dlc(str(p), handle='ex2', fps=30)
+            >>> combined = Tracking.concat([t1, t2], handle='combined')
+            >>> len(combined.data) == len(t1.data) + len(t2.data)
+            True
+            >>> combined.handle
+            'combined'
+            >>> combined.meta['fps']
+            30.0
 
-        ```
+            ```
 
-        Verify column preservation:
+            Verify column preservation:
 
-        ```pycon
-        >>> list(combined.data.columns) == list(t1.data.columns)
-        True
+            ```pycon
+            >>> list(combined.data.columns) == list(t1.data.columns)
+            True
 
-        ```
+            ```
 
-        Concatenation metadata is recorded:
+            Concatenation metadata is recorded:
 
-        ```pycon
-        >>> 'concat' in combined.meta
-        True
-        >>> combined.meta['concat']['n_chunks']
-        2
+            ```pycon
+            >>> 'concat' in combined.meta
+            True
+            >>> combined.meta['concat']['n_chunks']
+            2
 
-        ```
+            ```
         """
         if not trackings:
             raise ValueError("Cannot concatenate empty list of Tracking objects")
@@ -741,9 +724,7 @@ class Tracking:
 
     @staticmethod
     def _apply_aspectratio_correction(df: pd.DataFrame, correction: float) -> pd.DataFrame:
-        """
-        rescales all x values within tracking object by aspectratio correction factor
-        """
+        """Rescales all x values within tracking object by aspectratio correction factor."""
         if correction == 1.0:
             return df
 
@@ -774,7 +755,7 @@ class Tracking:
 
     def add_usermeta(self, usermeta: dict, overwrite: bool = False) -> None:
         """
-        adds or updates user-defined metadata
+        Adds or updates user-defined metadata.
 
         Examples
         --------
@@ -800,7 +781,7 @@ class Tracking:
 
     def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> None:
         """
-        adds or updates a tag
+        Adds or updates a tag.
 
         Examples
         --------
@@ -893,7 +874,7 @@ class Tracking:
         return cls(df, meta, handle, tags)
 
     def strip_column_names(self, *, inplace: bool = True) -> Tracking | None:
-        """strip column names to the last two dot-delimited sections
+        """Strip column names to the last two dot-delimited sections.
 
         Examples
         --------
@@ -918,7 +899,7 @@ class Tracking:
 
     def time_as_expected(self, mintime: float, maxtime: float) -> bool:
         """
-        check that total tracking duration (seconds) is between mintime and maxtime.
+        Check that total tracking duration (seconds) is between mintime and maxtime.
 
         Examples
         --------
@@ -948,7 +929,7 @@ class Tracking:
         inplace: bool = True,
     ) -> Tracking | None:
         """
-        trims the tracking data object between startframe and endframe
+        Trims the tracking data object between startframe and endframe.
 
         Examples
         --------
@@ -980,7 +961,7 @@ class Tracking:
         self.meta["trim"] = {"startframe": startframe, "endframe": endframe}
 
     def filter_likelihood(self, threshold: float, *, inplace: bool = True) -> Tracking | None:
-        """set position values with likelihood below threshold to np.nan.
+        """Set position values with likelihood below threshold to np.nan.
 
         Examples
         --------
@@ -1019,7 +1000,7 @@ class Tracking:
         self.meta["filter_likelihood_threshold"] = threshold
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> pd.Series:
-        """framewise distance between two points
+        """Framewise distance between two points.
 
         Examples
         --------
@@ -1042,7 +1023,7 @@ class Tracking:
         return distance
 
     def get_point_names(self) -> list:
-        """list of tracked point names, sorted alphabetically (ascending)
+        """List of tracked point names, sorted alphabetically (ascending).
 
         Examples
         --------
@@ -1097,7 +1078,6 @@ class Tracking:
 
         ```
         """
-
         self._assert_valid_point(point)
         prefix = f"{point}."
         dimensions = self.data.columns.str.removeprefix(prefix)[
@@ -1107,11 +1087,12 @@ class Tracking:
 
     def get_point_data(self, point: str, dims: Iterable[str] | None = None) -> pd.DataFrame:
         """For a specific point, returns the DataFrame with all dimensions data.
-        colnames are reformated to drop the pointname (i.e p1.x -> x)
+
+        colnames are reformated to drop the pointname (i.e p1.x -> x).
 
         Args:
-            point (str): name of the point for which data should be exteracted
-            dims (optional(tuple(str))): dimensons which should exclusively be returned
+            point: name of the point for which data should be exteracted
+            dims: dimensons which should exclusively be returned
 
         Examples
         --------
@@ -1139,17 +1120,12 @@ class Tracking:
         """
         Set the data of a point from an external DataFrame.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            DataFrame containing the point data to write. Column names must
-            reflect the dimension names (e.g. ``'x'``, ``'y'``).
-        point : str
-            Name of the point to overwrite.
-        target_df : pd.DataFrame | None, default=None
-            An external copy of ``self.data`` to write into. If None, writes
-            in-place into ``self.data``.
-
+        Args:
+            df: DataFrame containing the point data to write. Column names must
+                reflect the dimension names (e.g. ``'x'``, ``'y'``).
+            point: Name of the point to overwrite.
+            target_df: An external copy of ``self.data`` to write into. If None,
+                writes in-place into ``self.data``.
 
         Examples
         --------
@@ -1202,6 +1178,222 @@ class Tracking:
         # Assign with guaranteed column order
         target_df.loc[:, target_cols] = df.to_numpy()
 
+    def _define_point(
+        self,
+        name: str,
+        arr: np.ndarray,
+        dims: tuple[str, ...],
+        likelihood: np.ndarray | None = None,
+    ) -> None:
+        """Add or overwrite a point in ``self.data`` from precomputed arrays.
+
+        Parameters
+        ----------
+        name : str
+            Name for the new point. Existing columns are overwritten.
+        arr : np.ndarray
+            Shape ``(n_frames, n_dims)``, one column per element of ``dims``.
+        dims : tuple[str, ...]
+            Spatial dimension names, e.g. ``("x", "y")`` or ``("x", "y", "z")``.
+        likelihood : np.ndarray | None
+            Per-frame likelihood array of shape ``(n_frames,)``. If ``None``,
+            no likelihood column is written; any pre-existing likelihood column
+            for ``name`` is removed.
+        """
+        n = len(self.data)
+        if arr.ndim != 2 or arr.shape != (n, len(dims)):
+            raise ValueError(
+                f"arr must have shape (n_frames, n_dims) = ({n}, {len(dims)}), got {arr.shape}"
+            )
+        for i, dim in enumerate(dims):
+            self.data[f"{name}.{dim}"] = arr[:, i]
+        lik_col = f"{name}.likelihood"
+        if likelihood is not None:
+            self.data[lik_col] = np.asarray(likelihood, dtype=float)
+        elif lik_col in self.data.columns:
+            self.data.drop(columns=[lik_col], inplace=True)
+
+    def define_midpoint(
+        self,
+        name: str,
+        points: list[str] | dict[str, float],
+        *,
+        inplace: bool = True,
+    ) -> Tracking | None:
+        """Define a new point as the (optionally weighted) midpoint of existing points.
+
+        Spatial dimensions are inferred from the source points and must be
+        consistent across all of them. Likelihood is taken as the per-frame
+        minimum across all source points.
+
+        Args:
+            name: Name for the new derived point.
+            points: Source point names with equal weighting (list), or a mapping of
+                point name to relative weight (dict). Weights are normalised
+                internally, so ``{"nose": 1, "tail": 3}`` is equivalent to
+                ``{"nose": 0.25, "tail": 0.75}``.
+            inplace: If ``True``, modifies ``self.data`` in place and returns ``None``.
+                If ``False``, returns a new ``Tracking`` with the point added.
+
+        Returns:
+            ``None`` when ``inplace=True``; a new ``Tracking`` otherwise.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> t.define_midpoint("mid12", ["p1", "p2"])
+        >>> "mid12" in t.get_point_names()
+        True
+        >>> mid_x = float(t.data["mid12.x"].iloc[0])
+        >>> p1_x = float(t.data["p1.x"].iloc[0])
+        >>> p2_x = float(t.data["p2.x"].iloc[0])
+        >>> mid_x == (p1_x + p2_x) / 2
+        True
+        >>> "mid12.z" in t.data.columns
+        True
+        >>> bool(all(t.data["mid12.likelihood"] <= t.data["p1.likelihood"]))
+        True
+        >>> bool(all(t.data["mid12.likelihood"] <= t.data["p2.likelihood"]))
+        True
+
+        ```
+
+        Weighted example — ``p1`` carries three times the weight of ``p2``:
+
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> t.define_midpoint("wt_mid", {"p1": 3, "p2": 1})
+        >>> val = float(t.data["wt_mid.x"].iloc[0])
+        >>> expected = 0.75 * float(t.data["p1.x"].iloc[0]) + 0.25 * float(t.data["p2.x"].iloc[0])
+        >>> abs(val - expected) < 1e-10
+        True
+
+        ```
+        """
+        if not inplace:
+            new = self.copy()
+            new.define_midpoint(name, points, inplace=True)
+            return new
+
+        if isinstance(points, list):
+            if len(points) < 2:
+                raise ValueError("define_midpoint requires at least two source points")
+            weights: dict[str, float] = {p: 1.0 for p in points}
+        elif isinstance(points, dict):
+            if len(points) < 2:
+                raise ValueError("define_midpoint requires at least two source points")
+            weights = {p: float(w) for p, w in points.items()}
+        else:
+            raise TypeError("points must be a list of point names or a dict of {name: weight}")
+
+        for p in weights:
+            self._assert_valid_point(p)
+
+        def _spatial_dims(p: str) -> tuple[str, ...]:
+            return tuple(d for d in self.get_point_dimensions(p) if d != "likelihood")
+
+        dim_sets = {p: _spatial_dims(p) for p in weights}
+        unique_dims = set(dim_sets.values())
+        if len(unique_dims) > 1:
+            detail = ", ".join(f"'{p}': {d}" for p, d in dim_sets.items())
+            raise ValueError(f"source points have inconsistent dims — {detail}")
+        dims = next(iter(unique_dims))
+
+        total = sum(weights.values())
+        if total == 0.0:
+            raise ValueError("weights must not sum to zero")
+        norm_weights = {p: w / total for p, w in weights.items()}
+
+        n = len(self.data)
+        arr = np.zeros((n, len(dims)), dtype=float)
+        for p, w in norm_weights.items():
+            for i, dim in enumerate(dims):
+                arr[:, i] += w * self.data[f"{p}.{dim}"].to_numpy(dtype=float)
+
+        source_liks = [
+            self.data[f"{p}.likelihood"].to_numpy(dtype=float)
+            for p in weights
+            if f"{p}.likelihood" in self.data.columns
+        ]
+        likelihood = np.min(np.stack(source_liks, axis=0), axis=0) if source_liks else None
+
+        self._define_point(name, arr, dims, likelihood)
+
+    def define_offset_point(
+        self,
+        name: str,
+        reference: str,
+        offset: tuple[float, ...],
+        *,
+        inplace: bool = True,
+    ) -> Tracking | None:
+        """Define a new point as a fixed spatial offset from an existing point.
+
+        The offset is added to every frame's coordinates of the reference
+        point. Likelihood is inherited directly from the reference point.
+
+        Args:
+            name: Name for the new derived point.
+            reference: Name of the existing point to offset from.
+            offset: Per-dimension displacement, e.g. ``(dx, dy)`` for 2D or
+                ``(dx, dy, dz)`` for 3D. Length must match the spatial
+                dimensions of ``reference``.
+            inplace: If ``True``, modifies ``self.data`` in place and returns ``None``.
+                If ``False``, returns a new ``Tracking`` with the point added.
+
+        Returns:
+            ``None`` when ``inplace=True``; a new ``Tracking`` otherwise.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> with data_path("py3r.behaviour.tracking._data", "dlc_single.csv") as p:
+        ...     t = Tracking.from_dlc(str(p), handle="ex", fps=30)
+        >>> t.define_offset_point("p1_shifted", "p1", offset=(10.0, 0.0, 0.0))
+        >>> bool(all(t.data["p1_shifted.x"] == t.data["p1.x"] + 10.0))
+        True
+        >>> bool(all(t.data["p1_shifted.y"] == t.data["p1.y"]))
+        True
+        >>> bool(all(t.data["p1_shifted.likelihood"] == t.data["p1.likelihood"]))
+        True
+
+        ```
+        """
+        if not inplace:
+            new = self.copy()
+            new.define_offset_point(name, reference, offset, inplace=True)
+            return new
+
+        self._assert_valid_point(reference)
+        spatial_dims = tuple(d for d in self.get_point_dimensions(reference) if d != "likelihood")
+
+        if len(offset) != len(spatial_dims):
+            raise ValueError(
+                f"offset length {len(offset)} does not match dims {spatial_dims} "
+                f"of reference point '{reference}'"
+            )
+
+        n = len(self.data)
+        arr = np.empty((n, len(spatial_dims)), dtype=float)
+        for i, (dim, delta) in enumerate(zip(spatial_dims, offset, strict=True)):
+            arr[:, i] = self.data[f"{reference}.{dim}"].to_numpy(dtype=float) + float(delta)
+
+        lik_col = f"{reference}.likelihood"
+        likelihood = (
+            self.data[lik_col].to_numpy(dtype=float) if lik_col in self.data.columns else None
+        )
+
+        self._define_point(name, arr, spatial_dims, likelihood)
+
     def rescale_by_known_distance(
         self,
         point1: str,
@@ -1211,7 +1403,7 @@ class Tracking:
         *,
         inplace: bool = True,
     ) -> Tracking | None:
-        """rescale all dims by known distance between two points
+        """Rescale all dims by known distance between two points.
 
         Examples
         --------
@@ -1269,24 +1461,20 @@ class Tracking:
         self.meta["distance_units"] = "m"
 
     def _generate_partial_smoothdict(self, points: list, window: int, smoothtype: str) -> dict:
-        """make partial smoothdict for points"""
+        """Make partial smoothdict for points."""
         smoothdict = dict()
         for key in points:
             smoothdict[key] = {"window": window, "type": smoothtype}
         return smoothdict
 
     def generate_smoothdict(self, pointslists: list, windows: list, smoothtypes: list) -> dict:
-        """
-        deprecated, use smooth_all instead
-        """
+        """deprecated, use smooth_all instead."""
         raise NotImplementedError(
             "Tracking.generate_smoothdict() was removed; use Tracking.smooth_all() instead."
         )
 
     def smooth(self, smoothing_params: dict) -> None:
-        """
-        deprecated, use smooth_all instead
-        """
+        """deprecated, use smooth_all instead."""
         raise NotImplementedError(
             "Tracking.smooth() was removed; use Tracking.smooth_all() instead."
         )
@@ -1299,23 +1487,32 @@ class Tracking:
         dims: tuple[str, ...] = ("x", "y"),
         strict: bool = False,
         inplace: bool = True,
-        smoother=None,
+        smoother: Any | None = None,
         smoother_kwargs: dict | None = None,
         method_kwargs: dict | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Tracking | None:
         """
-        Smooth all tracked points using a default method/window, with optional
-        override groups.
+        Smooth all tracked points using a default method/window.
 
-        - window/method: default applied to any point without override
-        - overrides: optional list of (points, method, window) tuples, where
-            - points: list/tuple of point names (or a single str)
-            - method: 'median' or 'mean'
-            - window: int (or None to skip smoothing for those points)
-        - dims: coordinate dimensions to smooth
-        - strict: require an effective window for every point
-        - inplace: mutate or return a new object
+        Supports optional per-point override groups.
+
+        Args:
+            window: Default smoothing window applied to any point without an override.
+            method: Default smoothing method applied to any point without an override.
+            overrides: Optional list of ``(points, method, window)`` tuples. ``points``
+                is a list/tuple of point names (or a single str); ``method`` is
+                ``'median'`` or ``'mean'``; ``window`` is an int, or ``None`` to skip
+                smoothing for those points.
+            dims: Coordinate dimensions to smooth.
+            strict: If True, require an effective window for every point.
+            inplace: If True, mutate self and return None; if False, return a new object.
+            smoother: Custom smoother callable, passed directly to ``apply_smoothing``.
+            smoother_kwargs: Keyword arguments forwarded to the custom ``smoother``.
+            method_kwargs: Extra kwargs applied to the default method for all points
+                (e.g. ``{"nan_policy": "omit"}`` for savgol).
+            **kwargs: Additional method kwargs merged into per-point specs (e.g.
+                ``polyorder=3``). Convenient shorthand for ``method_kwargs``.
 
         Examples
         --------
@@ -1440,8 +1637,9 @@ class Tracking:
         self, method: str = "linear", limit: int = 1, *, inplace: bool = True, **kwargs
     ) -> Tracking | None:
         """
-        interpolates missing data in the tracking data, and sets likelihood to np.nan
-        uses pandas.DataFrame.interpolate() with kwargs
+        Interpolate missing position data and set likelihood columns to NaN.
+
+        Uses ``pandas.DataFrame.interpolate()`` with kwargs.
 
         Examples
         --------
@@ -1484,7 +1682,7 @@ class Tracking:
     @property
     def loc(self):
         """
-        Return a new Tracking object with self.data sliced by np.loc
+        Return a new Tracking object with self.data sliced by np.loc.
 
         Examples
         --------
@@ -1506,7 +1704,7 @@ class Tracking:
     @property
     def iloc(self):
         """
-        Return a new Tracking object with self.data sliced by np.iloc
+        Return a new Tracking object with self.data sliced by np.iloc.
 
         Examples
         --------
@@ -1540,30 +1738,35 @@ class Tracking:
 
     def plot(
         self,
-        trajectories=None,
-        static=None,
-        lines=None,
-        dims=("x", "y"),
-        ax=None,
-        title=None,
-        show=True,
+        trajectories: list[str] | dict[str, pd.Series] | None = None,
+        static: list[str] | None = None,
+        lines: list[tuple[str, str]] | None = None,
+        dims: tuple[str, ...] = ("x", "y"),
+        ax: Any | None = None,
+        title: str | None = None,
+        show: bool = True,
         savedir: str | None = None,
-        elev=30,
-        azim=45,
-    ):
+        elev: float = 30,
+        azim: float = 45,
+    ) -> tuple[Any, Any]:
         """
         Plot trajectories and static points for this Tracking object.
+
         Args:
-            trajectories: list of point names or dict {point: color_series}
-            static: list of point names to plot as static (median)
-            lines: list of (point1, point2) pairs to join with a line
-            dims: tuple of dimension names (default ('x','y'); use ('x','y','z') for 3D)
-            ax: matplotlib axis (optional)
-            title: plot title (default: self.handle)
-            show: whether to call plt.show()
-            savedir: optional directory path to save the plot image. If provided,
-                     figure is saved as '<handle>_plot.png' inside this directory.
-        Returns: fig, ax
+            trajectories: Point names to plot as trajectories, or a dict mapping
+                point name to a color ``pd.Series``.
+            static: Point names to plot as static markers (median position).
+            lines: Pairs of point names to connect with a line.
+            dims: Coordinate dimensions to plot. Use ``('x','y','z')`` for 3D.
+            ax: Existing matplotlib axis to draw on.
+            title: Plot title. Defaults to ``self.handle``.
+            show: Whether to call ``plt.show()``.
+            savedir: If provided, saves the figure as ``<handle>_plot.png`` here.
+            elev: Elevation angle for 3D plots.
+            azim: Azimuth angle for 3D plots.
+
+        Returns:
+            Tuple of ``(fig, ax)``.
 
         Examples
         --------
@@ -1719,14 +1922,11 @@ class Tracking:
         invert_z=True,
     ):
         """
-        Save a 3D animation of tracked points to a video file, with 4 subplots
-        per frame:
-        - azim=0, elev=0, ortho
-        - azim=90, elev=0, ortho
-        - azim=0, elev=90, ortho
-        - azim=45, elev=30, persp
-        Optionally, set axis limits manually or use robust percentiles to
-        ignore outliers. Enforces equal aspect ratio for all axes.
+        Save a 3D animation of tracked points to a video file.
+
+        Renders four subplots per frame (front, side, top, and isometric views).
+        Axis limits can be set manually or derived from robust percentiles.
+        Enforces equal aspect ratio for all axes.
         """
         import matplotlib.pyplot as plt
         import numpy as np
@@ -1950,6 +2150,9 @@ class Tracking:
         """
         Build an OpenCV-backed frame stream for animated point/line overlays.
 
+        **For style dict documentation and worked examples, see the
+        [Animation guide](../animation.md).**
+
         This method precomputes the selected point coordinates (and optional 3D
         projection) once, then returns a stream object that can:
 
@@ -1958,43 +2161,30 @@ class Tracking:
         - play live via ``stream.play(...)``
         - save video via ``stream.save(...)``
 
-        Parameters
-        ----------
-        points : list[str]
-            Point names to render as circles.
-        lines : list[tuple[str, str]] | None
-            Line segments connecting point pairs. Endpoints can include points
-            not listed in ``points``.
-        features : list[str | None] | dict[str | None, str | None] | None
-            Per-frame scalar columns to render as text overlays. If a list is
-            provided, each column is shown as ``name: value``. If a dict is
-            provided, keys are display labels and values are source column names.
-            ``None`` or ``""`` entries insert a blank spacer line.
-        dims : tuple[str, ...], default=("x", "y")
-            Coordinate dimensions. Use 2D (``("x","y")``) or 3D
-            (``("x","y","z")`` with ``view``).
-        view : dict | None
-            3D camera options used only when ``dims`` has length 3. Supported
-            keys include ``azim``, ``elev``, ``proj`` (``"ortho"`` or
-            ``"persp"``), ``camera_distance``, ``focal_length``, and ``pad``.
-        canvas_size : tuple[int, int], default=(800, 800)
-            Canvas size as ``(width, height)``.
-        bg_color : tuple[int, int, int], default=(0, 0, 0)
-            Background color in BGR.
-        style : dict | None
-            Style overrides for points/lines/boundaries.
-        pixel_coords : bool, default=False
-            If True, interpret coordinates as absolute pixel locations.
-            If False, auto-fit projected coordinates to the canvas.
-        undo_meta_scaling : bool, default=False
-            If True, invert ``aspectratio_correction`` and
-            ``meta["rescale_factor"]`` before rendering.
+        Args:
+            points: Point names to render as circles.
+            lines: Line segments connecting point pairs. Endpoints can include points
+                not listed in ``points``.
+            features: Per-frame scalar columns to render as text overlays. If a list is
+                provided, each column is shown as ``name: value``. If a dict is
+                provided, keys are display labels and values are source column names.
+                ``None`` or ``""`` entries insert a blank spacer line.
+            dims: Coordinate dimensions. Use 2D (``("x","y")``) or 3D
+                (``("x","y","z")`` with ``view``).
+            view: 3D camera options used only when ``dims`` has length 3. Supported
+                keys include ``azim``, ``elev``, ``proj`` (``"ortho"`` or
+                ``"persp"``), ``camera_distance``, ``focal_length``, and ``pad``.
+            canvas_size: Canvas size as ``(width, height)``.
+            bg_color: Background color in BGR.
+            style: Style overrides for points/lines/boundaries.
+            pixel_coords: If True, interpret coordinates as absolute pixel locations.
+                If False, auto-fit projected coordinates to the canvas.
+            undo_meta_scaling: If True, invert ``aspectratio_correction`` and
+                ``meta["rescale_factor"]`` before rendering.
 
-        Returns
-        -------
-        AnimationStream
+        Returns:
             Stream object with ``get_frame()``, ``read()``, ``play()``, and
-            ``save()``.
+                ``save()``.
 
         Examples
         --------
@@ -2088,21 +2278,15 @@ class Tracking:
         """
         Resolve selected point coordinates to a NumPy array.
 
-        Parameters
-        ----------
-        points : list[str]
-            Point names to extract.
-        dims : tuple[str, ...], default=("x", "y")
-            Coordinate dimensions to extract (2D or 3D).
-        undo_meta_scaling : bool, default=False
-            If True, invert ``aspectratio_correction`` and ``rescale_factor``
-            before extraction.
+        Args:
+            points: Point names to extract.
+            dims: Coordinate dimensions to extract (2D or 3D).
+            undo_meta_scaling: If True, invert ``aspectratio_correction`` and
+                ``rescale_factor`` before extraction.
 
-        Returns
-        -------
-        tuple[list[str], np.ndarray]
+        Returns:
             ``(point_names, array)`` where array has shape
-            ``(n_frames, n_points, len(dims))``.
+                ``(n_frames, n_points, len(dims))``.
 
         Examples
         --------
@@ -2157,9 +2341,7 @@ class Tracking:
         return list(points), out
 
     def _undo_rescale_factors(self, dims: tuple[str, ...]) -> dict[str, float]:
-        """
-        Return per-dimension multipliers that invert meta coordinate scaling.
-        """
+        """Return per-dimension multipliers that invert meta coordinate scaling."""
         factors: dict[str, float] = {}
         rescale_factors = self.meta.get("rescale_factor")
         if isinstance(rescale_factors, dict):

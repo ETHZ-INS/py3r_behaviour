@@ -41,7 +41,6 @@ def filter_by_threshold(
         A new DataFrame where rows failing the comparison are set entirely to NaN.
 
     Example
-
     ```pycon
     >>> import pandas as pd
     >>> import pytest
@@ -91,13 +90,13 @@ def euclidean_distance(
     """
      Compute Euclidean distance between two DataFrames in N-dimensional space.
 
-     Methods
-     -------
+    Methods
+    -------
      - 'median'      : distance between column-wise median vectors (scalar)
      - 'element_wise': row-wise Euclidean distance (pd.Series)
 
-     Parameters
-     ----------
+    Parameters
+    ----------
      df1 : pd.DataFrame
          First DataFrame.
      df2 : pd.DataFrame
@@ -107,21 +106,20 @@ def euclidean_distance(
      dims : Tuple of str, optional
          Columns to use. If None, uses the intersection of numeric columns.
 
-     Returns
-     -------
+    Returns
+    -------
      float or pd.Series
          Scalar distance for 'median';
          Series of row-wise distances for 'element_wise'.
 
-     Raises
-     ------
+    Raises
+    ------
      ValueError
          If no common numeric columns are found or indices mismatch for element-wise.
      KeyError
          If specified dims are missing from either DataFrame.
 
-     Example
-
+    Example
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -175,12 +173,89 @@ def euclidean_distance(
     raise ValueError(f"Unknown method: {method}")
 
 
+def point_to_axis_distance(
+    P: np.ndarray,
+    A: np.ndarray,
+    B: np.ndarray,
+    *,
+    signed: bool = False,
+) -> np.ndarray:
+    """Compute framewise perpendicular distance from a point to an infinite axis.
+
+    The axis passes through A and B and extends infinitely in both directions.
+    All arrays must share the same shape ``(n_frames, n_dims)``.
+
+    Parameters
+    ----------
+    P : np.ndarray
+        Query point coordinates, shape ``(n_frames, n_dims)``.
+    A : np.ndarray
+        First axis reference point, shape ``(n_frames, n_dims)``.
+    B : np.ndarray
+        Second axis reference point, shape ``(n_frames, n_dims)``.
+    signed : bool, default False
+        If True, return a signed distance (2-D axes only).  Positive means P
+        is to the *right* when facing from A to B; negative means P is to the
+        *left*.  Raises ``ValueError`` for ``n_dims != 2`` when True.
+
+    Returns
+    -------
+    np.ndarray
+        Framewise (signed) perpendicular distances, shape ``(n_frames,)``.
+
+    Notes
+    -----
+    Degenerate frames where A == B (zero-length direction) return ``nan``
+    for both the signed and unsigned cases, as the axis direction is undefined.
+
+    Examples
+    --------
+    ```pycon
+    >>> import numpy as np
+    >>> P = np.array([[0.0, 1.0], [3.0, 0.0], [0.0, -1.0]])
+    >>> A = np.array([[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
+    >>> B = np.array([[1.0, 0.0], [1.0, 0.0], [1.0, 0.0]])
+    >>> point_to_axis_distance(P, A, B)
+    array([1., 0., 1.])
+    >>> point_to_axis_distance(P, A, B, signed=True)
+    array([-1.,  0.,  1.])
+
+    ```
+    """
+    AP = P - A  # (n, d)
+    AB = B - A  # (n, d)
+
+    ab_sq = np.sum(AB * AB, axis=1)  # (n,)
+
+    if signed:
+        n_dims = P.shape[1]
+        if n_dims != 2:
+            raise ValueError(f"signed=True requires a 2-D axis; got n_dims={n_dims}.")
+        # Signed distance = projection of AP onto the right-hand perpendicular
+        # of the unit direction d = AB / |AB|.
+        # perp_right = (d[1], -d[0])  →  AP · perp_right / |AB| * |AB| simplifies to:
+        #   (AP[0] * AB[1] - AP[1] * AB[0]) / |AB|
+        # Degenerate frames (A == B) → axis undefined, return NaN.
+        ab_norm = np.sqrt(ab_sq)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            cross = AP[:, 0] * AB[:, 1] - AP[:, 1] * AB[:, 0]
+            return np.where(ab_norm > 0, cross / ab_norm, np.nan)
+
+    # Scalar projection of P onto the infinite axis through A and B.
+    # Degenerate frames (A == B) → axis undefined, return NaN.
+    with np.errstate(invalid="ignore", divide="ignore"):
+        t = np.where(ab_sq > 0, np.sum(AP * AB, axis=1) / ab_sq, np.nan)
+
+    closest = A + t[:, np.newaxis] * AB  # (n, d)
+    return np.linalg.norm(P - closest, axis=1)  # (n,)
+
+
 def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.DataFrame:
     """
      Multiply selected DataFrame columns by a scalar factor.
 
-     Parameters
-     ----------
+    Parameters
+    ----------
      df : pd.DataFrame
          Input DataFrame.
      factor : float
@@ -188,13 +263,12 @@ def scale_columns(df: pd.DataFrame, factor: float, cols: Iterable[str]) -> pd.Da
      cols : Tuple[str]
          Columns to scale.
 
-     Returns
-     -------
+    Returns
+    -------
      pd.DataFrame
          DataFrame with scaled columns.
 
-     Example
-
+    Example
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -247,7 +321,6 @@ def normalize_transition_matrix(tm: pd.DataFrame) -> pd.DataFrame:
         the input.
 
     Example
-
     ```pycon
     >>> import pandas as pd
     >>> tm = pd.DataFrame({'A': [3, 0], 'B': [1, 0]}, index=['A', 'B'])

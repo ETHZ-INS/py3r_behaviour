@@ -5,8 +5,8 @@ from __future__ import annotations
 import inspect
 import os
 import warnings
-from collections.abc import MutableMapping
-from typing import Any
+from collections.abc import Callable, MutableMapping
+from typing import Any, Self
 
 import pandas as pd
 
@@ -92,7 +92,7 @@ class BaseCollection(MutableMapping):
     Subclasses must define:
         - _element_type: the type of elements (e.g., Features)
         - _multiple_collection_type: the MultipleCollection class to return from groupby
-        - from_list(cls, objs): classmethod to construct from a list of elements
+        - from_list(cls, objs): classmethod to construct from a list of elements.
 
     Examples
     --------
@@ -118,17 +118,23 @@ class BaseCollection(MutableMapping):
     ```
     """
 
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if not hasattr(cls, "_element_type"):
+            raise TypeError(
+                f"{cls.__name__} must define '_element_type' as a class attribute "
+                f"(e.g. '_element_type = MyClass')."
+            )
+
     def __init__(self, obj_dict):
         self._obj_dict = dict(obj_dict)  # {handle: element or sub-collection}
-        # Grouped-view metadata defaults: always start flat unless explicitly set later
-        self._is_grouped = False
         self._groupby_tags = None
         self._each_proxy: _EachProxy | None = None
         self._each_forcebatch_proxy: _EachProxy | None = None
 
     def _batch_error_context(self, key):
         # If this is a grouped view, treat top-level keys as collection names
-        if getattr(self, "_is_grouped", False):
+        if self.is_grouped:
             return dict(collection_name=key, object_name=None)
         # Default: flat collection (key refers to object name/handle)
         return dict(collection_name=None, object_name=key)
@@ -372,8 +378,8 @@ class BaseCollection(MutableMapping):
             return self._obj_dict[key]
 
     def __setitem__(self, key, value):
-        element_cls = type(self[0])
-        if not isinstance(value, element_cls):
+        element_cls = getattr(self, "_element_type", None)
+        if element_cls is not None and not isinstance(value, element_cls):
             raise TypeError(f"Value must be a {element_cls.__name__}, got {type(value).__name__}")
         cn = self.__class__.__name__
         warnings.warn(
@@ -526,7 +532,6 @@ class BaseCollection(MutableMapping):
                     return result
                 grouped_new[gkey] = subcoll.__class__(dict(subres))
             out = self.__class__(grouped_new)
-            out._is_grouped = True
             out._groupby_tags = list(self._groupby_tags) if self._groupby_tags else None
             return out
 
@@ -657,7 +662,7 @@ class BaseCollection(MutableMapping):
         return cls(obj_dict)
 
     @classmethod
-    def merge(cls, collections, *, copy=False):
+    def merge(cls, collections: list[Self], *, copy: bool = False) -> Self:
         """
         Merge multiple collections into a single flat collection containing
         all leaf elements from each input.
@@ -666,32 +671,22 @@ class BaseCollection(MutableMapping):
         are supported. The result is always a new flat collection. Leaves are
         shared by reference unless ``copy=True``.
 
-        Parameters
-        ----------
-        collections : list[BaseCollection]
-            Two or more collections of the same concrete type. Every element
-            across all collections must have a unique handle.
-        copy : bool, default False
-            If True, each leaf is copied (via its ``.copy()`` method) so that
-            the merged collection is fully independent of the originals.
+        Args:
+            collections: Two or more collections of the same concrete type. Every
+                element across all collections must have a unique handle.
+            copy: If True, each leaf is copied (via its ``.copy()`` method) so that
+                the merged collection is fully independent of the originals.
 
-        Returns
-        -------
-        BaseCollection
+        Returns:
             A new flat collection containing all leaves.
 
-        Raises
-        ------
-        ValueError
-            If *collections* is empty, or if any handles are duplicated.
-        TypeError
-            If any input is not an instance of the calling class.
+        Raises:
+            ValueError: If *collections* is empty, or if any handles are duplicated.
+            TypeError: If any input is not an instance of the calling class.
 
-        Warns
-        -----
-        UserWarning
-            If the tag key sets differ across input collections (the merged
-            collection will have mixed tag coverage).
+        Warns:
+            UserWarning: If the tag key sets differ across input collections (the
+                merged collection will have mixed tag coverage).
 
         Examples
         --------
@@ -833,7 +828,6 @@ class BaseCollection(MutableMapping):
 
         group_collections = {key: self.__class__.from_list(objs) for key, objs in groups.items()}
         grouped = self.__class__(group_collections)
-        grouped._is_grouped = True
         grouped._groupby_tags = tags
         return grouped
 
@@ -870,28 +864,23 @@ class BaseCollection(MutableMapping):
             return self
 
         first_value = next(iter(self._obj_dict.values()))
-        # If the first value is not a collection (i.e., is a leaf), return self
-        if not hasattr(first_value, "values") or not callable(first_value.values):
+        # If the first value is not a sub-collection (i.e., is a leaf), return self
+        if not isinstance(first_value, BaseCollection):
             return self
 
         # Otherwise, flatten
         all_objs = []
         for obj in self.values():
-            if hasattr(obj, "values") and callable(obj.values):
+            if isinstance(obj, BaseCollection):
                 all_objs.extend(obj.values())
             else:
                 all_objs.append(obj)
         flat_cls = type(first_value)
-        flat = flat_cls.from_list(all_objs)
-        # Ensure returned flat collection is not marked grouped
-        if hasattr(flat, "_is_grouped"):
-            flat._is_grouped = False
-            flat._groupby_tags = None
-        return flat
+        return flat_cls.from_list(all_objs)
 
     def __repr__(self):
         cn = self.__class__.__name__
-        if getattr(self, "_is_grouped", False):
+        if self.is_grouped:
             return f"<{cn} grouped by {self._groupby_tags} with {len(self)} groups>"
         return f"<{cn} with {len(self)} {self._element_type.__name__} objects>"
 
@@ -919,13 +908,13 @@ class BaseCollection(MutableMapping):
 
         ```
         """
-        return getattr(self, "_is_grouped", False)
+        if not self._obj_dict:
+            return False
+        return isinstance(next(iter(self._obj_dict.values())), BaseCollection)
 
     @property
     def groupby_tags(self):
-        """
-        The tag names used to form this grouped view (or None if flat).
-        """
+        """The tag names used to form this grouped view (or None if flat)."""
         return getattr(self, "_groupby_tags", None)
 
     @property
@@ -1028,7 +1017,7 @@ class BaseCollection(MutableMapping):
         Works for flat and grouped collections. If `include_value_counts` is True,
         include a column 'value_counts' with a dict of `value->count` for each tag.
         Returns a `pandas.DataFrame` with columns:
-        `['tag', 'attached_to', 'missing_from', 'unique_values', ('value_counts')]`
+        `['tag', 'attached_to', 'missing_from', 'unique_values', ('value_counts')]`.
 
         Examples
         --------
@@ -1106,12 +1095,14 @@ class BaseCollection(MutableMapping):
         leaves = list(self.flatten().values())
         return summarize_leaves(leaves)
 
-    def map_leaves(self, fn):
+    def map_leaves(self, fn: Callable[[Any], Any]):
         """
         Apply a function to every leaf element and return a new collection of the
         same type. Preserves grouping shape and groupby metadata when grouped.
 
-        fn: callable(Element) -> ElementLike
+        Args:
+            fn: Callable applied to each leaf element. Must return an element
+                compatible with this collection type.
 
         Examples
         --------
@@ -1139,7 +1130,6 @@ class BaseCollection(MutableMapping):
                 new_sub_dict = {handle: fn(obj) for handle, obj in sub.items()}
                 grouped_new[gkey] = sub.__class__(new_sub_dict)
             out = self.__class__(grouped_new)
-            out._is_grouped = True
             out._groupby_tags = list(self._groupby_tags) if self._groupby_tags else None
             return out
         # Flat case
@@ -1295,7 +1285,6 @@ class BaseCollection(MutableMapping):
                     sub[handle] = element_cls.load(os.path.join(dirpath, rel))
                 grouped[gkey] = cls(sub)
             out = cls(grouped)
-            out._is_grouped = True
             out._groupby_tags = manifest.get("groupby_tags")
             return out
         else:

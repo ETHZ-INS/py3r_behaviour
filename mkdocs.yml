@@ -13,10 +13,13 @@ theme:
     - scheme: default
       primary: indigo
       accent: indigo
+
 nav:
   - Home: index.md
   - Install: install.md
   - Getting Started: getting_started.md
+  - Animation: animation.md
+  - Use with AI: use-with-ai/index.md
   - Examples:
     - OFT pipeline: examples/oft_pipeline.md
   - API:
@@ -28,6 +31,7 @@ nav:
     - FeaturesCollection: api/features_collection.md
     - Summary: api/summary.md
     - SummaryCollection: api/summary_collection.md
+    - script: api/script.md
 plugins:
   - search
   - autorefs
@@ -52,12 +56,12 @@ plugins:
             show_signature_annotations: true
             show_source: false
             show_root_heading: true
-            members_order: source
+            members_order: alphabetical
             merge_init_into_class: true
             parameter_headings: true
             allow_inspection: true
             show_if_no_docstring: true
-            docstring_style: numpy
+            docstring_style: google
             filters: 
               - "!^__"
               - "!^_"

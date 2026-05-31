@@ -3,7 +3,10 @@ from __future__ import annotations
 import os
 import warnings
 from copy import deepcopy
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 import numpy as np
 import pandas as pd
@@ -120,18 +123,24 @@ class _ByStateDispatcher:
 
 
 class Summary:
-    """
-    stores and computes summary statistics from features objects
-    """
+    """stores and computes summary statistics from features objects."""
 
     def __init__(self, trackingfeatures: Features) -> None:
         self.features = trackingfeatures
         self.data = dict()
         self.meta = dict()
         self.handle = trackingfeatures.handle
-        self.tags = trackingfeatures.tags
         if "usermeta" in trackingfeatures.meta:
             self.meta["usermeta"] = trackingfeatures.meta["usermeta"]
+
+    @property
+    def tags(self) -> dict:
+        """Tags delegate to the underlying Features (and transitively to Tracking)."""
+        return self.features.tags
+
+    @tags.setter
+    def tags(self, value: dict) -> None:
+        self.features.tags = value
 
     # Full round-trip persistence
     def save(
@@ -296,8 +305,8 @@ class Summary:
         target_value: str | float | int = None,
         threshold_op: Literal[">", ">=", "<=", "<", "==", "!="] = "==",
         nth_event: int = 1,
-        integration_window=1,
-    ):
+        integration_window: int = 1,
+    ) -> SummaryResult:
         """
         Compute the latency (in seconds) of the N-th onset event in a feature column.
 
@@ -310,35 +319,23 @@ class Summary:
         `target_value` using `threshold_op`. Optional temporal integration
         (boolean smoothing) can be applied prior to onset detection.
 
-        Parameters
-        ----------
-        column : str
-            Name of the column in `features.data` to analyze.
-        target_value : str | float | int | None, optional
-            Value to compare against for non-boolean columns.
-            Required unless the column is already boolean.
-        threshold_op : {">", ">=","<=", "<", "==", "!="}, default "=="
-            Comparison operator used to generate the boolean condition.
-            Only "==" and "!=" are valid for string-valued columns.
-        nth_event : int, default 1
-            Index of the onset event to return (1 = first, note).
-        integration_window : int, default 1 = no smoothing
-            Window size for boolean integration/smoothing prior to latency
-            extraction.
+        Args:
+            column: Name of the column in ``features.data`` to analyze.
+            target_value: Value to compare against for non-boolean columns.
+                Required unless the column is already boolean.
+            threshold_op: Comparison operator used to generate the boolean condition.
+                Only ``"=="`` and ``"!="`` are valid for string-valued columns.
+            nth_event: Index of the onset event to return (1 = first).
+            integration_window: Window size for boolean integration/smoothing
+                prior to latency extraction. Default 1 = no smoothing.
 
-        Returns
-        -------
-        SummaryResult
-            A SummaryResult whose value is the index of the selected onset
+        Returns:
+            A ``SummaryResult`` whose value is the index of the selected onset
             event, or NaN if the event does not exist.
 
-        Raises
-        ------
-        ValueError
-            If `column` is not found in `features.data`.
-        ValueError
-            Propagated from `latencies_from_series` if thresholding arguments
-            are invalid.
+        Raises:
+            ValueError: If ``column`` is not found in ``features.data``, or if
+                thresholding arguments are invalid.
 
         Examples
         --------
@@ -414,7 +411,6 @@ class Summary:
 
         ```
         """
-
         if column not in self.features.data.columns:
             raise ValueError(f"Column '{column}' not found in features.data")
 
@@ -452,7 +448,7 @@ class Summary:
     @by_state_ok
     def time_true(self, column: str) -> SummaryResult:
         """
-        returns time in seconds that condition in the given column is true
+        Returns time in seconds that condition in the given column is true.
 
         Examples
         --------
@@ -489,7 +485,7 @@ class Summary:
     @by_state_ok
     def time_false(self, column: str) -> SummaryResult:
         """
-        returns time in seconds that condition in the given column is false
+        Returns time in seconds that condition in the given column is false.
 
         Examples
         --------
@@ -528,7 +524,8 @@ class Summary:
         self, point: str, startframe: int | None = None, endframe: int | None = None
     ) -> SummaryResult:
         """
-        returns total distance traveled by a tracked point between optional start and end frames
+        Returns total distance traveled by a tracked point between optional start and end frames.
+
         Examples
         --------
         ```pycon
@@ -571,9 +568,7 @@ class Summary:
         return SummaryResult(value, self, name, meta, ylabel=ylabel)
 
     def _apply_column(self, column: str, func, **kwargs) -> SummaryResult:
-        """
-        Internal method to apply aggregation function to a column
-        """
+        """Internal method to apply aggregation function to a column."""
         if column not in self.features.data.columns:
             raise ValueError(f"Column '{column}' not found in features.data")
 
@@ -587,9 +582,7 @@ class Summary:
         raise TypeError("func must be callable.")
 
     def _infer_column_ylabel(self, column: str) -> str | None:
-        """
-        Infer a human-readable y-axis label from feature metadata.
-        """
+        """Infer a human-readable y-axis label from feature metadata."""
         feature_meta = self.features.meta.get(column)
         if not isinstance(feature_meta, dict):
             return None
@@ -617,17 +610,14 @@ class Summary:
         """
         Return a dynamic state-grouped dispatcher for Summary methods.
 
-        Parameters
-        ----------
-        column:
-            Name of the state column in ``features.data`` used to create per-state subsets.
-        all_states:
-            Optional explicit state list to define which states are evaluated and in what
-            output order. This list is inclusive: states not present in the data are still
-            evaluated on empty subsets and included in the output.
-        max_states:
-            Safety guard limiting the number of evaluated states. Raises ``ValueError`` if
-            the effective number of states exceeds this value.
+        Args:
+            column: Name of the state column in ``features.data`` used to create
+                per-state subsets.
+            all_states: Optional explicit state list defining which states are evaluated
+                and in what order. Inclusive: states absent from the data are still
+                evaluated on empty subsets and included in the output.
+            max_states: Safety guard limiting the number of evaluated states. Raises
+                ``ValueError`` if the effective number of states exceeds this value.
 
         Examples
         --------
@@ -797,7 +787,8 @@ class Summary:
 
     def store(self, summarystat: Any, name: str, overwrite: bool = False, meta: Any = None) -> None:
         """
-        stores a summary statistic and optional metadata, with optional overwrite protection
+        Stores a summary statistic and optional metadata, with optional overwrite protection.
+
         Examples
         --------
         ```pycon
@@ -862,8 +853,9 @@ class Summary:
 
     def make_bin(self, startframe: int, endframe: int) -> Summary:
         """
-        creates a copy of the Summary object with the dataframes
-        restricted from startframe to endframe, inclusive
+        Creates a copy of the Summary object with the dataframes
+        restricted from startframe to endframe, inclusive.
+
         Examples
         --------
         ```pycon
@@ -898,10 +890,11 @@ class Summary:
 
     def make_bins(self, numbins: int) -> list[Summary]:
         """
-        creates a list of Summary objects, with frames restricted into
+        Creates a list of Summary objects, with frames restricted into
         numbins even intervals.
         start/endpoints are duplicated between intervals to ensure no loss
-        in e.g. distance calculations
+        in e.g. distance calculations.
+
         Examples
         --------
         ```pycon
@@ -932,6 +925,7 @@ class Summary:
         """
         Returns a transition matrix for a given column in self.features.data,
         with rows and columns as the unique values of the column or as specified by all_states.
+
         Examples
         --------
         ```pycon
@@ -973,16 +967,14 @@ class Summary:
 
     def count_state_onsets(self, column: str, all_states: list | None = None) -> SummaryResult:
         """
-        counts the number of times a state is entered in a given column
+        Counts the number of times a state is entered in a given column.
 
-        Parameters
-        ----------
-        column:
-            Name of the state column in ``features.data``.
-        all_states:
-            Optional explicit state ordering to control index presence/order in the
-            returned Series. When provided, the output is reindexed to ``all_states``
-            and missing states are filled with ``0``.
+        Args:
+            column: Name of the state column in ``features.data``.
+            all_states: Optional explicit state ordering to control index presence/order
+                in the returned Series. When provided, the output is reindexed to
+                ``all_states`` and missing states are filled with ``0``.
+
         Examples
         --------
         ```pycon
@@ -1029,16 +1021,14 @@ class Summary:
 
     def time_in_state(self, column: str, all_states: list | None = None) -> SummaryResult:
         """
-        returns the time spent in each state in a given column
+        Returns the time spent in each state in a given column.
 
-        Parameters
-        ----------
-        column:
-            Name of the state column in ``features.data``.
-        all_states:
-            Optional explicit state ordering to control index presence/order in the
-            returned Series. When provided, the output is reindexed to ``all_states``
-            and missing states are filled with ``0``.
+        Args:
+            column: Name of the state column in ``features.data``.
+            all_states: Optional explicit state ordering to control index presence/order
+                in the returned Series. When provided, the output is reindexed to
+                ``all_states`` and missing states are filled with ``0``.
+
         Examples
         --------
         ```pycon
@@ -1094,28 +1084,29 @@ class Summary:
         cmap: str | list | None = None,
         show: bool = True,
         save_dir: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> Figure:
         """
-        Plot a simple chord diagram of state transitions for this recording.
+        Plot a chord diagram of state transition frequencies for this recording.
 
-        Parameters
-        ----------
-        column:
-            Name of the categorical column in `features.data` to compute transitions from.
-        all_states:
-            Optional explicit list/array of states to define row/column presence and order.
-            Required when `fromkey` is not provided.
-        fromkey:
-            Optional key in `summary.data` containing a precomputed transition DataFrame.
-            If provided, this is used directly instead of computing transitions from `column`.
-        kwargs:
-            Additional keyword arguments to pass to pycirclize.chordDiagram.
+        Transitions are computed from a categorical column in ``features.data``,
+        or supplied directly via a precomputed DataFrame stored in ``summary.data``.
+        Requires ``pycirclize`` (``pip install pycirclize``).
 
-        Returns
-        -------
-        fig_like:
-            Backend-dependent figure-like handle (from pycirclize).
+        Args:
+            column: Name of the categorical state column in ``features.data``.
+            all_states: Explicit state list defining arc presence and order.
+                Required when ``fromkey`` is not provided.
+            fromkey: Key in ``summary.data`` for a precomputed transition
+                DataFrame. If provided, used instead of computing from ``column``.
+            cmap: Colormap name or list of colors for the chord arcs.
+            show: If True, call ``plt.show()`` after rendering.
+            save_dir: If provided, save the figure as
+                ``<handle>_chord_<column>.png`` in this directory.
+            **kwargs: Additional keyword arguments forwarded to pycirclize.
+
+        Returns:
+            Matplotlib Figure.
 
         Examples
         --------
@@ -1322,29 +1313,29 @@ class Summary:
         return getattr(self._as_collection(), method_name)(metric, **kwargs)
 
     def snsstrip(self, metric, **kwargs):
-        """Strip plot -- see :meth:`SummaryCollection.snsstrip`."""
+        """Strip plot — see ``SummaryCollection.snsstrip``."""
         return self._delegate_plot("snsstrip", metric, **kwargs)
 
     def snsswarm(self, metric, **kwargs):
-        """Swarm plot -- see :meth:`SummaryCollection.snsswarm`."""
+        """Swarm plot — see ``SummaryCollection.snsswarm``."""
         return self._delegate_plot("snsswarm", metric, **kwargs)
 
     def snsbar(self, metric, **kwargs):
-        """Bar plot -- see :meth:`SummaryCollection.snsbar`."""
+        """Bar plot — see ``SummaryCollection.snsbar``."""
         return self._delegate_plot("snsbar", metric, **kwargs)
 
     def snsbox(self, metric, **kwargs):
-        """Box plot -- see :meth:`SummaryCollection.snsbox`."""
+        """Box plot — see ``SummaryCollection.snsbox``."""
         return self._delegate_plot("snsbox", metric, **kwargs)
 
     def snsviolin(self, metric, **kwargs):
-        """Violin plot -- see :meth:`SummaryCollection.snsviolin`."""
+        """Violin plot — see ``SummaryCollection.snsviolin``."""
         return self._delegate_plot("snsviolin", metric, **kwargs)
 
     def snspoint(self, metric, **kwargs):
-        """Point plot -- see :meth:`SummaryCollection.snspoint`."""
+        """Point plot — see ``SummaryCollection.snspoint``."""
         return self._delegate_plot("snspoint", metric, **kwargs)
 
     def snssuperplot(self, metric, **kwargs):
-        """Superplot -- see :meth:`SummaryCollection.snssuperplot`."""
+        """Superplot — see ``SummaryCollection.snssuperplot``."""
         return self._delegate_plot("snssuperplot", metric, **kwargs)

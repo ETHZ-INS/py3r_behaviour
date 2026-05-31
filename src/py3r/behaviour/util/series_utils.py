@@ -12,7 +12,7 @@ def mode(series: pd.Series):
 
 
 def rolling_apply(frame: pd.Series, window: int, func, center: bool = True) -> pd.Series:
-    """a custom rolling_apply that accepts non-numeric input"""
+    """A custom rolling_apply that accepts non-numeric input."""
     if center:
         index = frame.index[ceil(window / 2) - 1 : -floor(window / 2)]
         values = [func(frame.iloc[i : i + window]) for i in range(len(frame) - window + 1)]
@@ -24,8 +24,7 @@ def rolling_apply(frame: pd.Series, window: int, func, center: bool = True) -> p
 
 
 def gen_encoder_decoder(s: pd.Series):
-    """generates a numeric encoder/decoder pair for categorical non-numeric data"""
-
+    """Generates a numeric encoder/decoder pair for categorical non-numeric data."""
     labels = list(set(s))
     encoding = list(np.arange(len(labels)))
     encoder = dict(zip(labels, encoding, strict=True))
@@ -36,14 +35,13 @@ def gen_encoder_decoder(s: pd.Series):
 
 def smooth_block(s: pd.Series, window: int) -> pd.Series:
     """
-    deprecated: use block_filter and block_fill instead
+    deprecated: use block_filter and block_fill instead.
 
     drop labels that occur in blocks of less than window
     replace them with value from previous block in the series
     unless there is no previous block, in which case it fills
     from next block
     """
-
     warnings.warn(
         "smooth_block is deprecated, use block_filter and block_fill instead",
         DeprecationWarning,
@@ -166,12 +164,11 @@ def block_fill(
 
 def get_block(s: pd.Series, window: int) -> pd.Series:
     """
-    drop labels that occur in blocks of less than window
+    Drop labels that occur in blocks of less than window
     replace them with value from previous block in the series
     unless there is no previous block, in which case it fills
-    from next block
+    from next block.
     """
-
     encoder, decoder = gen_encoder_decoder(s)
 
     _ = pd.DataFrame()
@@ -187,11 +184,10 @@ def get_block(s: pd.Series, window: int) -> pd.Series:
 
 def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
     """
-    drop labels that occur in blocks where the second
-    series is equal to True and
-    replace them with value from previous block
-    """
+    Selectively remove blocks from the first series where second series True.
 
+    Values will be replaced with the value from the previous block.
+    """
     mask = s1.astype("Int64").to_numpy()
     diffs = np.diff(np.concatenate(([0], mask, [0])))
     starts = np.where(diffs == 1)[0]
@@ -215,6 +211,7 @@ def remove_block(s1: pd.Series, s2: pd.Series) -> pd.Series:
 def normalize_df(df: pd.DataFrame, z_score: bool = False) -> tuple[pd.DataFrame, dict]:
     """
     Normalize the columns of a DataFrame.
+
     If z_score is True, subtract mean and divide by std (z-score normalization).
     Returns the normalized DataFrame and a dict of the rescaling factors.
     If z_score is True, rescale_factors is {col: {'mean': mean, 'std': std}}.
@@ -235,6 +232,7 @@ def normalize_df(df: pd.DataFrame, z_score: bool = False) -> tuple[pd.DataFrame,
 def apply_normalization_to_df(df: pd.DataFrame, rescale_factors: dict) -> pd.DataFrame:
     """
     Apply normalization to a DataFrame using the provided rescale factors.
+
     Supports both std-only and mean+std (z-score) normalization.
     """
     normalized = df.copy()
@@ -374,10 +372,12 @@ def latencies_from_bool(ser: pd.Series) -> list[int]:
     Args:
         ser (pd.Series): a series of boolean type
 
-    Returns:
+    Returns
+    -------
         list[int]: a list of onset positions (integer indices)
 
-    Examples:
+    Examples
+    --------
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -410,12 +410,14 @@ def smooth_bool_series(ser: pd.Series, window: int = 1) -> pd.Series:
     Removes single-sample spikes and dropouts.
 
     Args:
-        ser (pd.Series): boolean time series
+        ser: Boolean time series.
+        window: Rolling window size for majority voting.
 
     Returns:
-        pd.Series: smoothed boolean series
+        Smoothed boolean series.
 
-    Examples:
+    Examples
+    --------
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -475,7 +477,8 @@ def latencies_from_series(
         If `threshold_op` is invalid, `target_value` is missing for a
         non-boolean series, or an invalid operator is used for string data.
 
-    Examples:
+    Examples
+    --------
     ```pycon
      >>> import pandas as pd
      >>> import pytest
@@ -508,7 +511,6 @@ def latencies_from_series(
 
      ```
     """
-
     ops = {
         ">": lambda s: s > target_value,
         "<": lambda s: s < target_value,

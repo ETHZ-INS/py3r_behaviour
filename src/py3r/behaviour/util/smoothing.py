@@ -92,7 +92,7 @@ def _smooth_series_savgol(
           'error'   -> raise if NaNs present (optional, conservative)
           'segment' -> smooth each contiguous finite segment independently,
                        leave short segments (< window) as-is; preserve NaNs
-                       elsewhere (default)
+                       elsewhere (default).
     """
     try:
         from scipy.signal import savgol_filter

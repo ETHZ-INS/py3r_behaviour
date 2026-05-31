@@ -1,9 +1,11 @@
 import types
+import warnings
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from py3r.behaviour.animation._projection import _clip_axis_to_canvas, _data_to_pixel_float
 from py3r.behaviour.animation.animation_stream import (
     _format_overlay_value,
     build_animation_stream,
@@ -443,3 +445,248 @@ def test_features_dynamic_boundary_style_na_behavior_matrix(
     assert frame0.shape == (48, 64, 3)
     frame1 = stream.get_frame(1)
     assert frame1.shape == (48, 64, 3)
+
+
+# ---------------------------------------------------------------------------
+# _clip_axis_to_canvas unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestClipAxisToCanvas:
+    """Unit tests for the canvas-edge clipping of an infinite axis."""
+
+    W, H = 64, 48
+
+    def test_horizontal_axis_clips_to_left_and_right_edges(self):
+        # Line through y=24, reference points outside canvas on both sides
+        p1, p2 = np.array([-10.0, 24.0]), np.array([90.0, 24.0])
+        result = _clip_axis_to_canvas(p1, p2, self.W, self.H)
+        assert result is not None
+        cp1, cp2 = result
+        assert cp1[1] == 24 and cp2[1] == 24
+        assert min(cp1[0], cp2[0]) == 0
+        assert max(cp1[0], cp2[0]) == self.W - 1
+
+    def test_vertical_axis_clips_to_top_and_bottom_edges(self):
+        p1, p2 = np.array([32.0, -10.0]), np.array([32.0, 58.0])
+        result = _clip_axis_to_canvas(p1, p2, self.W, self.H)
+        assert result is not None
+        cp1, cp2 = result
+        assert cp1[0] == 32 and cp2[0] == 32
+        assert min(cp1[1], cp2[1]) == 0
+        assert max(cp1[1], cp2[1]) == self.H - 1
+
+    def test_diagonal_spanning_canvas_corners(self):
+        p1, p2 = np.array([0.0, 0.0]), np.array([float(self.W - 1), float(self.H - 1)])
+        result = _clip_axis_to_canvas(p1, p2, self.W, self.H)
+        assert result is not None
+        pts = sorted([tuple(result[0]), tuple(result[1])])
+        assert pts[0] == (0, 0)
+        assert pts[1] == (self.W - 1, self.H - 1)
+
+    def test_axis_entirely_off_canvas_returns_none(self):
+        # Line from (-10, 60) to (20, 70): stays above (y > H−1) the canvas
+        p1, p2 = np.array([-10.0, 60.0]), np.array([20.0, 70.0])
+        result = _clip_axis_to_canvas(p1, p2, self.W, self.H)
+        assert result is None
+
+    def test_coincident_points_returns_none(self):
+        p = np.array([32.0, 24.0])
+        result = _clip_axis_to_canvas(p, p.copy(), self.W, self.H)
+        assert result is None
+
+    def test_reference_points_inside_canvas_still_works(self):
+        # Both reference points inside canvas: result should still be two canvas-edge points
+        p1, p2 = np.array([10.0, 24.0]), np.array([50.0, 24.0])
+        result = _clip_axis_to_canvas(p1, p2, self.W, self.H)
+        assert result is not None
+        cp1, cp2 = result
+        # Clipped endpoints should be on left and right edges for a horizontal axis
+        assert min(cp1[0], cp2[0]) == 0
+        assert max(cp1[0], cp2[0]) == self.W - 1
+
+
+# ---------------------------------------------------------------------------
+# _data_to_pixel_float unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestDataToPixelFloat:
+    def test_min_corner_maps_to_pixel_origin(self):
+        bounds = (0.0, 10.0, 0.0, 10.0)
+        pts = np.array([[0.0, 0.0]])
+        out = _data_to_pixel_float(pts, width=11, height=11, bounds=bounds, pixel_coords=False)
+        # x=0 → px=0; y=0 → py=height-1=10 (y-axis is flipped)
+        assert out[0, 0] == pytest.approx(0.0)
+        assert out[0, 1] == pytest.approx(10.0)
+
+    def test_max_corner_maps_to_pixel_max(self):
+        bounds = (0.0, 10.0, 0.0, 10.0)
+        pts = np.array([[10.0, 10.0]])
+        out = _data_to_pixel_float(pts, width=11, height=11, bounds=bounds, pixel_coords=False)
+        assert out[0, 0] == pytest.approx(10.0)
+        assert out[0, 1] == pytest.approx(0.0)
+
+    def test_pixel_coords_passthrough(self):
+        bounds = (0.0, 1.0, 0.0, 1.0)
+        pts = np.array([[15.7, 30.2]])
+        out = _data_to_pixel_float(pts, width=64, height=48, bounds=bounds, pixel_coords=True)
+        assert np.allclose(out, pts)
+
+    def test_out_of_bounds_values_preserved(self):
+        # Reference points well outside canvas range should keep their (large) pixel values
+        bounds = (0.0, 10.0, 0.0, 10.0)
+        pts = np.array([[-5.0, 15.0]])  # outside on both axes
+        out = _data_to_pixel_float(pts, width=64, height=48, bounds=bounds, pixel_coords=False)
+        # Should not be clipped; x should be negative, y should be negative
+        assert out[0, 0] < 0
+        assert out[0, 1] < 0
+
+
+# ---------------------------------------------------------------------------
+# Axis rendering via build_animation_stream
+# ---------------------------------------------------------------------------
+
+
+def _empty_points(n_frames: int) -> np.ndarray:
+    return np.empty((n_frames, 0, 2), dtype=float)
+
+
+def test_axis_array_renders_green_pixels_on_canvas():
+    # Horizontal axis through y=24 of a 64×48 canvas (pixel coords)
+    n = 3
+    axis_arr = np.tile(np.array([[[0.0, 24.0], [63.0, 24.0]]]), (n, 1, 1))
+    stream = build_animation_stream(
+        points=_empty_points(n),
+        point_names=[],
+        frame_ids=np.arange(n),
+        axis_arrays=[("midline", axis_arr)],
+        canvas_size=(64, 48),
+        pixel_coords=True,
+    )
+    frame = stream.get_frame(0)
+    assert frame.shape == (48, 64, 3)
+    # Default axis style is green (B=0, G=255, R=0 in BGR); row 24 should have green pixels
+    assert np.any(frame[24, :, 1] == 255)
+
+
+def test_axis_array_nan_reference_frame_renders_blank():
+    # Frame 0 has a NaN reference point; frame 1 is valid
+    axis_arr = np.array(
+        [
+            [[np.nan, 24.0], [63.0, 24.0]],  # invalid: NaN
+            [[0.0, 24.0], [63.0, 24.0]],  # valid
+        ],
+        dtype=float,
+    )
+    stream = build_animation_stream(
+        points=_empty_points(2),
+        point_names=[],
+        frame_ids=np.arange(2),
+        axis_arrays=[("midline", axis_arr)],
+        canvas_size=(64, 48),
+        pixel_coords=True,
+    )
+    frame0 = stream.get_frame(0)
+    frame1 = stream.get_frame(1)
+    assert np.all(frame0 == 0), "NaN frame should produce a blank canvas"
+    assert np.any(frame1 != 0), "Valid frame should have rendered pixels"
+
+
+def test_axis_reference_points_outside_canvas_still_renders():
+    # Vertical axis with reference points far above and below the canvas
+    n = 1
+    axis_arr = np.array([[[32.0, -1000.0], [32.0, 1000.0]]], dtype=float)
+    stream = build_animation_stream(
+        points=_empty_points(n),
+        point_names=[],
+        frame_ids=np.arange(n),
+        axis_arrays=[("vert", axis_arr)],
+        canvas_size=(64, 48),
+        pixel_coords=True,
+    )
+    frame = stream.get_frame(0)
+    # Column 32 should contain green pixels along its full height
+    assert np.any(frame[:, 32, 1] == 255)
+
+
+def test_axis_custom_style_applied():
+    n = 2
+    axis_arr = np.tile(np.array([[[0.0, 24.0], [63.0, 24.0]]]), (n, 1, 1))
+    stream = build_animation_stream(
+        points=_empty_points(n),
+        point_names=[],
+        frame_ids=np.arange(n),
+        axis_arrays=[("midline", axis_arr)],
+        canvas_size=(64, 48),
+        pixel_coords=True,
+        style={"axes": {"midline": {"edge_color": (255, 0, 0), "edge_width": 2}}},
+    )
+    frame = stream.get_frame(0)
+    # OpenCV uses BGR; (255, 0, 0) → blue (channel 0 = 255, channel 1 = 0)
+    assert np.any(frame[24, :, 0] == 255)
+    assert np.all(frame[24, frame[24, :, 0] == 255, 1] == 0)
+
+
+def test_axis_edge_width_zero_produces_blank_canvas():
+    n = 1
+    axis_arr = np.array([[[0.0, 24.0], [63.0, 24.0]]], dtype=float)
+    stream = build_animation_stream(
+        points=_empty_points(n),
+        point_names=[],
+        frame_ids=np.arange(n),
+        axis_arrays=[("midline", axis_arr)],
+        canvas_size=(64, 48),
+        pixel_coords=True,
+        style={"axes": {"midline": {"edge_width": 0}}},
+    )
+    frame = stream.get_frame(0)
+    assert np.all(frame == 0)
+
+
+def test_multiple_axis_arrays_all_rendered():
+    n = 1
+    h_axis = np.array([[[0.0, 16.0], [63.0, 16.0]]], dtype=float)
+    v_axis = np.array([[[32.0, 0.0], [32.0, 47.0]]], dtype=float)
+    stream = build_animation_stream(
+        points=_empty_points(n),
+        point_names=[],
+        frame_ids=np.arange(n),
+        axis_arrays=[("h", h_axis), ("v", v_axis)],
+        canvas_size=(64, 48),
+        pixel_coords=True,
+    )
+    frame = stream.get_frame(0)
+    # Row 16 should have green (horizontal axis)
+    assert np.any(frame[16, :, 1] == 255)
+    # Column 32 should have green (vertical axis)
+    assert np.any(frame[:, 32, 1] == 255)
+
+
+def test_features_animation_stream_axes_param():
+    """Features.animation_stream accepts axes= and renders the axis."""
+    df = pd.DataFrame(
+        {
+            "a.x": [0.0, 0.0, 0.0],
+            "a.y": [24.0, 24.0, 24.0],
+            "b.x": [63.0, 63.0, 63.0],
+            "b.y": [24.0, 24.0, 24.0],
+            "q.x": [32.0, 32.0, 32.0],
+            "q.y": [30.0, 30.0, 30.0],
+        },
+        index=pd.RangeIndex(3, name="frame"),
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        t = Tracking(df, {"fps": 30.0}, handle="demo")
+    f = Features(t)
+    f.define_static_axis("a", "b", name="midline")
+    stream = f.animation_stream(
+        points=[],
+        axes=["midline"],
+        canvas_size=(64, 48),
+        pixel_coords=True,
+    )
+    frame = stream.get_frame(0)
+    assert frame.shape == (48, 64, 3)
+    assert np.any(frame != 0)

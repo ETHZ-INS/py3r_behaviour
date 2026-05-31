@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 import logging
 import os
-import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Literal, Self
 
@@ -13,6 +12,8 @@ import shapely
 from shapely.geometry import Polygon
 from sklearn.neighbors import KNeighborsRegressor
 
+from py3r.behaviour.features.assets import _ASSET_KINDS, _LEGACY_ASSET_KINDS
+from py3r.behaviour.features.axis import DynamicAxis, StaticAxis
 from py3r.behaviour.features.boundary import DynamicBoundary, StaticBoundary
 from py3r.behaviour.features.features_result import FeaturesResult
 from py3r.behaviour.tracking.tracking import Tracking
@@ -23,7 +24,7 @@ from py3r.behaviour.util.bmicro_utils import (
     train_knn_from_embeddings,
 )
 from py3r.behaviour.util.collection_utils import _Indexer
-from py3r.behaviour.util.dataframe_utils import coarse_grain_dataframe
+from py3r.behaviour.util.dataframe_utils import coarse_grain_dataframe, point_to_axis_distance
 from py3r.behaviour.util.dev_utils import dev_mode
 from py3r.behaviour.util.io_utils import (
     SchemaVersion,
@@ -47,18 +48,85 @@ if TYPE_CHECKING:
 
     from py3r.behaviour.animation.animation_stream import AnimationStream
     from py3r.behaviour.classifier import BaseClassifier
+    from py3r.behaviour.features.centroids_df import CentroidsDf
     from py3r.behaviour.summary.summary import Summary
 
 logger = logging.getLogger(__name__)
-logformat = "%(funcName)s(): %(message)s"
-logging.basicConfig(stream=sys.stdout, format=logformat)
-logger.setLevel(logging.INFO)
+logger.addHandler(logging.NullHandler())
+
+
+def _axis_boundary_intersections(
+    A: np.ndarray,
+    B: np.ndarray,
+    verts: np.ndarray,
+    zones: set[str],
+    *,
+    eps: float = 1e-10,
+) -> np.ndarray:
+    """Per-frame boolean: does the axis intersect the boundary in any of the given zones?
+
+    Parameters
+    ----------
+    A, B : np.ndarray, shape (n, 2)
+        Axis reference points per frame.
+    verts : np.ndarray
+        Either shape ``(N_verts, 2)`` for a static boundary or
+        ``(n, N_verts, 2)`` for a dynamic boundary.
+    zones : set of {"front", "within", "behind"}
+        Which zones count as an intersection.  Zones are defined by the scalar
+        projection parameter *t* of the intersection point onto A→B:
+
+        - ``"behind"``: t ≤ 0  (at or before A)
+        - ``"within"``: 0 < t < 1  (strictly between A and B)
+        - ``"front"``:  t ≥ 1  (at or beyond B)
+    eps : float
+        Tolerance for near-parallel axis/edge pairs (treated as no intersection).
+
+    Returns
+    -------
+    np.ndarray of bool, shape (n,)
+    """
+    static_boundary = verts.ndim == 2
+    n_verts = verts.shape[0] if static_boundary else verts.shape[1]
+    d = B - A  # (n, 2)
+    result = np.zeros(len(A), dtype=bool)
+
+    for i in range(n_verts):
+        if static_boundary:
+            V0 = verts[i]
+            V1 = verts[(i + 1) % n_verts]
+            e = V1 - V0  # (2,)
+            f = V0 - A  # (n, 2)
+            det = d[:, 1] * e[0] - d[:, 0] * e[1]
+            t_num = e[0] * f[:, 1] - e[1] * f[:, 0]
+            s_num = d[:, 0] * f[:, 1] - d[:, 1] * f[:, 0]
+        else:
+            V0 = verts[:, i, :]
+            V1 = verts[:, (i + 1) % n_verts, :]
+            e = V1 - V0  # (n, 2)
+            f = V0 - A  # (n, 2)
+            det = d[:, 1] * e[:, 0] - d[:, 0] * e[:, 1]
+            t_num = e[:, 0] * f[:, 1] - e[:, 1] * f[:, 0]
+            s_num = d[:, 0] * f[:, 1] - d[:, 1] * f[:, 0]
+
+        nonzero = np.abs(det) > eps
+        with np.errstate(invalid="ignore", divide="ignore"):
+            t_val = np.where(nonzero, t_num / det, np.nan)
+            s_val = np.where(nonzero, s_num / det, np.nan)
+
+        on_edge = nonzero & (s_val >= 0.0) & (s_val <= 1.0)
+        if "behind" in zones:
+            result |= on_edge & (t_val <= 0.0)
+        if "within" in zones:
+            result |= on_edge & (t_val > 0.0) & (t_val < 1.0)
+        if "front" in zones:
+            result |= on_edge & (t_val >= 1.0)
+
+    return result
 
 
 class Features:
-    """
-    generates features from a pre-processed Tracking object
-    """
+    """generates features from a pre-processed Tracking object."""
 
     def __init__(self, tracking: Tracking) -> None:
         self.tracking = tracking
@@ -66,7 +134,6 @@ class Features:
         self.meta = dict()
         self._assets: dict[str, Any] = {}
         self.handle = tracking.handle
-        self.tags = tracking.tags
         if "usermeta" in tracking.meta:
             self.meta["usermeta"] = tracking.meta["usermeta"]
 
@@ -76,6 +143,19 @@ class Features:
                 "some methods will be unavailable",
                 stacklevel=2,
             )
+
+    @property
+    def tags(self) -> dict:
+        """Tags delegate to the underlying Tracking — single source of truth."""
+        return self.tracking.tags
+
+    @tags.setter
+    def tags(self, value: dict) -> None:
+        self.tracking.tags = value
+
+    def add_tag(self, tagname: str, tagvalue: str, overwrite: bool = False) -> None:
+        """Add or update a tag. Delegates to the underlying Tracking."""
+        self.tracking.add_tag(tagname, tagvalue, overwrite=overwrite)
 
     # Full round-trip persistence
     def save(
@@ -216,26 +296,19 @@ class Features:
         ``fps`` is divided by ``window`` to reflect the new effective frame rate.
         A ``"coarse_grain"`` entry is appended to ``meta["transforms"]``.
 
-        Parameters
-        ----------
-        window : int
-            Number of consecutive rows to collapse into one.
-        method : {"mean", "median", "min", "max"}, default "mean"
-            Aggregation applied to numeric feature columns within each window.
-        non_numeric : {"drop", "nan", "first", "mode", "error"}, default "drop"
-            How to handle non-numeric feature columns (e.g. string state
-            labels).  Pass ``"mode"`` to keep the most-frequent value per
-            window, which is appropriate for categorical columns.
-        keep_assets : bool, default True
-            If ``True``, assets (e.g. boundary objects) are deep-copied to the
-            result.  Set to ``False`` to avoid copying large assets when they
-            are not needed at the coarser scale.
+        Args:
+            window: Number of consecutive rows to collapse into one.
+            method: Aggregation applied to numeric feature columns within each window.
+            non_numeric: How to handle non-numeric feature columns (e.g. string state
+                labels). Pass ``"mode"`` to keep the most-frequent value per window,
+                which is appropriate for categorical columns.
+            keep_assets: If ``True``, assets (e.g. boundary objects) are deep-copied to
+                the result. Set to ``False`` to avoid copying large assets when they
+                are not needed at the coarser scale.
 
-        Returns
-        -------
-        Features
+        Returns:
             New ``Features`` (or subclass) object with ``len(data) // window``
-            rows and reduced fps.
+                rows and reduced fps.
 
         Examples
         --------
@@ -340,9 +413,7 @@ class Features:
 
         This is a convenience wrapper around `Summary(self)`.
 
-        Returns
-        -------
-        Summary
+        Returns:
             A new summary object linked to this features object.
 
         Examples
@@ -384,34 +455,24 @@ class Features:
         - Identical tracking column names
         - Identical feature column names
 
-        Parameters
-        ----------
-        features_list : list[Features]
-            List of Features objects to concatenate, in temporal order.
-        handle : str, optional
-            Handle for the concatenated object. If None, uses first object's handle.
-        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
-            How to handle frame indices:
-            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
-            - "follow_previous": Each chunk continues from where the previous
-              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
-            - "keep_original": Leave indices untouched; duplicates are allowed.
+        Args:
+            features_list: List of Features objects to concatenate, in temporal order.
+            handle: Handle for the concatenated object. If None, uses first object's handle.
+            reindex: How to handle frame indices. ``"rezero"`` reindexes all frames
+                starting from 0. ``"follow_previous"`` continues from where the previous
+                chunk ended. ``"keep_original"`` leaves indices untouched; duplicates
+                are allowed.
 
-        Returns
-        -------
-        Features
+        Returns:
             A new Features object containing all frames from input objects.
 
-        Raises
-        ------
-        ValueError
-            If features_list is empty, fps values don't match, or columns differ.
+        Raises:
+            ValueError: If features_list is empty, fps values don't match, or columns differ.
 
-        Notes
-        -----
-        For context-dependent features (normalization, embeddings with temporal
-        windows, etc.), consider whether you need to recompute features on
-        concatenated Tracking data rather than concatenating pre-computed features.
+        Note:
+            For context-dependent features (normalization, embeddings with temporal
+            windows, etc.), consider whether you need to recompute features on
+            concatenated Tracking data rather than concatenating pre-computed features.
 
         Examples
         --------
@@ -557,7 +618,7 @@ class Features:
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns distance from point1 to point2
+        Returns distance from point1 to point2.
 
         Examples
         --------
@@ -594,7 +655,7 @@ class Features:
         self, point1: str, point2: str, distance: float, dims=("x", "y")
     ) -> FeaturesResult:
         """
-        returns True for frames where point1 is within specified distance of point2
+        Returns True for frames where point1 is within specified distance of point2
         NA is propagated where inputs are missing (pd.NA).
 
         Examples
@@ -664,54 +725,91 @@ class Features:
         scaling_y: float = None,
         centre: str | list[str] = None,
     ) -> list[tuple[float, float]]:
-        """
-        Deprecated: use define_static_boundary or define_dynamic_boundary instead.
-        """
+        """Deprecated: use define_static_boundary or define_dynamic_boundary instead."""
         raise NotImplementedError(
             "Features.define_boundary() was removed; use Features.define_static_boundary() "
             "or Features.define_dynamic_boundary() instead."
         )
 
-    def _get_boundaries(self) -> dict[str, StaticBoundary | DynamicBoundary]:
-        boundaries = self._assets.get("boundaries")
-        if boundaries is None:
-            boundaries = {}
-            self._assets["boundaries"] = boundaries
-        return boundaries
+    # ------------------------------------------------------------------
+    # Generic asset registry (flat dict keyed by name)
+    # ------------------------------------------------------------------
 
     def _serialize_assets(self) -> dict:
-        boundaries = self._assets.get("boundaries", {})
-        payload = {"boundaries": {name: b.to_dict() for name, b in boundaries.items()}}
-        # keep room for future assets
-        return payload
+        return {name: asset.to_dict() for name, asset in self._assets.items()}
 
     def _deserialize_assets(self, payload: dict | None) -> dict[str, Any]:
         payload = payload or {}
-        boundaries_payload = payload.get("boundaries", {})
-        boundaries: dict[str, StaticBoundary | DynamicBoundary] = {}
-        for name, b in boundaries_payload.items():
-            kind = b.get("kind")
-            if kind == "static":
-                boundaries[name] = StaticBoundary.from_dict(b)
-            elif kind == "dynamic":
-                boundaries[name] = DynamicBoundary.from_dict(b)
-            else:
-                raise ValueError(f"Unknown boundary kind '{kind}' in saved assets.")
-        return {"boundaries": boundaries}
+        result: dict[str, Any] = {}
 
-    def _register_boundary(
-        self, boundary: StaticBoundary | DynamicBoundary, *, name: str | None, overwrite: bool
-    ) -> StaticBoundary | DynamicBoundary:
+        # Backward compatibility: files saved before the asset refactor stored
+        # boundaries under a nested "boundaries" key with kinds "static"/"dynamic".
+        for name, data in payload.get("boundaries", {}).items():
+            kind = data.get("kind")
+            cls = _ASSET_KINDS.get(kind) or _LEGACY_ASSET_KINDS.get(kind)
+            if cls is None:
+                raise ValueError(f"Unknown asset kind {kind!r} in saved assets.")
+            result[name] = cls.from_dict(data)
+
+        # Current flat format: each top-level key is an asset name.
+        for name, data in payload.items():
+            if name == "boundaries":
+                continue
+            kind = data.get("kind")
+            cls = _ASSET_KINDS.get(kind)
+            if cls is None:
+                raise ValueError(f"Unknown asset kind {kind!r} in saved assets.")
+            result[name] = cls.from_dict(data)
+
+        return result
+
+    def _register_asset(self, asset, *, name: str | None, overwrite: bool):
         if name is None:
-            return boundary
-        boundaries = self._get_boundaries()
-        if name in boundaries and not overwrite:
+            return asset
+        if name in self._assets and not overwrite:
             raise ValueError(
-                f"Boundary with name '{name}' already exists. Set overwrite=True to replace it."
+                f"Asset with name {name!r} already exists. Set overwrite=True to replace it."
             )
-        named = boundary.with_name(name)
-        boundaries[name] = named
+        named = asset.with_name(name)
+        self._assets[name] = named
         return named
+
+    def get_asset(self, name: str):
+        """Return a named geometric asset (boundary or line) by name.
+
+        Raises:
+            KeyError: If no asset with ``name`` is registered.
+        """
+        try:
+            return self._assets[name]
+        except KeyError:
+            available = list(self._assets)
+            raise KeyError(f"No asset {name!r} registered. Available: {available}") from None
+
+    def list_assets(self) -> pd.DataFrame:
+        """Return a table of all named geometric assets on this Features object.
+
+        Returns:
+            Indexed by asset name, columns: ``asset_type``, ``dims``, ``n_points``.
+        """
+        rows = []
+        for name, asset in self._assets.items():
+            n = (
+                len(asset.vertices)
+                if isinstance(asset, (StaticBoundary, StaticAxis))
+                else len(asset.points)
+            )
+            rows.append(
+                {
+                    "name": name,
+                    "asset_type": type(asset).__name__,
+                    "dims": asset.dims,
+                    "n_points": n,
+                }
+            )
+        if not rows:
+            return pd.DataFrame(columns=["asset_type", "dims", "n_points"])
+        return pd.DataFrame(rows).set_index("name")
 
     def _resolve_anchor(self, points: list[str], dims: tuple[str, str], anchor):
         if anchor is None:
@@ -775,7 +873,7 @@ class Features:
             scale_dim2=float(scale_dim2),
             name=name,
         )
-        return self._register_boundary(boundary, name=name, overwrite=overwrite)
+        return self._register_asset(boundary, name=name, overwrite=overwrite)
 
     def define_dynamic_boundary(
         self,
@@ -788,9 +886,7 @@ class Features:
         name: str | None = None,
         overwrite: bool = False,
     ) -> DynamicBoundary:
-        """
-        Define a dynamic boundary from ordered point names and optional scaling.
-        """
+        """Define a dynamic boundary from ordered point names and optional scaling."""
         if len(points) < 3:
             raise ValueError("Dynamic boundary requires at least 3 point names.")
         # validate anchor eagerly for clearer user feedback
@@ -803,7 +899,7 @@ class Features:
             scale_dim2=float(scale_dim2),
             name=name,
         )
-        return self._register_boundary(boundary, name=name, overwrite=overwrite)
+        return self._register_asset(boundary, name=name, overwrite=overwrite)
 
     def import_static_boundary(
         self,
@@ -813,55 +909,173 @@ class Features:
         name: str | None = None,
         overwrite: bool = False,
     ) -> StaticBoundary:
-        """
-        Escape hatch: import a precomputed static polygon in selected dims.
-        """
+        """Escape hatch: import a precomputed static polygon in selected dims."""
         if len(vertices) < 3:
             raise ValueError("Imported static boundary requires at least 3 vertices.")
         verts = tuple((float(x), float(y)) for x, y in vertices)
         boundary = StaticBoundary(vertices=verts, dims=(dims[0], dims[1]), name=name)
-        return self._register_boundary(boundary, name=name, overwrite=overwrite)
+        return self._register_asset(boundary, name=name, overwrite=overwrite)
+
+    # ------------------------------------------------------------------
+    # Axis asset factories
+    # ------------------------------------------------------------------
+
+    def define_static_axis(
+        self,
+        point1: str,
+        point2: str,
+        *,
+        dims: tuple[str, ...] = ("x", "y"),
+        offset: float = 0.0,
+        name: str | None = None,
+        overwrite: bool = False,
+    ) -> StaticAxis:
+        """Define a static axis from the medians of two keypoints.
+
+        The axis is fixed in space: median coordinates are computed once from
+        the full tracking session.  The offset is baked into the stored
+        reference points at definition time.  The axis is always treated as
+        infinite (no endpoints) in both distance computations and rendering.
+
+        Args:
+            point1: First keypoint defining the axis direction.
+            point2: Second keypoint defining the axis direction.
+            dims: Coordinate dimensions. Any number of dims is supported
+                (e.g. ``("x", "y", "z")`` for 3-D axis distance).
+            offset: Shift both reference points perpendicularly by this amount.
+                Positive is to the right when facing from ``point1`` to ``point2``.
+                Only supported for 2-D axes.
+            name: If given, register the axis under this name.
+            overwrite: Allow replacing an existing asset with the same name.
+        """
+        from py3r.behaviour.features.axis import _transform_axis_endpoints
+
+        medians = [self.get_point_median(p, dims=dims) for p in (point1, point2)]
+        A = np.array(medians[0], dtype=float)
+        B = np.array(medians[1], dtype=float)
+        A_t, B_t = _transform_axis_endpoints(A, B, offset=offset)
+        axis = StaticAxis(
+            vertices=(tuple(float(c) for c in A_t), tuple(float(c) for c in B_t)),
+            dims=tuple(dims),
+            source_points=(point1, point2),
+            name=name,
+        )
+        return self._register_asset(axis, name=name, overwrite=overwrite)
+
+    def define_dynamic_axis(
+        self,
+        point1: str,
+        point2: str,
+        *,
+        dims: tuple[str, ...] = ("x", "y"),
+        offset: float = 0.0,
+        name: str | None = None,
+        overwrite: bool = False,
+    ) -> DynamicAxis:
+        """Define a dynamic axis from two keypoint names.
+
+        Reference-point coordinates are resolved per frame at compute time,
+        with offset applied during each resolution.  The axis is always treated
+        as infinite in both distance computations and rendering.
+
+        Args:
+            point1: First keypoint defining the axis direction.
+            point2: Second keypoint defining the axis direction.
+            dims: Coordinate dimensions.
+            offset: Per-frame perpendicular displacement. Positive is to the right
+                when facing from ``point1`` to ``point2``. Only supported for 2-D axes.
+            name: If given, register the axis under this name.
+            overwrite: Allow replacing an existing asset with the same name.
+        """
+        self.tracking._assert_valid_point(point1)
+        self.tracking._assert_valid_point(point2)
+        axis = DynamicAxis(
+            points=(point1, point2),
+            dims=tuple(dims),
+            offset=offset,
+            name=name,
+        )
+        return self._register_asset(axis, name=name, overwrite=overwrite)
+
+    def import_static_axis(
+        self,
+        vertices: list[tuple[float, ...]],
+        *,
+        dims: tuple[str, ...] = ("x", "y"),
+        name: str | None = None,
+        overwrite: bool = False,
+    ) -> StaticAxis:
+        """Import a static axis from explicit reference-point coordinates.
+
+        Args:
+            vertices: Exactly two coordinate tuples in ``dims`` space.
+            dims: Coordinate dimensions.
+            name: If given, register the axis under this name.
+            overwrite: Allow replacing an existing asset with the same name.
+        """
+        if len(vertices) != 2:
+            raise ValueError(f"An axis requires exactly 2 reference points; got {len(vertices)}.")
+        verts = tuple(tuple(float(c) for c in v) for v in vertices)
+        axis = StaticAxis(vertices=verts, dims=tuple(dims), name=name)
+        return self._register_asset(axis, name=name, overwrite=overwrite)
 
     def get_boundary(self, name: str) -> StaticBoundary | DynamicBoundary:
-        """Draft accessor for named boundary assets."""
-        return self._get_boundaries()[name]
+        """Return a named boundary asset.
+
+        Raises ``KeyError`` if the name is not registered, ``TypeError`` if the
+        registered asset is not a boundary.
+        """
+        asset = self.get_asset(name)
+        if not isinstance(asset, (StaticBoundary, DynamicBoundary)):
+            raise TypeError(
+                f"Asset {name!r} is a {type(asset).__name__}, not a boundary. "
+                "Use get_asset() to retrieve non-boundary assets."
+            )
+        return asset
 
     def list_boundaries(self) -> pd.DataFrame:
-        """Return a compact table of named boundaries on this Features object."""
+        """Return a compact table of named boundary assets on this Features object."""
         rows = []
-        for name, boundary in self._get_boundaries().items():
-            if isinstance(boundary, StaticBoundary):
-                points_n = len(boundary.vertices)
-                kind = "static"
-                has_vertices = True
-            elif isinstance(boundary, DynamicBoundary):
-                points_n = len(boundary.points)
-                kind = "dynamic"
-                has_vertices = False
-            else:
-                raise TypeError(f"Unsupported boundary type in assets: {type(boundary).__name__}")
-            rows.append(
-                {
-                    "name": name,
-                    "kind": kind,
-                    "n_points": points_n,
-                    "has_vertices": has_vertices,
-                }
-            )
+        for name, asset in self._assets.items():
+            if isinstance(asset, StaticBoundary):
+                rows.append(
+                    {
+                        "name": name,
+                        "kind": "static",
+                        "n_points": len(asset.vertices),
+                        "has_vertices": True,
+                    }
+                )
+            elif isinstance(asset, DynamicBoundary):
+                rows.append(
+                    {
+                        "name": name,
+                        "kind": "dynamic",
+                        "n_points": len(asset.points),
+                        "has_vertices": False,
+                    }
+                )
         if not rows:
             return pd.DataFrame(columns=["kind", "n_points", "has_vertices"])
         return pd.DataFrame(rows).set_index("name")
 
     def _resolve_boundary_ref(self, boundary) -> StaticBoundary | DynamicBoundary:
-        resolved = self.get_boundary(boundary) if isinstance(boundary, str) else boundary
-        if isinstance(resolved, StaticBoundary):
-            return resolved
-        if isinstance(resolved, DynamicBoundary):
-            return resolved
-        raise TypeError(
-            "boundary must be a boundary name, StaticBoundary, or DynamicBoundary. "
-            f"Got {type(resolved).__name__}."
-        )
+        resolved = self.get_asset(boundary) if isinstance(boundary, str) else boundary
+        if not isinstance(resolved, (StaticBoundary, DynamicBoundary)):
+            raise TypeError(
+                "boundary must be a boundary name, StaticBoundary, or DynamicBoundary. "
+                f"Got {type(resolved).__name__}."
+            )
+        return resolved
+
+    def _resolve_axis_ref(self, axis) -> StaticAxis | DynamicAxis:
+        resolved = self.get_asset(axis) if isinstance(axis, str) else axis
+        if not isinstance(resolved, (StaticAxis, DynamicAxis)):
+            raise TypeError(
+                "axis must be an axis name, StaticAxis, or DynamicAxis. "
+                f"Got {type(resolved).__name__}."
+            )
+        return resolved
 
     @staticmethod
     def _is_legacy_point_name_list(boundary) -> bool:
@@ -937,29 +1151,19 @@ class Features:
         df = self.tracking.data
         px = df[point + "." + dims[0]].to_numpy(dtype=float)
         py = df[point + "." + dims[1]].to_numpy(dtype=float)
-        bx = np.column_stack([df[b + "." + dims[0]].to_numpy(dtype=float) for b in boundary_points])
-        by = np.column_stack([df[b + "." + dims[1]].to_numpy(dtype=float) for b in boundary_points])
+        boundary_obj = DynamicBoundary(
+            points=tuple(boundary_points),
+            dims=dims,
+            anchor_points=tuple(anchor_points) if anchor_points is not None else None,
+            scale_dim1=scale_dim1,
+            scale_dim2=scale_dim2,
+        )
+        verts = boundary_obj.to_numpy_per_frame(df)  # (n, N_verts, 2), scaling applied
 
-        if scale_dim1 != 1.0 or scale_dim2 != 1.0:
-            if anchor_points is None:
-                ax = np.nanmean(bx, axis=1)
-                ay = np.nanmean(by, axis=1)
-            else:
-                ax = np.column_stack(
-                    [df[a + "." + dims[0]].to_numpy(dtype=float) for a in anchor_points]
-                )
-                ay = np.column_stack(
-                    [df[a + "." + dims[1]].to_numpy(dtype=float) for a in anchor_points]
-                )
-                ax = np.nanmean(ax, axis=1)
-                ay = np.nanmean(ay, axis=1)
-            bx = ax[:, None] + (bx - ax[:, None]) * scale_dim1
-            by = ay[:, None] + (by - ay[:, None]) * scale_dim2
-
-        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(bx) | np.isnan(by), axis=1))
+        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(verts), axis=(1, 2)))
         result = pd.Series(pd.array([pd.NA] * len(df), dtype="boolean"), index=df.index)
         if valid.any():
-            coords = np.stack([bx[valid], by[valid]], axis=-1)
+            coords = verts[valid]
             polys = shapely.polygons(shapely.linearrings(coords))
             pts = shapely.points(px[valid], py[valid])
             result[valid] = shapely.contains(polys, pts)
@@ -1009,6 +1213,11 @@ class Features:
 
         ```
         """
+        if isinstance(boundary, (StaticAxis, DynamicAxis)):
+            raise TypeError(
+                "within_boundary does not accept axis assets. "
+                "Use distance_to_axis() for axis-based features."
+            )
         if isinstance(boundary, StaticBoundary):
             return self._within_boundary_static_impl(
                 point,
@@ -1042,11 +1251,20 @@ class Features:
         self,
         point: str,
         boundary: str | DynamicBoundary | StaticBoundary,
+        *,
+        signed: bool = False,
     ) -> FeaturesResult:
         """
         Main boundary distance API.
 
         Accepts a ``StaticBoundary`` or ``DynamicBoundary`` (or a stored boundary name).
+
+        Args:
+            point: Keypoint name whose coordinates are measured.
+            boundary: A ``StaticBoundary``, ``DynamicBoundary``, or the string name
+                of a stored boundary.
+            signed: If ``True``, distances are negated for points inside the boundary
+                (negative = inside, positive = outside, zero = on boundary).
 
         Examples
         --------
@@ -1065,9 +1283,17 @@ class Features:
         >>> d2 = f.distance_to_boundary('p1', 'tri')
         >>> bool(isinstance(d2, pd.Series))
         True
+        >>> ds = f.distance_to_boundary('p1', b, signed=True)
+        >>> bool((ds <= 0).any() or (ds >= 0).any())
+        True
 
         ```
         """
+        if isinstance(boundary, (StaticAxis, DynamicAxis)):
+            raise TypeError(
+                "distance_to_boundary does not accept axis assets. "
+                "Use distance_to_axis() for axis-based features."
+            )
         if isinstance(boundary, StaticBoundary):
             return self._distance_to_boundary_static_impl(
                 point,
@@ -1075,6 +1301,7 @@ class Features:
                 dims=boundary.dims,
                 boundary_label=boundary.name or self._short_boundary_id(list(boundary.vertices)),
                 boundary_meta=boundary.to_dict(),
+                signed=signed,
             )
         if isinstance(boundary, DynamicBoundary):
             return self._distance_to_boundary_dynamic_impl(
@@ -1088,10 +1315,11 @@ class Features:
                 else None,
                 boundary_label=boundary.name or self._short_boundary_id(list(boundary.points)),
                 boundary_meta=boundary.to_dict(),
+                signed=signed,
             )
         if isinstance(boundary, str):
             stored = self._resolve_boundary_ref(boundary)
-            return self.distance_to_boundary(point, stored)
+            return self.distance_to_boundary(point, stored, signed=signed)
         raise TypeError(
             "Unsupported boundary value. Expected StaticBoundary, DynamicBoundary, "
             "or stored boundary name."
@@ -1105,15 +1333,19 @@ class Features:
         dims: tuple[str, str],
         boundary_label: str,
         boundary_meta,
+        signed: bool = False,
     ) -> FeaturesResult:
         if len(boundary_vertices) < 3:
             raise Exception("boundary encloses no area")
         boundary_has_nan = any(pd.isna(bx) or pd.isna(by) for bx, by in boundary_vertices)
         name = f"distance_to_boundary_static_{point}_in_{boundary_label}"
+        if signed:
+            name += "_signed"
         meta = {
             "function": "distance_to_boundary",
             "point": point,
             "boundary": boundary_meta,
+            "signed": signed,
         }
 
         df = self.tracking.data
@@ -1124,11 +1356,14 @@ class Features:
         if boundary_has_nan:
             result = pd.Series(np.nan, index=df.index)
         else:
-            exterior = Polygon(boundary_vertices).exterior
+            poly = Polygon(boundary_vertices)
             result = pd.Series(np.nan, index=df.index)
             if valid.any():
                 pts = shapely.points(px[valid], py[valid])
-                result[valid] = shapely.distance(exterior, pts)
+                result[valid] = shapely.distance(poly.exterior, pts)
+                if signed:
+                    inside = shapely.within(pts, poly)
+                    result[valid] *= np.where(inside, -1.0, 1.0)
         return FeaturesResult(result, self, name, meta)
 
     def _distance_to_boundary_dynamic_impl(
@@ -1142,46 +1377,43 @@ class Features:
         anchor_points: list[str] | None,
         boundary_label: str,
         boundary_meta,
+        signed: bool = False,
     ) -> FeaturesResult:
         if len(boundary_points) < 3:
             raise Exception("boundary encloses no area")
         name = f"distance_to_boundary_dynamic_{point}_in_{boundary_label}"
+        if signed:
+            name += "_signed"
         meta = {
             "function": "distance_to_boundary",
             "point": point,
             "boundary": boundary_meta,
+            "signed": signed,
         }
 
         df = self.tracking.data
         px = df[point + "." + dims[0]].to_numpy(dtype=float)
         py = df[point + "." + dims[1]].to_numpy(dtype=float)
-        bx = np.column_stack([df[b + "." + dims[0]].to_numpy(dtype=float) for b in boundary_points])
-        by = np.column_stack([df[b + "." + dims[1]].to_numpy(dtype=float) for b in boundary_points])
+        boundary_obj = DynamicBoundary(
+            points=tuple(boundary_points),
+            dims=dims,
+            anchor_points=tuple(anchor_points) if anchor_points is not None else None,
+            scale_dim1=scale_dim1,
+            scale_dim2=scale_dim2,
+        )
+        verts = boundary_obj.to_numpy_per_frame(df)  # (n, N_verts, 2), scaling applied
 
-        if scale_dim1 != 1.0 or scale_dim2 != 1.0:
-            if anchor_points is None:
-                ax = np.nanmean(bx, axis=1)
-                ay = np.nanmean(by, axis=1)
-            else:
-                ax = np.column_stack(
-                    [df[a + "." + dims[0]].to_numpy(dtype=float) for a in anchor_points]
-                )
-                ay = np.column_stack(
-                    [df[a + "." + dims[1]].to_numpy(dtype=float) for a in anchor_points]
-                )
-                ax = np.nanmean(ax, axis=1)
-                ay = np.nanmean(ay, axis=1)
-            bx = ax[:, None] + (bx - ax[:, None]) * scale_dim1
-            by = ay[:, None] + (by - ay[:, None]) * scale_dim2
-
-        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(bx) | np.isnan(by), axis=1))
+        valid = ~(np.isnan(px) | np.isnan(py) | np.any(np.isnan(verts), axis=(1, 2)))
         result = pd.Series(np.nan, index=df.index)
         if valid.any():
-            coords = np.stack([bx[valid], by[valid]], axis=-1)
+            coords = verts[valid]
             polys = shapely.polygons(shapely.linearrings(coords))
             exteriors = shapely.get_exterior_ring(polys)
             pts = shapely.points(px[valid], py[valid])
             result[valid] = shapely.distance(exteriors, pts)
+            if signed:
+                inside = shapely.within(pts, polys)
+                result[valid] *= np.where(inside, -1.0, 1.0)
         return FeaturesResult(result, self, name, meta)
 
     def distance_to_boundary_static(
@@ -1201,6 +1433,238 @@ class Features:
             "Features.distance_to_boundary(point, boundary) with a DynamicBoundary "
             "or stored boundary name instead."
         )
+
+    def distance_to_axis(
+        self,
+        point: str,
+        axis: str | StaticAxis | DynamicAxis,
+        *,
+        signed: bool = False,
+    ) -> FeaturesResult:
+        """Framewise perpendicular distance from a keypoint to an infinite axis.
+
+        The axis is always treated as extending infinitely in both directions.
+        Use :meth:`define_static_axis`, :meth:`define_dynamic_axis`, or
+        :meth:`import_static_axis` to create axis assets.
+
+        Args:
+            point: Keypoint to measure from.
+            axis: A two-point axis asset, or the name of a registered one.
+            signed: If True, return a signed distance (2-D axes only). Positive means
+                the point is to the right when facing from the first to the second axis
+                reference point; negative means it is to the left. The sign convention
+                matches :meth:`define_static_axis` ``offset``: an ``offset > 0`` shifts
+                the axis rightward, so a point that was on the axis will have a negative
+                signed distance from the offset-shifted one. Raises ``ValueError`` for
+                non-2-D axes.
+
+        Returns:
+            Per-frame perpendicular distance series.
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> ax = f.define_dynamic_axis('p1', 'p2')
+        >>> res = f.distance_to_axis('p3', ax)
+        >>> isinstance(res, pd.Series) and len(res) == len(t.data)
+        True
+        >>> res_signed = f.distance_to_axis('p3', ax, signed=True)
+        >>> isinstance(res_signed, pd.Series) and len(res_signed) == len(t.data)
+        True
+
+        ```
+        """
+        resolved = self._resolve_axis_ref(axis)
+        dims = resolved.dims
+
+        if signed and len(dims) != 2:
+            raise ValueError(
+                f"signed=True requires a 2-D axis; axis {resolved.name!r} has dims {dims}."
+            )
+
+        if "rescale_distance_method" not in self.tracking.meta:
+            warnings.warn("distance has not been calibrated", stacklevel=2)
+        if "smoothing" not in self.tracking.meta:
+            warnings.warn("tracking data have not been smoothed", stacklevel=2)
+
+        df = self.tracking.data
+        n = len(df)
+        P = self.tracking.get_point_data(point, dims=list(dims)).to_numpy(dtype=float)
+
+        if isinstance(resolved, StaticAxis):
+            A = np.tile(np.array(resolved.vertices[0], dtype=float), (n, 1))
+            B = np.tile(np.array(resolved.vertices[1], dtype=float), (n, 1))
+        else:
+            arr = resolved.to_numpy_per_frame(df)  # (n, 2, d)
+            A = arr[:, 0, :]
+            B = arr[:, 1, :]
+
+        dist = point_to_axis_distance(P, A, B, signed=signed)
+        series = pd.Series(dist, index=df.index)
+
+        if resolved.name:
+            axis_label = resolved.name
+        elif isinstance(resolved, StaticAxis) and resolved.source_points:
+            axis_label = "_".join(resolved.source_points)
+        elif isinstance(resolved, DynamicAxis):
+            axis_label = "_".join(resolved.points)
+        else:
+            axis_label = "axis"
+
+        sign_suffix = "_signed" if signed else ""
+        name_str = f"distance_to_axis_{point}_from_{axis_label}_in_{''.join(dims)}{sign_suffix}"
+        meta = {
+            "function": "distance_to_axis",
+            "point": point,
+            "axis": resolved.to_dict(),
+            "signed": signed,
+        }
+        return FeaturesResult(series, self, name_str, meta)
+
+    def axis_intersects_boundary(
+        self,
+        axis: str | StaticAxis | DynamicAxis,
+        boundary: str | StaticBoundary | DynamicBoundary,
+        *,
+        dims: tuple[str, str] = ("x", "y"),
+        zones: Literal["front", "within", "behind"]
+        | set[Literal["front", "within", "behind"]]
+        | None = None,
+    ) -> FeaturesResult:
+        """Per-frame boolean: does the axis line cross the boundary polygon?
+
+        The axis is always treated as infinite.  Each intersection point is
+        classified by its scalar projection *t* onto the A→B segment:
+
+        - ``"behind"``: t ≤ 0  (at or before the first reference point)
+        - ``"within"``: 0 < t < 1  (strictly between the two reference points)
+        - ``"front"``:  t ≥ 1  (at or beyond the second reference point)
+
+        A frame is ``True`` when at least one intersection with the boundary
+        falls inside any of the requested ``zones``.  Frames where the axis is
+        degenerate (A == B) or any coordinate is NaN are returned as ``pd.NA``.
+
+        Args:
+            axis: Two-point axis asset, or the name of a registered one.
+            boundary: Polygon boundary asset, or the name of a registered one.
+            dims: The 2-D coordinate space for the intersection test. Both the axis
+                and the boundary must have exactly these dims.
+            zones: Which zones count as an intersection. A single zone name (e.g.
+                ``"front"``) or a set of names. Defaults to all three zones (any
+                intersection anywhere along the infinite axis).
+
+        Returns:
+            Boolean series (pandas nullable boolean dtype).
+
+        Examples
+        --------
+        ```pycon
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> import pandas as pd
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
+        >>> f = Features(t)
+        >>> ax = f.define_dynamic_axis('p1', 'p2')
+        >>> b = f.define_dynamic_boundary(['p1', 'p2', 'p3'], name='tri')
+        >>> res = f.axis_intersects_boundary(ax, b)
+        >>> bool(isinstance(res, pd.Series))
+        True
+
+        ```
+        """
+        _VALID_ZONES: set[str] = {"front", "within", "behind"}
+        if isinstance(zones, str):
+            zones = {zones}
+        if zones is None:
+            zones = _VALID_ZONES
+        else:
+            unknown = zones - _VALID_ZONES
+            if unknown:
+                raise ValueError(
+                    f"Unknown zone(s): {unknown!r}.  Valid zones are {_VALID_ZONES!r}."
+                )
+            if not zones:
+                raise ValueError("zones must not be empty.")
+
+        resolved_axis = self._resolve_axis_ref(axis)
+        resolved_boundary = self._resolve_boundary_ref(boundary)
+
+        if tuple(resolved_axis.dims) != tuple(dims):
+            raise ValueError(f"axis dims {resolved_axis.dims!r} do not match dims={dims!r}.")
+        if tuple(resolved_boundary.dims) != tuple(dims):
+            raise ValueError(
+                f"boundary dims {resolved_boundary.dims!r} do not match dims={dims!r}."
+            )
+
+        df = self.tracking.data
+        for d in dims:
+            if not any(col.endswith(f".{d}") for col in df.columns):
+                raise ValueError(f"Dimension {d!r} not found in tracking data columns.")
+        n = len(df)
+
+        # Build A and B per frame.
+        if isinstance(resolved_axis, StaticAxis):
+            A = np.tile(np.array(resolved_axis.vertices[0], dtype=float), (n, 1))
+            B = np.tile(np.array(resolved_axis.vertices[1], dtype=float), (n, 1))
+        else:
+            arr = resolved_axis.to_numpy_per_frame(df)  # (n, 2, 2)
+            A = arr[:, 0, :]
+            B = arr[:, 1, :]
+
+        # Build boundary vertices per frame (scaling applied inside to_numpy_per_frame).
+        if isinstance(resolved_boundary, StaticBoundary):
+            verts = np.array(resolved_boundary.vertices, dtype=float)  # (N_verts, 2)
+            boundary_valid = ~np.any(np.isnan(verts))  # scalar; all-or-nothing for static
+            boundary_valid = np.full(n, boundary_valid)
+        else:
+            verts = resolved_boundary.to_numpy_per_frame(df)  # (n, N_verts, 2)
+            boundary_valid = ~np.any(np.isnan(verts), axis=(1, 2))
+
+        axis_nan = np.any(np.isnan(A) | np.isnan(B), axis=1)
+        axis_degenerate = np.linalg.norm(B - A, axis=1) == 0.0
+        valid = ~axis_nan & ~axis_degenerate & boundary_valid
+
+        result = pd.Series(pd.array([pd.NA] * n, dtype="boolean"), index=df.index)
+        if valid.any():
+            v = verts if verts.ndim == 2 else verts[valid]
+            result[valid] = _axis_boundary_intersections(A[valid], B[valid], v, zones)
+
+        if resolved_axis.name:
+            axis_label = resolved_axis.name
+        elif isinstance(resolved_axis, StaticAxis) and resolved_axis.source_points:
+            axis_label = "_".join(resolved_axis.source_points)
+        elif isinstance(resolved_axis, DynamicAxis):
+            axis_label = "_".join(resolved_axis.points)
+        else:
+            axis_label = "axis"
+
+        boundary_label = resolved_boundary.name or self._short_boundary_id(
+            list(
+                resolved_boundary.vertices
+                if isinstance(resolved_boundary, StaticBoundary)
+                else resolved_boundary.points
+            )
+        )
+
+        zones_str = "_".join(sorted(zones))
+        name_str = f"axis_intersects_boundary_{axis_label}_{boundary_label}_{zones_str}"
+        meta = {
+            "function": "axis_intersects_boundary",
+            "axis": resolved_axis.to_dict(),
+            "boundary": resolved_boundary.to_dict(),
+            "dims": list(dims),
+            "zones": sorted(zones),
+        }
+        return FeaturesResult(result, self, name_str, meta)
 
     def area_of_boundary(
         self, boundary: str | StaticBoundary | DynamicBoundary, **kwargs
@@ -1258,35 +1722,9 @@ class Features:
             name = f"area_of_boundary_{boundary_label}_dynamic"
             meta = {"function": "area_of_boundary", "boundary": boundary.to_dict()}
             df = self.tracking.data
-            bx = np.column_stack(
-                [df[b + "." + boundary.dims[0]].to_numpy(dtype=float) for b in boundary.points]
-            )
-            by = np.column_stack(
-                [df[b + "." + boundary.dims[1]].to_numpy(dtype=float) for b in boundary.points]
-            )
-
-            if boundary.scale_dim1 != 1.0 or boundary.scale_dim2 != 1.0:
-                if boundary.anchor_points is None:
-                    ax = np.nanmean(bx, axis=1)
-                    ay = np.nanmean(by, axis=1)
-                else:
-                    ax = np.column_stack(
-                        [
-                            df[a + "." + boundary.dims[0]].to_numpy(dtype=float)
-                            for a in boundary.anchor_points
-                        ]
-                    )
-                    ay = np.column_stack(
-                        [
-                            df[a + "." + boundary.dims[1]].to_numpy(dtype=float)
-                            for a in boundary.anchor_points
-                        ]
-                    )
-                    ax = np.nanmean(ax, axis=1)
-                    ay = np.nanmean(ay, axis=1)
-                bx = ax[:, None] + (bx - ax[:, None]) * boundary.scale_dim1
-                by = ay[:, None] + (by - ay[:, None]) * boundary.scale_dim2
-
+            verts = boundary.to_numpy_per_frame(df)  # (n, N_verts, 2), scaling applied
+            bx = verts[:, :, 0]
+            by = verts[:, :, 1]
             bx_next = np.roll(bx, -1, axis=1)
             by_next = np.roll(by, -1, axis=1)
             result = pd.Series(
@@ -1313,12 +1751,9 @@ class Features:
         """
         Deprecated legacy area API.
 
-        Parameters
-        ----------
-        boundary
-            Ordered point names defining the polygon.
-        median
-            ``True`` for static-median area, ``False`` for per-frame dynamic area.
+        Args:
+            boundary: Ordered point names defining the polygon.
+            median: ``True`` for static-median area, ``False`` for per-frame dynamic area.
         """
         raise NotImplementedError(
             "Features.area_of_boundary_deprecated() was removed; use "
@@ -1327,7 +1762,7 @@ class Features:
 
     def acceleration(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns acceleration of point from previous frame to current frame, for each frame
+        Returns acceleration of point from previous frame to current frame, for each frame.
 
         Examples
         --------
@@ -1355,8 +1790,8 @@ class Features:
 
     def azimuth(self, point1: str, point2: str) -> FeaturesResult:
         """
-        returns azimuth in radians from tracked point1 to tracked point2
-        for each frame in the data, relative to the direction of the x-axis
+        Returns azimuth in radians from tracked point1 to tracked point2
+        for each frame in the data, relative to the direction of the x-axis.
 
         Examples
         --------
@@ -1470,7 +1905,7 @@ class Features:
 
     def speed(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns average speed of point from previous frame to current frame, for each frame
+        Returns average speed of point from previous frame to current frame, for each frame.
 
         Examples
         --------
@@ -1676,18 +2111,13 @@ class Features:
         """
         Compose a categorical state series from labeled boolean sources.
 
-        Parameters
-        ----------
-        sources:
-            Mapping ``{state_label: source}``, where source is either:
-            - a column name in ``self.data`` containing a boolean series, or
-            - a boolean pandas Series aligned/reindexable to ``self.data.index`` (e.g.
-            a ``FeaturesResult``)
-        priority:
-            Optional label precedence when multiple sources are True in the same
-            frame. Labels not listed are appended in insertion order.
-        none_label:
-            Label used when no source is True at a frame.
+        Args:
+            sources: Mapping ``{state_label: source}``, where source is either a column
+                name in ``self.data`` containing a boolean series, or a boolean pandas
+                Series aligned/reindexable to ``self.data.index`` (e.g. a ``FeaturesResult``).
+            priority: Optional label precedence when multiple sources are True in the same
+                frame. Labels not listed are appended in insertion order.
+            none_label: Label used when no source is True at a frame.
 
         Examples
         --------
@@ -1815,19 +2245,31 @@ class Features:
         method: str,
         window: int,
         inplace: bool = False,
-        **method_kwargs,
+        **method_kwargs: Any,
     ) -> pd.Series:
         """
-        Smooth feature with method over rolling window. If inplace=True, feature and
-        metadata are updated in place.
-        method:
-            'median' : median in window (numerical)
-            'mean' : mean in window (numerical)
-            'savgol' : Savitzky–Golay (SciPy). Kwargs e.g. polyorder=3, mode='interp'.
-            'mode' : mode in window (numerical or non-numerical)
-            'block' : applies categorical series_utils.block_filter then series_utils.block_fill
-                      using window for both min_block and max_gap. Legacy smooth_block behavior is
-                      removed from this method; use series_utils.smooth_block directly if required.
+        Smooth a stored feature by name over a rolling window.
+
+        Args:
+            name: Name of the feature column in ``self.data`` to smooth.
+            method: Smoothing method. One of:
+
+                * ``'median'`` — rolling median (numerical).
+                * ``'mean'`` — rolling mean (numerical).
+                * ``'savgol'`` — Savitzky–Golay filter (SciPy). Extra kwargs e.g.
+                  ``polyorder=3``, ``mode='interp'``.
+                * ``'mode'`` — rolling mode (numerical or categorical).
+                * ``'block'`` — applies ``block_filter`` then ``block_fill`` using
+                  ``window`` for both ``min_block`` and ``max_gap``. Legacy
+                  ``smooth_block`` behavior is available via
+                  ``series_utils.smooth_block`` directly.
+
+            window: Rolling window size.
+            inplace: If True, overwrite the stored feature and update its metadata.
+            **method_kwargs: Extra keyword arguments forwarded to the smoothing method.
+
+        Returns:
+            Smoothed series.
         """
         if "smoothing" in self.meta[name].keys():
             raise Exception("feature already smoothed")
@@ -1879,22 +2321,18 @@ class Features:
 
         return smoothed
 
-    def embedding_df(self, embedding: dict[str, list[int]]):
+    def embedding_df(self, embedding: dict[str, list[int]]) -> pd.DataFrame:
         """
         Generate a time-series embedding DataFrame with per-column time shifts.
 
-        Parameters
-        ----------
-        embedding : dict[str, list[int]]
-            Mapping of feature column name to a list of integer time shifts.
-            Positive shift pulls the value from the future (t+n); negative
-            shift pulls from the past (t-n); zero is the current frame.
+        Args:
+            embedding: Mapping of feature column name to a list of integer time shifts.
+                Positive shift pulls the value from the future (t+n); negative shift
+                pulls from the past (t-n); zero is the current frame.
 
-        Returns
-        -------
-        pd.DataFrame
+        Returns:
             One column per (feature, shift) pair, named ``<col>_t0``,
-            ``<col>_t+n``, or ``<col>_t-n``.
+                ``<col>_t+n``, or ``<col>_t-n``.
 
         Examples
         --------
@@ -1930,76 +2368,17 @@ class Features:
         embed_df = pd.DataFrame(data, index=self.data.index)
         return embed_df
 
-    def cluster_embedding(
-        self,
-        embedding_dict: dict[str, list[int]],
-        n_clusters: int,
-        random_state: int = 0,
-        *,
-        normalize: bool = False,
-        feature_weights: dict[str, float] | None = None,
-        lowmem: bool = False,
-        decimation_factor: int = 10,
-        missing_policy: Literal["drop", "impute_weight"] = "drop",
-        # Removed legacy params; retained for explicit migration errors.
-        auto_normalize: bool = False,
-        rescale_factors: dict | None = None,
-        custom_scaling: dict[str, dict] | None = None,
-    ):
-        """
-        Perform k-means clustering on a single Features object.
-
-        Delegates to ``FeaturesCollection.cluster_embedding``.
-        See that method for full parameter documentation.
-
-        Returns
-        -------
-        (FeaturesResult, centroids DataFrame, scaling_factors or None)
-
-        Examples
-        --------
-        ```pycon
-        >>> import pandas as pd
-        >>> from py3r.behaviour.util.docdata import data_path
-        >>> from py3r.behaviour.tracking.tracking import Tracking
-        >>> from py3r.behaviour.features.features import Features
-        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-        ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
-        >>> f = Features(t)
-        >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
-        >>> result, centroids, norm = f.cluster_embedding({'counter': [0]}, n_clusters=2)
-        >>> isinstance(centroids, pd.DataFrame)
-        True
-        >>> len(result) == len(f.data)
-        True
-
-        ```
-        """
-        if auto_normalize:
-            raise NotImplementedError("auto_normalize was removed; use normalize=True instead.")
-        if rescale_factors is not None:
-            raise NotImplementedError(
-                "rescale_factors was removed; use normalize and/or feature_weights instead."
-            )
-        if custom_scaling is not None:
-            raise NotImplementedError("custom_scaling was removed; use feature_weights instead.")
-        from py3r.behaviour.features.features_collection import FeaturesCollection
-
-        fc = FeaturesCollection.from_list([self])
-        batch, centroids, norm = fc.cluster_embedding(
-            embedding_dict,
-            n_clusters,
-            random_state,
-            normalize=normalize,
-            feature_weights=feature_weights,
-            lowmem=lowmem,
-            decimation_factor=decimation_factor,
-            missing_policy=missing_policy,
-            auto_normalize=auto_normalize,
-            rescale_factors=rescale_factors,
-            custom_scaling=custom_scaling,
+    def cluster_embedding(self, *args, **kwargs):
+        """Removed in py3r.behaviour 3.3.0. Use :meth:`cluster_embedding_stream` instead."""
+        raise NotImplementedError(
+            "cluster_embedding() was removed in py3r.behaviour 3.3.0.  "
+            "Use cluster_embedding_stream() instead.\n"
+            "Note: cluster_embedding_stream uses MiniBatchKMeans (stochastic updates) "
+            "rather than the full-batch KMeans of the old method — results will not be "
+            "bit-for-bit identical.  For well-separated data the partition will match; "
+            "increase n_epochs and batch_size to improve convergence for harder cases.  "
+            "To reproduce results from py3r ≤ 3.2.1 exactly, pin to that version."
         )
-        return batch[self.handle], centroids, norm
 
     def cluster_embedding_stream(
         self,
@@ -2008,21 +2387,21 @@ class Features:
         random_state: int = 0,
         *,
         normalize: bool = False,
+        normalize_details: dict[str, Literal["individual", "global", "none"]] | None = None,
         feature_weights: dict[str, float] | None = None,
         missing_policy: Literal["drop", "impute_weight"] = "drop",
         chunk_size: int = 10_000,
         n_epochs: int = 3,
         batch_size: int = 1024,
-    ):
+    ) -> tuple[FeaturesResult, CentroidsDf]:
         """
         Memory-friendly clustering on a single Features object.
 
         Delegates to ``FeaturesCollection.cluster_embedding_stream``.
         See that method for full parameter documentation.
 
-        Returns
-        -------
-        (FeaturesResult, centroids DataFrame, scaling_factors or None)
+        Returns:
+            Tuple of ``(FeaturesResult, CentroidsDf)``.
 
         Examples
         --------
@@ -2035,9 +2414,9 @@ class Features:
         ...     t = Tracking.from_dlc(str(p), handle='ex', fps=30)
         >>> f = Features(t)
         >>> f.store(pd.Series(range(len(t.data)), index=t.data.index), 'counter')
-        >>> result, centroids, norm = f.cluster_embedding_stream(
+        >>> result, centroids = f.cluster_embedding_stream(
         ...     {'counter': [0]}, n_clusters=2)
-        >>> isinstance(centroids, pd.DataFrame)
+        >>> hasattr(centroids, 'columns')
         True
         >>> len(result) == len(f.data)
         True
@@ -2047,26 +2426,28 @@ class Features:
         from py3r.behaviour.features.features_collection import FeaturesCollection
 
         fc = FeaturesCollection.from_list([self])
-        batch, centroids, scaling = fc.cluster_embedding_stream(
+        batch, centroids = fc.cluster_embedding_stream(
             embedding_dict,
             n_clusters,
             random_state,
             normalize=normalize,
+            normalize_details=normalize_details,
             feature_weights=feature_weights,
             missing_policy=missing_policy,
             chunk_size=chunk_size,
             n_epochs=n_epochs,
             batch_size=batch_size,
         )
-        return batch[self.handle], centroids, scaling
+        return batch[self.handle], centroids
 
     def assign_clusters_by_centroids(
         self,
-        embedding: dict[str, list[int]],
-        centroids_df: pd.DataFrame,
+        centroids_df: CentroidsDf | pd.DataFrame,
+        embedding: dict[str, list[int]] | None = None,
         *,
+        allow_missing_features: Literal["self", "centroids", "both"] | None = None,
         scaling_factors: dict[str, float] | None = None,
-        impute_medians: pd.Series | None = None,
+        impute_means: pd.Series | None = None,
         # Removed legacy params; retained for explicit migration errors.
         rescale_factors: dict | None = None,
         custom_scaling: dict[str, dict] | None = None,
@@ -2074,21 +2455,52 @@ class Features:
         """
         Assign cluster labels to this Features object using pre-fitted centroids.
 
-        Parameters
-        ----------
-        embedding : dict[str, list[int]]
-            Same embedding dict used during fitting.
-        centroids_df : pd.DataFrame
-            (n_clusters, n_features) DataFrame of cluster centres.
-        scaling_factors : dict[str, float] | None
-            Per-embedding-column multipliers (the "dumb" scalars returned by
-            ``cluster_embedding_stream``).  Each raw embedding column is
-            multiplied by the corresponding value before distance computation.
-        impute_medians : pd.Series | None
-            Per-column fill values for NaN imputation (from training).
-        Returns
-        -------
-        FeaturesResult
+        Args:
+            centroids_df: Cluster centres. Passing a
+                :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` (the
+                object returned by ``cluster_embedding*``) is preferred: the method
+                will automatically apply the stored ``scaling_recipe``, including any
+                per-recording individual normalisation, and infer the *embedding*
+                from the recipe so it need not be passed separately.
+
+                If a plain ``pd.DataFrame`` is passed, *embedding* and optionally
+                *scaling_factors* must be provided (legacy path).
+            embedding: The embedding dict used during fitting. Required when *centroids_df*
+                is a plain ``pd.DataFrame``; inferred from the recipe when
+                *centroids_df* is a :class:`CentroidsDf`.
+            allow_missing_features: Controls whether cluster assignment is permitted when
+                the full embedding space is not available, by projecting into a shared
+                subspace of the columns that *both* sides can provide.
+
+                * ``"self"`` – tolerate base features missing from *this* object
+                  (e.g. a missing animal in a multi-animal recording). *centroids_df*
+                  is expected to cover the full training embedding; only the columns
+                  ``self`` can actually produce are used.
+                * ``"centroids"`` – tolerate the centroids having fewer columns
+                  than the full embedding ``self`` would generate (e.g. centroids
+                  fitted on a reduced feature set). *self* must still carry all
+                  requested base features; only the centroid columns are used.
+                * ``"both"`` – tolerate gaps on either side; the strict intersection
+                  of what ``self`` can produce and what the centroids contain is used.
+
+                In all three cases a :class:`UserWarning` is issued that identifies
+                which columns were dropped and from which side, so the caller can
+                verify the subspace is sensible. A :exc:`ValueError` is raised when
+                no columns remain after intersection regardless of the chosen mode.
+
+                ``None`` (default) raises if the column sets do not match exactly.
+            scaling_factors: Per-embedding-column constant multipliers. Applied only
+                when *centroids_df* is a plain DataFrame (legacy path).
+            impute_means: Per-column fill values (training-set column means) for NaN
+                imputation. When *centroids_df* is a :class:`CentroidsDf` this is
+                read automatically from the ``scaling_recipe``; pass explicitly only
+                to override.
+            rescale_factors: Removed. Raises ``NotImplementedError``; pass
+                ``scaling_factors`` instead.
+            custom_scaling: Removed. Raises ``NotImplementedError``; use
+                ``build_column_weights()`` and pass ``scaling_factors`` instead.
+
+        Returns:
             Series of cluster IDs (0 .. n_clusters-1).
 
         Examples
@@ -2107,13 +2519,17 @@ class Features:
         >>> df = f.embedding_df(emb)
         >>> # make 2 simple centroids matching columns
         >>> cents = pd.DataFrame([[0, 0], [1, 1]], columns=df.columns)
-        >>> labels = f.assign_clusters_by_centroids(emb, cents)
+        >>> labels = f.assign_clusters_by_centroids(cents, emb)
         >>> isinstance(labels, pd.Series) and len(labels) == len(t.data)
         True
 
         ```
         """
+        import warnings
+
         from sklearn.metrics.pairwise import pairwise_distances_argmin
+
+        from py3r.behaviour.features.centroids_df import CentroidsDf
 
         if rescale_factors is not None:
             raise NotImplementedError("rescale_factors was removed; pass scaling_factors instead.")
@@ -2123,32 +2539,200 @@ class Features:
                 "and pass scaling_factors instead."
             )
 
+        # Detect legacy argument order: assign_clusters_by_centroids(embedding, centroids_df).
+        # A dict can only be the embedding; a DataFrame/CentroidsDf can only be centroids.
+        if isinstance(centroids_df, dict):
+            warnings.warn(
+                "The argument order for assign_clusters_by_centroids has changed: "
+                "pass centroids first, then (optionally) embedding. "
+                "Old: feat.assign_clusters_by_centroids(embedding, centroids_df) — "
+                "New: feat.assign_clusters_by_centroids(centroids_df, embedding)",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            centroids_df, embedding = embedding, centroids_df
+
+        # Unwrap CentroidsDf and extract scaling recipe.
+        scaling_recipe: dict | None = None
+        underlying_df: pd.DataFrame
+        if isinstance(centroids_df, CentroidsDf):
+            scaling_recipe = centroids_df.scaling_recipe
+            underlying_df = centroids_df.df
+            recipe_embedding = scaling_recipe.get("embedding_dict")
+            if embedding is not None and recipe_embedding is not None:
+                if embedding != recipe_embedding:
+                    raise ValueError(
+                        "The provided embedding dict does not match the one stored in the "
+                        "CentroidsDf scaling recipe. Pass centroids only (without embedding) "
+                        "to use the recipe's embedding, or ensure the dicts match."
+                    )
+                warnings.warn(
+                    "The embedding dict is already stored in the CentroidsDf scaling recipe "
+                    "and will be used automatically; passing it explicitly is redundant.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            if embedding is None:
+                embedding = recipe_embedding
+        else:
+            underlying_df = centroids_df
+
+        if embedding is None:
+            raise ValueError("embedding is required when centroids_df is a plain DataFrame")
+
+        # When self is allowed to have missing base features, pre-filter the
+        # embedding dict so that embedding_df() does not raise.
+        if allow_missing_features in ("self", "both"):
+            missing_bases = [k for k in embedding if k not in self.data.columns]
+            if missing_bases:
+                warnings.warn(
+                    f"allow_missing_features={allow_missing_features!r}: the following base "
+                    f"feature(s) are absent from self and their embedding columns will be "
+                    f"excluded from the subspace assignment: {missing_bases}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                embedding = {k: v for k, v in embedding.items() if k not in missing_bases}
+
         embed_df = self.embedding_df(embedding)
 
-        if scaling_factors is not None:
+        if scaling_recipe is not None:
+            # Recipe path (authoritative): apply individual norm then constant factors.
+            cols_expected = scaling_recipe.get("columns")
+            if cols_expected is not None and list(embed_df.columns) != list(cols_expected):
+                if allow_missing_features is None:
+                    raise ValueError(
+                        "Embedding columns do not match centroids scaling recipe columns"
+                    )
+                # With allow_missing_features the column sets will be reconciled below.
+            embed_df = embed_df.copy()
+            for base, do_individual in (
+                scaling_recipe.get("normalize_individual_base") or {}
+            ).items():
+                if not do_individual:
+                    continue
+                if base not in self.data.columns:
+                    if allow_missing_features in ("self", "both"):
+                        # Already warned above when filtering the embedding; just skip.
+                        continue
+                    raise ValueError(f"Base feature '{base}' missing for individual normalization")
+                vals = self.data[base].to_numpy(dtype=np.float64)
+                finite = vals[np.isfinite(vals)]
+                std = float(np.std(finite)) if finite.size > 0 else 1.0
+                std = std if std > 0 else 1.0
+                base_cols = [c for c in embed_df.columns if c.startswith(base + "_t")]
+                if not base_cols:
+                    raise ValueError(f"No embedding columns found for base feature '{base}'")
+                embed_df.loc[:, base_cols] = embed_df[base_cols] / std
+            constant = scaling_recipe.get("constant_factors") or {}
+            if constant:
+                # Only scale columns present in embed_df; extra recipe keys are ignored
+                # (they would otherwise inject NaN columns via DataFrame * Series alignment).
+                constant_aligned = {k: v for k, v in constant.items() if k in embed_df.columns}
+                if constant_aligned:
+                    embed_df = embed_df * pd.Series(constant_aligned)
+            # Read impute_means from recipe unless the caller already provided one.
+            # Backward-compat: old recipes used the key "impute_medians".
+            recipe_impute = scaling_recipe.get("impute_means") or scaling_recipe.get(
+                "impute_medians"
+            )
+            if impute_means is not None and recipe_impute is not None:
+                warnings.warn(
+                    "impute_means is already stored in the CentroidsDf scaling recipe "
+                    "and would be used automatically; passing it explicitly overrides the "
+                    "recipe values.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif impute_means is None and recipe_impute is not None:
+                impute_means = pd.Series(recipe_impute)
+            applied_meta: dict = {"scaling_recipe": scaling_recipe}
+        elif scaling_factors is not None:
+            # Legacy path: plain constant multipliers.
             embed_df = embed_df * pd.Series(scaling_factors)
+            applied_meta = {"scaling_factors": scaling_factors}
+        else:
+            applied_meta = {}
 
-        if not embed_df.columns.equals(centroids_df.columns):
-            raise ValueError("Columns in embedding and centroids do not match")
+        if allow_missing_features is not None:
+            # Reconcile columns: work in the intersection of what self produced
+            # and what the centroids contain, with side-specific diagnostics.
+            self_cols = set(embed_df.columns)
+            centroid_cols = set(underlying_df.columns)
 
-        if impute_medians is not None:
-            embed_df, _ = impute_frame(embed_df, impute_medians)
+            only_in_self = sorted(self_cols - centroid_cols)
+            only_in_centroids = sorted(centroid_cols - self_cols)
+
+            # only_in_self: self produced columns the centroids don't have
+            #   → centroids are "missing" those → tolerated by "centroids" / "both"
+            if only_in_self and allow_missing_features in ("centroids", "both"):
+                warnings.warn(
+                    f"allow_missing_features={allow_missing_features!r}: {len(only_in_self)} "
+                    f"embedding column(s) produced by self have no counterpart in the centroids "
+                    f"and will be dropped: {only_in_self}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif only_in_self:
+                raise ValueError(
+                    f"Columns present in the self embedding but absent from the centroids "
+                    f"(pass allow_missing_features='centroids' or 'both' to allow this): "
+                    f"{only_in_self}"
+                )
+
+            # only_in_centroids: centroids have columns self couldn't produce
+            #   → self is "missing" those base features → tolerated by "self" / "both"
+            if only_in_centroids and allow_missing_features in ("self", "both"):
+                warnings.warn(
+                    f"allow_missing_features={allow_missing_features!r}: {len(only_in_centroids)} "
+                    f"centroid column(s) have no counterpart in the self embedding "
+                    f"and will be dropped: {only_in_centroids}",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            elif only_in_centroids:
+                raise ValueError(
+                    f"Columns present in the centroids but absent from the self embedding "
+                    f"(pass allow_missing_features='self' or 'both' to allow this): "
+                    f"{only_in_centroids}"
+                )
+
+            # Preserve embed_df column order for the shared subspace.
+            shared_cols = [c for c in embed_df.columns if c in centroid_cols]
+            if not shared_cols:
+                raise ValueError(
+                    "No columns remain in common between the self embedding and the centroids "
+                    "after filtering. self produced: "
+                    f"{sorted(self_cols)}, centroids have: {sorted(centroid_cols)}"
+                )
+
+            embed_df = embed_df[shared_cols]
+            underlying_df = underlying_df[shared_cols]
+            if impute_means is not None:
+                impute_means = impute_means[impute_means.index.isin(shared_cols)]
+        else:
+            if not embed_df.columns.equals(underlying_df.columns):
+                raise ValueError("Columns in embedding and centroids do not match")
+
+        if impute_means is not None:
+            embed_df, _ = impute_frame(embed_df, impute_means)
             mask = pd.Series(True, index=embed_df.index)
             embed_values = embed_df.values
         else:
             mask = embed_df.notna().all(axis=1)
             embed_values = embed_df[mask].values
-        centroids_values = centroids_df.values
+        centroids_values = underlying_df.values
 
         labels = pd.Series(pd.NA, index=embed_df.index, dtype="Int64")
         if len(embed_values) > 0:
             labels[mask] = pairwise_distances_argmin(embed_values, centroids_values)
 
-        name = f"kmeans_{len(centroids_df.index)}"
+        name = f"kmeans_{len(underlying_df.index)}"
         meta = {
             "function": "assign_clusters_by_centroids",
             "embedding": embedding,
-            "scaling_factors": scaling_factors,
+            "allow_missing_features": allow_missing_features,
+            **applied_meta,
         }
         return FeaturesResult(labels, self, name, meta)
 
@@ -2388,6 +2972,7 @@ class Features:
         points: list[str],
         lines: list[tuple[str, str]] | None = None,
         boundaries: list[str] | None = None,
+        axes: list[str] | None = None,
         features: list[str | None] | dict[str | None, str | None] | None = None,
         dims: tuple[str, ...] = ("x", "y"),
         view: dict | None = None,
@@ -2400,49 +2985,41 @@ class Features:
         """
         Build an OpenCV-backed animation stream from Features + boundary assets.
 
+        **For style dict documentation and worked examples, see the
+        [Animation guide](../animation.md).**
+
         This wraps the same renderer used by :meth:`Tracking.animation_stream`,
         while additionally resolving named boundaries stored in ``self._assets``.
         Static and dynamic boundaries are resolved to per-boundary arrays and
         rendered in boundary order.
 
-        Parameters
-        ----------
-        points : list[str]
-            Point names to render as circles.
-        lines : list[tuple[str, str]] | None
-            Line segments connecting point pairs.
-        boundaries : list[str] | None
-            Boundary names (or refs resolvable by ``_resolve_boundary_ref``)
-            to draw. Order controls draw stacking.
-        features : list[str | None] | dict[str | None, str | None] | None
-            Per-frame scalar feature columns from ``self.data`` to render as
-            text overlays. If a list is provided, each column is shown as
-            ``name: value``. If a dict is provided, keys are display labels and
-            values are source column names. ``None`` or ``""`` entries insert a
-            blank spacer line.
-        dims : tuple[str, ...], default=("x", "y")
-            Coordinate dimensions. For 3D, use ``("x","y","z")``. Boundary
-            definitions are interpreted in their native 2D ``dims`` and can be
-            projected in 3D via ``view``.
-        view : dict | None
-            3D view options for projection (``azim``, ``elev``, ``proj``,
-            ``camera_distance``, ``focal_length``, ``boundary_z``, ``pad``).
-        canvas_size : tuple[int, int], default=(800, 800)
-            Canvas size as ``(width, height)``.
-        bg_color : tuple[int, int, int], default=(0, 0, 0)
-            Background color in BGR.
-        style : dict | None
-            Style overrides for points/lines/boundaries.
-        pixel_coords : bool, default=False
-            If True, coordinates are treated as absolute pixel values.
-        undo_meta_scaling : bool, default=False
-            If True, invert tracking meta scaling before rendering.
+        Args:
+            points: Point names to render as circles.
+            lines: Line segments connecting point pairs.
+            boundaries: Boundary names (or refs resolvable by ``_resolve_boundary_ref``)
+                to draw. Order controls draw stacking.
+            axes: Axis asset names (registered via :meth:`define_static_axis`,
+                :meth:`define_dynamic_axis`, or :meth:`import_static_axis`) to
+                draw as infinite lines clipped to the canvas boundary.
+                Styled via ``style["axes"]``.
+            features: Per-frame scalar feature columns from ``self.data`` to render as
+                text overlays. If a list is provided, each column is shown as
+                ``name: value``. If a dict is provided, keys are display labels and
+                values are source column names. ``None`` or ``""`` entries insert a
+                blank spacer line.
+            dims: Coordinate dimensions. For 3D, use ``("x","y","z")``. Boundary
+                definitions are interpreted in their native 2D ``dims`` and can be
+                projected in 3D via ``view``.
+            view: 3D view options for projection (``azim``, ``elev``, ``proj``,
+                ``camera_distance``, ``focal_length``, ``boundary_z``, ``pad``).
+            canvas_size: Canvas size as ``(width, height)``.
+            bg_color: Background color in BGR.
+            style: Style overrides for points/lines/boundaries.
+            pixel_coords: If True, coordinates are treated as absolute pixel values.
+            undo_meta_scaling: If True, invert tracking meta scaling before rendering.
 
-        Returns
-        -------
-        AnimationStream
-            Stream object with ``get_frame()``, ``read()``, ``play()``, and
-            ``save()``.
+        Returns:
+            Stream object with ``get_frame()``, ``read()``, ``play()``, and ``save()``.
 
         Examples
         --------
@@ -2497,6 +3074,15 @@ class Features:
             if boundaries is not None
             else []
         )
+        axis_arrays = (
+            self.axes_to_arrays(
+                axes,
+                dims=(dims[0], dims[1]),
+                undo_meta_scaling=undo_meta_scaling,
+            )
+            if axes is not None
+            else []
+        )
         text_overlays = None
         if features is not None:
             text_overlays = []
@@ -2533,6 +3119,7 @@ class Features:
             frame_ids=self.tracking.data.index.to_numpy(copy=True),
             fps=float(self.tracking.meta.get("fps", 30.0)),
             boundary_arrays=boundary_arrays,
+            axis_arrays=axis_arrays,
             canvas_size=canvas_size,
             bg_color=bg_color,
             style=style,
@@ -2552,22 +3139,16 @@ class Features:
         """
         Resolve named boundary assets into per-boundary arrays.
 
-        Parameters
-        ----------
-        boundaries : list[str]
-            Stored boundary names (or refs accepted by ``_resolve_boundary_ref``).
-        dims : tuple[str, ...], default=("x", "y")
-            Requested coordinate dimensions. Boundary dims must match
-            ``(dims[0], dims[1])``.
-        undo_meta_scaling : bool, default=False
-            If True, invert tracking scaling metadata before resolving dynamic
-            boundary coordinates.
+        Args:
+            boundaries: Stored boundary names (or refs accepted by ``_resolve_boundary_ref``).
+            dims: Requested coordinate dimensions. Boundary dims must match
+                ``(dims[0], dims[1])``.
+            undo_meta_scaling: If True, invert tracking scaling metadata before
+                resolving dynamic boundary coordinates.
 
-        Returns
-        -------
-        list[tuple[str, np.ndarray]]
+        Returns:
             Boundary arrays as ``[(boundary_name, arr), ...]`` where each arr
-            has shape ``(n_frames, n_vertices, 2)``.
+                has shape ``(n_frames, n_vertices, 2)``.
 
         Examples
         --------
@@ -2629,3 +3210,51 @@ class Features:
                 )
                 boundary_arrays.append((boundary_name, poly_stack))
         return boundary_arrays
+
+    def axes_to_arrays(
+        self,
+        axes: list[str],
+        *,
+        dims: tuple[str, str] = ("x", "y"),
+        undo_meta_scaling: bool = False,
+    ) -> list[tuple[str, np.ndarray]]:
+        """Resolve named axis assets into per-axis reference-point arrays for animation.
+
+        Args:
+            axes: Axis asset names (registered via :meth:`define_static_axis`,
+                :meth:`define_dynamic_axis`, or :meth:`import_static_axis`).
+            dims: Coordinate dimensions. Must be a 2-tuple; axis asset dims must match.
+            undo_meta_scaling: If True, invert tracking meta scaling before
+                resolving coordinates.
+
+        Returns:
+            Axis arrays as ``[(axis_name, arr), ...]`` where each arr has
+                shape ``(n_frames, 2, 2)``.
+        """
+        source_df = self.tracking.data
+        factors = (
+            self.tracking._undo_rescale_factors((dims[0], dims[1])) if undo_meta_scaling else {}
+        )
+        result: list[tuple[str, np.ndarray]] = []
+        for axis_ref in axes:
+            axis = self._resolve_axis_ref(axis_ref)
+            if axis.dims != dims:
+                raise ValueError(
+                    f"Axis {axis.name or axis_ref!r} dims {axis.dims} "
+                    f"do not match requested dims {dims}"
+                )
+            axis_name = str(axis_ref)
+            if isinstance(axis, StaticAxis):
+                seg = axis.to_numpy()  # (2, 2)
+                seg_stack = np.repeat(seg[np.newaxis, :, :], len(source_df), axis=0)
+            else:
+                seg_stack = axis.to_numpy_per_frame(source_df)  # (n, 2, 2)
+            seg_stack = rescale_array_by_dim(
+                seg_stack,
+                dims=(dims[0], dims[1]),
+                factors=factors,
+                dim_axis=2,
+                copy=False,
+            )
+            result.append((axis_name, seg_stack))
+        return result

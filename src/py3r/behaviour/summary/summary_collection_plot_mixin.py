@@ -8,9 +8,15 @@ This mixin is mixed into :class:`SummaryCollection` and provides all
 from __future__ import annotations
 
 from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
+
+    from py3r.behaviour.util.collection_utils import BatchResult
 
 
 class SummaryCollectionPlotMixin:
@@ -1216,14 +1222,14 @@ class SummaryCollectionPlotMixin:
 
     def prepare_plot(
         self,
-        metric,
+        metric: str | BatchResult | list,
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
         merge_by: str | None = "metric",
-        ax=None,
-        figsize=None,
-    ):
+        ax: Any | None = None,
+        figsize: tuple[float, float] | None = None,
+    ) -> Any:
         """
         Prepare a tidy DataFrame and seaborn kwargs without drawing anything.
 
@@ -1231,47 +1237,28 @@ class SummaryCollectionPlotMixin:
         convenience ``sns*`` methods call this internally; power users can
         call it directly for full control over the seaborn call.
 
-        Parameters
-        ----------
-        metric : str or BatchResult or list[str | BatchResult]
-            Metric to prepare. Lists are merged into a single plot-ready metric.
-        group_order : dict[str, list] | None
-            ``{tag_name: [value, ...]}`` controlling within-tag value ordering.
-        sort_by : list[str] | str | None
-            Override spatial sort priority (which tag is the primary x-axis
-            sort dimension).  Colours are unaffected — they always follow
-            the ``groupby(tags=...)`` order.  Accepts a single tag name or a
-            list.  See :meth:`_sns_plot_common` for details.
-        merge_by : {"metric", "component"} | None
-            Used only when *metric* is a list with more than one item. Controls
-            whether merged labels are arranged as ``metric::component``
-            (``"metric"``), ``component::metric`` (``"component"``), or kept
-            as flat merged labels without two-level axis formatting (``None``).
-        ax : matplotlib.axes.Axes, optional
-            Axes to plot on.  If *None*, a new figure is created with
-            auto-calculated size.
-        figsize : tuple[float, float], optional
-            Override the automatic figure size.
+        Args:
+            metric: Metric to prepare. Lists are merged into a single plot-ready
+                metric.
+            group_order: ``{tag_name: [value, ...]}`` controlling within-tag value
+                ordering.
+            sort_by: Override spatial sort priority (which tag is the primary x-axis
+                sort dimension). Colours are unaffected — they always follow the
+                ``groupby(tags=...)`` order. Accepts a single tag name or a list.
+            merge_by: Used only when ``metric`` is a list with more than one item.
+                Controls whether merged labels are arranged as ``metric::component``
+                (``"metric"``), ``component::metric`` (``"component"``), or kept as
+                flat merged labels without two-level axis formatting (``None``).
+            ax: Axes to plot on. If None, a new figure is created with
+                auto-calculated size.
+            figsize: Override the automatic figure size.
 
-        Returns
-        -------
-        PlotSpec
-            A namespace with the following attributes:
-
-            - **fig** — the :class:`~matplotlib.figure.Figure`
-            - **ax** — the :class:`~matplotlib.axes.Axes`
-            - **df** — tidy long-form :class:`~pandas.DataFrame`
-            - **sns_kwargs** — ``dict`` ready to unpack into any seaborn
-              categorical plot function (contains ``data``, ``x``, ``y``,
-              ``hue``, ``order``, ``hue_order``, ``palette``, ``dodge``,
-              ``ax``)
-            - **metric_name** — raw metric name string
-            - **ylabel** — auto-detected y-axis label (or ``"Value"``)
-            - **hide_legend** — ``bool`` hint for legend handling
-            - **created_fig** — ``bool`` whether the figure was created here
-            - **n_components** — ``int`` number of unique components
-            - **n_groups** — ``int`` number of unique groups (1 if ungrouped)
-            - **filename_prefix** — ``str | None`` handle slug for auto-filenames
+        Returns:
+            A ``PlotSpec`` namespace with attributes ``fig``, ``ax``,
+            ``df`` (tidy long-form DataFrame), ``sns_kwargs`` (ready to unpack
+            into any seaborn categorical plot), ``metric_name``, ``ylabel``,
+            ``hide_legend``, ``created_fig``, ``n_components``, ``n_groups``,
+            and ``filename_prefix``.
 
         Examples
         --------
@@ -1358,46 +1345,37 @@ class SummaryCollectionPlotMixin:
 
     def snsstrip(
         self,
-        metric,
+        metric: str | BatchResult | list,
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
-        annotate=None,
-        ax=None,
+        annotate: str | dict | None = None,
+        ax: Any | None = None,
         show: bool = True,
         savedir: str | None = None,
         filename: str | None = None,
         title: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[Figure, Any, pd.DataFrame]:
         """
         Strip plot (jittered scatter) using seaborn.
 
-        Parameters
-        ----------
-        metric : str or BatchResult
-            Either a key from Summary.data, or a BatchResult from a batch method.
-        group_order : dict[str, list] | None
-            Control group display order.  See :meth:`_sns_plot_common`.
-        sort_by : list[str] | str | None
-            Override spatial sort priority.  See :meth:`_sns_plot_common`.
-        ax : matplotlib.axes.Axes, optional
-            Axes to plot on. If None, creates new figure.
-        show : bool
-            Display the plot. Default True.
-        savedir : str | None
-            Directory to save figure.
-        filename : str | None
-            Custom filename.
-        title : str | None
-            Plot title.
-        **kwargs
-            Passed to seaborn.stripplot (e.g., jitter, alpha, size, palette).
-            Also accepts ``random_state`` for deterministic jitter placement.
+        Args:
+            metric: Key from ``Summary.data`` or a ``BatchResult`` from a batch method.
+            group_order: ``{tag_name: [value, ...]}`` controlling within-tag display order.
+            sort_by: Override spatial sort priority. See ``prepare_plot``.
+            annotate: Statistical annotation spec. See ``prepare_plot``.
+            ax: Axes to plot on. If None, a new figure is created.
+            show: If True, call ``plt.show()`` after rendering.
+            savedir: Directory to save the figure.
+            filename: Custom filename (overrides auto-generated name).
+            title: Plot title.
+            **kwargs: Forwarded to ``seaborn.stripplot`` (e.g., ``jitter``,
+                ``alpha``, ``size``, ``palette``). Also accepts ``random_state``
+                for deterministic jitter placement.
 
-        Returns
-        -------
-        tuple[Figure, Axes, DataFrame]
+        Returns:
+            Tuple of ``(fig, ax, df)``.
 
         Examples
         --------
@@ -1448,37 +1426,35 @@ class SummaryCollectionPlotMixin:
 
     def snsswarm(
         self,
-        metric,
+        metric: str | BatchResult | list,
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
-        annotate=None,
-        ax=None,
+        annotate: str | dict | None = None,
+        ax: Any | None = None,
         show: bool = True,
         savedir: str | None = None,
         filename: str | None = None,
         title: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[Figure, Any, pd.DataFrame]:
         """
         Swarm plot (non-overlapping scatter) using seaborn.
 
-        Parameters
-        ----------
-        metric : str or BatchResult
-            Either a key from Summary.data, or a BatchResult from a batch method.
-        group_order : dict[str, list] | None
-            Control group display order.  See :meth:`_sns_plot_common`.
-        sort_by : list[str] | str | None
-            Override spatial sort priority.  See :meth:`_sns_plot_common`.
-        ax, show, savedir, filename, title
-            Save/display options.
-        **kwargs
-            Passed to seaborn.swarmplot (e.g., size, palette).
+        Args:
+            metric: Key from ``Summary.data`` or a ``BatchResult`` from a batch method.
+            group_order: ``{tag_name: [value, ...]}`` controlling within-tag display order.
+            sort_by: Override spatial sort priority. See ``prepare_plot``.
+            annotate: Statistical annotation spec. See ``prepare_plot``.
+            ax: Axes to plot on. If None, a new figure is created.
+            show: If True, call ``plt.show()`` after rendering.
+            savedir: Directory to save the figure.
+            filename: Custom filename.
+            title: Plot title.
+            **kwargs: Forwarded to ``seaborn.swarmplot`` (e.g., ``size``, ``palette``).
 
-        Returns
-        -------
-        tuple[Figure, Axes, DataFrame]
+        Returns:
+            Tuple of ``(fig, ax, df)``.
         """
         import seaborn as sns
 
@@ -1502,37 +1478,36 @@ class SummaryCollectionPlotMixin:
 
     def snsbar(
         self,
-        metric,
+        metric: str | BatchResult | list,
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
-        annotate=None,
-        ax=None,
+        annotate: str | dict | None = None,
+        ax: Any | None = None,
         show: bool = True,
         savedir: str | None = None,
         filename: str | None = None,
         title: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[Figure, Any, pd.DataFrame]:
         """
         Bar plot with error bars using seaborn.
 
-        Parameters
-        ----------
-        metric : str or BatchResult
-            Either a key from Summary.data, or a BatchResult from a batch method.
-        group_order : dict[str, list] | None
-            Control group display order.  See :meth:`_sns_plot_common`.
-        sort_by : list[str] | str | None
-            Override spatial sort priority.  See :meth:`_sns_plot_common`.
-        ax, show, savedir, filename, title
-            Save/display options.
-        **kwargs
-            Passed to seaborn.barplot (e.g., errorbar, palette, saturation).
+        Args:
+            metric: Key from ``Summary.data`` or a ``BatchResult`` from a batch method.
+            group_order: ``{tag_name: [value, ...]}`` controlling within-tag display order.
+            sort_by: Override spatial sort priority. See ``prepare_plot``.
+            annotate: Statistical annotation spec. See ``prepare_plot``.
+            ax: Axes to plot on. If None, a new figure is created.
+            show: If True, call ``plt.show()`` after rendering.
+            savedir: Directory to save the figure.
+            filename: Custom filename.
+            title: Plot title.
+            **kwargs: Forwarded to ``seaborn.barplot`` (e.g., ``errorbar``,
+                ``palette``, ``saturation``).
 
-        Returns
-        -------
-        tuple[Figure, Axes, DataFrame]
+        Returns:
+            Tuple of ``(fig, ax, df)``.
         """
         import seaborn as sns
 
@@ -1556,37 +1531,36 @@ class SummaryCollectionPlotMixin:
 
     def snsbox(
         self,
-        metric,
+        metric: str | BatchResult | list,
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
-        annotate=None,
-        ax=None,
+        annotate: str | dict | None = None,
+        ax: Any | None = None,
         show: bool = True,
         savedir: str | None = None,
         filename: str | None = None,
         title: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[Figure, Any, pd.DataFrame]:
         """
         Box plot using seaborn.
 
-        Parameters
-        ----------
-        metric : str or BatchResult
-            Either a key from Summary.data, or a BatchResult from a batch method.
-        group_order : dict[str, list] | None
-            Control group display order.  See :meth:`_sns_plot_common`.
-        sort_by : list[str] | str | None
-            Override spatial sort priority.  See :meth:`_sns_plot_common`.
-        ax, show, savedir, filename, title
-            Save/display options.
-        **kwargs
-            Passed to seaborn.boxplot (e.g., width, palette, fliersize).
+        Args:
+            metric: Key from ``Summary.data`` or a ``BatchResult`` from a batch method.
+            group_order: ``{tag_name: [value, ...]}`` controlling within-tag display order.
+            sort_by: Override spatial sort priority. See ``prepare_plot``.
+            annotate: Statistical annotation spec. See ``prepare_plot``.
+            ax: Axes to plot on. If None, a new figure is created.
+            show: If True, call ``plt.show()`` after rendering.
+            savedir: Directory to save the figure.
+            filename: Custom filename.
+            title: Plot title.
+            **kwargs: Forwarded to ``seaborn.boxplot`` (e.g., ``width``,
+                ``palette``, ``fliersize``).
 
-        Returns
-        -------
-        tuple[Figure, Axes, DataFrame]
+        Returns:
+            Tuple of ``(fig, ax, df)``.
         """
         import seaborn as sns
 
@@ -1606,37 +1580,36 @@ class SummaryCollectionPlotMixin:
 
     def snsviolin(
         self,
-        metric,
+        metric: str | BatchResult | list,
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
-        annotate=None,
-        ax=None,
+        annotate: str | dict | None = None,
+        ax: Any | None = None,
         show: bool = True,
         savedir: str | None = None,
         filename: str | None = None,
         title: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[Figure, Any, pd.DataFrame]:
         """
         Violin plot using seaborn.
 
-        Parameters
-        ----------
-        metric : str or BatchResult
-            Either a key from Summary.data, or a BatchResult from a batch method.
-        group_order : dict[str, list] | None
-            Control group display order.  See :meth:`_sns_plot_common`.
-        sort_by : list[str] | str | None
-            Override spatial sort priority.  See :meth:`_sns_plot_common`.
-        ax, show, savedir, filename, title
-            Save/display options.
-        **kwargs
-            Passed to seaborn.violinplot (e.g., inner, split, palette).
+        Args:
+            metric: Key from ``Summary.data`` or a ``BatchResult`` from a batch method.
+            group_order: ``{tag_name: [value, ...]}`` controlling within-tag display order.
+            sort_by: Override spatial sort priority. See ``prepare_plot``.
+            annotate: Statistical annotation spec. See ``prepare_plot``.
+            ax: Axes to plot on. If None, a new figure is created.
+            show: If True, call ``plt.show()`` after rendering.
+            savedir: Directory to save the figure.
+            filename: Custom filename.
+            title: Plot title.
+            **kwargs: Forwarded to ``seaborn.violinplot`` (e.g., ``inner``,
+                ``split``, ``palette``).
 
-        Returns
-        -------
-        tuple[Figure, Axes, DataFrame]
+        Returns:
+            Tuple of ``(fig, ax, df)``.
         """
         import seaborn as sns
 
@@ -1660,37 +1633,36 @@ class SummaryCollectionPlotMixin:
 
     def snspoint(
         self,
-        metric,
+        metric: str | BatchResult | list,
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
-        annotate=None,
-        ax=None,
+        annotate: str | dict | None = None,
+        ax: Any | None = None,
         show: bool = True,
         savedir: str | None = None,
         filename: str | None = None,
         title: str | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[Figure, Any, pd.DataFrame]:
         """
         Point plot (mean + CI) using seaborn.
 
-        Parameters
-        ----------
-        metric : str or BatchResult
-            Either a key from Summary.data, or a BatchResult from a batch method.
-        group_order : dict[str, list] | None
-            Control group display order.  See :meth:`_sns_plot_common`.
-        sort_by : list[str] | str | None
-            Override spatial sort priority.  See :meth:`_sns_plot_common`.
-        ax, show, savedir, filename, title
-            Save/display options.
-        **kwargs
-            Passed to seaborn.pointplot (e.g., errorbar, markers, linestyles).
+        Args:
+            metric: Key from ``Summary.data`` or a ``BatchResult`` from a batch method.
+            group_order: ``{tag_name: [value, ...]}`` controlling within-tag display order.
+            sort_by: Override spatial sort priority. See ``prepare_plot``.
+            annotate: Statistical annotation spec. See ``prepare_plot``.
+            ax: Axes to plot on. If None, a new figure is created.
+            show: If True, call ``plt.show()`` after rendering.
+            savedir: Directory to save the figure.
+            filename: Custom filename.
+            title: Plot title.
+            **kwargs: Forwarded to ``seaborn.pointplot`` (e.g., ``errorbar``,
+                ``markers``, ``linestyles``).
 
-        Returns
-        -------
-        tuple[Figure, Axes, DataFrame]
+        Returns:
+            Tuple of ``(fig, ax, df)``.
         """
         import seaborn as sns
 
@@ -1714,12 +1686,12 @@ class SummaryCollectionPlotMixin:
 
     def snssuperplot(
         self,
-        metric,
+        metric: str | BatchResult | list,
         *,
         group_order: dict | None = None,
         sort_by: list | str | None = None,
-        annotate=None,
-        ax=None,
+        annotate: str | dict | None = None,
+        ax: Any | None = None,
         show: bool = True,
         savedir: str | None = None,
         filename: str | None = None,
@@ -1727,8 +1699,8 @@ class SummaryCollectionPlotMixin:
         ylabel: str | None = None,
         bar_kwargs: dict | None = None,
         strip_kwargs: dict | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> tuple[Figure, Any, pd.DataFrame]:
         """
         Superplot: bar plot (mean) with strip plot (individual dots) overlay.
 
@@ -1736,39 +1708,27 @@ class SummaryCollectionPlotMixin:
         individual data points scattered on top, commonly used in scientific
         papers.  The dots are constrained within the bar width by default.
 
-        Parameters
-        ----------
-        metric : str or BatchResult
-            Either a key from Summary.data, or a BatchResult from a batch method.
-        group_order : dict[str, list] | None
-            Control group display order.  See :meth:`_sns_plot_common`.
-        sort_by : list[str] | str | None
-            Override spatial sort priority.  See :meth:`_sns_plot_common`.
-        annotate : str or dict or None
-            Statistical annotations.  See :meth:`_sns_plot_common`.
-        ax : matplotlib.axes.Axes, optional
-            Axes to plot on. If None, creates new figure.
-        show : bool
-            Display the plot. Default True.
-        savedir : str | None
-            Directory to save figure.
-        filename : str | None
-            Custom filename.
-        title : str | None
-            Plot title.
-        ylabel : str | None
-            Y-axis label. Auto-detected from metric when *None*.
-        bar_kwargs : dict | None
-            Extra kwargs for barplot (e.g., errorbar, capsize, saturation).
-        strip_kwargs : dict | None
-            Extra kwargs for stripplot (e.g., alpha, size, jitter).
-        **kwargs
-            Common kwargs passed to both plots (e.g., palette, dodge).
-            Also accepts ``random_state`` for deterministic jitter placement.
+        Args:
+            metric: Key from ``Summary.data`` or a ``BatchResult`` from a batch method.
+            group_order: ``{tag_name: [value, ...]}`` controlling within-tag display order.
+            sort_by: Override spatial sort priority. See ``prepare_plot``.
+            annotate: Statistical annotation spec. See ``prepare_plot``.
+            ax: Axes to plot on. If None, a new figure is created.
+            show: If True, call ``plt.show()`` after rendering.
+            savedir: Directory to save the figure.
+            filename: Custom filename.
+            title: Plot title.
+            ylabel: Y-axis label. Auto-detected from metric when None.
+            bar_kwargs: Extra kwargs for the bar layer (e.g., ``errorbar``,
+                ``capsize``, ``saturation``).
+            strip_kwargs: Extra kwargs for the strip layer (e.g., ``alpha``,
+                ``size``, ``jitter``).
+            **kwargs: Common kwargs passed to both layers (e.g., ``palette``,
+                ``dodge``). Also accepts ``random_state`` for deterministic
+                jitter placement.
 
-        Returns
-        -------
-        tuple[Figure, Axes, DataFrame]
+        Returns:
+            Tuple of ``(fig, ax, df)``.
 
         Examples
         --------

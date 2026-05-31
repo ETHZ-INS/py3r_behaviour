@@ -442,21 +442,22 @@ fc[0].list_boundaries()
 #
 # Embed the feature time-series with temporal offsets, then cluster the embedded
 # space with streaming MiniBatchKMeans.
-# Returns `(cluster_labels, centroids, scaling_factors)`, where:
+# Returns `(cluster_labels, centroids)`, where:
 # - `cluster_labels` is a per-handle `BatchResult` of label series
-# - `centroids` is a DataFrame with `n_clusters` rows
+# - `centroids` is a `CentroidsDf` with `n_clusters` rows; its `scaling_recipe`
+#   captures the full transform (embedding, normalisation, imputation means) so
+#   that `assign_clusters_by_centroids` can reproduce it exactly on new data
 #
 # `cluster_embedding_stream` processes one `Features` at a time in multiple epochs
 # so it never materialises a combined DataFrame — use this for any multi-recording
-# dataset. `cluster_embedding` (in-memory k-means) is available for small datasets.
-# Both methods support `normalize` and `feature_weights` for advanced runs.
+# dataset. Supports `normalize`, `normalize_details`, and `feature_weights`.
 
 # %%
 cluster_features = list(set(fc[0].data.columns) - set(non_bfa_feats))
 offset = list(np.arange(-15, 16, 1))
 embedding_dict = {f: offset for f in cluster_features}
 
-cluster_labels, centroids, _ = fc.cluster_embedding_stream(
+cluster_labels, centroids = fc.cluster_embedding_stream(
     embedding_dict=embedding_dict, n_clusters=N_CLUSTERS
 )
 cluster_labels.store("kmeans_25", overwrite=True)

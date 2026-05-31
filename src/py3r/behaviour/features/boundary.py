@@ -35,7 +35,7 @@ class StaticBoundary:
 
     def to_dict(self) -> dict:
         return {
-            "kind": "static",
+            "kind": "static_boundary",
             "vertices": list(self.vertices),
             "dims": list(self.dims),
             "source_points": list(self.source_points) if self.source_points is not None else None,
@@ -89,7 +89,7 @@ class DynamicBoundary:
 
     def to_dict(self) -> dict:
         return {
-            "kind": "dynamic",
+            "kind": "dynamic_boundary",
             "points": list(self.points),
             "dims": list(self.dims),
             "anchor_points": list(self.anchor_points) if self.anchor_points is not None else None,
@@ -99,13 +99,14 @@ class DynamicBoundary:
         }
 
     def to_numpy_per_frame(self, tracking_df) -> np.ndarray:
-        """
-        Resolve dynamic boundary point names against tracking data.
+        """Resolve dynamic boundary point names against tracking data and apply scaling.
 
         Returns
         -------
         np.ndarray
-            Shape (n_frames, n_vertices, 2) in this boundary's ``dims``.
+            Shape ``(n_frames, n_vertices, 2)`` in this boundary's ``dims``,
+            with ``scale_dim1`` / ``scale_dim2`` applied around the centroid
+            (or ``anchor_points`` centroid when specified).
         """
         cols_per_point = []
         for point in self.points:
@@ -123,7 +124,34 @@ class DynamicBoundary:
                     )
                 )
             )
-        return np.stack(cols_per_point, axis=1)
+        verts = np.stack(cols_per_point, axis=1)  # (n_frames, n_vertices, 2)
+
+        if self.scale_dim1 == 1.0 and self.scale_dim2 == 1.0:
+            return verts
+
+        if self.anchor_points is None:
+            cx = np.nanmean(verts[:, :, 0], axis=1, keepdims=True)  # (n, 1)
+            cy = np.nanmean(verts[:, :, 1], axis=1, keepdims=True)
+        else:
+            anchor_x = np.column_stack(
+                [
+                    tracking_df[f"{a}.{self.dims[0]}"].to_numpy(dtype=float)
+                    for a in self.anchor_points
+                ]
+            )
+            anchor_y = np.column_stack(
+                [
+                    tracking_df[f"{a}.{self.dims[1]}"].to_numpy(dtype=float)
+                    for a in self.anchor_points
+                ]
+            )
+            cx = np.nanmean(anchor_x, axis=1, keepdims=True)
+            cy = np.nanmean(anchor_y, axis=1, keepdims=True)
+
+        scaled = verts.copy()
+        scaled[:, :, 0] = cx + (verts[:, :, 0] - cx) * self.scale_dim1
+        scaled[:, :, 1] = cy + (verts[:, :, 1] - cy) * self.scale_dim2
+        return scaled
 
     @classmethod
     def from_dict(cls, payload: dict) -> DynamicBoundary:
