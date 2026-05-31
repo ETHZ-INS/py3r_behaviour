@@ -6,7 +6,7 @@ import inspect
 import os
 import warnings
 from collections.abc import MutableMapping
-from typing import Any
+from typing import Any, Self
 
 import pandas as pd
 
@@ -662,7 +662,7 @@ class BaseCollection(MutableMapping):
         return cls(obj_dict)
 
     @classmethod
-    def merge(cls, collections, *, copy=False):
+    def merge(cls, collections: list[Self], *, copy: bool = False) -> Self:
         """
         Merge multiple collections into a single flat collection containing
         all leaf elements from each input.
@@ -671,32 +671,22 @@ class BaseCollection(MutableMapping):
         are supported. The result is always a new flat collection. Leaves are
         shared by reference unless ``copy=True``.
 
-        Parameters
-        ----------
-        collections : list[BaseCollection]
-            Two or more collections of the same concrete type. Every element
-            across all collections must have a unique handle.
-        copy : bool, default False
-            If True, each leaf is copied (via its ``.copy()`` method) so that
-            the merged collection is fully independent of the originals.
+        Args:
+            collections: Two or more collections of the same concrete type. Every
+                element across all collections must have a unique handle.
+            copy: If True, each leaf is copied (via its ``.copy()`` method) so that
+                the merged collection is fully independent of the originals.
 
-        Returns
-        -------
-        BaseCollection
+        Returns:
             A new flat collection containing all leaves.
 
-        Raises
-        ------
-        ValueError
-            If *collections* is empty, or if any handles are duplicated.
-        TypeError
-            If any input is not an instance of the calling class.
+        Raises:
+            ValueError: If *collections* is empty, or if any handles are duplicated.
+            TypeError: If any input is not an instance of the calling class.
 
-        Warns
-        -----
-        UserWarning
-            If the tag key sets differ across input collections (the merged
-            collection will have mixed tag coverage).
+        Warns:
+            UserWarning: If the tag key sets differ across input collections (the
+                merged collection will have mixed tag coverage).
 
         Examples
         --------

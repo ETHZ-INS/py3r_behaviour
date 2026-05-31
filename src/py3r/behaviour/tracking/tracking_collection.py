@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Literal
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
 
@@ -45,24 +46,19 @@ class TrackingCollection(BaseCollection):
         cls,
         handles_and_filepaths: dict[str, str],
         *,
-        tracking_loader,
-        tracking_cls=Tracking,
-        **loader_kwargs,
+        tracking_loader: Callable[..., Tracking],
+        tracking_cls: type[Tracking] = Tracking,
+        **loader_kwargs: Any,
     ):
         """
         Generic constructor from a mapping of handle -> filepath using a loader callable.
 
-        Parameters
-        ----------
-        handles_and_filepaths : dict[str, str]
-            Mapping of session handle to file path.
-        tracking_loader : callable
-            Loader callable, e.g. ``Tracking.from_dlc``. Called as
-            ``tracking_loader(filepath, handle=handle, **loader_kwargs)``.
-        tracking_cls : type, default=Tracking
-            ``Tracking`` subclass to instantiate.
-        **loader_kwargs
-            Extra keyword arguments forwarded to ``tracking_loader``.
+        Args:
+            handles_and_filepaths: Mapping of session handle to file path.
+            tracking_loader: Loader callable, e.g. ``Tracking.from_dlc``. Called as
+                ``tracking_loader(filepath, handle=handle, **loader_kwargs)``.
+            tracking_cls: ``Tracking`` subclass to instantiate.
+            **loader_kwargs: Extra keyword arguments forwarded to ``tracking_loader``.
 
         Examples
         --------
@@ -101,22 +97,17 @@ class TrackingCollection(BaseCollection):
         *,
         fps: float,
         aspectratio_correction: float = 1.0,
-        tracking_cls=Tracking,
+        tracking_cls: type[Tracking] = Tracking,
     ):
         """
         Load a collection from DLC CSVs.
 
-        Parameters
-        ----------
-        handles_and_filepaths : dict[str, str]
-            Mapping of session handle to DLC CSV file path.
-        fps : float
-            Frame rate of the recording in frames per second.
-        aspectratio_correction : float, default=1.0
-            Multiplicative correction applied to the x-axis to account for
-            non-square pixels.
-        tracking_cls : type, default=Tracking
-            ``Tracking`` subclass to instantiate.
+        Args:
+            handles_and_filepaths: Mapping of session handle to DLC CSV file path.
+            fps: Frame rate of the recording in frames per second.
+            aspectratio_correction: Multiplicative correction applied to the x-axis
+                to account for non-square pixels.
+            tracking_cls: ``Tracking`` subclass to instantiate.
 
         Examples
         --------
@@ -150,22 +141,17 @@ class TrackingCollection(BaseCollection):
         *,
         fps: float,
         aspectratio_correction: float = 1.0,
-        tracking_cls=Tracking,
+        tracking_cls: type[Tracking] = Tracking,
     ):
         """
         Load a collection from YOLO3R CSVs.
 
-        Parameters
-        ----------
-        handles_and_filepaths : dict[str, str]
-            Mapping of session handle to YOLO3R CSV file path.
-        fps : float
-            Frame rate of the recording in frames per second.
-        aspectratio_correction : float, default=1.0
-            Multiplicative correction applied to the x-axis to account for
-            non-square pixels.
-        tracking_cls : type, default=Tracking
-            ``Tracking`` subclass to instantiate.
+        Args:
+            handles_and_filepaths: Mapping of session handle to YOLO3R CSV file path.
+            fps: Frame rate of the recording in frames per second.
+            aspectratio_correction: Multiplicative correction applied to the x-axis
+                to account for non-square pixels.
+            tracking_cls: ``Tracking`` subclass to instantiate.
 
         Examples
         --------
@@ -199,22 +185,17 @@ class TrackingCollection(BaseCollection):
         *,
         fps: float,
         aspectratio_correction: float = 1.0,
-        tracking_cls=Tracking,
+        tracking_cls: type[Tracking] = Tracking,
     ):
         """
         Load a collection from DLC multi-animal CSVs.
 
-        Parameters
-        ----------
-        handles_and_filepaths : dict[str, str]
-            Mapping of session handle to DLC multi-animal CSV file path.
-        fps : float
-            Frame rate of the recording in frames per second.
-        aspectratio_correction : float, default=1.0
-            Multiplicative correction applied to the x-axis to account for
-            non-square pixels.
-        tracking_cls : type, default=Tracking
-            ``Tracking`` subclass to instantiate.
+        Args:
+            handles_and_filepaths: Mapping of session handle to DLC multi-animal CSV file path.
+            fps: Frame rate of the recording in frames per second.
+            aspectratio_correction: Multiplicative correction applied to the x-axis
+                to account for non-square pixels.
+            tracking_cls: ``Tracking`` subclass to instantiate.
 
         Examples
         --------
@@ -439,27 +420,20 @@ class TrackingCollection(BaseCollection):
         the corresponding Tracking objects are concatenated in order.
         Supports both flat and grouped collections.
 
-        Parameters
-        ----------
-        collections : list[TrackingCollection]
-            List of TrackingCollection objects to concatenate, in temporal order.
-            All must have matching keys (handles).
-        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
-            How to handle frame indices:
-            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
-            - "follow_previous": Each chunk continues from where the previous
-              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
-            - "keep_original": Leave indices untouched; duplicates are allowed.
+        Args:
+            collections: List of TrackingCollection objects to concatenate, in temporal
+                order. All must have matching keys (handles).
+            reindex: How to handle frame indices. ``"rezero"`` reindexes all frames
+                starting from 0. ``"follow_previous"`` continues from where the previous
+                chunk ended. ``"keep_original"`` leaves indices untouched; duplicates
+                are allowed.
 
-        Returns
-        -------
-        TrackingCollection
+        Returns:
             A new collection with concatenated Tracking objects for each handle.
 
-        Raises
-        ------
-        ValueError
-            If collections is empty, keys don't match, or grouping structure differs.
+        Raises:
+            ValueError: If collections is empty, keys don't match, or grouping structure
+                differs.
 
         Examples
         --------
@@ -661,10 +635,9 @@ class TrackingCollection(BaseCollection):
         Triangulate all TrackingMV objects and return a new TrackingCollection.
         The new collection will have the same grouping as the original.
 
-        Notes
-        -----
-        This requires multi-view `TrackingMV` elements;
-        typical `Tracking` elements do not support stereo triangulation.
+        Note:
+            This requires multi-view ``TrackingMV`` elements;
+            typical ``Tracking`` elements do not support stereo triangulation.
 
         Examples
         --------
@@ -713,10 +686,8 @@ class TrackingCollection(BaseCollection):
         `FeaturesCollection.from_tracking_collection(self)` and preserves grouped
         structure when the collection is grouped.
 
-        Returns
-        -------
-        FeaturesCollection
-            Collection containing one `Features` object per tracking object in
+        Returns:
+            Collection containing one ``Features`` object per tracking object in
             this collection.
 
         Examples
