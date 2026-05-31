@@ -294,26 +294,26 @@ class FeaturesCollection(BaseCollection):
         Examples
         --------
         ```pycon
-            >>> import tempfile, shutil
-            >>> from pathlib import Path
-            >>> from py3r.behaviour.features.features_collection import FeaturesCollection
-            >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
-            >>> from py3r.behaviour.util.docdata import data_path
-            >>> with tempfile.TemporaryDirectory() as d:
-            ...     d = Path(d)
-            ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
-            ...         a = d / 'A.csv'; b = d / 'B.csv'
-            ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
-            ...     tc = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
-            ...     fc = FeaturesCollection.from_tracking_collection(tc)
-            ...     sc = fc.to_summary()
-            >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
-            >>> isinstance(sc, SummaryCollection)
-            True
-            >>> sorted(sc.keys())
-            ['A', 'B']
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.features.features_collection import FeaturesCollection
+        >>> from py3r.behaviour.tracking.tracking_collection import TrackingCollection
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...         a = d / 'A.csv'; b = d / 'B.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     tc = TrackingCollection.from_dlc({'A': str(a), 'B': str(b)}, fps=30)
+        ...     fc = FeaturesCollection.from_tracking_collection(tc)
+        ...     sc = fc.to_summary()
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> isinstance(sc, SummaryCollection)
+        True
+        >>> sorted(sc.keys())
+        ['A', 'B']
 
-            ```
+        ```
         """
         from py3r.behaviour.summary.summary_collection import SummaryCollection
 
