@@ -1087,23 +1087,26 @@ class Summary:
         **kwargs: Any,
     ) -> Figure:
         """
-        Plot a simple chord diagram of state transitions for this recording.
+        Plot a chord diagram of state transition frequencies for this recording.
+
+        Transitions are computed from a categorical column in ``features.data``,
+        or supplied directly via a precomputed DataFrame stored in ``summary.data``.
+        Requires ``pycirclize`` (``pip install pycirclize``).
 
         Args:
-            column: Name of the categorical column in ``features.data`` to compute
-                transitions from.
-            all_states: Optional explicit list of states to define row/column presence
-                and order. Required when ``fromkey`` is not provided.
-            fromkey: Optional key in ``summary.data`` containing a precomputed
-                transition DataFrame. If provided, used directly instead of computing
-                transitions from ``column``.
-            cmap: Colormap name or list of colors for the chord segments.
+            column: Name of the categorical state column in ``features.data``.
+            all_states: Explicit state list defining arc presence and order.
+                Required when ``fromkey`` is not provided.
+            fromkey: Key in ``summary.data`` for a precomputed transition
+                DataFrame. If provided, used instead of computing from ``column``.
+            cmap: Colormap name or list of colors for the chord arcs.
             show: If True, call ``plt.show()`` after rendering.
-            save_dir: If provided, save the figure to this directory.
+            save_dir: If provided, save the figure as
+                ``<handle>_chord_<column>.png`` in this directory.
             **kwargs: Additional keyword arguments forwarded to pycirclize.
 
         Returns:
-            Backend-dependent figure-like handle (from pycirclize).
+            Matplotlib Figure.
 
         Examples
         --------
