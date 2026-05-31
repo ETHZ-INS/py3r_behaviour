@@ -30,10 +30,9 @@ def inspect(script_path: str | Path) -> None:
     Useful for quickly checking what parameters a script exposes, which have
     defaults, and what outputs it produces — without actually running it.
 
-    Parameters
-    ----------
-    script_path : str | Path
-        Path to a Python script containing :func:`Param` and/or :func:`Output` calls.
+    Args:
+        script_path: Path to a Python script containing ``Param`` and/or
+            ``Output`` calls.
 
     Examples
     --------
@@ -188,22 +187,16 @@ def run(
     Unspecified parameters use their script default. Parameters with no default
     must be provided.
 
-    Parameters
-    ----------
-    script_path : str | Path
-        Path to a Python script containing :func:`Param` and/or :func:`Output` calls.
-    params : dict[str, scalar] | None
-        Parameter values to inject, keyed by name. Unspecified params use their
-        script default.
-    outputs : list[str] | None
-        Names of :func:`Output` values to capture. Defaults to all outputs.
-    stop_after_outputs : bool
-        If True, the subprocess is terminated immediately after the last requested
-        output is captured.
+    Args:
+        script_path: Path to a Python script containing ``Param`` and/or
+            ``Output`` calls.
+        params: Parameter values to inject, keyed by name. Unspecified params
+            use their script default.
+        outputs: Names of ``Output`` values to capture. Defaults to all outputs.
+        stop_after_outputs: If True, the subprocess is terminated immediately
+            after the last requested output is captured.
 
-    Returns
-    -------
-    ScriptResults
+    Returns:
         Single-entry results container. Access outputs via
         ``sr[params]["output_name"]``.
 
@@ -283,27 +276,21 @@ def sensitivity(
     sweep (deduplicated silently) and used as the nominal value for independent-mode
     sweeps. Use ``nominal`` to override this.
 
-    Parameters
-    ----------
-    script_path : str | Path
-        Path to a Python script containing :func:`Param` and :func:`Output` calls.
-    params : dict[str, list]
-        Mapping of parameter name to list of values to sweep.
-    nominal : dict[str, scalar] | None
-        Nominal (baseline) values for independent-mode sweeps. Overrides script
-        defaults. Required for any swept parameter that has no script default.
-    outputs : list[str] | None
-        Names of :func:`Output` values to capture. Defaults to all outputs.
-    stop_after_outputs : bool
-        If True, each subprocess is terminated after the last requested output
-        is captured. Useful when outputs appear early in a long pipeline.
-    mode : "independent" | "grid"
-        ``"independent"`` varies one parameter at a time, holding the others at
-        their nominal value. ``"grid"`` tests every combination.
+    Args:
+        script_path: Path to a Python script containing ``Param`` and ``Output``
+            calls.
+        params: Mapping of parameter name to list of values to sweep.
+        nominal: Nominal (baseline) values for independent-mode sweeps. Overrides
+            script defaults. Required for any swept parameter that has no script
+            default.
+        outputs: Names of ``Output`` values to capture. Defaults to all outputs.
+        stop_after_outputs: If True, each subprocess is terminated after the last
+            requested output is captured. Useful when outputs appear early in a
+            long pipeline.
+        mode: ``"independent"`` varies one parameter at a time, holding the
+            others at their nominal value. ``"grid"`` tests every combination.
 
-    Returns
-    -------
-    ScriptResults
+    Returns:
         Results container keyed by parameter combination. Access individual
         outputs via ``sr[{"param": value}]["output_name"]``, or flatten
         scalar outputs with ``sr.to_dataframe()``.

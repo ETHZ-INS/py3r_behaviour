@@ -6,7 +6,11 @@ _ALLOWED_TYPES = (bool, int, float, str)  # bool before int: bool subclasses int
 _MISSING = object()
 
 
-def Param(default=_MISSING, *, name: str) -> bool | int | float | str:
+def Param(
+    default: bool | int | float | str | None = _MISSING,
+    *,
+    name: str,
+) -> bool | int | float | str:
     """
     Mark a script variable as a runner parameter.
 
@@ -16,14 +20,11 @@ def Param(default=_MISSING, *, name: str) -> bool | int | float | str:
 
     When run via :func:`run` or :func:`sensitivity`, returns the injected value.
 
-    Parameters
-    ----------
-    default : bool | int | float | str, optional
-        Value used during normal execution. Omit to mark the parameter as required
-        (no default — must always be supplied by the runner).
-    name : str
-        Parameter name, matched against keys passed to :func:`run` or
-        :func:`sensitivity`.
+    Args:
+        default: Value used during normal execution. Omit to mark the parameter
+            as required (no default — must always be supplied by the runner).
+        name: Parameter name, matched against keys passed to ``run`` or
+            ``sensitivity``.
 
     Examples
     --------
@@ -58,12 +59,9 @@ def Output(value: object, *, name: str) -> object:
     :func:`run` or :func:`sensitivity`, captures the value under ``name``
     in the results.
 
-    Parameters
-    ----------
-    value : object
-        The value to capture. Any type is accepted.
-    name : str
-        Output name, used to key results in :class:`ScriptResults`.
+    Args:
+        value: The value to capture. Any type is accepted.
+        name: Output name, used to key results in ``ScriptResults``.
 
     Examples
     --------

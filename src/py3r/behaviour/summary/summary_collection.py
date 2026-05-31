@@ -3,7 +3,10 @@ from __future__ import annotations
 import random
 import warnings
 from itertools import combinations
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 import pandas as pd
 
@@ -13,7 +16,7 @@ from py3r.behaviour.summary.summary_collection_plot_mixin import (
     SummaryCollectionPlotMixin,
 )
 from py3r.behaviour.util.base_collection import BaseCollection
-from py3r.behaviour.util.collection_utils import resolve_single_store_name
+from py3r.behaviour.util.collection_utils import BatchResult, resolve_single_store_name
 
 
 class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
@@ -21,7 +24,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     collection of Summary objects
     (e.g. for grouping individuals)
     note: type-hints refer to Summary, but factory methods allow for other classes
-    these are intended ONLY for subclasses of Summary, and this is enforced
+    these are intended ONLY for subclasses of Summary, and this is enforced.
 
     Examples
     --------
@@ -63,16 +66,17 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         return self._obj_dict
 
     @classmethod
-    def from_features_collection(cls, features_collection: FeaturesCollection, summary_cls=Summary):
+    def from_features_collection(
+        cls,
+        features_collection: FeaturesCollection,
+        summary_cls: type[Summary] = Summary,
+    ):
         """
         Create a SummaryCollection from a FeaturesCollection.
 
-        Parameters
-        ----------
-        features_collection : FeaturesCollection
-            Source collection. Grouped structure is preserved.
-        summary_cls : type, default=Summary
-            ``Summary`` subclass to instantiate for each session.
+        Args:
+            features_collection: Source collection. Grouped structure is preserved.
+            summary_cls: ``Summary`` subclass to instantiate for each session.
 
         Examples
         --------
@@ -131,10 +135,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         """
         Create a SummaryCollection from a list of Summary objects, keyed by handle.
 
-        Parameters
-        ----------
-        summary_list : list[Summary]
-            Summary objects to collect. All handles must be unique.
+        Args:
+            summary_list: Summary objects to collect. All handles must be unique.
 
         Examples
         --------
@@ -251,12 +253,9 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         """
         Return a new SummaryCollection restricted to frames in [startframe, endframe).
 
-        Parameters
-        ----------
-        startframe : int
-            First frame index of the bin (inclusive).
-        endframe : int
-            Last frame index of the bin (exclusive).
+        Args:
+            startframe: First frame index of the bin (inclusive).
+            endframe: Last frame index of the bin (exclusive).
 
         Examples
         --------
@@ -279,14 +278,12 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         binned = {k: v.make_bin(startframe, endframe) for k, v in self.summary_dict.items()}
         return SummaryCollection(binned)
 
-    def make_bins(self, numbins):
+    def make_bins(self, numbins: int):
         """
         Divide the collection into equal time bins and return one SummaryCollection per bin.
 
-        Parameters
-        ----------
-        numbins : int
-            Number of equal-length bins to split each session into.
+        Args:
+            numbins: Number of equal-length bins to split each session into.
 
         Examples
         --------
@@ -314,26 +311,25 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
     def store(
         self,
-        results_dict,
-        name: str = None,
-        meta: dict = None,
+        results_dict: BatchResult | dict,
+        name: str | None = None,
+        meta: dict | None = None,
         overwrite: bool = False,
-    ):
+    ) -> str:
         """
         Store SummaryResult objects returned by batch methods.
 
-        Parameters
-        ----------
-        results_dict : dict
-            Batch results to store. Flat: ``{handle: SummaryResult}``.
-            Grouped: ``{group_key: {handle: SummaryResult}}``.
-        name : str | None, default=None
-            Metric name to store under. If None, resolved automatically from
-            the result objects (all must agree on a single name).
-        meta : dict | None, default=None
-            Metadata dict to attach alongside the stored metric.
-        overwrite : bool, default=False
-            If True, overwrite an existing metric with the same name.
+        Args:
+            results_dict: Batch results to store. Flat: ``{handle: SummaryResult}``.
+                Grouped: ``{group_key: {handle: SummaryResult}}``.
+            name: Metric name to store under. If None, resolved automatically from
+                the result objects (all must agree on a single name).
+            meta: Metadata dict to attach alongside the stored metric.
+            overwrite: If True, overwrite an existing metric with the same name.
+
+        Returns:
+            The resolved stored metric name. Raises ``ValueError`` if auto-naming
+            resolves to multiple different names across leaves.
 
         Examples
         --------
@@ -362,12 +358,6 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         True
 
         ```
-
-        Returns
-        -------
-        str
-            The resolved stored metric name. If auto-naming would resolve to
-            multiple different names across leaves, raises ValueError.
         """
 
         def _resolve_leaf_name(v):
@@ -443,7 +433,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     def bfa(
         self,
         column: str,
-        all_states=None,
+        all_states: list | None = None,
         numshuffles: int = 1000,
         pairs: list[tuple[str, str]] | None = None,
         random_state: int | None = 0,
@@ -459,30 +449,23 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         If `pairs` is provided, only those group pairs are analyzed; otherwise all
         unique pairs in `self.group_keys` are evaluated.
 
-        Parameters
-        ----------
-        column : str
-            Name of the column containing discrete state labels.
-        all_states : list | None
-            Explicit state ordering for the transition matrix.  ``None`` infers
-            states from the data.
-        numshuffles : int
-            Number of surrogate shuffles used to build the null distribution.
-        pairs : list[tuple[str, str]] | None
-            Group pairs to compare.  ``None`` evaluates all unique pairs.
-        random_state : int | None
-            Seed for reproducible surrogate shuffling.  ``None`` keeps
-            non-deterministic behaviour.  Pass the same seed to each ``bfa()``
-            call when combining scales so that surrogate shuffles are
-            synchronised; see :meth:`combine_bfa_results`.
-        scale_by_transitions : bool, default False
-            If ``True``, each pairwise Manhattan distance (observed and all
-            surrogates) is divided by the total number of transitions across
-            both groups for that pair.  This rescales raw-count distances to a
-            per-transition unit, making distances comparable across temporal
-            resolutions with different numbers of observations.  Defaults to
-            ``False`` to preserve legacy behaviour and retain the information
-            contained in total transition counts.
+        Args:
+            column: Name of the column containing discrete state labels.
+            all_states: Explicit state ordering for the transition matrix.
+                ``None`` infers states from the data.
+            numshuffles: Number of surrogate shuffles used to build the null
+                distribution.
+            pairs: Group pairs to compare. ``None`` evaluates all unique pairs.
+            random_state: Seed for reproducible surrogate shuffling. ``None``
+                keeps non-deterministic behaviour. Pass the same seed to each
+                ``bfa()`` call when combining scales so that surrogate shuffles
+                are synchronised; see ``combine_bfa_results``.
+            scale_by_transitions: If ``True``, each pairwise Manhattan distance
+                (observed and all surrogates) is divided by the total number of
+                transitions across both groups for that pair. This rescales
+                raw-count distances to a per-transition unit, making distances
+                comparable across temporal resolutions. Defaults to ``False``
+                to preserve legacy behaviour.
 
         Examples
         --------
@@ -654,18 +637,28 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         show: bool = True,
         # legacy: allow single 'compare' name
         compare: str | None = None,
-    ):
+    ) -> tuple[Figure, Any] | dict[str, tuple[Figure, Any]]:
         """
         Plot one or more BFA result comparisons as separate single-panel figures.
 
-        - If `compares` is None and results contain a single comparison, that one is plotted.
-        - If `compares` is a string, only that comparison is plotted.
-        - If `compares` is a list of strings, each comparison is plotted separately.
-        - If `add_stats` is True and `stats` not provided, statistics will be computed
-          via `SummaryCollection.bfa_stats(results)` and annotated on each plot.
+        Args:
+            results: BFA result dict as returned by ``bfa``.
+            compares: Which comparisons to plot. ``None`` plots all (or the single
+                comparison if only one exists). A string plots that comparison only;
+                a list of strings plots each one separately.
+            add_stats: If True and ``stats`` is not provided, statistics are
+                computed via ``bfa_stats`` and annotated on each plot.
+            stats: Precomputed stats dict. If None and ``add_stats`` is True,
+                stats are computed automatically.
+            bins: Number of histogram bins for the surrogate distribution.
+            figsize: Size of each figure.
+            save_dir: If provided, save each figure as ``<comparison>.png`` here.
+            show: If True, call ``plt.show()`` after each figure.
+            compare: Deprecated alias for ``compares`` (single string only).
 
-        Returns `(fig, ax)` for a single comparison, or a dict `{compare: (fig, ax)}`
-        for multiple.
+        Returns:
+            ``(fig, ax)`` for a single comparison, or
+                ``{compare: (fig, ax)}`` for multiple.
 
         Examples
         --------
@@ -787,7 +780,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     def plot_transition_umap(
         self,
         column: str,
-        all_states=None,
+        all_states: list | None = None,
         groups: list[str | tuple[str, ...]] | list[list[str | tuple[str, ...]]] | None = None,
         n_neighbors: int = 15,
         min_dist: float = 0.1,
@@ -795,7 +788,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         figsize: tuple[float, float] = (4.5, 4),
         show: bool = True,
         save_dir: str | None = None,
-    ):
+    ) -> tuple[Figure, Any]:
         """
         Plot a UMAP embedding of per-subject transition matrices for selected groups.
 
@@ -803,53 +796,35 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         scaled, and embedded with UMAP. The collection must already be grouped, for
         example via ``groupby``.
 
-        Parameters
-        ----------
-        column
-            Name of the categorical column used to compute transition matrices.
-        all_states
-            Optional explicit state ordering used when constructing transition matrices.
-        groups
-            Optional group selection. If omitted, all groups are included.
+        Args:
+            column: Name of the categorical column used to compute transition matrices.
+            all_states: Optional explicit state ordering used when constructing
+                transition matrices.
+            groups: Optional group selection. If omitted, all groups are included.
+                Supports three forms:
 
-            This argument supports three forms:
+                * A flat list of single-tag group labels, e.g. ``['control', 'treatment']``.
+                * A flat list of multi-tag group keys (tuples), e.g.
+                    ``[('control', 'time1'), ('control', 'time2')]``.
+                * A list of lists defining ordered sequences, e.g.
+                    ``[[('control', 'time1'), ('control', 'time2')], ...]``.
+                    Each sequence is plotted with a monochrome gradient.
 
-            - A flat list of single-tag group labels, for example
-              ``['control', 'treatment']``.
-            - A flat list of multi-tag group keys (tuples), for example
-              ``[('control', 'time1'), ('control', 'time2')]``.
-            - A list of lists defining ordered sequences of groups, for example
-              ``[[('control', 'time1'), ('control', 'time2')],
-              [('treatment', 'time1'), ('treatment', 'time2')]]``.
+            n_neighbors: Number of neighbors used by UMAP.
+            min_dist: Minimum distance parameter passed to UMAP.
+            random_state: Seed for reproducible UMAP embeddings.
+            figsize: Figure size passed to Matplotlib.
+            show: If True, display the figure.
+            save_dir: Optional directory in which to save the plot as
+                ``transition_umap.png``.
 
-            When sequences are provided, each sequence is plotted using a monochrome
-            gradient to indicate progression within that sequence.
-        n_neighbors
-            Number of neighbors used by UMAP.
-        min_dist
-            Minimum distance parameter passed to UMAP.
-        random_state
-            Seed for reproducible UMAP embeddings.
-        figsize
-            Figure size passed to Matplotlib.
-        show
-            If True, display the figure.
-        save_dir
-            Optional directory in which to save the plot as
-            ``transition_umap.png``.
+        Returns:
+            Tuple of ``(fig, ax)``.
 
-        Returns
-        -------
-        fig, ax
-            Matplotlib figure and axis.
-
-        Raises
-        ------
-        ValueError
-            If the collection is not grouped, or if no data are found for the
-            requested groups.
-        ImportError
-            If ``umap-learn`` is not installed.
+        Raises:
+            ValueError: If the collection is not grouped, or if no data are found
+                for the requested groups.
+            ImportError: If ``umap-learn`` is not installed.
 
         Examples
         --------
@@ -1177,45 +1152,40 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         """
         Combine BFA results from multiple temporal scales into a single result.
 
-        .. note::
-            **This is an escape-hatch for advanced workflows.**  If you are
-            starting a multi-scale BFA from scratch, use :meth:`bfa_multiscale`
-            instead — it handles scale generation, surrogate synchronisation,
-            and result combination automatically.
+        Note:
+            This is an escape-hatch for advanced workflows. If you are starting
+            a multi-scale BFA from scratch, use ``bfa_multiscale`` instead — it
+            handles scale generation, surrogate synchronisation, and result
+            combination automatically. Only use this helper directly when you
+            have already computed per-scale results through a custom pipeline and
+            know that their surrogate shuffles are synchronised (same
+            ``random_state``, same group/handle order, same ``pairs``, same
+            ``numshuffles``).
 
-            Only use this helper directly when you have already computed
-            per-scale results through a custom pipeline and know that their
-            surrogate shuffles are synchronised (same ``random_state``, same
-            group/handle order, same ``pairs``, same ``numshuffles``).
-
-        Each entry in ``results_list`` is a dict returned by :meth:`bfa`.  The
+        Each entry in ``results_list`` is a dict returned by ``bfa``. The
         ``observed`` distances and the per-surrogate surrogate distances are
         summed (optionally weighted) across scales, yielding a combined result
-        in the same format as a single :meth:`bfa` call.
+        in the same format as a single ``bfa`` call.
 
         For valid multi-scale statistics the surrogate shuffles must be
         synchronised across scales — pass the same ``random_state`` to every
-        :meth:`bfa` call, use the same group structure and the same ``pairs``
+        ``bfa`` call, use the same group structure and the same ``pairs``
         ordering, and the shuffles will be identical by construction.
 
-        Parameters
-        ----------
-        results_list : list[dict]
-            BFA result dicts, one per scale, in the same format returned by
-            :meth:`bfa`.  All dicts must contain the same pair keys and the
-            same number of surrogates.
-        scale_weights : list[float] | None
-            Optional per-scale multiplicative weights (must have the same length
-            as ``results_list``).  Defaults to uniform weighting (all 1.0).
-        per_scale : bool, default True
-            If True, each combined pair entry includes a ``"per_scale_observed"``
-            list containing the individual scale contributions.
+        Args:
+            results_list: BFA result dicts, one per scale, in the same format
+                returned by ``bfa``. All dicts must contain the same pair keys
+                and the same number of surrogates.
+            scale_weights: Optional per-scale multiplicative weights (must have
+                the same length as ``results_list``). Defaults to uniform
+                weighting (all 1.0).
+            per_scale: If True, each combined pair entry includes a
+                ``"per_scale_observed"`` list containing the individual scale
+                contributions.
 
-        Returns
-        -------
-        dict
-            Same structure as :meth:`bfa` output, with an optional extra key
-            ``"per_scale_observed"`` per comparison when ``per_scale=True``.
+        Returns:
+            Same structure as ``bfa`` output, with an optional extra key
+                ``"per_scale_observed"`` per comparison when ``per_scale=True``.
 
         Examples
         --------
@@ -1334,61 +1304,44 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         animal shuffle.  The combined surrogate distribution is therefore the
         correct null for the combined statistic.
 
-        Parameters
-        ----------
-        scs : list[SummaryCollection]
-            Grouped ``SummaryCollection`` objects, one per scale, in the order
-            they should be combined.
-        columns : list[str] or str
-            State column name to use for each scale's transition matrix.  Pass
-            a single string to use the same column name for all scales.
-        all_states : list[list | None] | list | None, default None
-            Explicit state ordering for transition matrices.  Three forms are
-            accepted:
+        Args:
+            scs: Grouped ``SummaryCollection`` objects, one per scale, in the
+                order they should be combined.
+            columns: State column name to use for each scale's transition matrix.
+                Pass a single string to use the same column name for all scales.
+            all_states: Explicit state ordering for transition matrices. Three
+                forms are accepted:
 
-            - ``None`` — states are inferred from the data at every scale.
-            - A flat list (e.g. ``[0, 1, 2]``) — the same state set is used
-              for all scales.
-            - A list of lists / ``None`` values whose length equals ``len(scs)``
-              (e.g. ``[[0,...,49], [0,...,9], None]``) — each scale uses its
-              own state set, or ``None`` to infer for that scale.
+                * ``None`` — states are inferred from the data at every scale.
+                * A flat list (e.g. ``[0, 1, 2]``) — the same state set is used
+                    for all scales.
+                * A list of lists / ``None`` values whose length equals
+                    ``len(scs)`` — each scale uses its own state set, or
+                    ``None`` to infer for that scale.
 
-            The per-scale form is detected when every element of the outer list
-            is itself a list or ``None``.
-        numshuffles : int
-            Number of surrogate shuffles per scale.
-        pairs : list[tuple[str, str]] | None
-            Group pairs to compare.  ``None`` evaluates all unique pairs.
-            Must be the same for all scales.
-        random_state : int | None
-            Seed for reproducible surrogate shuffling.  The same seed is used
-            at every scale to synchronise surrogates.
-        scale_by_transitions : bool, default True
-            Divide each pairwise Manhattan distance by the total number of
-            transitions across both groups for that pair.  This is enabled by
-            default here because distances across scales must be on a common
-            per-transition unit before they can be meaningfully combined.
-            Set to ``False`` only if you need raw-count distances and are
-            handling comparability yourself.
-        scale_weights : list[float] | None
-            Per-scale multipliers for the combined distance, in the same order
-            as ``scs``.  Defaults to uniform weighting.
+            numshuffles: Number of surrogate shuffles per scale.
+            pairs: Group pairs to compare. ``None`` evaluates all unique pairs.
+                Must be the same for all scales.
+            random_state: Seed for reproducible surrogate shuffling. The same
+                seed is used at every scale to synchronise surrogates.
+            scale_by_transitions: Divide each pairwise Manhattan distance by the
+                total number of transitions across both groups for that pair.
+                Enabled by default because distances across scales must be on a
+                common per-transition unit before they can be meaningfully
+                combined.
+            scale_weights: Per-scale multipliers for the combined distance, in
+                the same order as ``scs``. Defaults to uniform weighting.
 
-        Returns
-        -------
-        dict with keys:
+        Returns:
+            Dict with keys ``"combined"`` (``bfa``-format result with an
+                additional ``"per_scale_observed"`` list per comparison) and
+                ``"scales"`` (dict mapping scale index to the individual ``bfa``
+                result).
 
-        - ``"combined"`` : combined result in :meth:`bfa` format, with an
-          additional ``"per_scale_observed"`` list per comparison.
-        - ``"scales"`` : dict mapping integer index (0, 1, …) to the
-          individual :meth:`bfa` result for that scale.
-
-        Raises
-        ------
-        ValueError
-            If any SC is not grouped, group keys / handle order differ across
-            SCs, a requested column is missing, or ``columns`` length mismatches
-            ``scs``.
+        Raises:
+            ValueError: If any SC is not grouped, group keys / handle order
+                differ across SCs, a requested column is missing, or
+                ``columns`` length mismatches ``scs``.
 
         Examples
         --------

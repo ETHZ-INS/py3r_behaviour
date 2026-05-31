@@ -12,7 +12,7 @@ class TrackingMV:
     """
     multi-view tracking object for stereo or multi-camera setups
     can be used as a drop-in replacement for Tracking in TrackingCollection
-    stores dict of view name -> Tracking, calibration, and handle
+    stores dict of view name -> Tracking, calibration, and handle.
     """
 
     def __init__(self, views: dict[str, Tracking], calibration: dict, handle: str):
@@ -73,9 +73,7 @@ class TrackingMV:
         fps: float,
         aspectratio_correction: float = 1.0,
     ) -> TrackingMV:
-        """
-        Build a TrackingMV from a folder containing view CSVs and calibration.json.
-        """
+        """Build a TrackingMV from a folder containing view CSVs and calibration.json."""
         import json
         import os
         from pathlib import Path as _Path

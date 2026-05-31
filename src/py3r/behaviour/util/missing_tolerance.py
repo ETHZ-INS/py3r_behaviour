@@ -16,7 +16,8 @@ def impute_frame(df: pd.DataFrame, medians: pd.Series) -> tuple[pd.DataFrame, pd
     """
     Impute NaNs using precomputed per-column medians.
 
-    Returns:
+    Returns
+    -------
       - imputed: DataFrame (same shape/index/columns)
       - observed_fraction: per-row ratio of non-NaN entries in the original df
     """

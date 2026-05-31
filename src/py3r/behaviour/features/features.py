@@ -48,6 +48,7 @@ if TYPE_CHECKING:
 
     from py3r.behaviour.animation.animation_stream import AnimationStream
     from py3r.behaviour.classifier import BaseClassifier
+    from py3r.behaviour.features.centroids_df import CentroidsDf
     from py3r.behaviour.summary.summary import Summary
 
 logger = logging.getLogger(__name__)
@@ -125,9 +126,7 @@ def _axis_boundary_intersections(
 
 
 class Features:
-    """
-    generates features from a pre-processed Tracking object
-    """
+    """generates features from a pre-processed Tracking object."""
 
     def __init__(self, tracking: Tracking) -> None:
         self.tracking = tracking
@@ -297,26 +296,19 @@ class Features:
         ``fps`` is divided by ``window`` to reflect the new effective frame rate.
         A ``"coarse_grain"`` entry is appended to ``meta["transforms"]``.
 
-        Parameters
-        ----------
-        window : int
-            Number of consecutive rows to collapse into one.
-        method : {"mean", "median", "min", "max"}, default "mean"
-            Aggregation applied to numeric feature columns within each window.
-        non_numeric : {"drop", "nan", "first", "mode", "error"}, default "drop"
-            How to handle non-numeric feature columns (e.g. string state
-            labels).  Pass ``"mode"`` to keep the most-frequent value per
-            window, which is appropriate for categorical columns.
-        keep_assets : bool, default True
-            If ``True``, assets (e.g. boundary objects) are deep-copied to the
-            result.  Set to ``False`` to avoid copying large assets when they
-            are not needed at the coarser scale.
+        Args:
+            window: Number of consecutive rows to collapse into one.
+            method: Aggregation applied to numeric feature columns within each window.
+            non_numeric: How to handle non-numeric feature columns (e.g. string state
+                labels). Pass ``"mode"`` to keep the most-frequent value per window,
+                which is appropriate for categorical columns.
+            keep_assets: If ``True``, assets (e.g. boundary objects) are deep-copied to
+                the result. Set to ``False`` to avoid copying large assets when they
+                are not needed at the coarser scale.
 
-        Returns
-        -------
-        Features
+        Returns:
             New ``Features`` (or subclass) object with ``len(data) // window``
-            rows and reduced fps.
+                rows and reduced fps.
 
         Examples
         --------
@@ -421,9 +413,7 @@ class Features:
 
         This is a convenience wrapper around `Summary(self)`.
 
-        Returns
-        -------
-        Summary
+        Returns:
             A new summary object linked to this features object.
 
         Examples
@@ -465,34 +455,24 @@ class Features:
         - Identical tracking column names
         - Identical feature column names
 
-        Parameters
-        ----------
-        features_list : list[Features]
-            List of Features objects to concatenate, in temporal order.
-        handle : str, optional
-            Handle for the concatenated object. If None, uses first object's handle.
-        reindex : {"rezero", "follow_previous", "keep_original"}, default "follow_previous"
-            How to handle frame indices:
-            - "rezero": Reindex all frames starting from 0 (0, 1, 2, ...).
-            - "follow_previous": Each chunk continues from where the previous
-              ended. If chunk 1 ends at frame n, chunk 2 starts at n+1.
-            - "keep_original": Leave indices untouched; duplicates are allowed.
+        Args:
+            features_list: List of Features objects to concatenate, in temporal order.
+            handle: Handle for the concatenated object. If None, uses first object's handle.
+            reindex: How to handle frame indices. ``"rezero"`` reindexes all frames
+                starting from 0. ``"follow_previous"`` continues from where the previous
+                chunk ended. ``"keep_original"`` leaves indices untouched; duplicates
+                are allowed.
 
-        Returns
-        -------
-        Features
+        Returns:
             A new Features object containing all frames from input objects.
 
-        Raises
-        ------
-        ValueError
-            If features_list is empty, fps values don't match, or columns differ.
+        Raises:
+            ValueError: If features_list is empty, fps values don't match, or columns differ.
 
-        Notes
-        -----
-        For context-dependent features (normalization, embeddings with temporal
-        windows, etc.), consider whether you need to recompute features on
-        concatenated Tracking data rather than concatenating pre-computed features.
+        Note:
+            For context-dependent features (normalization, embeddings with temporal
+            windows, etc.), consider whether you need to recompute features on
+            concatenated Tracking data rather than concatenating pre-computed features.
 
         Examples
         --------
@@ -638,7 +618,7 @@ class Features:
 
     def distance_between(self, point1: str, point2: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns distance from point1 to point2
+        Returns distance from point1 to point2.
 
         Examples
         --------
@@ -675,7 +655,7 @@ class Features:
         self, point1: str, point2: str, distance: float, dims=("x", "y")
     ) -> FeaturesResult:
         """
-        returns True for frames where point1 is within specified distance of point2
+        Returns True for frames where point1 is within specified distance of point2
         NA is propagated where inputs are missing (pd.NA).
 
         Examples
@@ -745,9 +725,7 @@ class Features:
         scaling_y: float = None,
         centre: str | list[str] = None,
     ) -> list[tuple[float, float]]:
-        """
-        Deprecated: use define_static_boundary or define_dynamic_boundary instead.
-        """
+        """Deprecated: use define_static_boundary or define_dynamic_boundary instead."""
         raise NotImplementedError(
             "Features.define_boundary() was removed; use Features.define_static_boundary() "
             "or Features.define_dynamic_boundary() instead."
@@ -799,10 +777,8 @@ class Features:
     def get_asset(self, name: str):
         """Return a named geometric asset (boundary or line) by name.
 
-        Raises
-        ------
-        KeyError
-            If no asset with ``name`` is registered.
+        Raises:
+            KeyError: If no asset with ``name`` is registered.
         """
         try:
             return self._assets[name]
@@ -813,9 +789,7 @@ class Features:
     def list_assets(self) -> pd.DataFrame:
         """Return a table of all named geometric assets on this Features object.
 
-        Returns
-        -------
-        pd.DataFrame
+        Returns:
             Indexed by asset name, columns: ``asset_type``, ``dims``, ``n_points``.
         """
         rows = []
@@ -912,9 +886,7 @@ class Features:
         name: str | None = None,
         overwrite: bool = False,
     ) -> DynamicBoundary:
-        """
-        Define a dynamic boundary from ordered point names and optional scaling.
-        """
+        """Define a dynamic boundary from ordered point names and optional scaling."""
         if len(points) < 3:
             raise ValueError("Dynamic boundary requires at least 3 point names.")
         # validate anchor eagerly for clearer user feedback
@@ -937,9 +909,7 @@ class Features:
         name: str | None = None,
         overwrite: bool = False,
     ) -> StaticBoundary:
-        """
-        Escape hatch: import a precomputed static polygon in selected dims.
-        """
+        """Escape hatch: import a precomputed static polygon in selected dims."""
         if len(vertices) < 3:
             raise ValueError("Imported static boundary requires at least 3 vertices.")
         verts = tuple((float(x), float(y)) for x, y in vertices)
@@ -967,23 +937,16 @@ class Features:
         reference points at definition time.  The axis is always treated as
         infinite (no endpoints) in both distance computations and rendering.
 
-        Parameters
-        ----------
-        point1 : str
-            First keypoint defining the axis direction.
-        point2 : str
-            Second keypoint defining the axis direction.
-        dims : tuple[str, ...], default ``("x", "y")``
-            Coordinate dimensions.  Any number of dims is supported
-            (e.g. ``("x", "y", "z")`` for 3-D axis distance).
-        offset : float, default 0.0
-            Shift both reference points perpendicularly by this amount.
-            Positive is to the right when facing from ``point1`` to
-            ``point2``.  Only supported for 2-D axes.
-        name : str or None
-            If given, register the axis under this name.
-        overwrite : bool, default False
-            Allow replacing an existing asset with the same name.
+        Args:
+            point1: First keypoint defining the axis direction.
+            point2: Second keypoint defining the axis direction.
+            dims: Coordinate dimensions. Any number of dims is supported
+                (e.g. ``("x", "y", "z")`` for 3-D axis distance).
+            offset: Shift both reference points perpendicularly by this amount.
+                Positive is to the right when facing from ``point1`` to ``point2``.
+                Only supported for 2-D axes.
+            name: If given, register the axis under this name.
+            overwrite: Allow replacing an existing asset with the same name.
         """
         from py3r.behaviour.features.axis import _transform_axis_endpoints
 
@@ -1015,22 +978,14 @@ class Features:
         with offset applied during each resolution.  The axis is always treated
         as infinite in both distance computations and rendering.
 
-        Parameters
-        ----------
-        point1 : str
-            First keypoint defining the axis direction.
-        point2 : str
-            Second keypoint defining the axis direction.
-        dims : tuple[str, ...], default ``("x", "y")``
-            Coordinate dimensions.
-        offset : float, default 0.0
-            Per-frame perpendicular displacement.  Positive is to the right
-            when facing from ``point1`` to ``point2``.  Only supported for
-            2-D axes.
-        name : str or None
-            If given, register the axis under this name.
-        overwrite : bool, default False
-            Allow replacing an existing asset with the same name.
+        Args:
+            point1: First keypoint defining the axis direction.
+            point2: Second keypoint defining the axis direction.
+            dims: Coordinate dimensions.
+            offset: Per-frame perpendicular displacement. Positive is to the right
+                when facing from ``point1`` to ``point2``. Only supported for 2-D axes.
+            name: If given, register the axis under this name.
+            overwrite: Allow replacing an existing asset with the same name.
         """
         self.tracking._assert_valid_point(point1)
         self.tracking._assert_valid_point(point2)
@@ -1052,16 +1007,11 @@ class Features:
     ) -> StaticAxis:
         """Import a static axis from explicit reference-point coordinates.
 
-        Parameters
-        ----------
-        vertices : list of tuple
-            Exactly two coordinate tuples in ``dims`` space.
-        dims : tuple[str, ...], default ``("x", "y")``
-            Coordinate dimensions.
-        name : str or None
-            If given, register the axis under this name.
-        overwrite : bool, default False
-            Allow replacing an existing asset with the same name.
+        Args:
+            vertices: Exactly two coordinate tuples in ``dims`` space.
+            dims: Coordinate dimensions.
+            name: If given, register the axis under this name.
+            overwrite: Allow replacing an existing asset with the same name.
         """
         if len(vertices) != 2:
             raise ValueError(f"An axis requires exactly 2 reference points; got {len(vertices)}.")
@@ -1309,15 +1259,12 @@ class Features:
 
         Accepts a ``StaticBoundary`` or ``DynamicBoundary`` (or a stored boundary name).
 
-        Parameters
-        ----------
-        point :
-            Keypoint name whose coordinates are measured.
-        boundary :
-            A ``StaticBoundary``, ``DynamicBoundary``, or the string name of a stored boundary.
-        signed :
-            If ``True``, distances are negated for points inside the boundary (standard signed
-            distance field convention: negative = inside, positive = outside, zero = on boundary).
+        Args:
+            point: Keypoint name whose coordinates are measured.
+            boundary: A ``StaticBoundary``, ``DynamicBoundary``, or the string name
+                of a stored boundary.
+            signed: If ``True``, distances are negated for points inside the boundary
+                (negative = inside, positive = outside, zero = on boundary).
 
         Examples
         --------
@@ -1500,24 +1447,19 @@ class Features:
         Use :meth:`define_static_axis`, :meth:`define_dynamic_axis`, or
         :meth:`import_static_axis` to create axis assets.
 
-        Parameters
-        ----------
-        point : str
-            Keypoint to measure from.
-        axis : str, StaticAxis, or DynamicAxis
-            A two-point axis asset, or the name of a registered one.
-        signed : bool, default False
-            If True, return a signed distance (2-D axes only).  Positive means
-            the point is to the *right* when facing from the first to the
-            second axis reference point; negative means it is to the *left*.
-            The sign convention matches :meth:`define_static_axis` ``offset``:
-            an ``offset > 0`` shifts the axis rightward, so a point that was
-            on the axis will have a negative signed distance from the
-            offset-shifted one.  Raises ``ValueError`` for non-2-D axes.
+        Args:
+            point: Keypoint to measure from.
+            axis: A two-point axis asset, or the name of a registered one.
+            signed: If True, return a signed distance (2-D axes only). Positive means
+                the point is to the right when facing from the first to the second axis
+                reference point; negative means it is to the left. The sign convention
+                matches :meth:`define_static_axis` ``offset``: an ``offset > 0`` shifts
+                the axis rightward, so a point that was on the axis will have a negative
+                signed distance from the offset-shifted one. Raises ``ValueError`` for
+                non-2-D axes.
 
-        Returns
-        -------
-        FeaturesResult
+        Returns:
+            Per-frame perpendicular distance series.
 
         Examples
         --------
@@ -1609,23 +1551,16 @@ class Features:
         falls inside any of the requested ``zones``.  Frames where the axis is
         degenerate (A == B) or any coordinate is NaN are returned as ``pd.NA``.
 
-        Parameters
-        ----------
-        axis : str, StaticAxis, or DynamicAxis
-            Two-point axis asset, or the name of a registered one.
-        boundary : str, StaticBoundary, or DynamicBoundary
-            Polygon boundary asset, or the name of a registered one.
-        dims : tuple of (str, str), default ``("x", "y")``
-            The 2-D coordinate space for the intersection test.  Both the axis
-            and the boundary must have exactly these dims.
-        zones : {"front", "within", "behind"} or set thereof, optional
-            Which zones count as an intersection.  A single zone name (e.g.
-            ``"front"``) or a set of names.  Defaults to all three (any
-            intersection anywhere along the infinite axis).
+        Args:
+            axis: Two-point axis asset, or the name of a registered one.
+            boundary: Polygon boundary asset, or the name of a registered one.
+            dims: The 2-D coordinate space for the intersection test. Both the axis
+                and the boundary must have exactly these dims.
+            zones: Which zones count as an intersection. A single zone name (e.g.
+                ``"front"``) or a set of names. Defaults to all three zones (any
+                intersection anywhere along the infinite axis).
 
-        Returns
-        -------
-        FeaturesResult
+        Returns:
             Boolean series (pandas nullable boolean dtype).
 
         Examples
@@ -1816,12 +1751,9 @@ class Features:
         """
         Deprecated legacy area API.
 
-        Parameters
-        ----------
-        boundary
-            Ordered point names defining the polygon.
-        median
-            ``True`` for static-median area, ``False`` for per-frame dynamic area.
+        Args:
+            boundary: Ordered point names defining the polygon.
+            median: ``True`` for static-median area, ``False`` for per-frame dynamic area.
         """
         raise NotImplementedError(
             "Features.area_of_boundary_deprecated() was removed; use "
@@ -1830,7 +1762,7 @@ class Features:
 
     def acceleration(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns acceleration of point from previous frame to current frame, for each frame
+        Returns acceleration of point from previous frame to current frame, for each frame.
 
         Examples
         --------
@@ -1858,8 +1790,8 @@ class Features:
 
     def azimuth(self, point1: str, point2: str) -> FeaturesResult:
         """
-        returns azimuth in radians from tracked point1 to tracked point2
-        for each frame in the data, relative to the direction of the x-axis
+        Returns azimuth in radians from tracked point1 to tracked point2
+        for each frame in the data, relative to the direction of the x-axis.
 
         Examples
         --------
@@ -1973,7 +1905,7 @@ class Features:
 
     def speed(self, point: str, dims=("x", "y")) -> FeaturesResult:
         """
-        returns average speed of point from previous frame to current frame, for each frame
+        Returns average speed of point from previous frame to current frame, for each frame.
 
         Examples
         --------
@@ -2179,18 +2111,13 @@ class Features:
         """
         Compose a categorical state series from labeled boolean sources.
 
-        Parameters
-        ----------
-        sources:
-            Mapping ``{state_label: source}``, where source is either:
-            - a column name in ``self.data`` containing a boolean series, or
-            - a boolean pandas Series aligned/reindexable to ``self.data.index`` (e.g.
-            a ``FeaturesResult``)
-        priority:
-            Optional label precedence when multiple sources are True in the same
-            frame. Labels not listed are appended in insertion order.
-        none_label:
-            Label used when no source is True at a frame.
+        Args:
+            sources: Mapping ``{state_label: source}``, where source is either a column
+                name in ``self.data`` containing a boolean series, or a boolean pandas
+                Series aligned/reindexable to ``self.data.index`` (e.g. a ``FeaturesResult``).
+            priority: Optional label precedence when multiple sources are True in the same
+                frame. Labels not listed are appended in insertion order.
+            none_label: Label used when no source is True at a frame.
 
         Examples
         --------
@@ -2318,19 +2245,31 @@ class Features:
         method: str,
         window: int,
         inplace: bool = False,
-        **method_kwargs,
+        **method_kwargs: Any,
     ) -> pd.Series:
         """
-        Smooth feature with method over rolling window. If inplace=True, feature and
-        metadata are updated in place.
-        method:
-            'median' : median in window (numerical)
-            'mean' : mean in window (numerical)
-            'savgol' : Savitzky–Golay (SciPy). Kwargs e.g. polyorder=3, mode='interp'.
-            'mode' : mode in window (numerical or non-numerical)
-            'block' : applies categorical series_utils.block_filter then series_utils.block_fill
-                      using window for both min_block and max_gap. Legacy smooth_block behavior is
-                      removed from this method; use series_utils.smooth_block directly if required.
+        Smooth a stored feature by name over a rolling window.
+
+        Args:
+            name: Name of the feature column in ``self.data`` to smooth.
+            method: Smoothing method. One of:
+
+                * ``'median'`` — rolling median (numerical).
+                * ``'mean'`` — rolling mean (numerical).
+                * ``'savgol'`` — Savitzky–Golay filter (SciPy). Extra kwargs e.g.
+                  ``polyorder=3``, ``mode='interp'``.
+                * ``'mode'`` — rolling mode (numerical or categorical).
+                * ``'block'`` — applies ``block_filter`` then ``block_fill`` using
+                  ``window`` for both ``min_block`` and ``max_gap``. Legacy
+                  ``smooth_block`` behavior is available via
+                  ``series_utils.smooth_block`` directly.
+
+            window: Rolling window size.
+            inplace: If True, overwrite the stored feature and update its metadata.
+            **method_kwargs: Extra keyword arguments forwarded to the smoothing method.
+
+        Returns:
+            Smoothed series.
         """
         if "smoothing" in self.meta[name].keys():
             raise Exception("feature already smoothed")
@@ -2382,22 +2321,18 @@ class Features:
 
         return smoothed
 
-    def embedding_df(self, embedding: dict[str, list[int]]):
+    def embedding_df(self, embedding: dict[str, list[int]]) -> pd.DataFrame:
         """
         Generate a time-series embedding DataFrame with per-column time shifts.
 
-        Parameters
-        ----------
-        embedding : dict[str, list[int]]
-            Mapping of feature column name to a list of integer time shifts.
-            Positive shift pulls the value from the future (t+n); negative
-            shift pulls from the past (t-n); zero is the current frame.
+        Args:
+            embedding: Mapping of feature column name to a list of integer time shifts.
+                Positive shift pulls the value from the future (t+n); negative shift
+                pulls from the past (t-n); zero is the current frame.
 
-        Returns
-        -------
-        pd.DataFrame
+        Returns:
             One column per (feature, shift) pair, named ``<col>_t0``,
-            ``<col>_t+n``, or ``<col>_t-n``.
+                ``<col>_t+n``, or ``<col>_t-n``.
 
         Examples
         --------
@@ -2458,16 +2393,15 @@ class Features:
         chunk_size: int = 10_000,
         n_epochs: int = 3,
         batch_size: int = 1024,
-    ):
+    ) -> tuple[FeaturesResult, CentroidsDf]:
         """
         Memory-friendly clustering on a single Features object.
 
         Delegates to ``FeaturesCollection.cluster_embedding_stream``.
         See that method for full parameter documentation.
 
-        Returns
-        -------
-        (FeaturesResult, CentroidsDf)
+        Returns:
+            Tuple of ``(FeaturesResult, CentroidsDf)``.
 
         Examples
         --------
@@ -2508,7 +2442,7 @@ class Features:
 
     def assign_clusters_by_centroids(
         self,
-        centroids_df,
+        centroids_df: CentroidsDf | pd.DataFrame,
         embedding: dict[str, list[int]] | None = None,
         *,
         allow_missing_features: Literal["self", "centroids", "both"] | None = None,
@@ -2521,58 +2455,52 @@ class Features:
         """
         Assign cluster labels to this Features object using pre-fitted centroids.
 
-        Parameters
-        ----------
-        centroids_df : CentroidsDf or pd.DataFrame
-            Cluster centres.  Passing a
-            :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` (the
-            object returned by ``cluster_embedding*``) is preferred: the method
-            will automatically apply the stored ``scaling_recipe``, including any
-            per-recording individual normalisation, and infer the *embedding*
-            from the recipe so it need not be passed separately.
+        Args:
+            centroids_df: Cluster centres. Passing a
+                :class:`~py3r.behaviour.features.centroids_df.CentroidsDf` (the
+                object returned by ``cluster_embedding*``) is preferred: the method
+                will automatically apply the stored ``scaling_recipe``, including any
+                per-recording individual normalisation, and infer the *embedding*
+                from the recipe so it need not be passed separately.
 
-            If a plain ``pd.DataFrame`` is passed, *embedding* and optionally
-            *scaling_factors* must be provided (legacy path).
-        embedding : dict[str, list[int]] | None
-            The embedding dict used during fitting.  Required when *centroids_df*
-            is a plain ``pd.DataFrame``; inferred from the recipe when
-            *centroids_df* is a :class:`CentroidsDf`.
-        allow_missing_features : {"self", "centroids", "both"} or None
-            Controls whether cluster assignment is permitted when the full
-            embedding space is not available, by projecting into a shared
-            subspace of the columns that *both* sides can provide.
+                If a plain ``pd.DataFrame`` is passed, *embedding* and optionally
+                *scaling_factors* must be provided (legacy path).
+            embedding: The embedding dict used during fitting. Required when *centroids_df*
+                is a plain ``pd.DataFrame``; inferred from the recipe when
+                *centroids_df* is a :class:`CentroidsDf`.
+            allow_missing_features: Controls whether cluster assignment is permitted when
+                the full embedding space is not available, by projecting into a shared
+                subspace of the columns that *both* sides can provide.
 
-            * ``"self"`` – tolerate base features missing from *this* object
-              (e.g. a missing animal in a multi-animal recording).  *centroids_df*
-              is expected to cover the full training embedding; only the columns
-              ``self`` can actually produce are used.
-            * ``"centroids"`` – tolerate the centroids having fewer columns
-              than the full embedding ``self`` would generate (e.g. centroids
-              fitted on a reduced feature set).  *self* must still carry all
-              requested base features; only the centroid columns are used.
-            * ``"both"`` – tolerate gaps on either side; the strict
-              intersection of what ``self`` can produce and what the centroids
-              contain is used.
+                * ``"self"`` – tolerate base features missing from *this* object
+                  (e.g. a missing animal in a multi-animal recording). *centroids_df*
+                  is expected to cover the full training embedding; only the columns
+                  ``self`` can actually produce are used.
+                * ``"centroids"`` – tolerate the centroids having fewer columns
+                  than the full embedding ``self`` would generate (e.g. centroids
+                  fitted on a reduced feature set). *self* must still carry all
+                  requested base features; only the centroid columns are used.
+                * ``"both"`` – tolerate gaps on either side; the strict intersection
+                  of what ``self`` can produce and what the centroids contain is used.
 
-            In all three cases a :class:`UserWarning` is issued that
-            identifies which columns were dropped and from which side, so
-            the caller can verify the subspace is sensible.  A
-            :exc:`ValueError` is raised when no columns remain after
-            intersection regardless of the chosen mode.
+                In all three cases a :class:`UserWarning` is issued that identifies
+                which columns were dropped and from which side, so the caller can
+                verify the subspace is sensible. A :exc:`ValueError` is raised when
+                no columns remain after intersection regardless of the chosen mode.
 
-            ``None`` (default) raises if the column sets do not match exactly.
-        scaling_factors : dict[str, float] | None
-            Per-embedding-column constant multipliers.  Applied only when
-            *centroids_df* is a plain DataFrame (legacy path).
-        impute_means : pd.Series | None
-            Per-column fill values (training-set column means) for NaN
-            imputation.  When *centroids_df* is a :class:`CentroidsDf` this is
-            read automatically from the ``scaling_recipe``; pass explicitly only
-            to override.
+                ``None`` (default) raises if the column sets do not match exactly.
+            scaling_factors: Per-embedding-column constant multipliers. Applied only
+                when *centroids_df* is a plain DataFrame (legacy path).
+            impute_means: Per-column fill values (training-set column means) for NaN
+                imputation. When *centroids_df* is a :class:`CentroidsDf` this is
+                read automatically from the ``scaling_recipe``; pass explicitly only
+                to override.
+            rescale_factors: Removed. Raises ``NotImplementedError``; pass
+                ``scaling_factors`` instead.
+            custom_scaling: Removed. Raises ``NotImplementedError``; use
+                ``build_column_weights()`` and pass ``scaling_factors`` instead.
 
-        Returns
-        -------
-        FeaturesResult
+        Returns:
             Series of cluster IDs (0 .. n_clusters-1).
 
         Examples
@@ -3065,49 +2993,33 @@ class Features:
         Static and dynamic boundaries are resolved to per-boundary arrays and
         rendered in boundary order.
 
-        Parameters
-        ----------
-        points : list[str]
-            Point names to render as circles.
-        lines : list[tuple[str, str]] | None
-            Line segments connecting point pairs.
-        boundaries : list[str] | None
-            Boundary names (or refs resolvable by ``_resolve_boundary_ref``)
-            to draw. Order controls draw stacking.
-        axes : list[str] | None
-            Axis asset names (registered via :meth:`define_static_axis`,
-            :meth:`define_dynamic_axis`, or :meth:`import_static_axis`) to
-            draw as infinite lines clipped to the canvas boundary.
-            Styled via ``style["axes"]``.
-        features : list[str | None] | dict[str | None, str | None] | None
-            Per-frame scalar feature columns from ``self.data`` to render as
-            text overlays. If a list is provided, each column is shown as
-            ``name: value``. If a dict is provided, keys are display labels and
-            values are source column names. ``None`` or ``""`` entries insert a
-            blank spacer line.
-        dims : tuple[str, ...], default=("x", "y")
-            Coordinate dimensions. For 3D, use ``("x","y","z")``. Boundary
-            definitions are interpreted in their native 2D ``dims`` and can be
-            projected in 3D via ``view``.
-        view : dict | None
-            3D view options for projection (``azim``, ``elev``, ``proj``,
-            ``camera_distance``, ``focal_length``, ``boundary_z``, ``pad``).
-        canvas_size : tuple[int, int], default=(800, 800)
-            Canvas size as ``(width, height)``.
-        bg_color : tuple[int, int, int], default=(0, 0, 0)
-            Background color in BGR.
-        style : dict | None
-            Style overrides for points/lines/boundaries.
-        pixel_coords : bool, default=False
-            If True, coordinates are treated as absolute pixel values.
-        undo_meta_scaling : bool, default=False
-            If True, invert tracking meta scaling before rendering.
+        Args:
+            points: Point names to render as circles.
+            lines: Line segments connecting point pairs.
+            boundaries: Boundary names (or refs resolvable by ``_resolve_boundary_ref``)
+                to draw. Order controls draw stacking.
+            axes: Axis asset names (registered via :meth:`define_static_axis`,
+                :meth:`define_dynamic_axis`, or :meth:`import_static_axis`) to
+                draw as infinite lines clipped to the canvas boundary.
+                Styled via ``style["axes"]``.
+            features: Per-frame scalar feature columns from ``self.data`` to render as
+                text overlays. If a list is provided, each column is shown as
+                ``name: value``. If a dict is provided, keys are display labels and
+                values are source column names. ``None`` or ``""`` entries insert a
+                blank spacer line.
+            dims: Coordinate dimensions. For 3D, use ``("x","y","z")``. Boundary
+                definitions are interpreted in their native 2D ``dims`` and can be
+                projected in 3D via ``view``.
+            view: 3D view options for projection (``azim``, ``elev``, ``proj``,
+                ``camera_distance``, ``focal_length``, ``boundary_z``, ``pad``).
+            canvas_size: Canvas size as ``(width, height)``.
+            bg_color: Background color in BGR.
+            style: Style overrides for points/lines/boundaries.
+            pixel_coords: If True, coordinates are treated as absolute pixel values.
+            undo_meta_scaling: If True, invert tracking meta scaling before rendering.
 
-        Returns
-        -------
-        AnimationStream
-            Stream object with ``get_frame()``, ``read()``, ``play()``, and
-            ``save()``.
+        Returns:
+            Stream object with ``get_frame()``, ``read()``, ``play()``, and ``save()``.
 
         Examples
         --------
@@ -3227,22 +3139,16 @@ class Features:
         """
         Resolve named boundary assets into per-boundary arrays.
 
-        Parameters
-        ----------
-        boundaries : list[str]
-            Stored boundary names (or refs accepted by ``_resolve_boundary_ref``).
-        dims : tuple[str, ...], default=("x", "y")
-            Requested coordinate dimensions. Boundary dims must match
-            ``(dims[0], dims[1])``.
-        undo_meta_scaling : bool, default=False
-            If True, invert tracking scaling metadata before resolving dynamic
-            boundary coordinates.
+        Args:
+            boundaries: Stored boundary names (or refs accepted by ``_resolve_boundary_ref``).
+            dims: Requested coordinate dimensions. Boundary dims must match
+                ``(dims[0], dims[1])``.
+            undo_meta_scaling: If True, invert tracking scaling metadata before
+                resolving dynamic boundary coordinates.
 
-        Returns
-        -------
-        list[tuple[str, np.ndarray]]
+        Returns:
             Boundary arrays as ``[(boundary_name, arr), ...]`` where each arr
-            has shape ``(n_frames, n_vertices, 2)``.
+                has shape ``(n_frames, n_vertices, 2)``.
 
         Examples
         --------
@@ -3314,22 +3220,16 @@ class Features:
     ) -> list[tuple[str, np.ndarray]]:
         """Resolve named axis assets into per-axis reference-point arrays for animation.
 
-        Parameters
-        ----------
-        axes : list[str]
-            Axis asset names (registered via :meth:`define_static_axis`,
-            :meth:`define_dynamic_axis`, or :meth:`import_static_axis`).
-        dims : tuple[str, str], default ``("x", "y")``
-            Coordinate dimensions.  Must be a 2-tuple; axis asset dims must
-            match.
-        undo_meta_scaling : bool, default False
-            If True, invert tracking meta scaling before resolving coordinates.
+        Args:
+            axes: Axis asset names (registered via :meth:`define_static_axis`,
+                :meth:`define_dynamic_axis`, or :meth:`import_static_axis`).
+            dims: Coordinate dimensions. Must be a 2-tuple; axis asset dims must match.
+            undo_meta_scaling: If True, invert tracking meta scaling before
+                resolving coordinates.
 
-        Returns
-        -------
-        list[tuple[str, np.ndarray]]
+        Returns:
             Axis arrays as ``[(axis_name, arr), ...]`` where each arr has
-            shape ``(n_frames, 2, 2)``.
+                shape ``(n_frames, 2, 2)``.
         """
         source_df = self.tracking.data
         factors = (

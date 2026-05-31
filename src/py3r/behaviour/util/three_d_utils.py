@@ -17,7 +17,7 @@ def _make_circular_mask(shape, radius):
 def _canonical_corners(corners):
     """
     Ensure corner[0] is always at the minimum (x+y) position.
-    (to avoid silent checkerboard orientation flips between views)
+    (to avoid silent checkerboard orientation flips between views).
     """
     first, last = corners[0, 0], corners[-1, 0]
     if float(last[0] + last[1]) < float(first[0] + first[1]):
@@ -514,8 +514,10 @@ def extract_calibration_images(
     num_images=200,
     chessboard_dims=(9, 6),
 ):
-    """Extract up to ``num_images`` matched frame pairs where a chessboard is
-    detected in both views.  Frames are sampled evenly across the video.
+    """
+    Extract up to ``num_images`` matched frame pairs each with detected chessboard.
+
+    Frames are sampled evenly across the videos.
 
     .. note::
         For a single-step extract-and-calibrate workflow, prefer

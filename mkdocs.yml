@@ -61,7 +61,7 @@ plugins:
             parameter_headings: true
             allow_inspection: true
             show_if_no_docstring: true
-            docstring_style: numpy
+            docstring_style: google
             filters: 
               - "!^__"
               - "!^_"

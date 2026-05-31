@@ -5,8 +5,8 @@ from __future__ import annotations
 import inspect
 import os
 import warnings
-from collections.abc import MutableMapping
-from typing import Any
+from collections.abc import Callable, MutableMapping
+from typing import Any, Self
 
 import pandas as pd
 
@@ -92,7 +92,7 @@ class BaseCollection(MutableMapping):
     Subclasses must define:
         - _element_type: the type of elements (e.g., Features)
         - _multiple_collection_type: the MultipleCollection class to return from groupby
-        - from_list(cls, objs): classmethod to construct from a list of elements
+        - from_list(cls, objs): classmethod to construct from a list of elements.
 
     Examples
     --------
@@ -662,7 +662,7 @@ class BaseCollection(MutableMapping):
         return cls(obj_dict)
 
     @classmethod
-    def merge(cls, collections, *, copy=False):
+    def merge(cls, collections: list[Self], *, copy: bool = False) -> Self:
         """
         Merge multiple collections into a single flat collection containing
         all leaf elements from each input.
@@ -671,32 +671,22 @@ class BaseCollection(MutableMapping):
         are supported. The result is always a new flat collection. Leaves are
         shared by reference unless ``copy=True``.
 
-        Parameters
-        ----------
-        collections : list[BaseCollection]
-            Two or more collections of the same concrete type. Every element
-            across all collections must have a unique handle.
-        copy : bool, default False
-            If True, each leaf is copied (via its ``.copy()`` method) so that
-            the merged collection is fully independent of the originals.
+        Args:
+            collections: Two or more collections of the same concrete type. Every
+                element across all collections must have a unique handle.
+            copy: If True, each leaf is copied (via its ``.copy()`` method) so that
+                the merged collection is fully independent of the originals.
 
-        Returns
-        -------
-        BaseCollection
+        Returns:
             A new flat collection containing all leaves.
 
-        Raises
-        ------
-        ValueError
-            If *collections* is empty, or if any handles are duplicated.
-        TypeError
-            If any input is not an instance of the calling class.
+        Raises:
+            ValueError: If *collections* is empty, or if any handles are duplicated.
+            TypeError: If any input is not an instance of the calling class.
 
-        Warns
-        -----
-        UserWarning
-            If the tag key sets differ across input collections (the merged
-            collection will have mixed tag coverage).
+        Warns:
+            UserWarning: If the tag key sets differ across input collections (the
+                merged collection will have mixed tag coverage).
 
         Examples
         --------
@@ -924,9 +914,7 @@ class BaseCollection(MutableMapping):
 
     @property
     def groupby_tags(self):
-        """
-        The tag names used to form this grouped view (or None if flat).
-        """
+        """The tag names used to form this grouped view (or None if flat)."""
         return getattr(self, "_groupby_tags", None)
 
     @property
@@ -1029,7 +1017,7 @@ class BaseCollection(MutableMapping):
         Works for flat and grouped collections. If `include_value_counts` is True,
         include a column 'value_counts' with a dict of `value->count` for each tag.
         Returns a `pandas.DataFrame` with columns:
-        `['tag', 'attached_to', 'missing_from', 'unique_values', ('value_counts')]`
+        `['tag', 'attached_to', 'missing_from', 'unique_values', ('value_counts')]`.
 
         Examples
         --------
@@ -1107,12 +1095,14 @@ class BaseCollection(MutableMapping):
         leaves = list(self.flatten().values())
         return summarize_leaves(leaves)
 
-    def map_leaves(self, fn):
+    def map_leaves(self, fn: Callable[[Any], Any]):
         """
         Apply a function to every leaf element and return a new collection of the
         same type. Preserves grouping shape and groupby metadata when grouped.
 
-        fn: callable(Element) -> ElementLike
+        Args:
+            fn: Callable applied to each leaf element. Must return an element
+                compatible with this collection type.
 
         Examples
         --------
