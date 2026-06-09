@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -221,6 +222,85 @@ class TrackingCollection(BaseCollection):
             fps=fps,
             aspectratio_correction=aspectratio_correction,
         )
+
+    @classmethod
+    def from_groups(
+        cls,
+        groups: dict[str, list],
+        *,
+        fps: float,
+        fmt: str = "yolo3r",
+        tag: str = "group",
+        strip_columns: bool = True,
+    ) -> TrackingCollection:
+        """
+        Load a ``TrackingCollection`` from a group-keyed dict of path lists.
+
+        Takes the natural output format of the GUI (``dict[str, list[Path]]``) and
+        returns a single merged, tagged collection ready for analysis.
+
+        Args:
+            groups: Mapping of group name to list of file paths. Each group must be
+                non-empty.
+            fps: Frame rate of the recording in frames per second.
+            fmt: File format to load. Currently only ``"yolo3r"`` is supported.
+            tag: Tag key used to label each ``Tracking`` object with its group name.
+            strip_columns: If ``True``, call ``.strip_column_names()`` on every loaded
+                object.
+
+        Returns:
+            A single merged ``TrackingCollection`` with all recordings tagged by group.
+
+        Raises:
+            ValueError: If a group has an empty path list or ``fmt`` is not supported.
+
+        Examples
+        --------
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p:
+        ...         a = d / 'mouse1.csv'; b = d / 'mouse2.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     groups = {'control': [a], 'treated': [b]}
+        ...     tc = TrackingCollection.from_groups(groups, fps=30)
+        >>> sorted(t.tags['group'] for t in tc.values())
+        ['control', 'treated']
+
+        ```
+        """
+        _SUPPORTED_FMTS = {"yolo3r"}
+        if fmt not in _SUPPORTED_FMTS:
+            raise ValueError(
+                f"Unsupported fmt {fmt!r}. Supported formats: {sorted(_SUPPORTED_FMTS)}"
+            )
+
+        def _sanitize(name: str) -> str:
+            sanitized = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_")
+            return sanitized or "group"
+
+        per_group: list[TrackingCollection] = []
+        for group_name, paths in groups.items():
+            if not paths:
+                raise ValueError(f"Group {group_name!r} has an empty path list.")
+            safe = _sanitize(group_name)
+
+            def _stem(p) -> str:
+                return p.stem if hasattr(p, "stem") else os.path.splitext(os.path.basename(p))[0]
+
+            handles_and_paths = {f"{_stem(p)}_{safe}": str(p) for p in sorted(paths)}
+            if fmt == "yolo3r":
+                tc = cls.from_yolo3r(handles_and_paths, fps=fps)
+            if strip_columns:
+                tc.each.strip_column_names()
+            for t in tc.values():
+                t.tags[tag] = group_name
+            per_group.append(tc)
+
+        return cls.merge(per_group)
 
     @dev_mode
     @classmethod
