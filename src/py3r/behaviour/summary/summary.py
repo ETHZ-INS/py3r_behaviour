@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import warnings
 from copy import deepcopy
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
@@ -1174,7 +1175,7 @@ class Summary:
             if save_dir:
                 os.makedirs(save_dir, exist_ok=True)
                 fig.savefig(
-                    os.path.join(save_dir, f"{self.handle}_chord_{column}.png"),
+                    os.path.join(save_dir, f"{Path(self.handle).name}_chord_{column}.png"),
                     dpi=300,
                     bbox_inches="tight",
                     pad_inches=0.02,
@@ -1234,7 +1235,7 @@ class Summary:
             if save_dir:
                 os.makedirs(save_dir, exist_ok=True)
                 fig.savefig(
-                    os.path.join(save_dir, f"{self.handle}_chord_{column}.png"),
+                    os.path.join(save_dir, f"{Path(self.handle).name}_chord_{column}.png"),
                     dpi=300,
                     bbox_inches="tight",
                     pad_inches=0.02,
@@ -1258,7 +1259,7 @@ class Summary:
             if save_dir:
                 os.makedirs(save_dir, exist_ok=True)
                 fig.savefig(
-                    os.path.join(save_dir, f"{self.handle}_chord_{column}.png"),
+                    os.path.join(save_dir, f"{Path(self.handle).name}_chord_{column}.png"),
                     dpi=300,
                     bbox_inches="tight",
                     pad_inches=0.02,

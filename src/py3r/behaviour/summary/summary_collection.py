@@ -249,6 +249,101 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
             series_tables[metric_name] = table
         return scalars_df, series_tables
 
+    @staticmethod
+    def collate_bin_dfs(
+        dfs: list[pd.DataFrame] | dict[str, pd.DataFrame],
+        format: Literal["tall", "wide"] = "tall",
+        bin_col: str = "bin",
+    ) -> pd.DataFrame:
+        """
+        Collate a sequence of per-bin DataFrames into a single table.
+
+        Intended for DataFrames produced by :meth:`to_df`, one per time bin
+        (e.g. from :meth:`make_bins`).
+
+        Args:
+            dfs: List of DataFrames (bins labeled ``0, 1, 2, ...``) or a dict
+                mapping bin labels to DataFrames. Each DataFrame must be indexed
+                by handle.
+            format: ``'tall'`` stacks rows and adds a bin column;
+                ``'wide'`` produces one row per handle with columns named
+                ``<metric>_<bin_label>``.
+            bin_col: Name of the bin column inserted in tall format.
+
+        Returns:
+            Collated DataFrame.
+
+            Tall: index is handle. Rows are ordered so that all bins for a given
+            handle appear together (handle-major), with bins in the order supplied.
+            Wide: index is handle. Columns are ordered metric-major — all bins for
+            a given metric appear together (``metric_bin0``, ``metric_bin1``, ...),
+            then the next metric, and so on. Metric order follows the first
+            DataFrame supplied.
+
+        Examples
+        --------
+        ```pycon
+        >>> import pandas as pd
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> from py3r.behaviour.tracking.tracking import Tracking
+        >>> from py3r.behaviour.features.features import Features
+        >>> from py3r.behaviour.summary.summary import Summary
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> with data_path('py3r.behaviour.tracking._data', 'dlc_single.csv') as p:
+        ...     t1 = Tracking.from_dlc(str(p), handle='A', fps=30)
+        ...     t2 = Tracking.from_dlc(str(p), handle='B', fps=30)
+        >>> s1, s2 = Summary(Features(t1)), Summary(Features(t2))
+        >>> s1.store(1.0, 'score'); s2.store(2.0, 'score')
+        >>> sc = SummaryCollection.from_list([s1, s2])
+        >>> df0 = sc.to_df(); df0['score'] = [1.0, 2.0]
+        >>> df1 = sc.to_df(); df1['score'] = [1.5, 2.5]
+        >>> tall = SummaryCollection.collate_bin_dfs([df0, df1], format='tall')
+        >>> list(tall.columns[:2])
+        ['bin', 'score']
+        >>> list(tall.index)
+        ['A', 'A', 'B', 'B']
+        >>> wide = SummaryCollection.collate_bin_dfs({'early': df0, 'late': df1}, format='wide')
+        >>> list(wide.columns)
+        ['score_early', 'score_late']
+
+        ```
+        """
+        if format not in {"tall", "wide"}:
+            raise ValueError("format must be 'tall' or 'wide'")
+
+        labeled: dict = dict(enumerate(dfs)) if isinstance(dfs, list) else dict(dfs)
+        if not labeled:
+            return pd.DataFrame()
+
+        if format == "tall":
+            parts = []
+            for label, df in labeled.items():
+                part = df.copy()
+                part.insert(0, bin_col, label)
+                parts.append(part)
+            result = pd.concat(parts, axis=0)
+            # sort handle-major, preserving bin insertion order within each handle
+            bin_order = {label: i for i, label in enumerate(labeled)}
+            result = result.iloc[result[bin_col].map(bin_order).argsort(kind="stable")]
+            result = result.iloc[result.index.argsort(kind="stable")]
+            result.index.name = "handle"
+            return result
+
+        # wide: build (metric, bin) MultiIndex, sort metric-major, then flatten
+        parts = []
+        for label, df in labeled.items():
+            part = df.copy()
+            part.columns = pd.MultiIndex.from_tuples([(col, label) for col in df.columns])
+            parts.append(part)
+        result_mi = pd.concat(parts, axis=1)
+        metrics = list(dict.fromkeys(m for m, _ in result_mi.columns))
+        bins = list(labeled.keys())
+        ordered = [(m, b) for m in metrics for b in bins if (m, b) in result_mi.columns]
+        result_mi = result_mi[ordered]
+        result_mi.columns = [f"{m}_{b}" for m, b in result_mi.columns]
+        result_mi.index.name = "handle"
+        return result_mi
+
     def make_bin(self, startframe: int, endframe: int):
         """
         Return a new SummaryCollection restricted to frames in [startframe, endframe).

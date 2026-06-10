@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 import re
+from collections import Counter
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
@@ -15,6 +17,45 @@ from py3r.behaviour.util.dev_utils import dev_mode
 
 if TYPE_CHECKING:
     from py3r.behaviour.features.features_collection import FeaturesCollection
+
+
+def _disambiguate_stems(paths: list) -> list[str]:
+    """
+    Build short, unique labels for a list of file paths.
+
+    Each label starts as the file's stem (filename without extension). If two or
+    more paths share a stem, the colliding labels are prefixed with their parent
+    directory name, repeating with grandparent etc. until unique. Labels that are
+    not involved in a collision stay as plain stems.
+
+    If two paths are still indistinguishable after exhausting all parent
+    directories (i.e. they are the same path), the returned labels remain
+    duplicates -- callers needing uniqueness must disambiguate further.
+    """
+    resolved = [Path(p).resolve() for p in paths]
+    # parts[i]: [stem, parent_dir_name, grandparent_dir_name, ...]
+    parts = [[rp.stem, *reversed(rp.parent.parts)] for rp in resolved]
+    depth = [1] * len(paths)
+
+    while True:
+        labels = ["_".join(reversed(parts[i][: depth[i]])) for i in range(len(paths))]
+        counts = Counter(labels)
+        dupes = [i for i, label in enumerate(labels) if counts[label] > 1]
+        if not dupes:
+            break
+        progressed = False
+        for i in dupes:
+            if depth[i] < len(parts[i]):
+                depth[i] += 1
+                progressed = True
+            else:
+                # Exhausted all parent directories (i.e. duplicate paths): fall
+                # back to the plain stem rather than an unreadable full path.
+                depth[i] = 1
+        if not progressed:
+            break
+
+    return ["_".join(reversed(parts[i][: depth[i]])) for i in range(len(paths))]
 
 
 class TrackingCollection(BaseCollection):
@@ -271,6 +312,55 @@ class TrackingCollection(BaseCollection):
         ['control', 'treated']
 
         ```
+
+        Handles default to the file stem (e.g. ``mouse1``, ``mouse2`` above) plus
+        the group name (here ``mouse1``, ``mouse2``, with no group suffix, since
+        those names are unique across the whole input):
+
+        ```pycon
+        >>> sorted(tc.keys())
+        ['mouse1', 'mouse2']
+
+        ```
+
+        If two files anywhere in the input share a stem, parent directory names
+        are prepended (only as far as needed) to keep handles unique -- the group
+        name is not involved unless that's not enough to disambiguate:
+
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p:
+        ...         cohort_a = d / 'cohortA'; cohort_b = d / 'cohortB'
+        ...         cohort_a.mkdir(); cohort_b.mkdir()
+        ...         a = cohort_a / '1.csv'; b = cohort_b / '1.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     groups = {'control': [a], 'treated': [b]}
+        ...     tc = TrackingCollection.from_groups(groups, fps=30)
+        >>> sorted(tc.keys())
+        ['cohortA_1', 'cohortB_1']
+
+        ```
+
+        If the *same* file is deliberately included in more than one group, the
+        path-based disambiguation can't tell the copies apart, so the group name
+        is appended instead:
+
+        ```pycon
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p:
+        ...         a = d / 'mouse1.csv'
+        ...         _ = shutil.copy(p, a)
+        ...     groups = {'control': [a], 'treated': [a]}
+        ...     tc = TrackingCollection.from_groups(groups, fps=30)
+        >>> sorted(tc.keys())
+        ['mouse1_control', 'mouse1_treated']
+
+        ```
         """
         _SUPPORTED_FMTS = {"yolo3r"}
         if fmt not in _SUPPORTED_FMTS:
@@ -282,16 +372,48 @@ class TrackingCollection(BaseCollection):
             sanitized = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_")
             return sanitized or "group"
 
-        per_group: list[TrackingCollection] = []
+        # validate empty groups and build safe group-name labels up front
+        safe_names: dict[str, str] = {}
         for group_name, paths in groups.items():
             if not paths:
                 raise ValueError(f"Group {group_name!r} has an empty path list.")
             safe = _sanitize(group_name)
+            if safe in safe_names.values():
+                colliding = [g for g, s in safe_names.items() if s == safe]
+                raise ValueError(
+                    f"Group names {colliding + [group_name]} all sanitize to {safe!r}. "
+                    "Rename the groups to avoid ambiguity."
+                )
+            safe_names[group_name] = safe
 
-            def _stem(p) -> str:
-                return p.stem if hasattr(p, "stem") else os.path.splitext(os.path.basename(p))[0]
+        # Disambiguate handles globally, across all groups, so that handles stay
+        # plain filenames whenever possible. A group suffix (or, failing that, a
+        # numeric index) is only added where a label would otherwise still collide
+        # -- e.g. the same file deliberately included in more than one group.
+        all_paths = [p for paths in groups.values() for p in paths]
+        all_group_names = [g for g, paths in groups.items() for _ in paths]
+        labels = _disambiguate_stems(all_paths)
 
-            handles_and_paths = {f"{_stem(p)}_{safe}": str(p) for p in sorted(paths)}
+        label_counts = Counter(labels)
+        for i, group_name in enumerate(all_group_names):
+            if label_counts[labels[i]] > 1:
+                labels[i] = f"{labels[i]}_{safe_names[group_name]}"
+
+        final_counts = Counter(labels)
+        seen: dict[str, int] = {}
+        for i, label in enumerate(labels):
+            if final_counts[label] > 1:
+                seen[label] = seen.get(label, 0) + 1
+                labels[i] = f"{label}_{seen[label]}"
+
+        per_group: list[TrackingCollection] = []
+        idx = 0
+        for group_name, paths in groups.items():
+            group_labels = labels[idx : idx + len(paths)]
+            idx += len(paths)
+            handles_and_paths = {
+                label: str(p) for label, p in zip(group_labels, paths, strict=True)
+            }
             if fmt == "yolo3r":
                 tc = cls.from_yolo3r(handles_and_paths, fps=fps)
             if strip_columns:
