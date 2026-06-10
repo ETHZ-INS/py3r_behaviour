@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 import pandas as pd
@@ -282,16 +283,24 @@ class TrackingCollection(BaseCollection):
             sanitized = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_")
             return sanitized or "group"
 
-        per_group: list[TrackingCollection] = []
+        # validate empty groups and build safe group-name labels up front
+        safe_names: dict[str, str] = {}
         for group_name, paths in groups.items():
             if not paths:
                 raise ValueError(f"Group {group_name!r} has an empty path list.")
             safe = _sanitize(group_name)
+            if safe in safe_names.values():
+                colliding = [g for g, s in safe_names.items() if s == safe]
+                raise ValueError(
+                    f"Group names {colliding + [group_name]} all sanitize to {safe!r}. "
+                    "Rename the groups to avoid ambiguity."
+                )
+            safe_names[group_name] = safe
 
-            def _stem(p) -> str:
-                return p.stem if hasattr(p, "stem") else os.path.splitext(os.path.basename(p))[0]
-
-            handles_and_paths = {f"{_stem(p)}_{safe}": str(p) for p in sorted(paths)}
+        per_group: list[TrackingCollection] = []
+        for group_name, paths in groups.items():
+            safe = safe_names[group_name]
+            handles_and_paths = {f"{Path(p).resolve()}_{safe}": str(p) for p in paths}
             if fmt == "yolo3r":
                 tc = cls.from_yolo3r(handles_and_paths, fps=fps)
             if strip_columns:
