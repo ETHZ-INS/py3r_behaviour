@@ -1891,7 +1891,7 @@ class Tracking:
             import os
 
             os.makedirs(savedir, exist_ok=True)
-            out_path = os.path.join(savedir, f"{self.handle}_plot.png")
+            out_path = os.path.join(savedir, f"{Path(self.handle).name}_plot.png")
             fig.savefig(out_path, dpi=300, bbox_inches="tight", pad_inches=0.02)
         if show:
             plt.show()

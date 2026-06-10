@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -16,6 +17,53 @@ from py3r.behaviour.util.dev_utils import dev_mode
 
 if TYPE_CHECKING:
     from py3r.behaviour.features.features_collection import FeaturesCollection
+
+
+def _disambiguate_stems(paths: list) -> list[str]:
+    """
+    Build short, unique labels for a list of file paths.
+
+    Each label starts as the file's stem (filename without extension). If two or
+    more paths share a stem, the colliding labels are prefixed with their parent
+    directory name, repeating with grandparent etc. until unique. Labels that are
+    not involved in a collision stay as plain stems.
+
+    If two paths are still indistinguishable after exhausting all parent
+    directories (e.g. duplicate paths), a numeric suffix is appended.
+    """
+    resolved = [Path(p).resolve() for p in paths]
+    # parts[i]: [stem, parent_dir_name, grandparent_dir_name, ...]
+    parts = [[rp.stem, *reversed(rp.parent.parts)] for rp in resolved]
+    depth = [1] * len(paths)
+
+    while True:
+        labels = ["_".join(reversed(parts[i][: depth[i]])) for i in range(len(paths))]
+        counts = Counter(labels)
+        dupes = [i for i, label in enumerate(labels) if counts[label] > 1]
+        if not dupes:
+            break
+        progressed = False
+        for i in dupes:
+            if depth[i] < len(parts[i]):
+                depth[i] += 1
+                progressed = True
+        if not progressed:
+            break
+
+    labels = ["_".join(reversed(parts[i][: depth[i]])) for i in range(len(paths))]
+    counts = Counter(labels)
+    seen: dict[str, int] = {}
+    result = []
+    for i, label in enumerate(labels):
+        if counts[label] > 1:
+            # Exhausted all parent directories and still colliding (e.g. duplicate
+            # paths): fall back to a plain stem with a numeric suffix.
+            stem = parts[i][0]
+            seen[stem] = seen.get(stem, 0) + 1
+            result.append(f"{stem}_{seen[stem]}")
+        else:
+            result.append(label)
+    return result
 
 
 class TrackingCollection(BaseCollection):
@@ -272,6 +320,29 @@ class TrackingCollection(BaseCollection):
         ['control', 'treated']
 
         ```
+
+        Handles default to the file stem (e.g. ``mouse1``, ``mouse2`` above) plus
+        the group name. If two files in the same group share a stem, parent
+        directory names are prepended (only as far as needed) to keep handles
+        unique:
+
+        ```pycon
+        >>> import tempfile, shutil
+        >>> from pathlib import Path
+        >>> from py3r.behaviour.util.docdata import data_path
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p:
+        ...         cohort_a = d / 'cohortA'; cohort_b = d / 'cohortB'
+        ...         cohort_a.mkdir(); cohort_b.mkdir()
+        ...         a = cohort_a / '1.csv'; b = cohort_b / '1.csv'
+        ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
+        ...     groups = {'control': [a, b]}
+        ...     tc = TrackingCollection.from_groups(groups, fps=30)
+        >>> sorted(tc.keys())
+        ['cohortA_1_control', 'cohortB_1_control']
+
+        ```
         """
         _SUPPORTED_FMTS = {"yolo3r"}
         if fmt not in _SUPPORTED_FMTS:
@@ -300,7 +371,10 @@ class TrackingCollection(BaseCollection):
         per_group: list[TrackingCollection] = []
         for group_name, paths in groups.items():
             safe = safe_names[group_name]
-            handles_and_paths = {f"{Path(p).resolve()}_{safe}": str(p) for p in paths}
+            stems = _disambiguate_stems(paths)
+            handles_and_paths = {
+                f"{stem}_{safe}": str(p) for stem, p in zip(stems, paths, strict=True)
+            }
             if fmt == "yolo3r":
                 tc = cls.from_yolo3r(handles_and_paths, fps=fps)
             if strip_columns:
