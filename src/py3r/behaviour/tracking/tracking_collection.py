@@ -29,7 +29,8 @@ def _disambiguate_stems(paths: list) -> list[str]:
     not involved in a collision stay as plain stems.
 
     If two paths are still indistinguishable after exhausting all parent
-    directories (e.g. duplicate paths), a numeric suffix is appended.
+    directories (i.e. they are the same path), the returned labels remain
+    duplicates -- callers needing uniqueness must disambiguate further.
     """
     resolved = [Path(p).resolve() for p in paths]
     # parts[i]: [stem, parent_dir_name, grandparent_dir_name, ...]
@@ -47,23 +48,14 @@ def _disambiguate_stems(paths: list) -> list[str]:
             if depth[i] < len(parts[i]):
                 depth[i] += 1
                 progressed = True
+            else:
+                # Exhausted all parent directories (i.e. duplicate paths): fall
+                # back to the plain stem rather than an unreadable full path.
+                depth[i] = 1
         if not progressed:
             break
 
-    labels = ["_".join(reversed(parts[i][: depth[i]])) for i in range(len(paths))]
-    counts = Counter(labels)
-    seen: dict[str, int] = {}
-    result = []
-    for i, label in enumerate(labels):
-        if counts[label] > 1:
-            # Exhausted all parent directories and still colliding (e.g. duplicate
-            # paths): fall back to a plain stem with a numeric suffix.
-            stem = parts[i][0]
-            seen[stem] = seen.get(stem, 0) + 1
-            result.append(f"{stem}_{seen[stem]}")
-        else:
-            result.append(label)
-    return result
+    return ["_".join(reversed(parts[i][: depth[i]])) for i in range(len(paths))]
 
 
 class TrackingCollection(BaseCollection):
@@ -322,9 +314,18 @@ class TrackingCollection(BaseCollection):
         ```
 
         Handles default to the file stem (e.g. ``mouse1``, ``mouse2`` above) plus
-        the group name. If two files in the same group share a stem, parent
-        directory names are prepended (only as far as needed) to keep handles
-        unique:
+        the group name (here ``mouse1``, ``mouse2``, with no group suffix, since
+        those names are unique across the whole input):
+
+        ```pycon
+        >>> sorted(tc.keys())
+        ['mouse1', 'mouse2']
+
+        ```
+
+        If two files anywhere in the input share a stem, parent directory names
+        are prepended (only as far as needed) to keep handles unique -- the group
+        name is not involved unless that's not enough to disambiguate:
 
         ```pycon
         >>> import tempfile, shutil
@@ -337,10 +338,27 @@ class TrackingCollection(BaseCollection):
         ...         cohort_a.mkdir(); cohort_b.mkdir()
         ...         a = cohort_a / '1.csv'; b = cohort_b / '1.csv'
         ...         _ = shutil.copy(p, a); _ = shutil.copy(p, b)
-        ...     groups = {'control': [a, b]}
+        ...     groups = {'control': [a], 'treated': [b]}
         ...     tc = TrackingCollection.from_groups(groups, fps=30)
         >>> sorted(tc.keys())
-        ['cohortA_1_control', 'cohortB_1_control']
+        ['cohortA_1', 'cohortB_1']
+
+        ```
+
+        If the *same* file is deliberately included in more than one group, the
+        path-based disambiguation can't tell the copies apart, so the group name
+        is appended instead:
+
+        ```pycon
+        >>> with tempfile.TemporaryDirectory() as d:
+        ...     d = Path(d)
+        ...     with data_path('py3r.behaviour.tracking._data', 'yolo3r.csv') as p:
+        ...         a = d / 'mouse1.csv'
+        ...         _ = shutil.copy(p, a)
+        ...     groups = {'control': [a], 'treated': [a]}
+        ...     tc = TrackingCollection.from_groups(groups, fps=30)
+        >>> sorted(tc.keys())
+        ['mouse1_control', 'mouse1_treated']
 
         ```
         """
@@ -368,12 +386,33 @@ class TrackingCollection(BaseCollection):
                 )
             safe_names[group_name] = safe
 
+        # Disambiguate handles globally, across all groups, so that handles stay
+        # plain filenames whenever possible. A group suffix (or, failing that, a
+        # numeric index) is only added where a label would otherwise still collide
+        # -- e.g. the same file deliberately included in more than one group.
+        all_paths = [p for paths in groups.values() for p in paths]
+        all_group_names = [g for g, paths in groups.items() for _ in paths]
+        labels = _disambiguate_stems(all_paths)
+
+        label_counts = Counter(labels)
+        for i, group_name in enumerate(all_group_names):
+            if label_counts[labels[i]] > 1:
+                labels[i] = f"{labels[i]}_{safe_names[group_name]}"
+
+        final_counts = Counter(labels)
+        seen: dict[str, int] = {}
+        for i, label in enumerate(labels):
+            if final_counts[label] > 1:
+                seen[label] = seen.get(label, 0) + 1
+                labels[i] = f"{label}_{seen[label]}"
+
         per_group: list[TrackingCollection] = []
+        idx = 0
         for group_name, paths in groups.items():
-            safe = safe_names[group_name]
-            stems = _disambiguate_stems(paths)
+            group_labels = labels[idx : idx + len(paths)]
+            idx += len(paths)
             handles_and_paths = {
-                f"{stem}_{safe}": str(p) for stem, p in zip(stems, paths, strict=True)
+                label: str(p) for label, p in zip(group_labels, paths, strict=True)
             }
             if fmt == "yolo3r":
                 tc = cls.from_yolo3r(handles_and_paths, fps=fps)
