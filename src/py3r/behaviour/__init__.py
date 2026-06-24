@@ -1,3 +1,4 @@
+from .classifier import OnnxClassifier
 from .features import (
     Features,
     FeaturesCollection,
@@ -24,4 +25,5 @@ __all__ = [
     "Summary",
     "SummaryResult",
     "SummaryCollection",
+    "OnnxClassifier",
 ]
