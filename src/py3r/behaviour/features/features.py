@@ -2393,6 +2393,7 @@ class Features:
         chunk_size: int = 10_000,
         n_epochs: int = 3,
         batch_size: int = 1024,
+        max_group_rows: int | None = 300_000,
     ) -> tuple[FeaturesResult, CentroidsDf]:
         """
         Memory-friendly clustering on a single Features object.
@@ -2437,6 +2438,7 @@ class Features:
             chunk_size=chunk_size,
             n_epochs=n_epochs,
             batch_size=batch_size,
+            max_group_rows=max_group_rows,
         )
         return batch[self.handle], centroids
 
