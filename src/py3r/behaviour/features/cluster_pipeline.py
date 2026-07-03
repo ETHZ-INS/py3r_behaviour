@@ -28,6 +28,7 @@ class ClusteringConfig:
     chunk_size: int = 10_000
     n_epochs: int = 3
     batch_size: int = 1024
+    max_group_rows: int | None = 300_000
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +49,18 @@ def fit_cluster_embedding(
     1. Resolve normalisation modes and validate feature weights.
     2. Compute global stds (if any column uses ``"global"`` normalisation).
     3. Compute imputation means (if ``missing_policy="impute_weight"``).
-    4. *n_epochs* passes of ``partial_fit``, one Features at a time, chunk by chunk.
+    4. *n_epochs* passes of ``partial_fit``. Each epoch, Features are shuffled
+       and packed into row-bounded groups (``max_group_rows``); each group's
+       embeddings are concatenated, row-shuffled together, then split into
+       ``chunk_size`` batches. This reduces cluster-fitting bias arising from
+       autocorrelation within a single recording.
+
+    Note:
+        Prior to introducing this row-shuffling, batches were built by streaming
+        one Features at a time in contiguous chunks, with no shuffling. Results
+        from this function are not reproducible against that older behaviour.
+        To reproduce results from py3r.behaviour ≤ 3.4.0 exactly, pin to that
+        version.
 
     The returned ``CentroidsDf`` carries a ``scaling_recipe`` with everything
     needed to reproduce the transform on future datasets (embedding dict,
@@ -101,26 +113,46 @@ def fit_cluster_embedding(
         batch_size=cfg.batch_size,
     )
 
+    rng = np.random.default_rng(cfg.random_state)
+    feat_list = list(_iter_features(fc))
     columns = None
     for _epoch in range(cfg.n_epochs):
-        for _gkey, _fname, feat in _iter_features(fc):
-            embed_df = feat.embedding_df(embedding_dict).astype(np.float32)
-            per_sf = _scaling_for_features(
-                feat,
-                embedding_dict,
-                resolved_norm=resolved_norm,
-                resolved_weights=resolved_weights,
-                global_base_stds=global_base_stds,
+        order = rng.permutation(len(feat_list))
+        for group in _build_row_groups(feat_list, order, cfg.max_group_rows):
+            X_arrays: list[np.ndarray] = []
+            w_arrays: list[np.ndarray] | None = (
+                [] if cfg.missing_policy == "impute_weight" else None
             )
-            if per_sf is not None:
-                embed_df = embed_df * pd.Series(per_sf)
-            columns = embed_df.columns
-            for start in range(0, len(embed_df), cfg.chunk_size):
-                chunk = embed_df.iloc[start : start + cfg.chunk_size]
-                X, w = _prepare_chunk(chunk, cfg.missing_policy, impute_means)
+            for _gkey, _fname, feat in group:
+                embed_df = feat.embedding_df(embedding_dict).astype(np.float32)
+                per_sf = _scaling_for_features(
+                    feat,
+                    embedding_dict,
+                    resolved_norm=resolved_norm,
+                    resolved_weights=resolved_weights,
+                    global_base_stds=global_base_stds,
+                )
+                if per_sf is not None:
+                    embed_df = embed_df * pd.Series(per_sf)
+                columns = embed_df.columns
+                X, w = _prepare_chunk(embed_df, cfg.missing_policy, impute_means)
                 if len(X) == 0:
                     continue
-                model.partial_fit(X, sample_weight=w)
+                X_arrays.append(X)
+                if w_arrays is not None:
+                    w_arrays.append(w)
+            if not X_arrays:
+                continue
+            X_group = np.concatenate(X_arrays, axis=0)
+            w_group = np.concatenate(w_arrays, axis=0) if w_arrays is not None else None
+            perm = rng.permutation(len(X_group))
+            X_group = X_group[perm]
+            if w_group is not None:
+                w_group = w_group[perm]
+            for start in range(0, len(X_group), cfg.chunk_size):
+                Xc = X_group[start : start + cfg.chunk_size]
+                wc = w_group[start : start + cfg.chunk_size] if w_group is not None else None
+                model.partial_fit(Xc, sample_weight=wc)
 
     # -- Phase 5: build and return centroids --------------------------------
     centroids_df = pd.DataFrame(model.cluster_centers_, columns=columns)
@@ -145,6 +177,39 @@ def _iter_features(fc):
     else:
         for feat_name, feat in fc.features_dict.items():
             yield None, feat_name, feat
+
+
+def _build_row_groups(
+    feat_list: list[tuple],
+    order: np.ndarray,
+    max_group_rows: int | None,
+) -> list[list[tuple]]:
+    """
+    Pack ``feat_list`` (visited in *order*) into groups whose total row count
+    stays at or under ``max_group_rows``.
+
+    A single Features object longer than ``max_group_rows`` still forms its
+    own group rather than being split. ``max_group_rows=None`` puts every
+    Features into one group (i.e. a true dataset-wide shuffle).
+    """
+    if max_group_rows is None:
+        return [[feat_list[i] for i in order]]
+
+    groups: list[list[tuple]] = []
+    current: list[tuple] = []
+    current_rows = 0
+    for i in order:
+        item = feat_list[i]
+        rows = len(item[2].data)
+        if current and current_rows + rows > max_group_rows:
+            groups.append(current)
+            current = []
+            current_rows = 0
+        current.append(item)
+        current_rows += rows
+    if current:
+        groups.append(current)
+    return groups
 
 
 def _resolve_feature_weights(
