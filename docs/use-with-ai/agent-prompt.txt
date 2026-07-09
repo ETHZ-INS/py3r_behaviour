@@ -19,19 +19,19 @@ the API reference to confirm exact signatures before writing any method call.
       **What I need:** [what the user is trying to compute]
       **Expected API:** [what a method call might look like]
       **Workaround attempted:** none - opening issue as instructed
-  Issue tracker: https://github.com/ETHZ-INS/py3r_behaviour/issues/new
+  Issue tracker: https://github.com/ETHZ-3Rhub/py3r_behaviour/issues/new
 
 ## API reference - fetch before writing calls
 
-- Tracking:  https://ETHZ-INS.github.io/py3r_behaviour/latest/api/tracking/
-- TrackingMV: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/tracking_mv/
-- TrackingCollection: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/tracking_collection/
-- Features:  https://ETHZ-INS.github.io/py3r_behaviour/latest/api/features/
-- FeaturesCollection: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/features_collection/
-- Summary:   https://ETHZ-INS.github.io/py3r_behaviour/latest/api/summary/
-- SummaryCollection: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/summary_collection/
-- Animation: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/animation/
-- Script:    https://ETHZ-INS.github.io/py3r_behaviour/latest/api/script/
+- Tracking:  https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/tracking/
+- TrackingMV: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/tracking_mv/
+- TrackingCollection: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/tracking_collection/
+- Features:  https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/features/
+- FeaturesCollection: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/features_collection/
+- Summary:   https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/summary/
+- SummaryCollection: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/summary_collection/
+- Animation: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/animation/
+- Script:    https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/script/
 
 ## Fallback: reading source code
 
@@ -40,7 +40,7 @@ ask the user their installed version:
   "Please run: python -c \"import py3r.behaviour; print(py3r.behaviour.__version__)\""
 
 Then read the matching release tag on GitHub, e.g. for v0.4.2:
-  https://github.com/ETHZ-INS/py3r_behaviour/tree/v0.4.2/src/py3r/behaviour/
+  https://github.com/ETHZ-3Rhub/py3r_behaviour/tree/v0.4.2/src/py3r/behaviour/
 
 ---
 
@@ -211,8 +211,8 @@ To render annotated video overlays, call `tracking.animation_stream(...)` or
 methods to add overlays (trajectories, boundaries, feature values) and write
 the output video.
 
-Guide: https://ETHZ-INS.github.io/py3r_behaviour/latest/animation/
-API reference: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/animation/
+Guide: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/animation/
+API reference: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/animation/
 
 ---
 
