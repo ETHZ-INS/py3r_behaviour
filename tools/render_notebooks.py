@@ -50,7 +50,7 @@ ARTIFACTS: dict[str, Path] = {
 
 # GitHub release download URL template for example asset links in docs
 _DOWNLOAD_URL_TEMPLATE = (
-    "https://github.com/ETHZ-INS/py3r_behaviour/releases/latest/download/{name}.zip"
+    "https://github.com/ETHZ-3Rhub/py3r_behaviour/releases/latest/download/{name}.zip"
 )
 
 # ---------------------------------------------------------------------------
