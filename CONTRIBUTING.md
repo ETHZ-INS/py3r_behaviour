@@ -13,14 +13,14 @@ Thanks for your interest in contributing! This document explains the workflow an
 ### Fork and clone
 
 First, fork the repository on GitHub:
-- Visit https://github.com/ETHZ-INS/py3r_behaviour and click “Fork”.
+- Visit https://github.com/ETHZ-3Rhub/py3r_behaviour and click “Fork”.
 - This creates your own copy under your account (with the full contents).
 
 Then clone your fork locally and add the upstream remote:
 ```bash
 git clone https://github.com/<you>/py3r_behaviour.git
 cd py3r_behaviour
-git remote add upstream https://github.com/ETHZ-INS/py3r_behaviour.git
+git remote add upstream https://github.com/ETHZ-3Rhub/py3r_behaviour.git
 git fetch upstream
 ```
 

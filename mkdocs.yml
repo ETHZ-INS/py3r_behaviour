@@ -1,5 +1,5 @@
 site_name: py3r-behaviour
-site_url: "https://ETHZ-INS.github.io/py3r_behaviour/"
+site_url: "https://ETHZ-3Rhub.github.io/py3r_behaviour/"
 theme:
   name: material
   features:
