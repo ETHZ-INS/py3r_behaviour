@@ -1,0 +1,1487 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ETHZ-3Rhub.github.io/py3r_behaviour/v3.4.2/animation/">
+      
+      
+        <link rel="prev" href="../getting_started/">
+      
+      
+        <link rel="next" href="../use-with-ai/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Animation - py3r-behaviour</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../css/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#animation-and-video-overlay" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="py3r-behaviour" class="md-header__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            py3r-behaviour
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Animation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-hidden="true" type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="py3r-behaviour" class="md-nav__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    py3r-behaviour
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Animation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Animation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#rendering-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rendering modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry points
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-style-dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The style dict
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The style dict">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#draw-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Draw order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Points
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#text-overlays-text-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text overlays ("text" section)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dynamic-data-driven-styling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dynamic (data-driven) styling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Dynamic (data-driven) styling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#colormap-cmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Colormap (cmap)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#value-map-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Value map (map)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-cmap-on-points-and-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example — cmap on points and lines
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-static-and-dynamic-overrides" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example — static and dynamic overrides
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../use-with-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use with AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/oft_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OFT pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7">
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/animation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AnimationStream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tracking_mv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingMV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/tracking_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/features_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FeaturesCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/summary_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SummaryCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/script/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    script
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="animation-and-video-overlay">Animation and video overlay<a class="headerlink" href="#animation-and-video-overlay" title="Permanent link">¶</a></h1>
+<p><code>animation_stream</code> renders keypoint coordinates, lines, boundaries, and
+per-frame feature values as an OpenCV-backed frame stream supporting
+random-access rendering (<code>get_frame</code>), sequential playback (<code>play</code>), and
+saving to a video file (<code>save</code>).</p>
+<hr>
+<h2 id="rendering-modes">Rendering modes<a class="headerlink" href="#rendering-modes" title="Permanent link">¶</a></h2>
+<p>The stream can be used in two ways:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>When to use</th>
+<th>Key arguments</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Overlay on source video</strong></td>
+<td>Composite geometry on top of real frames</td>
+<td><code>pixel_coords=True</code>, <code>undo_meta_scaling=True</code></td>
+</tr>
+<tr>
+<td><strong>Standalone canvas</strong></td>
+<td>Render geometry on a blank background, scaling to fit</td>
+<td><code>pixel_coords=False</code> (default)</td>
+</tr>
+</tbody>
+</table>
+<p>In overlay mode, coordinates must be in pixels — matching the original video.
+If tracking data has been rescaled to real-world units (e.g. metres),
+<code>undo_meta_scaling=True</code> reverses that scaling back to pixels before rendering.
+In standalone mode, coordinates are scaled automatically to fill the canvas,
+so units do not matter.</p>
+<hr>
+<h2 id="entry-points">Entry points<a class="headerlink" href="#entry-points" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th>Entry point</th>
+<th>When to use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a class="autorefs autorefs-internal" title="animation_stream" href="../api/tracking/#py3r.behaviour.tracking.tracking.Tracking.animation_stream"><code>Tracking.animation_stream</code></a></td>
+<td>Keypoints and static styling only</td>
+</tr>
+<tr>
+<td><a class="autorefs autorefs-internal" title="animation_stream" href="../api/features/#py3r.behaviour.features.features.Features.animation_stream"><code>Features.animation_stream</code></a></td>
+<td>Keypoints + feature columns, boundaries, and dynamic (data-driven) styling</td>
+</tr>
+</tbody>
+</table>
+<p>Both return an <a class="autorefs autorefs-internal" title="py3r.behaviour.animation.animation_stream.AnimationStream" href="../api/animation/#py3r.behaviour.animation.animation_stream.AnimationStream"><code>AnimationStream</code></a>
+object. <code>AnimationStream</code> is not intended to be constructed directly.</p>
+<hr>
+<h2 id="basic-usage">Basic usage<a class="headerlink" href="#basic-usage" title="Permanent link">¶</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span class="c1"># Overlay on a source video (coordinates must be in pixels)</span>
+<span class="n">stream</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">animation_stream</span><span class="p">(</span>
+    <span class="n">points</span><span class="o">=</span><span class="p">[</span><span class="s2">"nose"</span><span class="p">,</span> <span class="s2">"bodycentre"</span><span class="p">,</span> <span class="s2">"tailbase"</span><span class="p">],</span>
+    <span class="n">lines</span><span class="o">=</span><span class="p">[(</span><span class="s2">"nose"</span><span class="p">,</span> <span class="s2">"bodycentre"</span><span class="p">),</span> <span class="p">(</span><span class="s2">"bodycentre"</span><span class="p">,</span> <span class="s2">"tailbase"</span><span class="p">)],</span>
+    <span class="n">boundaries</span><span class="o">=</span><span class="p">[</span><span class="s2">"centre"</span><span class="p">],</span>
+    <span class="n">features</span><span class="o">=</span><span class="p">{</span><span class="s2">"Speed"</span><span class="p">:</span> <span class="s2">"speed_of_bodycentre_in_xy"</span><span class="p">,</span> <span class="s2">"In centre"</span><span class="p">:</span> <span class="s2">"in_centre"</span><span class="p">},</span>
+    <span class="n">pixel_coords</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">undo_meta_scaling</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">canvas_size</span><span class="o">=</span><span class="p">(</span><span class="mi">1280</span><span class="p">,</span> <span class="mi">1024</span><span class="p">),</span>
+    <span class="n">style</span><span class="o">=</span><span class="n">style</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">stream</span><span class="o">.</span><span class="n">play</span><span class="p">(</span><span class="n">video_path</span><span class="o">=</span><span class="s2">"recording.avi"</span><span class="p">)</span>
+<span class="n">stream</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">video_path</span><span class="o">=</span><span class="s2">"recording.avi"</span><span class="p">,</span> <span class="n">out_path</span><span class="o">=</span><span class="s2">"output.mp4"</span><span class="p">)</span>
+
+<span class="c1"># Standalone canvas (auto-scaling, no video required)</span>
+<span class="n">stream</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">animation_stream</span><span class="p">(</span>
+    <span class="n">points</span><span class="o">=</span><span class="p">[</span><span class="s2">"nose"</span><span class="p">,</span> <span class="s2">"bodycentre"</span><span class="p">],</span>
+    <span class="n">canvas_size</span><span class="o">=</span><span class="p">(</span><span class="mi">800</span><span class="p">,</span> <span class="mi">600</span><span class="p">),</span>
+    <span class="n">style</span><span class="o">=</span><span class="n">style</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<hr>
+<h2 id="the-style-dict">The style dict<a class="headerlink" href="#the-style-dict" title="Permanent link">¶</a></h2>
+<p>The style dict controls the visual appearance of every element in the animation —
+colours, sizes, and transparency — and can drive any of these properties
+dynamically from per-frame feature data, making it possible to build rich,
+data-driven visualisations. This flexibility means it can become quite involved,
+but most use cases only need a small subset of its options.</p>
+<p>The style dict is entirely optional — calling <code>animation_stream</code> with no
+<code>style</code> argument renders everything in default colours. Style properties
+that are present in the dict but not applicable to the current animation
+(e.g. styling for a boundary that is not being drawn) are silently ignored,
+so a lab-wide style file can be loaded from JSON and reused across recordings
+without modification.</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="n">style</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s2">"lab_style.json"</span><span class="p">))</span>
+</code></pre></div>
+<h3 id="structure">Structure<a class="headerlink" href="#structure" title="Permanent link">¶</a></h3>
+<p>The dict has one section per geometry type. Within each section, <code>"default"</code>
+applies to every element of that type; a named key overrides only that specific
+element. Named overrides are merged on top of <code>"default"</code> rather than replacing
+it, so you only need to specify what differs. This pattern is the same across
+all sections, including <code>"text"</code> (where the named keys are the display label
+strings passed via <code>features=</code> in <code>Features.animation_stream</code>).</p>
+<p>The <code>"text"</code> section has one addition, however: <code>"origin"</code>
+sits at the top level of the section (outside <code>"default"</code>) because it
+positions the whole text panel and is not a per-label property.</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">style</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"points"</span><span class="p">:</span>     <span class="p">{</span> <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span> <span class="s2">"point_name"</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span> <span class="o">...</span> <span class="p">},</span>
+    <span class="s2">"lines"</span><span class="p">:</span>      <span class="p">{</span> <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span> <span class="p">(</span><span class="s2">"p1"</span><span class="p">,</span> <span class="s2">"p2"</span><span class="p">):</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span> <span class="o">...</span> <span class="p">},</span>
+    <span class="s2">"boundaries"</span><span class="p">:</span> <span class="p">{</span> <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span> <span class="s2">"boundary_name"</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span> <span class="o">...</span> <span class="p">},</span>
+    <span class="s2">"axes"</span><span class="p">:</span>       <span class="p">{</span> <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span> <span class="s2">"axis_name"</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span> <span class="o">...</span> <span class="p">},</span>
+    <span class="s2">"text"</span><span class="p">:</span> <span class="p">{</span>           <span class="c1"># styles the feature-value text overlay panel</span>
+        <span class="s2">"origin"</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span>   <span class="c1"># pixel position of the text block — top-level only</span>
+        <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span>
+        <span class="s2">"label_name"</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span>
+        <span class="o">...</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr>
+<h3 id="draw-order">Draw order<a class="headerlink" href="#draw-order" title="Permanent link">¶</a></h3>
+<p>Elements are composited in this order, so later elements appear on top of earlier ones:</p>
+<ol>
+<li>Boundary fills</li>
+<li>Boundary edges</li>
+<li>Axes</li>
+<li>Lines</li>
+<li>Points</li>
+<li>Text overlay panel</li>
+</ol>
+<p>This matters when using <code>fill_alpha</code> — a semi-transparent boundary fill will
+show the video frame underneath, but lines and points drawn afterwards will
+appear on top of the fill.</p>
+<hr>
+<h3 id="points">Points<a class="headerlink" href="#points" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color</code></td>
+<td><code>(B, G, R)</code></td>
+<td><code>(0, 255, 255)</code></td>
+</tr>
+<tr>
+<td><code>radius</code></td>
+<td><code>int</code></td>
+<td><code>3</code></td>
+</tr>
+</tbody>
+</table>
+<div class="language-python highlight"><pre><span></span><code><span class="s2">"points"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">170</span><span class="p">,</span> <span class="mi">170</span><span class="p">,</span> <span class="mi">170</span><span class="p">),</span> <span class="s2">"radius"</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+    <span class="s2">"nose"</span><span class="p">:</span>    <span class="p">{</span><span class="s2">"color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="s2">"radius"</span><span class="p">:</span> <span class="mi">5</span><span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr>
+<h3 id="lines">Lines<a class="headerlink" href="#lines" title="Permanent link">¶</a></h3>
+<p>Lines are identified by the same <code>(point1, point2)</code> tuples passed to
+<code>lines=</code> in <code>animation_stream</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>color</code></td>
+<td><code>(B, G, R)</code></td>
+<td><code>(255, 255, 255)</code></td>
+</tr>
+<tr>
+<td><code>width</code></td>
+<td><code>int</code></td>
+<td><code>1</code></td>
+</tr>
+</tbody>
+</table>
+<div class="language-python highlight"><pre><span></span><code><span class="s2">"lines"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">),</span> <span class="s2">"width"</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="p">(</span><span class="s2">"nose"</span><span class="p">,</span> <span class="s2">"bodycentre"</span><span class="p">):</span> <span class="p">{</span><span class="s2">"color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="s2">"width"</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr>
+<h3 id="boundaries">Boundaries<a class="headerlink" href="#boundaries" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>edge_color</code></td>
+<td><code>(B, G, R)</code> or <code>None</code></td>
+<td><code>(0, 255, 0)</code></td>
+</tr>
+<tr>
+<td><code>edge_width</code></td>
+<td><code>int</code></td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>fill_color</code></td>
+<td><code>(B, G, R)</code> or <code>None</code></td>
+<td><code>None</code></td>
+</tr>
+<tr>
+<td><code>fill_alpha</code></td>
+<td><code>float</code> 0–1</td>
+<td><code>0.0</code></td>
+</tr>
+<tr>
+<td><code>fill_mode</code></td>
+<td><code>"normal"</code> or <code>"erase"</code></td>
+<td><code>"normal"</code></td>
+</tr>
+</tbody>
+</table>
+<div class="language-python highlight"><pre><span></span><code><span class="s2">"boundaries"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">"centre"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"fill_color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">200</span><span class="p">),</span> <span class="s2">"fill_alpha"</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">,</span> <span class="s2">"edge_width"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr>
+<h3 id="text-overlays-text-section">Text overlays (<code>"text"</code> section)<a class="headerlink" href="#text-overlays-text-section" title="Permanent link">¶</a></h3>
+<p>The <code>"text"</code> section styles the on-screen panel that displays per-frame
+feature values — the same columns passed via <code>features=</code> to <code>animation_stream</code>.
+The section name is <code>"text"</code> in the style dict, but the content it controls
+comes from <code>Features.data</code>; there is no separate <code>"features"</code> section. The <code>features=</code> argument to <code>animation_stream</code> controls which
+columns to show. Pass a <strong>dict</strong> to control the display label independently
+of the column name:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="c1"># List form — label is the column name</span>
+<span class="n">features</span><span class="o">=</span><span class="p">[</span><span class="s2">"speed_of_bodycentre_in_xy"</span><span class="p">,</span> <span class="s2">"in_centre"</span><span class="p">]</span>
+
+<span class="c1"># Dict form — keys are display labels, values are column names</span>
+<span class="n">features</span><span class="o">=</span><span class="p">{</span><span class="s2">"Speed (m/s)"</span><span class="p">:</span> <span class="s2">"speed_of_bodycentre_in_xy"</span><span class="p">,</span> <span class="s2">"In centre"</span><span class="p">:</span> <span class="s2">"in_centre"</span><span class="p">}</span>
+</code></pre></div>
+<p>Pass <code>None</code> or <code>""</code> in a list, or <code>None</code> as a dict value, to insert a blank
+spacer line between groups of labels.</p>
+<p><code>"origin"</code> is a <strong>top-level key inside <code>"text"</code></strong>; all other properties go
+inside <code>"default"</code> or per-label:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Where</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>origin</code></td>
+<td>top-level <code>"text"</code></td>
+<td><code>(10, 20)</code></td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td><code>"default"</code> or per-label</td>
+<td><code>(255, 255, 255)</code></td>
+</tr>
+<tr>
+<td><code>format</code></td>
+<td><code>"default"</code> or per-label</td>
+<td><code>".3f"</code></td>
+</tr>
+<tr>
+<td><code>font_scale</code></td>
+<td><code>"default"</code> or per-label</td>
+<td><code>0.5</code></td>
+</tr>
+<tr>
+<td><code>thickness</code></td>
+<td><code>"default"</code> or per-label</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>outline_color</code></td>
+<td><code>"default"</code> or per-label</td>
+<td><code>(0, 0, 0)</code></td>
+</tr>
+<tr>
+<td><code>outline_thickness</code></td>
+<td><code>"default"</code> or per-label</td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td><code>line_height</code></td>
+<td><code>"default"</code> or per-label</td>
+<td><code>18</code></td>
+</tr>
+<tr>
+<td><code>as_bool</code></td>
+<td>per-label</td>
+<td><code>False</code></td>
+</tr>
+</tbody>
+</table>
+<div class="language-python highlight"><pre><span></span><code><span class="s2">"text"</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">"origin"</span><span class="p">:</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">30</span><span class="p">),</span>
+    <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">),</span>
+        <span class="s2">"format"</span><span class="p">:</span> <span class="s2">".2f"</span><span class="p">,</span>
+        <span class="s2">"font_scale"</span><span class="p">:</span> <span class="mf">0.45</span><span class="p">,</span>
+        <span class="s2">"outline_color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="s2">"outline_thickness"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="s2">"line_height"</span><span class="p">:</span> <span class="mi">17</span><span class="p">,</span>
+    <span class="p">},</span>
+    <span class="s2">"In centre"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"as_bool"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"font_scale"</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr>
+<h2 id="dynamic-data-driven-styling">Dynamic (data-driven) styling<a class="headerlink" href="#dynamic-data-driven-styling" title="Permanent link">¶</a></h2>
+<p>Any color or numeric style property can be driven by a column in
+<code>Features.data</code> instead of a fixed value. This applies to colors, radii,
+line widths, <code>fill_alpha</code>, font sizes — anything numeric. Dynamic specs
+require <code>Features.animation_stream</code>; they are resolved once at construction
+time, not during rendering.</p>
+<p>There are two dynamic spec forms:</p>
+<h3 id="colormap-cmap">Colormap (<code>cmap</code>)<a class="headerlink" href="#colormap-cmap" title="Permanent link">¶</a></h3>
+<p>Maps a numeric column through a matplotlib colormap.</p>
+<div class="language-python highlight"><pre><span></span><code><span class="p">{</span><span class="s2">"from"</span><span class="p">:</span> <span class="s2">"column_name"</span><span class="p">,</span> <span class="s2">"cmap"</span><span class="p">:</span> <span class="s2">"viridis"</span><span class="p">,</span> <span class="s2">"vmin"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">"vmax"</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">}</span>
+</code></pre></div>
+<p><code>vmin</code>/<code>vmax</code> are optional — if omitted they are inferred from the full
+recording. Add <code>"nan_color": (B, G, R)</code> to control the colour for NaN frames.</p>
+<h3 id="value-map-map">Value map (<code>map</code>)<a class="headerlink" href="#value-map-map" title="Permanent link">¶</a></h3>
+<p>Maps discrete values to specific property values via an explicit lookup dict.
+<strong>Always include a <code>"default"</code> key</strong> to handle unexpected values and NaN
+frames, especially when the source column is a nullable type such as
+<code>pd.BooleanDtype</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="p">{</span><span class="s2">"from"</span><span class="p">:</span> <span class="s2">"cluster_label"</span><span class="p">,</span> <span class="s2">"map"</span><span class="p">:</span> <span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="mi">1</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">),</span> <span class="s2">"default"</span><span class="p">:</span> <span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">)}}</span>
+</code></pre></div>
+<h3 id="example-cmap-on-points-and-lines">Example — cmap on points and lines<a class="headerlink" href="#example-cmap-on-points-and-lines" title="Permanent link">¶</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span class="n">style</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"points"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"color"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"from"</span><span class="p">:</span> <span class="s2">"speed_of_bodycentre_in_xy"</span><span class="p">,</span> <span class="s2">"cmap"</span><span class="p">:</span> <span class="s2">"turbo"</span><span class="p">,</span> <span class="s2">"vmin"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">"vmax"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">"lines"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"color"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"from"</span><span class="p">:</span> <span class="s2">"speed_of_bodycentre_in_xy"</span><span class="p">,</span> <span class="s2">"cmap"</span><span class="p">:</span> <span class="s2">"turbo"</span><span class="p">,</span> <span class="s2">"vmin"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">"vmax"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="example-static-and-dynamic-overrides">Example — static and dynamic overrides<a class="headerlink" href="#example-static-and-dynamic-overrides" title="Permanent link">¶</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span class="n">style</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"points"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">170</span><span class="p">,</span> <span class="mi">170</span><span class="p">,</span> <span class="mi">170</span><span class="p">),</span> <span class="s2">"radius"</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+        <span class="c1"># static override: bodycentre always white and larger</span>
+        <span class="s2">"bodycentre"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">),</span> <span class="s2">"radius"</span><span class="p">:</span> <span class="mi">6</span><span class="p">},</span>
+        <span class="c1"># dynamic override: nose coloured by its own speed</span>
+        <span class="s2">"nose"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"color"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"from"</span><span class="p">:</span> <span class="s2">"speed_of_nose_in_xy"</span><span class="p">,</span> <span class="s2">"cmap"</span><span class="p">:</span> <span class="s2">"turbo"</span><span class="p">,</span> <span class="s2">"vmin"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">"vmax"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">"lines"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="c1"># default: colour all lines by speed via cmap</span>
+        <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"color"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"from"</span><span class="p">:</span> <span class="s2">"speed_of_bodycentre_in_xy"</span><span class="p">,</span> <span class="s2">"cmap"</span><span class="p">:</span> <span class="s2">"turbo"</span><span class="p">,</span> <span class="s2">"vmin"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">"vmax"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">},</span>
+        <span class="p">},</span>
+        <span class="c1"># static override: spine line always drawn in white, thicker</span>
+        <span class="p">(</span><span class="s2">"neck"</span><span class="p">,</span> <span class="s2">"tailbase"</span><span class="p">):</span> <span class="p">{</span><span class="s2">"color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">255</span><span class="p">),</span> <span class="s2">"width"</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
+        <span class="c1"># dynamic override: head line coloured by whether animal is in centre</span>
+        <span class="p">(</span><span class="s2">"nose"</span><span class="p">,</span> <span class="s2">"headcentre"</span><span class="p">):</span> <span class="p">{</span>
+            <span class="s2">"color"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"from"</span><span class="p">:</span> <span class="s2">"in_centre"</span><span class="p">,</span>
+                <span class="s2">"map"</span><span class="p">:</span> <span class="p">{</span><span class="kc">True</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="kc">False</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">255</span><span class="p">),</span> <span class="s2">"default"</span><span class="p">:</span> <span class="p">(</span><span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">,</span> <span class="mi">128</span><span class="p">)},</span>
+            <span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="s2">"text"</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">"origin"</span><span class="p">:</span> <span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">30</span><span class="p">),</span>
+        <span class="s2">"default"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">),</span>
+            <span class="s2">"format"</span><span class="p">:</span> <span class="s2">".2f"</span><span class="p">,</span>
+            <span class="s2">"font_scale"</span><span class="p">:</span> <span class="mf">0.45</span><span class="p">,</span>
+            <span class="s2">"outline_color"</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="s2">"outline_thickness"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="c1"># static override: speed label rendered larger</span>
+        <span class="s2">"Speed"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"font_scale"</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span> <span class="s2">"line_height"</span><span class="p">:</span> <span class="mi">22</span><span class="p">},</span>
+        <span class="c1"># dynamic override: zone label changes colour with the data</span>
+        <span class="s2">"In centre"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"as_bool"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+            <span class="s2">"color"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"from"</span><span class="p">:</span> <span class="s2">"in_centre"</span><span class="p">,</span>
+                <span class="s2">"map"</span><span class="p">:</span> <span class="p">{</span><span class="kc">True</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">255</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="kc">False</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">255</span><span class="p">),</span> <span class="s2">"default"</span><span class="p">:</span> <span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">,</span> <span class="mi">200</span><span class="p">)},</span>
+            <span class="p">},</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "content.code.copy", "content.code.select", "toc.integrate", "toc.collapsible"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

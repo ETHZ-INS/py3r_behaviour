@@ -1,0 +1,1951 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://ETHZ-3Rhub.github.io/py3r_behaviour/v3.4.2/api/script/">
+      
+      
+        <link rel="prev" href="../summary_collection/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>script - py3r-behaviour</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#annotation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="py3r-behaviour" class="md-header__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            py3r-behaviour
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              script
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-hidden="true" type="radio" name="__palette" id="__palette_0">
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="py3r-behaviour" class="md-nav__button md-logo" aria-label="py3r-behaviour" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    py3r-behaviour
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting_started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../animation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Animation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../use-with-ai/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Use with AI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/oft_pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    OFT pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../animation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AnimationStream
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking_mv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingMV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TrackingCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FeaturesCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../summary_collection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SummaryCollection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    script
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    script
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#annotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Annotation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.param.Param" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Param
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Param">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.param.Param(default)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        default
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.param.Param(name)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        name
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.param.Output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.param.Output(value)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        value
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.param.Output(name)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        name
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-and-sweeping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running and sweeping
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="run">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.run(script_path)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        script_path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.run(params)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        params
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.run(outputs)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.run(stop_after_outputs)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stop_after_outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.sensitivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sensitivity
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="sensitivity">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.sensitivity(script_path)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        script_path
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.sensitivity(params)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        params
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.sensitivity(nominal)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        nominal
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.sensitivity(outputs)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.sensitivity(stop_after_outputs)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stop_after_outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.sensitivity(mode)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.inspect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        inspect
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="inspect">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.runner.inspect(script_path)" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        script_path
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.results.ScriptResults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ScriptResults
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ScriptResults">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.results.ScriptResults.errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#py3r.behaviour.script.results.ScriptResults.to_dataframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_dataframe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>script</h1>
+
+<p><code>py3r.behaviour.script</code> lets you run and sweep parameterised Python pipeline scripts without modifying them.</p>
+<p>Annotate any scalar script variable with <a class="autorefs autorefs-internal" title="py3r.behaviour.script.param.Param" href="#py3r.behaviour.script.param.Param"><code>Param</code></a> and any intermediate result with <a class="autorefs autorefs-internal" title="py3r.behaviour.script.param.Output" href="#py3r.behaviour.script.param.Output"><code>Output</code></a>. Both are transparent during normal execution — the script runs unchanged on its own. When invoked via <a class="autorefs autorefs-internal" title="py3r.behaviour.script.runner.run" href="#py3r.behaviour.script.runner.run"><code>run</code></a> or <a class="autorefs autorefs-internal" title="py3r.behaviour.script.runner.sensitivity" href="#py3r.behaviour.script.runner.sensitivity"><code>sensitivity</code></a>, parameter values are injected into each subprocess and outputs are captured and returned in a <a class="autorefs autorefs-internal" title="py3r.behaviour.script.results.ScriptResults" href="#py3r.behaviour.script.results.ScriptResults"><code>ScriptResults</code></a> container.</p>
+<p>Each iteration runs in a fresh subprocess, so process state never leaks between runs. <code>stop_after_outputs=True</code> combined with <code>outputs=</code> terminates the subprocess as soon as the last requested output is captured, allowing you to short-circuit long pipelines when only early-stage results are needed.</p>
+<h2 id="annotation">Annotation<a class="headerlink" href="#annotation" title="Permanent link">¶</a></h2>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="py3r.behaviour.script.param.Param" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">py3r.behaviour.script.param.Param</span>
+
+
+<a href="#py3r.behaviour.script.param.Param" class="headerlink" title="Permanent link">¶</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">Param</span><span class="p">(</span>
+    <span class="n">default</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">_MISSING</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Mark a script variable as a runner parameter.</p>
+<p>In normal script execution, returns <code>default</code>. If no default is given,
+raises <code>RuntimeError</code> to signal that the script must be run via
+:func:<code>run</code> or :func:<code>sensitivity</code> with a value supplied for this parameter.</p>
+<p>When run via :func:<code>run</code> or :func:<code>sensitivity</code>, returns the injected value.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.param.Param(default)" class="doc doc-heading doc-heading-parameter">                  <code>default</code>
+<a href="#py3r.behaviour.script.param.Param(default)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="bool">bool</span> | <span title="int">int</span> | <span title="float">float</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Value used during normal execution. Omit to mark the parameter
+as required (no default — must always be supplied by the runner).</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="py3r.behaviour.script.param._MISSING">_MISSING</span></code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.param.Param(name)" class="doc doc-heading doc-heading-parameter">                  <code>name</code>
+<a href="#py3r.behaviour.script.param.Param(name)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameter name, matched against keys passed to <code>run</code> or
+<code>sensitivity</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+        <h4 id="py3r.behaviour.script.param.Param--examples">Examples<a class="headerlink" href="#py3r.behaviour.script.param.Param--examples" title="Permanent link">¶</a></h4>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="n">window</span> <span class="o">=</span> <span class="n">Param</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"window"</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">window</span>
+<span class="go">5</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">type</span><span class="p">(</span><span class="n">window</span><span class="p">)</span>
+<span class="go">&lt;class 'int'&gt;</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="py3r.behaviour.script.param.Output" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">py3r.behaviour.script.param.Output</span>
+
+
+<a href="#py3r.behaviour.script.param.Output" class="headerlink" title="Permanent link">¶</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">Output</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Mark a script value as a runner output to capture.</p>
+<p>In normal script execution, returns <code>value</code> unchanged. When run via
+:func:<code>run</code> or :func:<code>sensitivity</code>, captures the value under <code>name</code>
+in the results.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.param.Output(value)" class="doc doc-heading doc-heading-parameter">                  <code>value</code>
+<a href="#py3r.behaviour.script.param.Output(value)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="object">object</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The value to capture. Any type is accepted.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.param.Output(name)" class="doc doc-heading doc-heading-parameter">                  <code>name</code>
+<a href="#py3r.behaviour.script.param.Output(name)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Output name, used to key results in <code>ScriptResults</code>.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+        <h4 id="py3r.behaviour.script.param.Output--examples">Examples<a class="headerlink" href="#py3r.behaviour.script.param.Output--examples" title="Permanent link">¶</a></h4>
+<div class="language-pycon highlight"><pre><span></span><code><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"a"</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">Output</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">"summary"</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="ow">is</span> <span class="n">df</span>
+<span class="go">True</span>
+</code></pre></div>
+
+
+    </div>
+
+</div><h2 id="running-and-sweeping">Running and sweeping<a class="headerlink" href="#running-and-sweeping" title="Permanent link">¶</a></h2>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="py3r.behaviour.script.runner.run" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">py3r.behaviour.script.runner.run</span>
+
+
+<a href="#py3r.behaviour.script.runner.run" class="headerlink" title="Permanent link">¶</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">run</span><span class="p">(</span>
+    <span class="n">script_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">outputs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">stop_after_outputs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ScriptResults</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Run a parameterised script exactly once with the given parameter values.</p>
+<p>Unspecified parameters use their script default. Parameters with no default
+must be provided.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.run(script_path)" class="doc doc-heading doc-heading-parameter">                  <code>script_path</code>
+<a href="#py3r.behaviour.script.runner.run(script_path)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a Python script containing <code>Param</code> and/or
+<code>Output</code> calls.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.run(params)" class="doc doc-heading doc-heading-parameter">                  <code>params</code>
+<a href="#py3r.behaviour.script.runner.run(params)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Parameter values to inject, keyed by name. Unspecified params
+use their script default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.run(outputs)" class="doc doc-heading doc-heading-parameter">                  <code>outputs</code>
+<a href="#py3r.behaviour.script.runner.run(outputs)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Names of <code>Output</code> values to capture. Defaults to all outputs.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.run(stop_after_outputs)" class="doc doc-heading doc-heading-parameter">                  <code>stop_after_outputs</code>
+<a href="#py3r.behaviour.script.runner.run(stop_after_outputs)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, the subprocess is terminated immediately
+after the last requested output is captured.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="py3r.behaviour.script.results.ScriptResults" href="#py3r.behaviour.script.results.ScriptResults">ScriptResults</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Single-entry results container. Access outputs via</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="py3r.behaviour.script.results.ScriptResults" href="#py3r.behaviour.script.results.ScriptResults">ScriptResults</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>sr[params]["output_name"]</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+        <h4 id="py3r.behaviour.script.runner.run--examples">Examples<a class="headerlink" href="#py3r.behaviour.script.runner.run--examples" title="Permanent link">¶</a></h4>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.script</span><span class="w"> </span><span class="kn">import</span> <span class="n">run</span>
+
+<span class="n">sr</span> <span class="o">=</span> <span class="n">run</span><span class="p">(</span><span class="s2">"pipeline.py"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"data_path"</span><span class="p">:</span> <span class="s2">"/data/session1"</span><span class="p">,</span> <span class="s2">"threshold"</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">})</span>
+<span class="n">summary</span> <span class="o">=</span> <span class="n">sr</span><span class="p">[{</span><span class="s2">"data_path"</span><span class="p">:</span> <span class="s2">"/data/session1"</span><span class="p">,</span> <span class="s2">"threshold"</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">}][</span><span class="s2">"summary"</span><span class="p">]</span>
+</code></pre></div>
+<p>Capture only an early output and stop the subprocess before downstream
+stages run:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">sr</span> <span class="o">=</span> <span class="n">run</span><span class="p">(</span><span class="s2">"pipeline.py"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"threshold"</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">},</span> <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s2">"tracking"</span><span class="p">],</span> <span class="n">stop_after_outputs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="py3r.behaviour.script.runner.sensitivity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">py3r.behaviour.script.runner.sensitivity</span>
+
+
+<a href="#py3r.behaviour.script.runner.sensitivity" class="headerlink" title="Permanent link">¶</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">sensitivity</span><span class="p">(</span>
+    <span class="n">script_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+    <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">nominal</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">outputs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">stop_after_outputs</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"independent"</span><span class="p">,</span> <span class="s2">"grid"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"independent"</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ScriptResults</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Run a parameterised script repeatedly, sweeping flagged :func:<code>Param</code> values.</p>
+<p>Each iteration runs in a subprocess. :func:<code>Output</code> values are collected and
+returned in a :class:<code>ScriptResults</code> container. Failed iterations are recorded
+but do not stop the run.</p>
+<p>For each swept parameter, its script default is automatically included in the
+sweep (deduplicated silently) and used as the nominal value for independent-mode
+sweeps. Use <code>nominal</code> to override this.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.sensitivity(script_path)" class="doc doc-heading doc-heading-parameter">                  <code>script_path</code>
+<a href="#py3r.behaviour.script.runner.sensitivity(script_path)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a Python script containing <code>Param</code> and <code>Output</code>
+calls.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.sensitivity(params)" class="doc doc-heading doc-heading-parameter">                  <code>params</code>
+<a href="#py3r.behaviour.script.runner.sensitivity(params)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="list">list</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Mapping of parameter name to list of values to sweep.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.sensitivity(nominal)" class="doc doc-heading doc-heading-parameter">                  <code>nominal</code>
+<a href="#py3r.behaviour.script.runner.sensitivity(nominal)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="dict">dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Nominal (baseline) values for independent-mode sweeps. Overrides
+script defaults. Required for any swept parameter that has no script
+default.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.sensitivity(outputs)" class="doc doc-heading doc-heading-parameter">                  <code>outputs</code>
+<a href="#py3r.behaviour.script.runner.sensitivity(outputs)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="list">list</span>[<span title="str">str</span>] | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Names of <code>Output</code> values to capture. Defaults to all outputs.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.sensitivity(stop_after_outputs)" class="doc doc-heading doc-heading-parameter">                  <code>stop_after_outputs</code>
+<a href="#py3r.behaviour.script.runner.sensitivity(stop_after_outputs)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If True, each subprocess is terminated after the last
+requested output is captured. Useful when outputs appear early in a
+long pipeline.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.sensitivity(mode)" class="doc doc-heading doc-heading-parameter">                  <code>mode</code>
+<a href="#py3r.behaviour.script.runner.sensitivity(mode)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="typing.Literal">Literal</span>['independent', 'grid']</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p><code>"independent"</code> varies one parameter at a time, holding the
+others at their nominal value. <code>"grid"</code> tests every combination.</p>
+              </div>
+            </td>
+            <td>
+                  <code>'independent'</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="py3r.behaviour.script.results.ScriptResults" href="#py3r.behaviour.script.results.ScriptResults">ScriptResults</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Results container keyed by parameter combination. Access individual</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="py3r.behaviour.script.results.ScriptResults" href="#py3r.behaviour.script.results.ScriptResults">ScriptResults</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>outputs via <code>sr[{"param": value}]["output_name"]</code>, or flatten</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="py3r.behaviour.script.results.ScriptResults" href="#py3r.behaviour.script.results.ScriptResults">ScriptResults</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>scalar outputs with <code>sr.to_dataframe()</code>.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+        <h4 id="py3r.behaviour.script.runner.sensitivity--examples">Examples<a class="headerlink" href="#py3r.behaviour.script.runner.sensitivity--examples" title="Permanent link">¶</a></h4>
+<p>Independent sweep (default mode) — one parameter varies at a time:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.script</span><span class="w"> </span><span class="kn">import</span> <span class="n">sensitivity</span>
+
+<span class="n">sr</span> <span class="o">=</span> <span class="n">sensitivity</span><span class="p">(</span><span class="s2">"pipeline.py"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"smooth_window"</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span> <span class="s2">"threshold"</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">]})</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">sr</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span>
+</code></pre></div>
+<p>Grid sweep — every combination of parameter values:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">sr</span> <span class="o">=</span> <span class="n">sensitivity</span><span class="p">(</span>
+    <span class="s2">"pipeline.py"</span><span class="p">,</span>
+    <span class="p">{</span><span class="s2">"smooth_window"</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">],</span> <span class="s2">"threshold"</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.8</span><span class="p">]},</span>
+    <span class="n">mode</span><span class="o">=</span><span class="s2">"grid"</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Required parameter not being swept must be supplied via <code>nominal</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">sr</span> <span class="o">=</span> <span class="n">sensitivity</span><span class="p">(</span>
+    <span class="s2">"pipeline.py"</span><span class="p">,</span>
+    <span class="p">{</span><span class="s2">"smooth_window"</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">]},</span>
+    <span class="n">nominal</span><span class="o">=</span><span class="p">{</span><span class="s2">"threshold"</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">},</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Early termination — stop each subprocess after the first output is
+captured, skipping downstream pipeline stages:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">sr</span> <span class="o">=</span> <span class="n">sensitivity</span><span class="p">(</span>
+    <span class="s2">"pipeline.py"</span><span class="p">,</span>
+    <span class="p">{</span><span class="s2">"smooth_window"</span><span class="p">:</span> <span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">7</span><span class="p">]},</span>
+    <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="s2">"tracking"</span><span class="p">],</span>
+    <span class="n">stop_after_outputs</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="py3r.behaviour.script.runner.inspect" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">py3r.behaviour.script.runner.inspect</span>
+
+
+<a href="#py3r.behaviour.script.runner.inspect" class="headerlink" title="Permanent link">¶</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">inspect</span><span class="p">(</span><span class="n">script_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Print a summary of the :func:<code>Param</code> and :func:<code>Output</code> calls in a script.</p>
+<p>Useful for quickly checking what parameters a script exposes, which have
+defaults, and what outputs it produces — without actually running it.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+<h3 id="py3r.behaviour.script.runner.inspect(script_path)" class="doc doc-heading doc-heading-parameter">                  <code>script_path</code>
+<a href="#py3r.behaviour.script.runner.inspect(script_path)" class="headerlink" title="Permanent link">¶</a></h3>            </td>
+            <td>
+                  <code><span title="str">str</span> | <span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a Python script containing <code>Param</code> and/or
+<code>Output</code> calls.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+        <h4 id="py3r.behaviour.script.runner.inspect--examples">Examples<a class="headerlink" href="#py3r.behaviour.script.runner.inspect--examples" title="Permanent link">¶</a></h4>
+<div class="language-python highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">py3r.behaviour.script</span><span class="w"> </span><span class="kn">import</span> <span class="n">inspect</span>
+<span class="n">inspect</span><span class="p">(</span><span class="s2">"pipeline.py"</span><span class="p">)</span>
+<span class="c1"># Script: pipeline.py</span>
+<span class="c1">#</span>
+<span class="c1"># Parameters:</span>
+<span class="c1">#   data_path            default='/my/data'  type=str</span>
+<span class="c1">#   smooth_window        default=5           type=int</span>
+<span class="c1">#   threshold            required</span>
+<span class="c1">#</span>
+<span class="c1"># Outputs:</span>
+<span class="c1">#   tracking</span>
+<span class="c1">#   summary</span>
+</code></pre></div>
+
+
+    </div>
+
+</div><h2 id="results">Results<a class="headerlink" href="#results" title="Permanent link">¶</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="py3r.behaviour.script.results.ScriptResults" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">py3r.behaviour.script.results.ScriptResults</span>
+
+
+<a href="#py3r.behaviour.script.results.ScriptResults" class="headerlink" title="Permanent link">¶</a></h2>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">ScriptResults</span><span class="p">(</span>
+    <span class="n">param_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">output_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Container for results returned by :func:<code>run</code> and :func:<code>sensitivity</code>.</p>
+<p>Keyed by parameter combination; holds captured :func:<code>Output</code> values per
+iteration. Access individual outputs by passing a parameter dict:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">sr</span><span class="p">[{</span><span class="s2">"window"</span><span class="p">:</span> <span class="mi">5</span><span class="p">}][</span><span class="s2">"summary"</span><span class="p">]</span>
+</code></pre></div>
+<p>Flatten scalar outputs across all iterations to a <code>DataFrame</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span class="n">df</span> <span class="o">=</span> <span class="n">sr</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">()</span>
+</code></pre></div>
+<h4 id="py3r.behaviour.script.results.ScriptResults--attributes">Attributes<a class="headerlink" href="#py3r.behaviour.script.results.ScriptResults--attributes" title="Permanent link">¶</a></h4>
+<p>errors : list[tuple[dict, str]]
+    Failed iterations as <code>(param_dict, error_message)</code> pairs.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="py3r.behaviour.script.results.ScriptResults.errors" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">errors</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#py3r.behaviour.script.results.ScriptResults.errors" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Failed iterations as a list of <code>(param_dict, error_message)</code> pairs.</p>
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="py3r.behaviour.script.results.ScriptResults.to_dataframe" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_dataframe</span>
+
+
+<a href="#py3r.behaviour.script.results.ScriptResults.to_dataframe" class="headerlink" title="Permanent link">¶</a></h3>
+<div class="language-python doc-signature highlight"><pre><span></span><code><span class="nf">to_dataframe</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Flatten scalar outputs into a DataFrame (one row per iteration).</p>
+<p>Each row contains the parameter values for that iteration plus one
+column per captured scalar output. Raises <code>TypeError</code> if any output
+is not a scalar — access those directly via indexing instead.</p>
+<h5 id="py3r.behaviour.script.results.ScriptResults.to_dataframe--returns">Returns<a class="headerlink" href="#py3r.behaviour.script.results.ScriptResults.to_dataframe--returns" title="Permanent link">¶</a></h5>
+<p>pd.DataFrame
+    One row per completed iteration; columns are parameter names
+    followed by output names.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "content.code.copy", "content.code.select", "toc.integrate", "toc.collapsible"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
