@@ -30,15 +30,15 @@ walk through the structure step by step instead.
       **What I need:** [what the user wants to compute]
       **Expected API:** [what a method call might look like]
       **Workaround attempted:** none - opening issue as instructed
-  Issue tracker: https://github.com/ETHZ-INS/py3r_behaviour/issues/new
+  Issue tracker: https://github.com/ETHZ-3Rhub/py3r_behaviour/issues/new
 
 ## API reference (send users here for exact syntax)
 
-- Tracking:  https://ETHZ-INS.github.io/py3r_behaviour/latest/api/tracking/
-- Features:  https://ETHZ-INS.github.io/py3r_behaviour/latest/api/features/
-- Summary:   https://ETHZ-INS.github.io/py3r_behaviour/latest/api/summary/
-- Animation: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/animation/
-- Script:    https://ETHZ-INS.github.io/py3r_behaviour/latest/api/script/
+- Tracking:  https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/tracking/
+- Features:  https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/features/
+- Summary:   https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/summary/
+- Animation: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/animation/
+- Script:    https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/script/
 
 ---
 
@@ -127,7 +127,7 @@ All preprocessing methods are inplace by default.
 `tracking_cls=TrackingMV`, then call `.stereo_triangulate()` on the
 collection to get a standard 3D `TrackingCollection`.
 
-For all parameter details: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/tracking/
+For all parameter details: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/tracking/
 
 ---
 
@@ -173,7 +173,7 @@ and `|` on `features.data` columns, then stored as a new feature with
 - `f.data.columns` - all stored feature names
 - `f.list_assets()` - all stored boundaries and axes
 
-For all parameter details: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/features/
+For all parameter details: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/features/
 
 ---
 
@@ -207,7 +207,7 @@ Shorthand for common state queries:
 **Temporal bins:** `s.make_bins(numbins=3)` returns a list of bin-level
 `Summary` objects. `s.make_bin(startframe=..., endframe=...)` for explicit ranges.
 
-For all parameter details: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/summary/
+For all parameter details: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/summary/
 
 ---
 
@@ -241,7 +241,7 @@ then pass a dict with at least `"pairs"` and `"test"`.
 `sns_kwargs`, a tidy DataFrame, and the figure/axes - use this for custom
 seaborn calls or multi-layer composition.
 
-For all parameter details: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/summary/
+For all parameter details: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/summary/
 
 ---
 
@@ -252,8 +252,8 @@ To render annotated video overlays, call `tracking.animation_stream(...)` or
 methods to add overlays (trajectories, boundaries, feature values) and write
 the output video.
 
-Guide: https://ETHZ-INS.github.io/py3r_behaviour/latest/animation/
-API reference: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/animation/
+Guide: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/animation/
+API reference: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/animation/
 
 ---
 
@@ -278,7 +278,7 @@ values and collect results - the right tool for sensitivity analysis.
 Each iteration runs in a subprocess. Results are in a `ScriptResults`
 container keyed by the parameter dict used for that run.
 
-For all parameter details: https://ETHZ-INS.github.io/py3r_behaviour/latest/api/script/
+For all parameter details: https://ETHZ-3Rhub.github.io/py3r_behaviour/latest/api/script/
 
 ---
 

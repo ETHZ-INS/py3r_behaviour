@@ -10,4 +10,4 @@ Post-processing and analysis utilities for behavioural pose-estimation data.
 
 ---
 
-[docs-index]: https://ETHZ-INS.github.io/py3r_behaviour/
+[docs-index]: https://ETHZ-3Rhub.github.io/py3r_behaviour/

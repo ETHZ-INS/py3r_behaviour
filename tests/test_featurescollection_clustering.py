@@ -19,6 +19,7 @@ import pandas as pd
 import pytest
 
 from py3r.behaviour.features.centroids_df import CentroidsDf
+from py3r.behaviour.features.cluster_pipeline import ClusteringConfig, _build_row_groups
 from py3r.behaviour.features.features import Features
 from py3r.behaviour.features.features_collection import FeaturesCollection
 from py3r.behaviour.tracking.tracking import Tracking
@@ -771,3 +772,93 @@ class TestAssignClustersAllowMissingFeatures:
                 c["cents_speed"],
                 c["emb_full"],
             )
+
+
+# ---------------------------------------------------------------------------
+# _build_row_groups (fit_cluster_embedding phase 4 grouping)
+# ---------------------------------------------------------------------------
+
+
+class _FakeFeat:
+    """Stand-in exposing only what `_build_row_groups` needs: `.data` length."""
+
+    def __init__(self, n_rows: int):
+        self.data = pd.RangeIndex(n_rows)
+
+
+def _fake_feat_list(row_counts: list[int]) -> list[tuple]:
+    return [(None, f"f{i}", _FakeFeat(n)) for i, n in enumerate(row_counts)]
+
+
+class TestBuildRowGroups:
+    def test_groups_stay_within_bound(self):
+        feat_list = _fake_feat_list([100, 100, 100, 100, 100])
+        order = np.arange(len(feat_list))
+        groups = _build_row_groups(feat_list, order, max_group_rows=250)
+        for group in groups:
+            assert sum(len(item[2].data) for item in group) <= 250
+
+    def test_all_items_preserved_in_shuffled_order(self):
+        feat_list = _fake_feat_list([50, 75, 30, 120, 10])
+        order = np.array([3, 1, 0, 4, 2])
+        groups = _build_row_groups(feat_list, order, max_group_rows=100)
+        flattened = [item[1] for group in groups for item in group]
+        assert flattened == [feat_list[i][1] for i in order]
+
+    def test_oversized_single_feature_gets_its_own_group(self):
+        feat_list = _fake_feat_list([50, 500, 50])
+        order = np.array([0, 1, 2])
+        groups = _build_row_groups(feat_list, order, max_group_rows=100)
+        oversized_group = next(g for g in groups if any(len(i[2].data) == 500 for i in g))
+        assert len(oversized_group) == 1
+
+    def test_none_bound_puts_everything_in_one_group(self):
+        feat_list = _fake_feat_list([10, 20, 30])
+        order = np.array([2, 0, 1])
+        groups = _build_row_groups(feat_list, order, max_group_rows=None)
+        assert len(groups) == 1
+        assert [item[1] for item in groups[0]] == [feat_list[i][1] for i in order]
+
+
+# ---------------------------------------------------------------------------
+# Row-shuffled grouping, integrated through cluster_embedding_stream
+# ---------------------------------------------------------------------------
+
+
+class TestGroupedShuffleClustering:
+    def _make_short_recordings_fc(self, n_objects: int = 8, n_frames: int = 3, seed: int = 7):
+        return _make_fc(
+            n_objects=n_objects,
+            n_frames=n_frames,
+            seed=seed,
+            inject_nans=False,
+            add_constant_feature=False,
+        )
+
+    def test_pools_recordings_shorter_than_n_clusters(self):
+        """
+        Each recording alone (3 frames, embedding shift [0, 1]) yields only 2
+        valid rows -- fewer than n_clusters=4. Grouping several recordings
+        together lets MiniBatchKMeans initialize successfully regardless.
+        """
+        fc, emb = self._make_short_recordings_fc()
+        _, cents = fc.cluster_embedding_stream(emb, n_clusters=4, random_state=0)
+        assert cents.shape[0] == 4
+
+    def test_disabling_grouping_reproduces_old_per_recording_failure(self):
+        """max_group_rows=1 forces effectively one Features per group (the old,
+        unshuffled streaming behaviour), which fails on this dataset because the
+        first batch MiniBatchKMeans sees has fewer rows than n_clusters.
+        """
+        fc, emb = self._make_short_recordings_fc()
+        with pytest.raises(ValueError, match="n_samples=.* should be >= n_clusters"):
+            fc.cluster_embedding_stream(emb, n_clusters=4, random_state=0, max_group_rows=1)
+
+    def test_deterministic_for_fixed_random_state(self):
+        fc, emb = _make_fc(n_objects=5, n_frames=150, seed=3)
+        _, cents_a = fc.cluster_embedding_stream(emb, n_clusters=3, random_state=0)
+        _, cents_b = fc.cluster_embedding_stream(emb, n_clusters=3, random_state=0)
+        pd.testing.assert_frame_equal(cents_a.to_df(), cents_b.to_df())
+
+    def test_default_max_group_rows_is_300_000(self):
+        assert ClusteringConfig(n_clusters=2).max_group_rows == 300_000

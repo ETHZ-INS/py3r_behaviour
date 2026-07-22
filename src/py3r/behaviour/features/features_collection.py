@@ -344,15 +344,18 @@ class FeaturesCollection(BaseCollection):
         chunk_size: int = 10_000,
         n_epochs: int = 3,
         batch_size: int = 1024,
+        max_group_rows: int | None = 300_000,
     ) -> tuple[BatchResult, CentroidsDf]:
         """
         K-means clustering via streaming ``MiniBatchKMeans``.
 
-        Embeddings are extracted one ``Features`` at a time, sliced into
-        fixed-size chunks, and fed to ``MiniBatchKMeans.partial_fit`` over
-        multiple epochs.  The dataset is never concatenated into a single
-        combined DataFrame, so memory usage scales with the largest single
-        recording rather than the whole collection.
+        Each epoch, Features are shuffled and packed into row-bounded groups
+        (``max_group_rows``); each group's embeddings are concatenated,
+        row-shuffled together, then split into fixed-size chunks and fed to
+        ``MiniBatchKMeans.partial_fit``. This reduces cluster-fitting bias
+        arising from autocorrelation within a single recording. The dataset is
+        never fully concatenated at once, so memory usage scales with
+        ``max_group_rows`` rather than the whole collection.
 
         Note:
             This method uses ``MiniBatchKMeans`` (stochastic online updates), which
@@ -361,6 +364,12 @@ class FeaturesCollection(BaseCollection):
             data the partition will be the same; on harder problems, increasing
             ``n_epochs`` (5–10+) and ``batch_size`` (e.g. 2048–8192) improves
             convergence. To reproduce results from py3r ≤ 3.2.1, pin to that version.
+
+        Note:
+            Prior to introducing row-shuffling, batches were built by streaming one
+            Features at a time in contiguous chunks, with no shuffling. Results are
+            not reproducible against that older behaviour. To reproduce results from
+            py3r.behaviour ≤ 3.4.0 exactly, pin to that version.
 
         Args:
             embedding_dict: Feature columns and their time shifts for the embedding.
@@ -394,6 +403,16 @@ class FeaturesCollection(BaseCollection):
                 datasets, or to approximate full-batch KMeans more closely.
             batch_size: ``MiniBatchKMeans`` internal mini-batch size (passed directly
                 to sklearn). Larger values reduce variance in updates.
+            max_group_rows: Upper bound on the number of rows held in memory at
+                once while shuffling (a group of Features is filled until adding
+                the next one would exceed this). Defaults to 300,000, which is
+                roughly 1.2 GB for a ~1000-column embedding — safe headroom on an
+                8 GB+ laptop. Pass ``None`` for a true dataset-wide shuffle (every
+                Features in one group), but only if the whole embedding matrix is
+                known to fit in memory; a much larger embedding column count
+                than ~1000 may need a smaller value instead. A single Features
+                longer than this bound still forms its own group rather than
+                being split.
 
         Returns:
             Batch cluster labels and fitted centroids. The ``CentroidsDf``
@@ -434,6 +453,7 @@ class FeaturesCollection(BaseCollection):
             chunk_size=chunk_size,
             n_epochs=n_epochs,
             batch_size=batch_size,
+            max_group_rows=max_group_rows,
         )
         centroids = fit_cluster_embedding(self, embedding_dict, cfg)
         batch = self.each.assign_clusters_by_centroids(centroids)
