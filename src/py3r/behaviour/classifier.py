@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+import numpy as np
+import pandas as pd
 
 if TYPE_CHECKING:
     from py3r.behaviour.features import Features
@@ -14,6 +18,59 @@ class BaseClassifier:
     def fit(self, features: Features, **kwargs):
         # User implements: fit the model
         raise NotImplementedError
+
+
+class OnnxClassifier(BaseClassifier):
+    """Run a pre-trained ONNX model on a Features embedding.
+
+    Args:
+        model_path: Path to the ``.onnx`` model file.
+        embedding_dict: Mapping of feature column name to time shifts, passed
+            directly to :meth:`Features.embedding_df`. Determines the input
+            columns and their temporal context fed to the model.
+
+    Requires ``onnxruntime`` (``pip install onnxruntime``). The model must
+    have been exported to ONNX from the original training framework (Keras,
+    PyTorch, scikit-learn, etc.) before use.
+    """
+
+    def __init__(self, model_path: str | Path, embedding_dict: dict[str, list[int]]):
+        try:
+            import onnxruntime as ort
+        except ImportError as err:
+            raise ImportError(
+                "OnnxClassifier requires onnxruntime. pip install onnxruntime"
+            ) from err
+        self.embedding_dict = embedding_dict
+        self._session = ort.InferenceSession(str(model_path))
+        self._input_name = self._session.get_inputs()[0].name
+
+    def predict(self, features: Features, **kwargs) -> pd.Series | pd.DataFrame:
+        """Run inference on the embedding derived from *features*.
+
+        Args:
+            features: A fitted :class:`~py3r.behaviour.features.Features`
+                instance containing the columns referenced by ``embedding_dict``.
+            **kwargs: Unused; accepted for interface compatibility.
+
+        Returns:
+            A :class:`pd.Series` (single output) or :class:`pd.DataFrame`
+                (multiple outputs) indexed identically to the embedding, so
+                results align with the original Features data.
+        """
+        df = features.embedding_df(self.embedding_dict)
+        X = df.values.astype(np.float32)
+        raw = self._session.run(None, {self._input_name: X})[0]
+        if raw.ndim == 1:
+            return pd.Series(raw, index=df.index)
+        return pd.DataFrame(raw, index=df.index)
+
+    def fit(self, features: Features, **kwargs):
+        raise NotImplementedError(
+            "OnnxClassifier is inference-only. Train and export the model to ONNX "
+            "using your training framework (e.g. tf2onnx for Keras, torch.onnx.export "
+            "for PyTorch) before loading it here."
+        )
 
 
 class KerasClassifierExample(BaseClassifier):
