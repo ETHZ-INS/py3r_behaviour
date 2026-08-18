@@ -2121,6 +2121,59 @@ p3b.SummaryCollection.plot_bfa_results(
   &lt;Axes: title={&#x27;center&#x27;: &quot;(&#x27;stressor&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)&quot;}, xlabel=&#x27;distance&#x27;, ylabel=&#x27;count&#x27;&gt;)}</code></pre>
 </div>
 
+### GPD-augmented tail p-value
+
+`right_tail_p` (in `bfa_stats`) assumes a Gaussian surrogate distribution,
+which is not a valid assumption in general, and the empirical p-value
+(`1 - percentile`) is floored at `1 / (numshuffles + 1)` — it cannot resolve
+anything more extreme than that no matter how extreme the observation
+actually is. `gpd_augmented_p()` reports the same empirical p-value when it
+is *not* at that floor, and only when it saturates does it attempt a
+Peaks-Over-Threshold GPD tail fit (with automated threshold selection and a
+goodness-of-fit gate) to resolve below the floor; if no fit passes its
+checks it falls back to the empirical floor rather than guessing. The table
+below reports all three side by side, per comparison.
+
+<div class="nb-cell-input" markdown>
+
+```python
+gpd_stats = p3b.SummaryCollection.gpd_augmented_p(bfa_results)
+
+bfa_report = pd.DataFrame(
+    {
+        pair: {
+            "p_empirical": 1 - bfa_stats[pair]["percentile"],
+            "right_tail_p": bfa_stats[pair]["right_tail_p"],
+            "gpd_augmented_p": gpd_stats[pair]["p"],
+            "method": gpd_stats[pair]["method"],
+            "gpd_fallback": gpd_stats[pair].get("fallback"),
+        }
+        for pair in bfa_results
+    }
+).T
+bfa_report.index.name = "comparison"
+
+with pd.option_context("display.width", 120):
+    print(bfa_report)
+
+bfa_report.to_csv(f"{OUT_DIR}/bfa_gpd_report.csv")
+with open(f"{OUT_DIR}/bfa_gpd_stats.json", "w") as f:
+    json.dump(gpd_stats, f, indent=4)
+```
+
+</div>
+
+<div class="nb-cell-output">
+<pre><code>                                            p_empirical right_tail_p gpd_augmented_p     method gpd_fallback
+comparison                                                                                                  
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;pre&#x27;)     0.067932     0.059153        0.067932  empirical        False
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)    0.081918     0.072685        0.081918  empirical        False
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)      0.056943     0.041269        0.056943  empirical        False
+(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)    0.000999          0.0        0.000073        gpd        False
+(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)      0.824176     0.824132        0.824176  empirical        False
+(&#x27;stressor&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)     0.000999          0.0             0.0        gpd        False</code></pre>
+</div>
+
 ### Chord diagrams
 
 Requires `pycirclize` — install with `pip install py3r-behaviour[viz]`.
@@ -2147,25 +2200,25 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_94_0.png)
+![output](oft_pipeline_files/output_96_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_94_1.png)
+![output](oft_pipeline_files/output_96_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_94_2.png)
+![output](oft_pipeline_files/output_96_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_94_3.png)
+![output](oft_pipeline_files/output_96_3.png)
 
 </div>
 
@@ -2193,7 +2246,7 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_96_0.png)
+![output](oft_pipeline_files/output_98_0.png)
 
 </div>
 
