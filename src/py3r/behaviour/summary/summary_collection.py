@@ -966,11 +966,17 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
         Returns:
             ``{pair: {..point estimate fields.., "ci", "ci_level",
-            "n_bootstrap", "bootstrap_gpd_rate"}}``. ``ci`` is ``None`` when
-            the point estimate's method was not ``"gpd"``.
-            ``bootstrap_gpd_rate`` is the fraction of bootstrap replicates
-            that themselves accepted a GPD fit (rather than falling back to
-            empirical) — a low rate signals an unstable threshold choice.
+            "n_bootstrap", "bootstrap_gpd_rate", "bootstrap_p"}}``. ``ci``
+            and ``bootstrap_p`` are ``None`` when the point estimate's method
+            was not ``"gpd"``. ``bootstrap_gpd_rate`` is the fraction of
+            bootstrap replicates that themselves accepted a GPD fit (rather
+            than falling back to empirical) — a low rate signals an unstable
+            threshold choice. ``bootstrap_p`` is the raw array of per-
+            replicate p-values (length ``n_bootstrap``) the CI was computed
+            from — exposed so callers needing more than the percentile
+            summary (e.g. bootstrapping a *difference* between two
+            comparisons' p-values, rather than each one's marginal CI) don't
+            have to rerun the resampling themselves.
 
         Examples
         --------
@@ -984,6 +990,8 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         'gpd'
         >>> lo, hi = out['A_vs_B']['ci']
         >>> lo <= out['A_vs_B']['p'] <= hi or lo <= hi
+        True
+        >>> len(out['A_vs_B']['bootstrap_p']) == 20
         True
 
         ```
@@ -1006,7 +1014,13 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         stats: dict[str, dict[str, Any]] = {}
         for pair, point in point_estimates.items():
             if point["method"] != "gpd":
-                stats[pair] = {**point, "ci": None, "ci_level": ci, "n_bootstrap": 0}
+                stats[pair] = {
+                    **point,
+                    "ci": None,
+                    "ci_level": ci,
+                    "n_bootstrap": 0,
+                    "bootstrap_p": None,
+                }
                 continue
 
             observed = bfa_results[pair]["observed"]
@@ -1045,6 +1059,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
                 "ci_level": ci,
                 "n_bootstrap": n_bootstrap,
                 "bootstrap_gpd_rate": n_gpd_replicates / n_bootstrap,
+                "bootstrap_p": boot_p.tolist(),
             }
         return stats
 
