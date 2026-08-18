@@ -1113,12 +1113,32 @@ bfa_report = pd.DataFrame(
 ).T
 bfa_report.index.name = "comparison"
 
-with pd.option_context("display.width", 120):
+with pd.option_context("display.width", 120, "display.float_format", "{:.3e}".format):
     print(bfa_report)
 
 bfa_report.to_csv(f"{OUT_DIR}/bfa_gpd_report.csv")
 with open(f"{OUT_DIR}/bfa_gpd_stats.json", "w") as f:
     json.dump(gpd_stats, f, indent=4)
+
+# %% [markdown]
+# ### Tail-fit diagnostics
+#
+# `plot_bfa_tail_diagnostics` draws the same surrogate histograms as above,
+# overlaid with the Normal curve `right_tail_p` implicitly assumes and — for
+# any comparison where the empirical p-value saturated and a GPD fit was
+# accepted — the fitted GPD tail curve, so a saturated or mis-fit tail is
+# visible rather than only reported as a number.
+
+# %%
+p3b.SummaryCollection.plot_bfa_tail_diagnostics(
+    bfa_results,
+    gpd_stats=gpd_stats,
+    bfa_stats=bfa_stats,
+    bins=30,
+    figsize=(5, 3.5),
+    save_dir=OUT_DIR,
+    show=True,
+)
 
 # %% [markdown]
 # ### Chord diagrams
@@ -1172,6 +1192,7 @@ assert set(gpd_stats.keys()) == set(bfa_results.keys())
 assert all(s["method"] in ("empirical", "gpd") for s in gpd_stats.values())
 assert Path(f"{OUT_DIR}/bfa_gpd_report.csv").exists()
 assert Path(f"{OUT_DIR}/bfa_gpd_stats.json").exists()
+assert len(list(OUT_DIR.glob("*_tail_diagnostics.png"))) >= 1
 
 # --- Heavy viz files (if run) ---
 if not SKIP_HEAVY_VIZ:

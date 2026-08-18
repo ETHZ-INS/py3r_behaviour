@@ -2153,7 +2153,7 @@ bfa_report = pd.DataFrame(
 ).T
 bfa_report.index.name = "comparison"
 
-with pd.option_context("display.width", 120):
+with pd.option_context("display.width", 120, "display.float_format", "{:.3e}".format):
     print(bfa_report)
 
 bfa_report.to_csv(f"{OUT_DIR}/bfa_gpd_report.csv")
@@ -2166,34 +2166,34 @@ with open(f"{OUT_DIR}/bfa_gpd_stats.json", "w") as f:
 <div class="nb-cell-output">
 <pre><code>                                            p_empirical right_tail_p gpd_augmented_p     method gpd_fallback
 comparison                                                                                                  
-(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;pre&#x27;)     0.067932     0.059153        0.067932  empirical        False
-(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)    0.081918     0.072685        0.081918  empirical        False
-(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)      0.056943     0.041269        0.056943  empirical        False
-(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)    0.000999          0.0        0.000073        gpd        False
-(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)      0.824176     0.824132        0.824176  empirical        False
-(&#x27;stressor&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)     0.000999          0.0             0.0        gpd        False</code></pre>
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;pre&#x27;)    6.793e-02    5.915e-02       6.793e-02  empirical        False
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)   8.192e-02    7.269e-02       8.192e-02  empirical        False
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)     5.694e-02    4.127e-02       5.694e-02  empirical        False
+(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)   9.990e-04    3.355e-07       7.299e-05        gpd        False
+(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)     8.242e-01    8.241e-01       8.242e-01  empirical        False
+(&#x27;stressor&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)    9.990e-04    1.081e-10       1.935e-10        gpd        False</code></pre>
 </div>
 
-### Chord diagrams
+### Tail-fit diagnostics
 
-Requires `pycirclize` — install with `pip install py3r-behaviour[viz]`.
+`plot_bfa_tail_diagnostics` draws the same surrogate histograms as above,
+overlaid with the Normal curve `right_tail_p` implicitly assumes and — for
+any comparison where the empirical p-value saturated and a GPD fit was
+accepted — the fitted GPD tail curve, so a saturated or mis-fit tail is
+visible rather than only reported as a number.
 
 <div class="nb-cell-input" markdown>
 
 ```python
-if not SKIP_HEAVY_VIZ:
-    sc_grouped.plot_chord(
-        column="kmeans_25",
-        all_states=np.arange(0, N_CLUSTERS),
-        save_dir=OUT_DIR,
-        show=True,
-        start=-265,
-        end=95,
-        space=5,
-        r_lim=(93, 100),
-        label_kws=dict(r=94, size=12, color="white"),
-        link_kws=dict(ec="black", lw=0.5),
-    )
+p3b.SummaryCollection.plot_bfa_tail_diagnostics(
+    bfa_results,
+    gpd_stats=gpd_stats,
+    bfa_stats=bfa_stats,
+    bins=30,
+    figsize=(5, 3.5),
+    save_dir=OUT_DIR,
+    show=True,
+)
 ```
 
 </div>
@@ -2222,6 +2222,81 @@ if not SKIP_HEAVY_VIZ:
 
 </div>
 
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_96_4.png)
+
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_96_5.png)
+
+</div>
+
+<div class="nb-cell-output">
+<pre><code>{&quot;(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;pre&#x27;)&quot;: (&lt;Figure size 500x350 with 1 Axes&gt;,
+  &lt;Axes: title={&#x27;center&#x27;: &quot;(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;pre&#x27;)&quot;}, xlabel=&#x27;distance&#x27;, ylabel=&#x27;count&#x27;&gt;),
+ &quot;(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)&quot;: (&lt;Figure size 500x350 with 1 Axes&gt;,
+  &lt;Axes: title={&#x27;center&#x27;: &quot;(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)&quot;}, xlabel=&#x27;distance&#x27;, ylabel=&#x27;count&#x27;&gt;),
+ &quot;(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)&quot;: (&lt;Figure size 500x350 with 1 Axes&gt;,
+  &lt;Axes: title={&#x27;center&#x27;: &quot;(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)&quot;}, xlabel=&#x27;distance&#x27;, ylabel=&#x27;count&#x27;&gt;),
+ &quot;(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)&quot;: (&lt;Figure size 500x350 with 1 Axes&gt;,
+  &lt;Axes: title={&#x27;center&#x27;: &quot;(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)&quot;}, xlabel=&#x27;distance&#x27;, ylabel=&#x27;count&#x27;&gt;),
+ &quot;(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)&quot;: (&lt;Figure size 500x350 with 1 Axes&gt;,
+  &lt;Axes: title={&#x27;center&#x27;: &quot;(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)&quot;}, xlabel=&#x27;distance&#x27;, ylabel=&#x27;count&#x27;&gt;),
+ &quot;(&#x27;stressor&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)&quot;: (&lt;Figure size 500x350 with 1 Axes&gt;,
+  &lt;Axes: title={&#x27;center&#x27;: &quot;(&#x27;stressor&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)&quot;}, xlabel=&#x27;distance&#x27;, ylabel=&#x27;count&#x27;&gt;)}</code></pre>
+</div>
+
+### Chord diagrams
+
+Requires `pycirclize` — install with `pip install py3r-behaviour[viz]`.
+
+<div class="nb-cell-input" markdown>
+
+```python
+if not SKIP_HEAVY_VIZ:
+    sc_grouped.plot_chord(
+        column="kmeans_25",
+        all_states=np.arange(0, N_CLUSTERS),
+        save_dir=OUT_DIR,
+        show=True,
+        start=-265,
+        end=95,
+        space=5,
+        r_lim=(93, 100),
+        label_kws=dict(r=94, size=12, color="white"),
+        link_kws=dict(ec="black", lw=0.5),
+    )
+```
+
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_98_0.png)
+
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_98_1.png)
+
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_98_2.png)
+
+</div>
+
+<div class="nb-cell-output nb-output-figure" markdown>
+
+![output](oft_pipeline_files/output_98_3.png)
+
+</div>
+
 ### UMAP embedding of transition matrices
 
 Requires `umap-learn` — install with `pip install py3r-behaviour[viz]`.
@@ -2246,7 +2321,7 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_98_0.png)
+![output](oft_pipeline_files/output_100_0.png)
 
 </div>
 

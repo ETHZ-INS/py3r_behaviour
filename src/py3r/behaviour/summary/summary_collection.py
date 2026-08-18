@@ -800,6 +800,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
                 "ks_stat": float(ks_stat),
                 "ks_p": float(ks_p),
                 "finite_endpoint": float(finite_endpoint) if np.isfinite(finite_endpoint) else None,
+                "p_exceed_threshold": float(p_exceed_threshold),
             }
 
         return {
@@ -916,6 +917,165 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
                 upper_bound=pair_bound,
             )
         return stats
+
+    @staticmethod
+    def plot_bfa_tail_diagnostics(
+        bfa_results: dict[str, dict[str, float]],
+        gpd_stats: dict[str, dict[str, Any]] | None = None,
+        bfa_stats: dict[str, dict[str, float]] | None = None,
+        compares: str | list[str] | None = None,
+        bins: int = 50,
+        figsize: tuple[float, float] = (5, 3.5),
+        save_dir: str | None = None,
+        show: bool = True,
+    ) -> tuple[Figure, Any] | dict[str, tuple[Figure, Any]]:
+        """
+        Plot BFA surrogate histograms with the Normal and GPD tail fits overlaid.
+
+        Unlike ``plot_bfa_results`` (a single empirical-p annotation), this
+        plots all three p-values side by side — ``p_empirical``,
+        ``right_tail_p`` (the Gaussian/erf assumption), and
+        ``gpd_augmented_p`` — plus the curves those last two are actually
+        implying, so a saturated, mis-fit, or well-fit tail is visible by eye
+        rather than only reported as a number. The Normal curve (fit from the
+        surrogate mean/std, matching ``right_tail_p``) is always drawn; the
+        GPD curve is only drawn for pairs where ``gpd_stats[pair]["method"]
+        == "gpd"`` — there is no fit to show when the empirical estimate
+        wasn't saturated or no candidate threshold was accepted.
+
+        Args:
+            bfa_results: BFA result dict as returned by ``bfa``.
+            gpd_stats: Precomputed output of ``gpd_augmented_p``. Computed
+                automatically if ``None``.
+            bfa_stats: Precomputed output of ``bfa_stats``. Computed
+                automatically if ``None``.
+            compares: Which comparisons to plot. ``None`` plots all.
+            bins: Number of histogram bins for the surrogate distribution.
+            figsize: Size of each figure.
+            save_dir: If provided, save each figure as ``<comparison>.png`` here.
+            show: If True, call ``plt.show()`` after each figure.
+
+        Returns:
+            ``(fig, ax)`` for a single comparison, or
+                ``{compare: (fig, ax)}`` for multiple.
+
+        Examples
+        --------
+        ```pycon
+        >>> import numpy as np
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> rng = np.random.default_rng(0)
+        >>> bfa_out = {'A_vs_B': {'observed': 4.0, 'surrogates': list(rng.normal(0, 1, 1000))}}
+        >>> fig, ax = SummaryCollection.plot_bfa_tail_diagnostics(bfa_out, show=False)
+        >>> fig is not None
+        True
+
+        ```
+        """
+        import os
+
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from scipy import stats as sp_stats
+
+        def _sanitize(name: str) -> str:
+            return "".join(ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name))
+
+        if compares is None:
+            keys = list(bfa_results.keys())
+        elif isinstance(compares, str):
+            keys = [compares]
+        else:
+            keys = list(compares)
+        if len(keys) == 0:
+            raise ValueError("No comparisons to plot.")
+
+        if bfa_stats is None:
+            bfa_stats = SummaryCollection.bfa_stats(bfa_results)
+        if gpd_stats is None:
+            gpd_stats = SummaryCollection.gpd_augmented_p(bfa_results)
+
+        out: dict[str, tuple] = {}
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+        for k in keys:
+            if k not in bfa_results:
+                continue
+            observed = bfa_results[k]["observed"]
+            surrogates = np.asarray(bfa_results[k]["surrogates"], dtype=float)
+            n = len(surrogates)
+
+            fig, ax = plt.subplots(figsize=figsize)
+            counts, edges, _ = ax.hist(surrogates, color="gray", bins=bins, label="surrogates")
+            bin_width = edges[1] - edges[0]
+            ax.axvline(observed, color="red", label="observed")
+
+            # Normal curve implied by right_tail_p / zscore
+            mean, std = np.mean(surrogates), np.std(surrogates)
+            x_lo = min(edges[0], observed - 3 * std)
+            x_hi = max(edges[-1], observed + std)
+            x_grid = np.linspace(x_lo, x_hi, 400)
+            normal_counts = sp_stats.norm.pdf(x_grid, mean, std) * n * bin_width
+            ax.plot(x_grid, normal_counts, color="tab:blue", lw=1.5, label="Normal fit")
+
+            g = gpd_stats.get(k, {})
+            if g.get("method") == "gpd":
+                threshold = g["threshold"]
+                xi, sigma = g["xi"], g["sigma"]
+                p_exceed = g["p_exceed_threshold"]
+                x_hi_gpd = max(x_hi, observed * 1.05 if observed > threshold else x_hi)
+                x_tail = np.linspace(threshold, x_hi_gpd, 200)
+                tail_counts = (
+                    sp_stats.genpareto.pdf(x_tail - threshold, xi, loc=0, scale=sigma)
+                    * p_exceed
+                    * n
+                    * bin_width
+                )
+                ax.plot(x_tail, tail_counts, color="tab:orange", lw=1.5, label="GPD tail fit")
+                ax.axvline(threshold, color="tab:orange", ls="--", lw=1, alpha=0.6)
+
+            p_empirical = 1 - bfa_stats[k]["percentile"]
+            right_tail_p = bfa_stats[k]["right_tail_p"]
+            gpd_p = g.get("p", p_empirical)
+            method = g.get("method", "empirical")
+            text = (
+                f"p_empirical={p_empirical:.2e}\n"
+                f"right_tail_p={right_tail_p:.2e}\n"
+                f"gpd_augmented_p={gpd_p:.2e} ({method})"
+            )
+            ax.text(
+                0.95,
+                0.95,
+                text,
+                ha="right",
+                va="top",
+                transform=ax.transAxes,
+                fontsize=8,
+                color="black",
+                bbox=dict(
+                    boxstyle="round,pad=0.3", facecolor="white", alpha=0.85, edgecolor="none"
+                ),
+                zorder=10,
+            )
+            ax.set_xlabel("distance")
+            ax.set_ylabel("count")
+            ax.set_title(str(k), fontdict={"size": 10})
+            ax.legend(fontsize=7, loc="upper left")
+            plt.tight_layout()
+            if save_dir:
+                fig.savefig(
+                    os.path.join(save_dir, f"{_sanitize(k)}_tail_diagnostics.png"),
+                    dpi=300,
+                    bbox_inches="tight",
+                    pad_inches=0.02,
+                )
+            if show:
+                plt.show()
+            out[k] = (fig, ax)
+
+        if len(out) == 1:
+            return next(iter(out.values()))
+        return out
 
     @staticmethod
     def plot_bfa_results(
