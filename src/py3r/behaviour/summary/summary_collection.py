@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 import warnings
+from collections.abc import Sequence
 from itertools import combinations
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -17,6 +18,8 @@ from py3r.behaviour.summary.summary_collection_plot_mixin import (
 )
 from py3r.behaviour.util.base_collection import BaseCollection
 from py3r.behaviour.util.collection_utils import BatchResult, resolve_single_store_name
+
+_DEFAULT_GPD_QUANTILES = tuple(round(0.75 + 0.01 * i, 2) for i in range(21))
 
 
 class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
@@ -719,6 +722,496 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
                 "right_tail_p": right_tail_p(observed, surrogates),
             }
         return stats
+
+    @staticmethod
+    def _fit_gpd_tail(
+        surrogates,
+        observed: float,
+        *,
+        quantiles: Sequence[float],
+        min_exceedances: int,
+        gof_alpha: float,
+        max_extrapolation_factor: float,
+        upper_bound: float | None,
+    ) -> dict[str, Any]:
+        """
+        Automated-threshold GPD (Peaks-Over-Threshold) tail-probability estimate.
+
+        Scans ``quantiles`` from lowest to highest, fits a Generalized Pareto
+        Distribution to the exceedances above each candidate threshold, and
+        accepts the first (i.e. most data-rich) threshold whose fit passes a
+        Kolmogorov-Smirnov goodness-of-fit test. This mirrors the
+        GoF-driven threshold refinement of Knijnenburg et al. (2009).
+
+        Returns a diagnostics dict; ``diagnostics["fallback"]`` is True if no
+        threshold produced an acceptable, structurally sane fit.
+        """
+        import numpy as np
+        from scipy import stats as sp_stats
+
+        surrogates = np.asarray(surrogates, dtype=float)
+        n = len(surrogates)
+        p_empirical = 1.0 / (n + 1)
+
+        for q in quantiles:
+            threshold = float(np.quantile(surrogates, q))
+            exceedances = surrogates[surrogates > threshold] - threshold
+            if len(exceedances) < min_exceedances:
+                continue
+
+            xi, _loc, sigma = sp_stats.genpareto.fit(exceedances, floc=0)
+            if sigma <= 0:
+                continue
+
+            ks_stat, ks_p = sp_stats.kstest(exceedances, "genpareto", args=(xi, 0, sigma))
+            if ks_p < gof_alpha:
+                continue
+
+            # structural sanity check: a finite right endpoint (xi < 0) must not
+            # fall below a value that has already been observed to occur.
+            finite_endpoint = threshold - sigma / xi if xi < 0 else np.inf
+            if finite_endpoint < observed:
+                continue
+            if upper_bound is not None and finite_endpoint < upper_bound:
+                continue
+
+            exceedance_obs = observed - threshold
+            max_fit_exceedance = float(exceedances.max())
+            if exceedance_obs > max_extrapolation_factor * max_fit_exceedance:
+                continue
+
+            p_exceed_threshold = np.mean(surrogates > threshold)
+            if exceedance_obs <= 0:
+                tail_p = p_exceed_threshold
+            else:
+                tail_p = p_exceed_threshold * sp_stats.genpareto.sf(
+                    exceedance_obs, xi, loc=0, scale=sigma
+                )
+            tail_p = float(np.clip(tail_p, 0.0, p_empirical))
+
+            return {
+                "p": tail_p,
+                "method": "gpd",
+                "fallback": False,
+                "threshold_quantile": q,
+                "threshold": threshold,
+                "n_exceedances": int(len(exceedances)),
+                "xi": float(xi),
+                "sigma": float(sigma),
+                "ks_stat": float(ks_stat),
+                "ks_p": float(ks_p),
+                "finite_endpoint": float(finite_endpoint) if np.isfinite(finite_endpoint) else None,
+                "p_exceed_threshold": float(p_exceed_threshold),
+            }
+
+        return {
+            "p": p_empirical,
+            "method": "empirical",
+            "fallback": True,
+        }
+
+    @staticmethod
+    def gpd_augmented_p(
+        bfa_results: dict[str, dict[str, float]],
+        *,
+        quantiles: Sequence[float] = _DEFAULT_GPD_QUANTILES,
+        min_exceedances: int = 25,
+        gof_alpha: float = 0.05,
+        max_extrapolation_factor: float = 3.0,
+        upper_bound: float | dict[str, float] | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Right-tail p-value, GPD-augmented once the empirical estimate saturates.
+
+        For each pair, the empirical p-value is ``(r + 1) / (N + 1)`` where
+        ``r`` is the number of surrogates at least as extreme as the observed
+        distance (matching the resolution of ``bfa_stats``'s ``percentile``).
+        When this estimate is *not* at its floor (``1 / (N + 1)``, i.e. at
+        least one surrogate matched or exceeded the observation), that
+        empirical value is returned as-is — it is already well resolved and a
+        parametric tail model adds nothing.
+
+        Only when the empirical estimate saturates at the floor does this
+        function attempt a Generalized Pareto (Peaks-Over-Threshold) tail fit
+        on the surrogate distribution, to estimate a p-value below what
+        ``1 / (N + 1)`` surrogates can resolve. The GPD fit is rejected —
+        falling back to the empirical floor — if no threshold in ``quantiles``
+        yields a fit that (a) passes a Kolmogorov-Smirnov goodness-of-fit
+        test, (b) has a finite right endpoint (when ``xi < 0``) consistent
+        with the observed value having actually occurred, and, if
+        ``upper_bound`` is given, consistent with the known physical upper
+        bound on the distance, and (c) does not require extrapolating more
+        than ``max_extrapolation_factor`` times the largest fitted exceedance.
+
+        This function does not replace ``bfa_stats`` or its ``right_tail_p``;
+        it is an additive, opt-in refinement for the saturated-tail case, and
+        accepts the same ``bfa_results`` shape returned by ``bfa`` (or
+        ``combine_bfa_results`` / ``bfa_multiscale``, since their output has
+        the identical ``{"observed", "surrogates"}`` structure).
+
+        Args:
+            bfa_results: BFA result dict as returned by ``bfa``.
+            quantiles: Candidate threshold quantiles to scan, lowest first
+                (i.e. most data-rich first). The first passing threshold wins.
+            min_exceedances: Minimum number of surrogates above a candidate
+                threshold required to attempt a fit at that threshold.
+            gof_alpha: Kolmogorov-Smirnov p-value cutoff below which a
+                threshold's fit is rejected.
+            max_extrapolation_factor: Reject a fit if the observed value lies
+                more than this many times the largest fitted exceedance beyond
+                the threshold.
+            upper_bound: Known physical upper bound on the Manhattan distance
+                (e.g. derived from the fixed transition counts), used for the
+                structural sanity check on ``xi < 0`` fits. Either a single
+                float applied to every pair, a ``{pair: bound}`` dict, or
+                ``None`` to skip this check.
+
+        Returns:
+            ``{pair: {"p", "method", "fallback", ...fit diagnostics}}``.
+            ``method`` is ``"empirical"`` when the empirical estimate was not
+            saturated, or when saturated but no GPD fit was accepted
+            (``fallback`` is True in that second case); ``"gpd"`` otherwise.
+
+        Examples
+        --------
+        ```pycon
+        >>> import numpy as np
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> rng = np.random.default_rng(0)
+        >>> surrogates = list(rng.normal(0, 1, 500))
+        >>> bfa_out = {'A_vs_B': {'observed': 5.0, 'surrogates': surrogates}}
+        >>> out = SummaryCollection.gpd_augmented_p(bfa_out)
+        >>> out['A_vs_B']['method']
+        'gpd'
+        >>> out['A_vs_B']['p'] < 1 / (len(surrogates) + 1)
+        True
+        >>> # unsaturated case: empirical estimate passed through unchanged
+        >>> bfa_out2 = {'A_vs_B': {'observed': 0.0, 'surrogates': surrogates}}
+        >>> SummaryCollection.gpd_augmented_p(bfa_out2)['A_vs_B']['method']
+        'empirical'
+
+        ```
+        """
+        import numpy as np
+
+        stats: dict[str, dict[str, Any]] = {}
+        for pair, result in bfa_results.items():
+            observed = result["observed"]
+            surrogates = np.asarray(result["surrogates"], dtype=float)
+            n = len(surrogates)
+            r = int(np.sum(surrogates >= observed))
+            p_empirical = (r + 1) / (n + 1)
+            floor = 1.0 / (n + 1)
+
+            if p_empirical > floor:
+                stats[pair] = {"p": p_empirical, "method": "empirical", "fallback": False}
+                continue
+
+            pair_bound = upper_bound.get(pair) if isinstance(upper_bound, dict) else upper_bound
+            stats[pair] = SummaryCollection._fit_gpd_tail(
+                surrogates,
+                observed,
+                quantiles=quantiles,
+                min_exceedances=min_exceedances,
+                gof_alpha=gof_alpha,
+                max_extrapolation_factor=max_extrapolation_factor,
+                upper_bound=pair_bound,
+            )
+        return stats
+
+    @staticmethod
+    def gpd_augmented_p_ci(
+        bfa_results: dict[str, dict[str, float]],
+        *,
+        n_bootstrap: int = 200,
+        ci: float = 0.95,
+        random_state: int | None = None,
+        quantiles: Sequence[float] = _DEFAULT_GPD_QUANTILES,
+        min_exceedances: int = 25,
+        gof_alpha: float = 0.05,
+        max_extrapolation_factor: float = 3.0,
+        upper_bound: float | dict[str, float] | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Nonparametric bootstrap confidence interval on ``gpd_augmented_p``.
+
+        Computes the point estimate via ``gpd_augmented_p`` first. A CI is
+        only computed for pairs whose point estimate used the GPD fit
+        (``method == "gpd"``) — this mirrors the plan's "bootstrap CI on the
+        tail p-value": the empirical p-value is already exactly resolved by
+        its rank, so there is nothing to bound for unsaturated pairs.
+
+        For pairs where the GPD fit fired, resamples the *original surrogate
+        sample already returned by* ``bfa()`` *(never regenerated)* with
+        replacement at full N, ``n_bootstrap`` times, holding ``observed``
+        fixed, and reruns the same threshold-selection + GPD-fit pipeline on
+        each resample. The interval is the empirical percentile interval of
+        the resulting bootstrap p-values. This captures GPD parameter-
+        estimation uncertainty, unlike a parametric GPD bootstrap (which only
+        captures refitting noise around a single fitted parameter set).
+
+        Args:
+            bfa_results: BFA result dict as returned by ``bfa``.
+            n_bootstrap: Number of bootstrap resamples of the surrogate
+                sample. Each resample reruns the full threshold-selection
+                fit, so cost scales linearly with this.
+            ci: Confidence level for the reported interval, e.g. ``0.95``.
+            random_state: Seed for the bootstrap resampling.
+            quantiles: Passed through to ``gpd_augmented_p`` / the
+                per-replicate GPD refit; see ``gpd_augmented_p``.
+            min_exceedances: Passed through; see ``gpd_augmented_p``.
+            gof_alpha: Passed through; see ``gpd_augmented_p``.
+            max_extrapolation_factor: Passed through; see ``gpd_augmented_p``.
+            upper_bound: Passed through; see ``gpd_augmented_p``.
+
+        Returns:
+            ``{pair: {..point estimate fields.., "ci", "ci_level",
+            "n_bootstrap", "bootstrap_gpd_rate"}}``. ``ci`` is ``None`` when
+            the point estimate's method was not ``"gpd"``.
+            ``bootstrap_gpd_rate`` is the fraction of bootstrap replicates
+            that themselves accepted a GPD fit (rather than falling back to
+            empirical) — a low rate signals an unstable threshold choice.
+
+        Examples
+        --------
+        ```pycon
+        >>> import numpy as np
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> rng = np.random.default_rng(0)
+        >>> bfa_out = {'A_vs_B': {'observed': 4.0, 'surrogates': list(rng.normal(0, 1, 1000))}}
+        >>> out = SummaryCollection.gpd_augmented_p_ci(bfa_out, n_bootstrap=20, random_state=0)
+        >>> out['A_vs_B']['method']
+        'gpd'
+        >>> lo, hi = out['A_vs_B']['ci']
+        >>> lo <= out['A_vs_B']['p'] <= hi or lo <= hi
+        True
+
+        ```
+        """
+        import numpy as np
+
+        rng = np.random.default_rng(random_state)
+        alpha = 1 - ci
+        lo_q, hi_q = 100 * alpha / 2, 100 * (1 - alpha / 2)
+
+        point_estimates = SummaryCollection.gpd_augmented_p(
+            bfa_results,
+            quantiles=quantiles,
+            min_exceedances=min_exceedances,
+            gof_alpha=gof_alpha,
+            max_extrapolation_factor=max_extrapolation_factor,
+            upper_bound=upper_bound,
+        )
+
+        stats: dict[str, dict[str, Any]] = {}
+        for pair, point in point_estimates.items():
+            if point["method"] != "gpd":
+                stats[pair] = {**point, "ci": None, "ci_level": ci, "n_bootstrap": 0}
+                continue
+
+            observed = bfa_results[pair]["observed"]
+            surrogates = np.asarray(bfa_results[pair]["surrogates"], dtype=float)
+            n = len(surrogates)
+            floor = 1.0 / (n + 1)
+            pair_bound = upper_bound.get(pair) if isinstance(upper_bound, dict) else upper_bound
+
+            boot_p = np.empty(n_bootstrap)
+            n_gpd_replicates = 0
+            for i in range(n_bootstrap):
+                resample = rng.choice(surrogates, size=n, replace=True)
+                r = int(np.sum(resample >= observed))
+                p_emp = (r + 1) / (n + 1)
+                if p_emp > floor:
+                    boot_p[i] = p_emp
+                    continue
+                fit = SummaryCollection._fit_gpd_tail(
+                    resample,
+                    observed,
+                    quantiles=quantiles,
+                    min_exceedances=min_exceedances,
+                    gof_alpha=gof_alpha,
+                    max_extrapolation_factor=max_extrapolation_factor,
+                    upper_bound=pair_bound,
+                )
+                boot_p[i] = fit["p"]
+                n_gpd_replicates += int(fit["method"] == "gpd")
+
+            stats[pair] = {
+                **point,
+                "ci": (
+                    float(np.percentile(boot_p, lo_q)),
+                    float(np.percentile(boot_p, hi_q)),
+                ),
+                "ci_level": ci,
+                "n_bootstrap": n_bootstrap,
+                "bootstrap_gpd_rate": n_gpd_replicates / n_bootstrap,
+            }
+        return stats
+
+    @staticmethod
+    def plot_bfa_tail_diagnostics(
+        bfa_results: dict[str, dict[str, float]],
+        gpd_stats: dict[str, dict[str, Any]] | None = None,
+        bfa_stats: dict[str, dict[str, float]] | None = None,
+        compares: str | list[str] | None = None,
+        bins: int = 50,
+        figsize: tuple[float, float] = (5, 3.5),
+        save_dir: str | None = None,
+        show: bool = True,
+    ) -> tuple[Figure, Any] | dict[str, tuple[Figure, Any]]:
+        """
+        Plot BFA surrogate histograms with the Normal and GPD tail fits overlaid.
+
+        Unlike ``plot_bfa_results`` (a single empirical-p annotation), this
+        plots all three p-values side by side — ``p_empirical``,
+        ``right_tail_p`` (the Gaussian/erf assumption), and
+        ``gpd_augmented_p`` — plus the curves those last two are actually
+        implying, so a saturated, mis-fit, or well-fit tail is visible by eye
+        rather than only reported as a number. The Normal curve (fit from the
+        surrogate mean/std, matching ``right_tail_p``) is always drawn; the
+        GPD curve is only drawn for pairs where ``gpd_stats[pair]["method"]
+        == "gpd"`` — there is no fit to show when the empirical estimate
+        wasn't saturated or no candidate threshold was accepted.
+
+        Args:
+            bfa_results: BFA result dict as returned by ``bfa``.
+            gpd_stats: Precomputed output of ``gpd_augmented_p``, or of
+                ``gpd_augmented_p_ci`` (a superset of the same fields) — in
+                the latter case the bootstrap CI is added to the annotation.
+                Computed via ``gpd_augmented_p`` automatically if ``None``.
+            bfa_stats: Precomputed output of ``bfa_stats``. Computed
+                automatically if ``None``.
+            compares: Which comparisons to plot. ``None`` plots all.
+            bins: Number of histogram bins for the surrogate distribution.
+            figsize: Size of each figure.
+            save_dir: If provided, save each figure as ``<comparison>.png`` here.
+            show: If True, call ``plt.show()`` after each figure.
+
+        Returns:
+            ``(fig, ax)`` for a single comparison, or
+                ``{compare: (fig, ax)}`` for multiple.
+
+        Examples
+        --------
+        ```pycon
+        >>> import numpy as np
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> rng = np.random.default_rng(0)
+        >>> bfa_out = {'A_vs_B': {'observed': 4.0, 'surrogates': list(rng.normal(0, 1, 1000))}}
+        >>> fig, ax = SummaryCollection.plot_bfa_tail_diagnostics(bfa_out, show=False)
+        >>> fig is not None
+        True
+
+        ```
+        """
+        import os
+
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from scipy import stats as sp_stats
+
+        def _sanitize(name: str) -> str:
+            return "".join(ch if ch.isalnum() or ch in "-._" else "_" for ch in str(name))
+
+        if compares is None:
+            keys = list(bfa_results.keys())
+        elif isinstance(compares, str):
+            keys = [compares]
+        else:
+            keys = list(compares)
+        if len(keys) == 0:
+            raise ValueError("No comparisons to plot.")
+
+        if bfa_stats is None:
+            bfa_stats = SummaryCollection.bfa_stats(bfa_results)
+        if gpd_stats is None:
+            gpd_stats = SummaryCollection.gpd_augmented_p(bfa_results)
+
+        out: dict[str, tuple] = {}
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+        for k in keys:
+            if k not in bfa_results:
+                continue
+            observed = bfa_results[k]["observed"]
+            surrogates = np.asarray(bfa_results[k]["surrogates"], dtype=float)
+            n = len(surrogates)
+
+            fig, ax = plt.subplots(figsize=figsize)
+            counts, edges, _ = ax.hist(surrogates, color="gray", bins=bins, label="surrogates")
+            bin_width = edges[1] - edges[0]
+            ax.axvline(observed, color="red", label="observed")
+
+            # Normal curve implied by right_tail_p / zscore
+            mean, std = np.mean(surrogates), np.std(surrogates)
+            x_lo = min(edges[0], observed - 3 * std)
+            x_hi = max(edges[-1], observed + std)
+            x_grid = np.linspace(x_lo, x_hi, 400)
+            normal_counts = sp_stats.norm.pdf(x_grid, mean, std) * n * bin_width
+            ax.plot(x_grid, normal_counts, color="tab:blue", lw=1.5, label="Normal fit")
+
+            g = gpd_stats.get(k, {})
+            if g.get("method") == "gpd":
+                threshold = g["threshold"]
+                xi, sigma = g["xi"], g["sigma"]
+                p_exceed = g["p_exceed_threshold"]
+                x_hi_gpd = max(x_hi, observed * 1.05 if observed > threshold else x_hi)
+                x_tail = np.linspace(threshold, x_hi_gpd, 200)
+                tail_counts = (
+                    sp_stats.genpareto.pdf(x_tail - threshold, xi, loc=0, scale=sigma)
+                    * p_exceed
+                    * n
+                    * bin_width
+                )
+                ax.plot(x_tail, tail_counts, color="tab:orange", lw=1.5, label="GPD tail fit")
+                ax.axvline(threshold, color="tab:orange", ls="--", lw=1, alpha=0.6)
+
+            p_empirical = 1 - bfa_stats[k]["percentile"]
+            right_tail_p = bfa_stats[k]["right_tail_p"]
+            gpd_p = g.get("p", p_empirical)
+            method = g.get("method", "empirical")
+            text = (
+                f"p_empirical={p_empirical:.2e}\n"
+                f"right_tail_p={right_tail_p:.2e}\n"
+                f"gpd_augmented_p={gpd_p:.2e} ({method})"
+            )
+            if g.get("ci") is not None:
+                ci_lo, ci_hi = g["ci"]
+                ci_level = g.get("ci_level", 0.95)
+                text += f"\ngpd p {ci_level:.0%} CI: [{ci_lo:.2e}, {ci_hi:.2e}]"
+            ax.text(
+                0.95,
+                0.95,
+                text,
+                ha="right",
+                va="top",
+                transform=ax.transAxes,
+                fontsize=8,
+                color="black",
+                bbox=dict(
+                    boxstyle="round,pad=0.3", facecolor="white", alpha=0.85, edgecolor="none"
+                ),
+                zorder=10,
+            )
+            ax.set_xlabel("distance")
+            ax.set_ylabel("count")
+            ax.set_title(str(k), fontdict={"size": 10})
+            ax.legend(fontsize=7, loc="upper left")
+            plt.tight_layout()
+            if save_dir:
+                fig.savefig(
+                    os.path.join(save_dir, f"{_sanitize(k)}_tail_diagnostics.png"),
+                    dpi=300,
+                    bbox_inches="tight",
+                    pad_inches=0.02,
+                )
+            if show:
+                plt.show()
+            out[k] = (fig, ax)
+
+        if len(out) == 1:
+            return next(iter(out.values()))
+        return out
 
     @staticmethod
     def plot_bfa_results(

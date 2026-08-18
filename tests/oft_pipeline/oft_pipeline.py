@@ -1083,6 +1083,75 @@ p3b.SummaryCollection.plot_bfa_results(
 )
 
 # %% [markdown]
+# ### GPD-augmented tail p-value
+#
+# `right_tail_p` (in `bfa_stats`) assumes a Gaussian surrogate distribution,
+# which is not a valid assumption in general, and the empirical p-value
+# (`1 - percentile`) is floored at `1 / (numshuffles + 1)`, so it cannot resolve
+# anything more extreme than that no matter how extreme the observation
+# actually is. `gpd_augmented_p()` reports the same empirical p-value when it
+# is *not* at the empirical floor, and only when it saturates to the empirical floor does it attempt
+# a Peaks-Over-Threshold GPD tail fit (with automated threshold selection and a
+# goodness-of-fit gate) to resolve below the floor; if no fit passes its
+# checks it falls back to the empirical floor rather than guessing. The table
+# below reports all three side by side, per comparison.
+
+# %% [markdown]
+# Where the GPD fit fires, its p-value is a point estimate from a threshold
+# fit on a few dozen to a few hundred samples, which is worth bounding with a
+# nonparametric bootstrap CI rather than trusting the point value alone.
+# `gpd_augmented_p_ci` resamples the *existing* surrogate sample (never
+# regenerates shuffles) and reruns the full threshold-selection + GPD-fit
+# pipeline per resample; its return is a superset of `gpd_augmented_p`'s, so
+# it can be used everywhere `gpd_stats` is needed below.
+
+# %%
+gpd_stats = p3b.SummaryCollection.gpd_augmented_p_ci(bfa_results, n_bootstrap=200, random_state=42)
+
+bfa_report = pd.DataFrame(
+    {
+        pair: {
+            "p_empirical": 1 - bfa_stats[pair]["percentile"],
+            "right_tail_p": bfa_stats[pair]["right_tail_p"],
+            "gpd_augmented_p": gpd_stats[pair]["p"],
+            "ci_low": gpd_stats[pair]["ci"][0] if gpd_stats[pair]["ci"] else np.nan,
+            "ci_high": gpd_stats[pair]["ci"][1] if gpd_stats[pair]["ci"] else np.nan,
+            "method": gpd_stats[pair]["method"],
+            "gpd_fallback": gpd_stats[pair].get("fallback"),
+        }
+        for pair in bfa_results
+    }
+).T
+bfa_report.index.name = "comparison"
+
+with pd.option_context("display.width", 120, "display.float_format", "{:.3e}".format):
+    print(bfa_report)
+
+bfa_report.to_csv(f"{OUT_DIR}/bfa_gpd_report.csv")
+with open(f"{OUT_DIR}/bfa_gpd_stats.json", "w") as f:
+    json.dump(gpd_stats, f, indent=4)
+
+# %% [markdown]
+# ### Tail-fit diagnostics
+#
+# `plot_bfa_tail_diagnostics` draws the same surrogate histograms as above,
+# overlaid with the Normal curve `right_tail_p` implicitly assumes and — for
+# any comparison where the empirical p-value saturated and a GPD fit was
+# accepted — the fitted GPD tail curve, so a saturated or mis-fit tail is
+# visible rather than only reported as a number.
+
+# %%
+p3b.SummaryCollection.plot_bfa_tail_diagnostics(
+    bfa_results,
+    gpd_stats=gpd_stats,
+    bfa_stats=bfa_stats,
+    bins=30,
+    figsize=(5, 3.5),
+    save_dir=OUT_DIR,
+    show=True,
+)
+
+# %% [markdown]
 # ### Chord diagrams
 #
 # Requires `pycirclize` — install with `pip install py3r-behaviour[viz]`.
@@ -1127,6 +1196,17 @@ assert isinstance(bfa_results, dict), "BFA results should be a dict"
 assert Path(f"{OUT_DIR}/bfa_results.json").exists()
 assert isinstance(bfa_stats, dict), "BFA stats should be a dict"
 assert Path(f"{OUT_DIR}/bfa_stats.json").exists()
+
+# --- GPD-augmented tail p report ---
+assert isinstance(gpd_stats, dict), "GPD stats should be a dict"
+assert set(gpd_stats.keys()) == set(bfa_results.keys())
+assert all(s["method"] in ("empirical", "gpd") for s in gpd_stats.values())
+assert all((s["ci"] is None) == (s["method"] != "gpd") for s in gpd_stats.values()), (
+    "CI should be present iff method is gpd"
+)
+assert Path(f"{OUT_DIR}/bfa_gpd_report.csv").exists()
+assert Path(f"{OUT_DIR}/bfa_gpd_stats.json").exists()
+assert len(list(OUT_DIR.glob("*_tail_diagnostics.png"))) >= 1
 
 # --- Heavy viz files (if run) ---
 if not SKIP_HEAVY_VIZ:
