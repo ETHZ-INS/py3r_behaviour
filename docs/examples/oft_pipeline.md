@@ -2125,19 +2125,27 @@ p3b.SummaryCollection.plot_bfa_results(
 
 `right_tail_p` (in `bfa_stats`) assumes a Gaussian surrogate distribution,
 which is not a valid assumption in general, and the empirical p-value
-(`1 - percentile`) is floored at `1 / (numshuffles + 1)` — it cannot resolve
+(`1 - percentile`) is floored at `1 / (numshuffles + 1)`, so it cannot resolve
 anything more extreme than that no matter how extreme the observation
 actually is. `gpd_augmented_p()` reports the same empirical p-value when it
-is *not* at that floor, and only when it saturates does it attempt a
-Peaks-Over-Threshold GPD tail fit (with automated threshold selection and a
+is *not* at the empirical floor, and only when it saturates to the empirical floor does it attempt
+a Peaks-Over-Threshold GPD tail fit (with automated threshold selection and a
 goodness-of-fit gate) to resolve below the floor; if no fit passes its
 checks it falls back to the empirical floor rather than guessing. The table
 below reports all three side by side, per comparison.
 
+Where the GPD fit fires, its p-value is a point estimate from a threshold
+fit on a few dozen to a few hundred samples, which is worth bounding with a
+nonparametric bootstrap CI rather than trusting the point value alone.
+`gpd_augmented_p_ci` resamples the *existing* surrogate sample (never
+regenerates shuffles) and reruns the full threshold-selection + GPD-fit
+pipeline per resample; its return is a superset of `gpd_augmented_p`'s, so
+it can be used everywhere `gpd_stats` is needed below.
+
 <div class="nb-cell-input" markdown>
 
 ```python
-gpd_stats = p3b.SummaryCollection.gpd_augmented_p(bfa_results)
+gpd_stats = p3b.SummaryCollection.gpd_augmented_p_ci(bfa_results, n_bootstrap=200, random_state=42)
 
 bfa_report = pd.DataFrame(
     {
@@ -2145,6 +2153,8 @@ bfa_report = pd.DataFrame(
             "p_empirical": 1 - bfa_stats[pair]["percentile"],
             "right_tail_p": bfa_stats[pair]["right_tail_p"],
             "gpd_augmented_p": gpd_stats[pair]["p"],
+            "ci_low": gpd_stats[pair]["ci"][0] if gpd_stats[pair]["ci"] else np.nan,
+            "ci_high": gpd_stats[pair]["ci"][1] if gpd_stats[pair]["ci"] else np.nan,
             "method": gpd_stats[pair]["method"],
             "gpd_fallback": gpd_stats[pair].get("fallback"),
         }
@@ -2164,14 +2174,23 @@ with open(f"{OUT_DIR}/bfa_gpd_stats.json", "w") as f:
 </div>
 
 <div class="nb-cell-output">
-<pre><code>                                            p_empirical right_tail_p gpd_augmented_p     method gpd_fallback
-comparison                                                                                                  
-(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;pre&#x27;)    6.793e-02    5.915e-02       6.793e-02  empirical        False
-(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)   8.192e-02    7.269e-02       8.192e-02  empirical        False
-(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)     5.694e-02    4.127e-02       5.694e-02  empirical        False
-(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)   9.990e-04    3.355e-07       7.299e-05        gpd        False
-(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)     8.242e-01    8.241e-01       8.242e-01  empirical        False
-(&#x27;stressor&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)    9.990e-04    1.081e-10       1.935e-10        gpd        False</code></pre>
+<pre><code>                                            p_empirical right_tail_p gpd_augmented_p    ci_low   ci_high     method  \
+comparison                                                                                                            
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;pre&#x27;)    6.793e-02    5.915e-02       6.793e-02       NaN       NaN  empirical   
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)   8.192e-02    7.269e-02       8.192e-02       NaN       NaN  empirical   
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)     5.694e-02    4.127e-02       5.694e-02       NaN       NaN  empirical   
+(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)   9.990e-04    3.355e-07       7.299e-05 1.490e-08 7.551e-04        gpd   
+(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)     8.242e-01    8.241e-01       8.242e-01       NaN       NaN  empirical   
+(&#x27;stressor&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)    9.990e-04    1.081e-10       1.935e-10 2.013e-19 9.990e-04        gpd   
+
+                                            gpd_fallback  
+comparison                                                
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;pre&#x27;)         False  
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)        False  
+(&#x27;control&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)          False  
+(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;stressor&#x27;, &#x27;post&#x27;)        False  
+(&#x27;stressor&#x27;, &#x27;pre&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)          False  
+(&#x27;stressor&#x27;, &#x27;post&#x27;)_vs_(&#x27;control&#x27;, &#x27;pre&#x27;)         False  </code></pre>
 </div>
 
 ### Tail-fit diagnostics
@@ -2200,37 +2219,37 @@ p3b.SummaryCollection.plot_bfa_tail_diagnostics(
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_96_0.png)
+![output](oft_pipeline_files/output_97_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_96_1.png)
+![output](oft_pipeline_files/output_97_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_96_2.png)
+![output](oft_pipeline_files/output_97_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_96_3.png)
+![output](oft_pipeline_files/output_97_3.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_96_4.png)
+![output](oft_pipeline_files/output_97_4.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_96_5.png)
+![output](oft_pipeline_files/output_97_5.png)
 
 </div>
 
@@ -2275,25 +2294,25 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_98_0.png)
+![output](oft_pipeline_files/output_99_0.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_98_1.png)
+![output](oft_pipeline_files/output_99_1.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_98_2.png)
+![output](oft_pipeline_files/output_99_2.png)
 
 </div>
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_98_3.png)
+![output](oft_pipeline_files/output_99_3.png)
 
 </div>
 
@@ -2321,7 +2340,7 @@ if not SKIP_HEAVY_VIZ:
 
 <div class="nb-cell-output nb-output-figure" markdown>
 
-![output](oft_pipeline_files/output_100_0.png)
+![output](oft_pipeline_files/output_101_0.png)
 
 </div>
 

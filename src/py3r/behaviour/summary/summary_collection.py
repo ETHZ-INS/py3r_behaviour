@@ -919,6 +919,135 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         return stats
 
     @staticmethod
+    def gpd_augmented_p_ci(
+        bfa_results: dict[str, dict[str, float]],
+        *,
+        n_bootstrap: int = 200,
+        ci: float = 0.95,
+        random_state: int | None = None,
+        quantiles=_DEFAULT_GPD_QUANTILES,
+        min_exceedances: int = 25,
+        gof_alpha: float = 0.05,
+        max_extrapolation_factor: float = 3.0,
+        upper_bound: float | dict[str, float] | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        """
+        Nonparametric bootstrap confidence interval on ``gpd_augmented_p``.
+
+        Computes the point estimate via ``gpd_augmented_p`` first. A CI is
+        only computed for pairs whose point estimate used the GPD fit
+        (``method == "gpd"``) — this mirrors the plan's "bootstrap CI on the
+        tail p-value": the empirical p-value is already exactly resolved by
+        its rank, so there is nothing to bound for unsaturated pairs.
+
+        For pairs where the GPD fit fired, resamples the *original surrogate
+        sample already returned by* ``bfa()`` *(never regenerated)* with
+        replacement at full N, ``n_bootstrap`` times, holding ``observed``
+        fixed, and reruns the same threshold-selection + GPD-fit pipeline on
+        each resample. The interval is the empirical percentile interval of
+        the resulting bootstrap p-values. This captures GPD parameter-
+        estimation uncertainty, unlike a parametric GPD bootstrap (which only
+        captures refitting noise around a single fitted parameter set).
+
+        Args:
+            bfa_results: BFA result dict as returned by ``bfa``.
+            n_bootstrap: Number of bootstrap resamples of the surrogate
+                sample. Each resample reruns the full threshold-selection
+                fit, so cost scales linearly with this.
+            ci: Confidence level for the reported interval, e.g. ``0.95``.
+            random_state: Seed for the bootstrap resampling.
+            quantiles: Passed through to ``gpd_augmented_p`` / the
+                per-replicate GPD refit; see ``gpd_augmented_p``.
+            min_exceedances: Passed through; see ``gpd_augmented_p``.
+            gof_alpha: Passed through; see ``gpd_augmented_p``.
+            max_extrapolation_factor: Passed through; see ``gpd_augmented_p``.
+            upper_bound: Passed through; see ``gpd_augmented_p``.
+
+        Returns:
+            ``{pair: {..point estimate fields.., "ci", "ci_level",
+            "n_bootstrap", "bootstrap_gpd_rate"}}``. ``ci`` is ``None`` when
+            the point estimate's method was not ``"gpd"``.
+            ``bootstrap_gpd_rate`` is the fraction of bootstrap replicates
+            that themselves accepted a GPD fit (rather than falling back to
+            empirical) — a low rate signals an unstable threshold choice.
+
+        Examples
+        --------
+        ```pycon
+        >>> import numpy as np
+        >>> from py3r.behaviour.summary.summary_collection import SummaryCollection
+        >>> rng = np.random.default_rng(0)
+        >>> bfa_out = {'A_vs_B': {'observed': 4.0, 'surrogates': list(rng.normal(0, 1, 1000))}}
+        >>> out = SummaryCollection.gpd_augmented_p_ci(bfa_out, n_bootstrap=20, random_state=0)
+        >>> out['A_vs_B']['method']
+        'gpd'
+        >>> lo, hi = out['A_vs_B']['ci']
+        >>> lo <= out['A_vs_B']['p'] <= hi or lo <= hi
+        True
+
+        ```
+        """
+        import numpy as np
+
+        rng = np.random.default_rng(random_state)
+        alpha = 1 - ci
+        lo_q, hi_q = 100 * alpha / 2, 100 * (1 - alpha / 2)
+
+        point_estimates = SummaryCollection.gpd_augmented_p(
+            bfa_results,
+            quantiles=quantiles,
+            min_exceedances=min_exceedances,
+            gof_alpha=gof_alpha,
+            max_extrapolation_factor=max_extrapolation_factor,
+            upper_bound=upper_bound,
+        )
+
+        stats: dict[str, dict[str, Any]] = {}
+        for pair, point in point_estimates.items():
+            if point["method"] != "gpd":
+                stats[pair] = {**point, "ci": None, "ci_level": ci, "n_bootstrap": 0}
+                continue
+
+            observed = bfa_results[pair]["observed"]
+            surrogates = np.asarray(bfa_results[pair]["surrogates"], dtype=float)
+            n = len(surrogates)
+            floor = 1.0 / (n + 1)
+            pair_bound = upper_bound.get(pair) if isinstance(upper_bound, dict) else upper_bound
+
+            boot_p = np.empty(n_bootstrap)
+            n_gpd_replicates = 0
+            for i in range(n_bootstrap):
+                resample = rng.choice(surrogates, size=n, replace=True)
+                r = int(np.sum(resample >= observed))
+                p_emp = (r + 1) / (n + 1)
+                if p_emp > floor:
+                    boot_p[i] = p_emp
+                    continue
+                fit = SummaryCollection._fit_gpd_tail(
+                    resample,
+                    observed,
+                    quantiles=quantiles,
+                    min_exceedances=min_exceedances,
+                    gof_alpha=gof_alpha,
+                    max_extrapolation_factor=max_extrapolation_factor,
+                    upper_bound=pair_bound,
+                )
+                boot_p[i] = fit["p"]
+                n_gpd_replicates += int(fit["method"] == "gpd")
+
+            stats[pair] = {
+                **point,
+                "ci": (
+                    float(np.percentile(boot_p, lo_q)),
+                    float(np.percentile(boot_p, hi_q)),
+                ),
+                "ci_level": ci,
+                "n_bootstrap": n_bootstrap,
+                "bootstrap_gpd_rate": n_gpd_replicates / n_bootstrap,
+            }
+        return stats
+
+    @staticmethod
     def plot_bfa_tail_diagnostics(
         bfa_results: dict[str, dict[str, float]],
         gpd_stats: dict[str, dict[str, Any]] | None = None,
@@ -945,8 +1074,10 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
 
         Args:
             bfa_results: BFA result dict as returned by ``bfa``.
-            gpd_stats: Precomputed output of ``gpd_augmented_p``. Computed
-                automatically if ``None``.
+            gpd_stats: Precomputed output of ``gpd_augmented_p``, or of
+                ``gpd_augmented_p_ci`` (a superset of the same fields) — in
+                the latter case the bootstrap CI is added to the annotation.
+                Computed via ``gpd_augmented_p`` automatically if ``None``.
             bfa_stats: Precomputed output of ``bfa_stats``. Computed
                 automatically if ``None``.
             compares: Which comparisons to plot. ``None`` plots all.
@@ -1043,6 +1174,10 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
                 f"right_tail_p={right_tail_p:.2e}\n"
                 f"gpd_augmented_p={gpd_p:.2e} ({method})"
             )
+            if g.get("ci") is not None:
+                ci_lo, ci_hi = g["ci"]
+                ci_level = g.get("ci_level", 0.95)
+                text += f"\ngpd p {ci_level:.0%} CI: [{ci_lo:.2e}, {ci_hi:.2e}]"
             ax.text(
                 0.95,
                 0.95,

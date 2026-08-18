@@ -1087,17 +1087,26 @@ p3b.SummaryCollection.plot_bfa_results(
 #
 # `right_tail_p` (in `bfa_stats`) assumes a Gaussian surrogate distribution,
 # which is not a valid assumption in general, and the empirical p-value
-# (`1 - percentile`) is floored at `1 / (numshuffles + 1)` — it cannot resolve
+# (`1 - percentile`) is floored at `1 / (numshuffles + 1)`, so it cannot resolve
 # anything more extreme than that no matter how extreme the observation
 # actually is. `gpd_augmented_p()` reports the same empirical p-value when it
-# is *not* at that floor, and only when it saturates does it attempt a
-# Peaks-Over-Threshold GPD tail fit (with automated threshold selection and a
+# is *not* at the empirical floor, and only when it saturates to the empirical floor does it attempt
+# a Peaks-Over-Threshold GPD tail fit (with automated threshold selection and a
 # goodness-of-fit gate) to resolve below the floor; if no fit passes its
 # checks it falls back to the empirical floor rather than guessing. The table
 # below reports all three side by side, per comparison.
 
+# %% [markdown]
+# Where the GPD fit fires, its p-value is a point estimate from a threshold
+# fit on a few dozen to a few hundred samples, which is worth bounding with a
+# nonparametric bootstrap CI rather than trusting the point value alone.
+# `gpd_augmented_p_ci` resamples the *existing* surrogate sample (never
+# regenerates shuffles) and reruns the full threshold-selection + GPD-fit
+# pipeline per resample; its return is a superset of `gpd_augmented_p`'s, so
+# it can be used everywhere `gpd_stats` is needed below.
+
 # %%
-gpd_stats = p3b.SummaryCollection.gpd_augmented_p(bfa_results)
+gpd_stats = p3b.SummaryCollection.gpd_augmented_p_ci(bfa_results, n_bootstrap=200, random_state=42)
 
 bfa_report = pd.DataFrame(
     {
@@ -1105,6 +1114,8 @@ bfa_report = pd.DataFrame(
             "p_empirical": 1 - bfa_stats[pair]["percentile"],
             "right_tail_p": bfa_stats[pair]["right_tail_p"],
             "gpd_augmented_p": gpd_stats[pair]["p"],
+            "ci_low": gpd_stats[pair]["ci"][0] if gpd_stats[pair]["ci"] else np.nan,
+            "ci_high": gpd_stats[pair]["ci"][1] if gpd_stats[pair]["ci"] else np.nan,
             "method": gpd_stats[pair]["method"],
             "gpd_fallback": gpd_stats[pair].get("fallback"),
         }
@@ -1190,6 +1201,9 @@ assert Path(f"{OUT_DIR}/bfa_stats.json").exists()
 assert isinstance(gpd_stats, dict), "GPD stats should be a dict"
 assert set(gpd_stats.keys()) == set(bfa_results.keys())
 assert all(s["method"] in ("empirical", "gpd") for s in gpd_stats.values())
+assert all((s["ci"] is None) == (s["method"] != "gpd") for s in gpd_stats.values()), (
+    "CI should be present iff method is gpd"
+)
 assert Path(f"{OUT_DIR}/bfa_gpd_report.csv").exists()
 assert Path(f"{OUT_DIR}/bfa_gpd_stats.json").exists()
 assert len(list(OUT_DIR.glob("*_tail_diagnostics.png"))) >= 1
