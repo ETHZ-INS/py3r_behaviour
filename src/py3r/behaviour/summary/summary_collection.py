@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 import warnings
+from collections.abc import Sequence
 from itertools import combinations
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -727,7 +728,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         surrogates,
         observed: float,
         *,
-        quantiles,
+        quantiles: Sequence[float],
         min_exceedances: int,
         gof_alpha: float,
         max_extrapolation_factor: float,
@@ -813,7 +814,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
     def gpd_augmented_p(
         bfa_results: dict[str, dict[str, float]],
         *,
-        quantiles=_DEFAULT_GPD_QUANTILES,
+        quantiles: Sequence[float] = _DEFAULT_GPD_QUANTILES,
         min_exceedances: int = 25,
         gof_alpha: float = 0.05,
         max_extrapolation_factor: float = 3.0,
@@ -925,7 +926,7 @@ class SummaryCollection(BaseCollection, SummaryCollectionPlotMixin):
         n_bootstrap: int = 200,
         ci: float = 0.95,
         random_state: int | None = None,
-        quantiles=_DEFAULT_GPD_QUANTILES,
+        quantiles: Sequence[float] = _DEFAULT_GPD_QUANTILES,
         min_exceedances: int = 25,
         gof_alpha: float = 0.05,
         max_extrapolation_factor: float = 3.0,
