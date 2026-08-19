@@ -1089,12 +1089,16 @@ p3b.SummaryCollection.plot_bfa_results(
 # which is not a valid assumption in general, and the empirical p-value
 # (`1 - percentile`) is floored at `1 / (numshuffles + 1)`, so it cannot resolve
 # anything more extreme than that no matter how extreme the observation
-# actually is. `gpd_augmented_p()` reports the same empirical p-value when it
-# is *not* at the empirical floor, and only when it saturates to the empirical floor does it attempt
-# a Peaks-Over-Threshold GPD tail fit (with automated threshold selection and a
-# goodness-of-fit gate) to resolve below the floor; if no fit passes its
-# checks it falls back to the empirical floor rather than guessing. The table
-# below reports all three side by side, per comparison.
+# actually is — and even short of that floor, a rank of 1-9 out of hundreds
+# or thousands of surrogates is itself high-variance. `gpd_augmented_p()`
+# reports the empirical p-value as-is once a comfortable number of
+# surrogates (`min_tail_count`, default 10) are still at least as extreme as
+# the observation; below that count it attempts a Peaks-Over-Threshold GPD
+# tail fit instead (with automated threshold selection and a goodness-of-fit
+# gate) for a smoother, less rank-noisy estimate — including, at the extreme
+# end, resolving below what the empirical floor can represent at all. If no
+# fit passes its checks it falls back to the empirical value rather than
+# guessing. The table below reports all three side by side, per comparison.
 
 # %% [markdown]
 # Where the GPD fit fires, its p-value is a point estimate from a threshold
@@ -1136,9 +1140,9 @@ with open(f"{OUT_DIR}/bfa_gpd_stats.json", "w") as f:
 #
 # `plot_bfa_tail_diagnostics` draws the same surrogate histograms as above,
 # overlaid with the Normal curve `right_tail_p` implicitly assumes and — for
-# any comparison where the empirical p-value saturated and a GPD fit was
-# accepted — the fitted GPD tail curve, so a saturated or mis-fit tail is
-# visible rather than only reported as a number.
+# any comparison where the GPD fit fired and was accepted — the fitted GPD
+# tail curve, so a thin-tailed or mis-fit tail is visible rather than only
+# reported as a number.
 
 # %%
 p3b.SummaryCollection.plot_bfa_tail_diagnostics(
